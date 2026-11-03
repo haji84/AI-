@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { ModelBackedPlanner, type ModelPlan, type PlanningModel } from "../src/orchestrator/model-planner.ts";
 import { createTaskCompletionAuthorization, requestsTaskCompletion } from "../src/orchestrator/task-authorization.ts";
+import { canEnableSafePrAutoMerge } from "../src/orchestrator/safe-pr-capability.ts";
 
 const goal = {
   title: "Complete the requested app change",
@@ -46,4 +47,11 @@ test("ModelBackedPlanner carries task authorization into bounded PR action input
   };
   assert.equal(input.taskAuthorization?.scopeId, "issue:246");
   assert.equal(input.taskScopeId, "issue:246");
+});
+
+test("safe PR creation cannot infer review completion or auto-merge authority", () => {
+  assert.equal(canEnableSafePrAutoMerge(undefined), false);
+  assert.equal(canEnableSafePrAutoMerge({ action: "OPEN_PR", reasons: [] }), false);
+  assert.equal(canEnableSafePrAutoMerge({ action: "ENABLE_AUTO_MERGE", reasons: [] }), true);
+  assert.equal(canEnableSafePrAutoMerge({ action: "HUMAN_GATE", reasons: ["protected"] }), false);
 });

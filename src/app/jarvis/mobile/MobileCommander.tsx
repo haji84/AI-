@@ -1,16 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  emptySharedCommandContext,
-  loadSharedCommandContext,
-  recordSharedCommand,
-  saveSharedTargetNode,
-  selectSharedHistoryEntry,
-  type SharedCommandContext,
-} from "./command-context";
-import { getSafeContextCandidates, resolveSafeContextReference } from "./context-reference";
-import { parseSafeMobileCommand } from "./voice-command";
 
 type NodeItem = {
   id: string;
@@ -65,11 +55,9 @@ export default function MobileCommander() {
   const [url, setUrl] = useState("");
   const [packageName, setPackageName] = useState("");
   const [notification, setNotification] = useState("");
-  const [command, setCommand] = useState("");
   const [sequenceJson, setSequenceJson] = useState('[{"action":"wait","ms":500}]');
   const [standalone, setStandalone] = useState(false);
   const [isIos, setIsIos] = useState(false);
-  const [sharedContext, setSharedContext] = useState<SharedCommandContext>(() => emptySharedCommandContext());
 
   const refresh = useCallback(async () => {
     try {
@@ -78,10 +66,8 @@ export default function MobileCommander() {
       if (!response.ok) throw new Error(body.message || `HTTP ${response.status}`);
       setState(body);
       setError("");
-      const rememberedTarget = loadSharedCommandContext().targetNodeId;
       setSelectedNodeId((current) => {
         if (current && body.fleet.some((node) => node.id === current)) return current;
-        if (rememberedTarget && body.fleet.some((node) => node.id === rememberedTarget)) return rememberedTarget;
         return body.fleet.find((node) => node.status === "ready")?.id ?? body.fleet[0]?.id ?? "";
       });
     } catch (cause) {
@@ -93,32 +79,17 @@ export default function MobileCommander() {
     const nav = navigator as Navigator & { standalone?: boolean };
     setStandalone(window.matchMedia("(display-mode: standalone)").matches || nav.standalone === true);
     setIsIos(/iPad|iPhone|iPod/.test(navigator.userAgent));
-    setSharedContext(loadSharedCommandContext());
     void refresh();
     const timer = window.setInterval(() => void refresh(), 3000);
     return () => window.clearInterval(timer);
   }, [refresh]);
 
-  useEffect(() => {
-    if (selectedNodeId && sharedContext.targetNodeId !== selectedNodeId) {
-      setSharedContext(saveSharedTargetNode(selectedNodeId));
-    }
-  }, [selectedNodeId, sharedContext.targetNodeId]);
 
   const selectedNode = useMemo(() => state?.fleet.find((node) => node.id === selectedNodeId), [state, selectedNodeId]);
   const recentTasks = useMemo(() => state?.tasks.slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 6) ?? [], [state]);
-  const recentCommands = useMemo(() => sharedContext.history.slice(-4).reverse(), [sharedContext]);
-  const contextCandidates = useMemo(() => getSafeContextCandidates(sharedContext), [sharedContext]);
 
   function selectNode(value: string) {
     setSelectedNodeId(value);
-    setSharedContext(saveSharedTargetNode(value));
-  }
-
-  function selectHistoryReference(id: string) {
-    setSharedContext(selectSharedHistoryEntry(id));
-    setError("");
-    setMessage("参照する履歴を選択しました。まだ端末操作は送信していません。");
   }
 
   async function sendTask(type: DeviceTaskType, payload: Record<string, unknown> = {}) {
@@ -148,40 +119,6 @@ export default function MobileCommander() {
     }
   }
 
-  async function runSimpleCommand() {
-    const text = command.trim();
-    if (!text) return;
-    const currentContext = { ...loadSharedCommandContext(), targetNodeId: selectedNodeId || undefined };
-    const reference = resolveSafeContextReference(text, currentContext);
-    if (reference.kind === "rejected") {
-      setError(reference.message);
-      setSharedContext(recordSharedCommand({ source: "text", command: text, outcome: "unsupported", targetNodeId: selectedNodeId || undefined }));
-      return;
-    }
-    const effectiveText = reference.kind === "resolved" ? reference.command : text;
-    const parsed = parseSafeMobileCommand(effectiveText);
-    if (!parsed.ok) {
-      setError(parsed.message);
-      setSharedContext(recordSharedCommand({
-        source: "text",
-        command: text,
-        detail: reference.kind === "resolved" ? `参照元: ${effectiveText}` : undefined,
-        outcome: parsed.reason === "protected" ? "blocked" : "unsupported",
-        targetNodeId: selectedNodeId || undefined,
-      }));
-      return;
-    }
-    const ok = await sendTask(parsed.task.type, parsed.task.payload);
-    setSharedContext(recordSharedCommand({
-      source: "text",
-      command: text,
-      detail: reference.kind === "resolved" ? `参照元: ${effectiveText}` : undefined,
-      outcome: ok ? "sent" : "failed",
-      targetNodeId: selectedNodeId || undefined,
-    }));
-    if (ok) setCommand("");
-  }
-
   async function runSequence() {
     try {
       const parsed = JSON.parse(sequenceJson) as unknown;
@@ -198,16 +135,16 @@ export default function MobileCommander() {
     <main className="commander-shell">
       <header className="commander-header">
         <div>
-          <div className="commander-kicker">JARVIS COMMANDER</div>
-          <h1>司令塔</h1>
+          <div className="commander-kicker">GORIQ DEVICE TOOLS</div>
+          <h1>端末の詳細操作</h1>
         </div>
-        <a className="commander-link" href="/jarvis">管理画面</a>
+        <a className="commander-link" href="/jarvis">GORIQホームへ戻る</a>
       </header>
 
       {isIos && !standalone && (
         <section className="commander-install">
-          <strong>iPhoneにJARVISを入れる</strong>
-          <span>Safariの共有ボタン →「ホーム画面に追加」→「追加」。以後はホーム画面のJARVISから起動できます。</span>
+          <strong>GORIQをホーム画面に追加</strong>
+          <span>Safariの共有ボタン →「ホーム画面に追加」→「追加」。普段の指示はGORIQホームから入力します。</span>
         </section>
       )}
 
@@ -232,27 +169,9 @@ export default function MobileCommander() {
       </section>
 
       <section className="commander-card">
-        <div className="commander-card-title"><span>JARVISに指示</span></div>
-        <div className="commander-command-row">
-          <input value={command} onChange={(event) => setCommand(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void runSimpleCommand(); }} placeholder="例：スプレッドシート開いて / さっきのやつ / 2番目" />
-          <button disabled={busy || !command.trim()} onClick={() => void runSimpleCommand()}>実行</button>
-        </div>
-        <div className="commander-hint">「さっきのやつ」「2番目」は同じ端末の安全な履歴だけを再解釈します。「これ」は下で参照対象を選択してから実行してください。履歴を選ぶだけでは端末操作しません。</div>
-        <div className="commander-tasks" aria-label="共通コマンド履歴">
-          {recentCommands.map((entry) => {
-            const candidate = contextCandidates.find((item) => item.entry.id === entry.id);
-            const selected = sharedContext.selectedHistoryId === entry.id;
-            return (
-              <div key={entry.id}>
-                <span>{candidate ? `${candidate.index}番目 · ` : ""}{entry.source === "voice" ? "音声" : "文字"}: {entry.command}</span>
-                <strong>{entry.outcome}</strong>
-                <small>{relativeTime(entry.createdAt)}</small>
-                {candidate && <button type="button" disabled={busy || selected} onClick={() => selectHistoryReference(entry.id)}>{selected ? "これに選択中" : "これを選択"}</button>}
-              </div>
-            );
-          })}
-          {!recentCommands.length && <div className="commander-empty">共通コマンド履歴はまだありません</div>}
-        </div>
+        <div className="commander-card-title"><span>普段の指示はGORIQホームから</span></div>
+        <p>調査、開発、GitHub作業、端末操作を含む一般的な依頼は、GORIQホームの1つの入力欄から送ります。この画面は端末を直接指定する必要がある詳細操作だけに使います。</p>
+        <a className="commander-primary" href="/jarvis">GORIQに指示する</a>
       </section>
 
       <section className="commander-card">
@@ -285,7 +204,7 @@ export default function MobileCommander() {
           </div>
           <div className="commander-command-row compact">
             <input value={notification} onChange={(event) => setNotification(event.target.value)} placeholder="端末へ通知" />
-            <button disabled={busy || !notification.trim()} onClick={() => void sendTask("show-notification", { title: "JARVIS", message: notification.trim() })}>通知</button>
+            <button disabled={busy || !notification.trim()} onClick={() => void sendTask("show-notification", { title: "GORIQ", message: notification.trim() })}>通知</button>
           </div>
         </div>
       </section>
@@ -316,7 +235,7 @@ export default function MobileCommander() {
         </div>
       </section>
 
-      <footer className="commander-footer">JARVIS Commander · iPhone司令塔</footer>
+      <footer className="commander-footer">GORIQ · 端末詳細ツール</footer>
     </main>
   );
 }

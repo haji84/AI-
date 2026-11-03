@@ -5,7 +5,9 @@ WORKER_ID="${GAI_WORKER_ID:-macbook}"
 PORT="${RESEARCH_WORKER_PORT:-8795}"
 MODEL_ENDPOINT="${GAI_LOCAL_MODEL_ENDPOINT:-http://127.0.0.1:11434}"
 MODEL_NAME="${GAI_LOCAL_MODEL_NAME:-qwen2.5:1.5b}"
-ROOT="$HOME/Library/Application Support/GAIWorker/research-worker"
+GAI_ROOT="$HOME/Library/Application Support/GAIWorker"
+ROOT="$GAI_ROOT/research-worker"
+SOURCE_REPO="$(cd "$(dirname "$0")/.." && pwd)"
 PLIST="$HOME/Library/LaunchAgents/com.gai.research-worker.plist"
 SERVICE_SOURCE="$(cd "$(dirname "$0")" && pwd)/research-worker-service.ts"
 SERVICE_PATH="$ROOT/research-worker-service.ts"
@@ -17,6 +19,17 @@ LABEL="com.gai.research-worker"
 
 mkdir -p "$ROOT" "$HOME/Library/LaunchAgents"
 cp "$SERVICE_SOURCE" "$SERVICE_PATH"
+RESOURCE_RUNTIME_FILES=(
+  'src/gai/development-resource-admission.ts'
+  'src/gai/worker-resource-probe.ts'
+  'src/gai/worker-runtime.ts'
+  'src/gai/cognitive-lease.ts'
+)
+for runtime_file in "${RESOURCE_RUNTIME_FILES[@]}"; do
+  runtime_target="$GAI_ROOT/$runtime_file"
+  mkdir -p "$(dirname "$runtime_target")"
+  cp "$SOURCE_REPO/$runtime_file" "$runtime_target"
+done
 NODE_BIN="$(command -v node)"
 if [[ ! -s "$TOKEN_PATH" ]]; then
   (openssl rand -base64 32 2>/dev/null || { uuidgen; uuidgen; }) | tr -d '\n' > "$TOKEN_PATH"

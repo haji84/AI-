@@ -147,3 +147,58 @@ test("physical iPhone bootstrap is bounded, device-bound, single-use, and reconn
   });
   assert.equal(expired.response.status, 401);
 });
+
+test("live acceptance bridge rejects any client outside the expected build binding", async (t) => {
+  const workdir = await mkdtemp(join(tmpdir(), "jarvis-iphone-bridge-bound-"));
+  const port = 19787 + Math.floor(Math.random() * 1000);
+  const base = `http://127.0.0.1:${port}/`;
+  const expectedDevice = "goriq-681-device-current";
+  const expectedChallenge = "challenge-current-build-123456";
+  const child = spawn(process.execPath, [script], {
+    cwd: workdir,
+    env: {
+      ...process.env,
+      IPHONE_BRIDGE_HOST: "127.0.0.1",
+      IPHONE_BRIDGE_PORT: String(port),
+      IPHONE_ADMIN_TOKEN: "test-admin-token",
+      IPHONE_BRIDGE_MASTER_KEY: "test-master-key-which-is-not-production",
+      IPHONE_EXPECTED_DEVICE_ID: expectedDevice,
+      IPHONE_EXPECTED_BUILD_CHALLENGE: expectedChallenge,
+      IPHONE_EXPECTED_BUNDLE_ID: "com.haji84.jarvis.iosworker.acceptance",
+      IPHONE_PAIRING_WINDOW_MS: "5000",
+    },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  t.after(async () => {
+    child.kill("SIGTERM");
+    if (child.exitCode === null) await once(child, "exit");
+    await rm(workdir, { recursive: true, force: true });
+  });
+  await waitForBridge(base);
+
+  const wrongDevice = await jsonRequest(`${base}bootstrap`, {
+    method: "POST",
+    body: { deviceId: "simulated-old-client", clientNonce: "client-nonce-0000000000000001" },
+  });
+  assert.equal(wrongDevice.response.status, 403);
+
+  const bootstrap = await jsonRequest(`${base}bootstrap`, {
+    method: "POST",
+    body: { deviceId: expectedDevice, clientNonce: "client-nonce-0000000000000002", buildChallenge: expectedChallenge, bundleIdentifier: "com.haji84.jarvis.iosworker.acceptance" },
+  });
+  assert.equal(bootstrap.response.status, 200);
+  const wrongBuild = await jsonRequest(`${base}enroll`, {
+    method: "POST",
+    authorization: `Bootstrap ${bootstrap.data.bootstrapToken}`,
+    body: {
+      deviceId: expectedDevice,
+      platform: "ios",
+      workerProtocolVersion: 1,
+      capabilities: ["ios-tooling"],
+      physicalDevice: true,
+      buildChallenge: "challenge-from-old-build",
+      bundleIdentifier: "com.haji84.jarvis.iosworker.acceptance",
+    },
+  });
+  assert.equal(wrongBuild.response.status, 403);
+});

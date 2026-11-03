@@ -213,3 +213,272 @@ test("sync repository survives JSON store restart", async () => {
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test("sync engine delegates concurrent development Change Sets to a verified resolver", async () => {
+  const local = new SyncRepository(new MemorySyncStore());
+  const remote = new SyncRepository(new MemorySyncStore());
+  await local.put(record({ recordId: "change-conflict", entityType: "change-set", deviceId: "zbook", clock: { zbook: 1 }, value: { patch: "left" } }));
+  await remote.put(record({ recordId: "change-conflict", entityType: "change-set", deviceId: "macbook", clock: { macbook: 1 }, value: { patch: "right" } }));
+  const engine = new SyncEngine(local, remote, {
+    async resolve(conflict) {
+      assert.equal(conflict.entityType, "change-set");
+      return {
+        ...conflict.local,
+        deviceId: "goriq-integrator",
+        value: { patch: "verified-merge", provenance: ["left", "right"] },
+        verification: { status: "pass", verifierId: "independent" },
+      };
+    },
+  });
+  const report = await engine.synchronize();
+  assert.deepEqual(report.conflicts, []);
+  assert.deepEqual(report.converged, ["change-conflict"]);
+  assert.deepEqual((await local.get("change-conflict"))?.value, { patch: "verified-merge", provenance: ["left", "right"] });
+});
+
+test("goal authority conflicts are never delegated to automatic code integration", async () => {
+  const local = new SyncRepository(new MemorySyncStore());
+  const remote = new SyncRepository(new MemorySyncStore());
+  await local.put(record({ recordId: "goal-authority", entityType: "goal", deviceId: "zbook", clock: { zbook: 1 }, value: { goal: "A" } }));
+  await remote.put(record({ recordId: "goal-authority", entityType: "goal", deviceId: "macbook", clock: { macbook: 1 }, value: { goal: "B" } }));
+  let called = false;
+  const report = await new SyncEngine(local, remote, { async resolve() { called = true; return null; } }).synchronize();
+  assert.equal(called, false);
+  assert.equal(report.conflicts.length, 1);
+});
+
+
+test("higher coordinator epoch fences concurrent stale replica", () => {
+  const local = record({
+    recordId: "coordinator:goriq",
+    entityType: "coordinator",
+    deviceId: "macbook",
+    clock: { macbook: 4 },
+    value: {
+      clusterId: "goriq",
+      coordinatorId: "macbook",
+      epoch: 1,
+      fencingToken: "mac-epoch-1",
+      leaseUntil: "2026-09-29T00:01:00.000Z",
+    },
+  });
+  const remote = record({
+    recordId: "coordinator:goriq",
+    entityType: "coordinator",
+    deviceId: "zbook",
+    clock: { zbook: 1 },
+    value: {
+      clusterId: "goriq",
+      coordinatorId: "zbook",
+      epoch: 2,
+      fencingToken: "zbook-epoch-2",
+      leaseUntil: "2026-09-29T00:02:00.000Z",
+    },
+  });
+  const decision = resolveSyncRecords(local, remote);
+  assert.equal(decision.kind, "remote");
+  assert.match(decision.reason, /higher coordinator execution epoch/);
+});
+
+test("same coordinator epoch with different owners fails visible as split brain", () => {
+  const local = record({
+    recordId: "coordinator:goriq",
+    entityType: "coordinator",
+    deviceId: "macbook",
+    clock: { macbook: 1 },
+    value: {
+      clusterId: "goriq",
+      coordinatorId: "macbook",
+      epoch: 3,
+      fencingToken: "mac-epoch-3",
+      leaseUntil: "2026-09-29T00:03:00.000Z",
+    },
+  });
+  const remote = record({
+    recordId: "coordinator:goriq",
+    entityType: "coordinator",
+    deviceId: "zbook",
+    clock: { zbook: 1 },
+    value: {
+      clusterId: "goriq",
+      coordinatorId: "zbook",
+      epoch: 3,
+      fencingToken: "zbook-epoch-3",
+      leaseUntil: "2026-09-29T00:03:00.000Z",
+    },
+  });
+  const decision = resolveSyncRecords(local, remote);
+  assert.equal(decision.kind, "conflict");
+  assert.match(decision.reason, /conflicting owner or fencing token/);
+});
+
+test("same coordinator claim converges on later lease renewal", () => {
+  const local = record({
+    recordId: "coordinator:goriq",
+    entityType: "coordinator",
+    deviceId: "macbook",
+    version: 2,
+    clock: { macbook: 2 },
+    value: {
+      clusterId: "goriq",
+      coordinatorId: "macbook",
+      epoch: 4,
+      fencingToken: "shared-fence",
+      leaseUntil: "2026-09-29T00:04:00.000Z",
+    },
+  });
+  const remote = record({
+    recordId: "coordinator:goriq",
+    entityType: "coordinator",
+    deviceId: "zbook",
+    version: 2,
+    clock: { zbook: 2 },
+    value: {
+      clusterId: "goriq",
+      coordinatorId: "macbook",
+      epoch: 4,
+      fencingToken: "shared-fence",
+      leaseUntil: "2026-09-29T00:05:00.000Z",
+    },
+  });
+  const decision = resolveSyncRecords(local, remote);
+  assert.equal(decision.kind, "remote");
+  assert.match(decision.reason, /later lease renewal/);
+});
+
+function durableRecord(deviceId: string, executionEpoch: number, status = "running"): SyncRecord {
+  return record({ recordId: "task:public", entityType: "task", deviceId, clock: { [deviceId]: 1 },
+    value: { id: "public", idempotencyKey: "goal1219-public", executionEpoch, status,
+      ...(status === "running" ? { leaseOwner: deviceId, fencingToken: deviceId + "-fence-" + executionEpoch,
+        leaseUntil: "2026-10-06T00:00:00Z" } : {}) } });
+}
+
+test("durable task sync fences old verified completion even when its causal clock dominates", () => {
+  const stale = durableRecord("macbook", 1, "completed");
+  stale.verification = { status: "pass", verifierId: "old-verifier" };
+  const current = durableRecord("zbook", 2);
+  const clockPairs: Array<[Record<string, number>, Record<string, number>]> = [
+    [{ macbook: 2 }, { zbook: 1 }],
+    [{ macbook: 9, zbook: 9 }, { zbook: 1 }],
+    [{ macbook: 1 }, { macbook: 2, zbook: 1 }],
+  ];
+  for (const clocks of clockPairs) {
+    stale.clock = clocks[0]; current.clock = clocks[1];
+    const forward = resolveSyncRecords(stale, current);
+    const reverse = resolveSyncRecords(current, stale);
+    assert.equal(forward.kind, "remote");
+    assert.equal(reverse.kind, "local");
+    assert.equal((forward.record?.value as { executionEpoch: number }).executionEpoch, 2);
+  }
+});
+
+test("same durable task epoch with conflicting live owners or tokens fails visible", () => {
+  const left = durableRecord("macbook", 3);
+  const right = durableRecord("zbook", 3);
+  right.clock = { macbook: 2, zbook: 2 };
+  assert.equal(resolveSyncRecords(left, right).kind, "conflict");
+  right.value = { ...(left.value as object), fencingToken: "different-fence" };
+  assert.equal(resolveSyncRecords(left, right).kind, "conflict");
+});
+
+test("durable task sync rejects missing malformed epochs and conflicting task identity", () => {
+  const left = durableRecord("macbook", 2);
+  for (const patch of [{ executionEpoch: undefined }, { executionEpoch: -1 },
+    { executionEpoch: 1.5 }, { executionEpoch: Number.MAX_SAFE_INTEGER + 1 },
+    { id: "another-task" }, { idempotencyKey: "another-goal" }]) {
+    const right = durableRecord("zbook", 3);
+    right.value = { ...(right.value as object), ...patch };
+    assert.equal(resolveSyncRecords(left, right).kind, "conflict");
+  }
+});
+
+test("same durable claim still converges with causal updates", () => {
+  const left = durableRecord("macbook", 2);
+  const right = durableRecord("zbook", 2);
+  right.clock = { macbook: 1, zbook: 2 };
+  right.value = { ...(left.value as object), checkpointRef: "public-checkpoint-v2" };
+  assert.equal(resolveSyncRecords(left, right).kind, "remote");
+});
+
+test("higher durable task epoch converges in both stores without stale terminal revival", async () => {
+  const local = new SyncRepository(new MemorySyncStore());
+  const remote = new SyncRepository(new MemorySyncStore());
+  const stale = durableRecord("macbook", 1, "completed");
+  stale.verification = { status: "pass", verifierId: "old-verifier" };
+  await local.put(stale); await remote.put(durableRecord("zbook", 2));
+  const report = await new SyncEngine(local, remote).synchronize();
+  assert.deepEqual(report.conflicts, []);
+  assert.deepEqual(report.converged, ["task:public"]);
+  for (const store of [local, remote]) {
+    const value = (await store.get("task:public"))?.value as { executionEpoch: number; status: string };
+    assert.equal(value.executionEpoch, 2);
+    assert.equal(value.status, "running");
+  }
+});
+
+test("concurrent same-epoch completion cannot silently replace a live task claim", () => {
+  const live = durableRecord("zbook", 3);
+  const complete = durableRecord("macbook", 3, "completed");
+  complete.verification = { status: "pass", verifierId: "verifier" };
+  assert.equal(resolveSyncRecords(live, complete).kind, "conflict");
+  assert.equal(resolveSyncRecords(complete, live).kind, "conflict");
+});
+
+test("causally newer completion still converges but completed execution cannot be revived at the same epoch", () => {
+  const live = durableRecord("zbook", 3);
+  const complete = durableRecord("macbook", 3, "completed");
+  complete.clock = { zbook: 1, macbook: 2 };
+  complete.verification = { status: "pass", verifierId: "verifier" };
+  assert.equal(resolveSyncRecords(live, complete).kind, "remote");
+  live.clock = { zbook: 3, macbook: 3 };
+  assert.equal(resolveSyncRecords(complete, live).kind, "conflict");
+});
+
+test("same-epoch terminal result disagreement and malformed active claims remain conflicts", () => {
+  const complete = durableRecord("macbook", 3, "completed");
+  complete.value = { ...(complete.value as object), result: { digest: "one" } };
+  for (const patch of [
+    { status: "completed", result: { digest: "two" }, leaseOwner: undefined, leaseUntil: undefined, fencingToken: undefined },
+    { fencingToken: "" }, { leaseOwner: undefined }, { leaseUntil: "invalid" },
+  ]) {
+    const right = durableRecord("zbook", 3);
+    right.clock = { macbook: 2, zbook: 2 };
+    right.value = { ...(right.value as object), ...patch };
+    assert.equal(resolveSyncRecords(complete, right).kind, "conflict");
+  }
+});
+
+test("same-epoch failure and cancellation cannot be revived or overwritten by another terminal outcome", () => {
+  for (const status of ["failed", "cancelled"]) {
+    const terminal = durableRecord("macbook", 3, status);
+    terminal.verification = { status: "pass", verifierId: "verifier" };
+    const running = durableRecord("zbook", 3);
+    running.clock = { macbook: 2, zbook: 2 };
+    assert.equal(resolveSyncRecords(terminal, running).kind, "conflict");
+    assert.equal(resolveSyncRecords(running, terminal).kind, "conflict");
+    const completed = durableRecord("zbook", 3, "completed");
+    completed.clock = { macbook: 2, zbook: 2 };
+    assert.equal(resolveSyncRecords(terminal, completed).kind, "conflict");
+    terminal.clock = { macbook: 4, zbook: 4 };
+    assert.equal(resolveSyncRecords(running, terminal).kind, "remote",
+      "causally subsequent terminal transition must still converge");
+  }
+});
+
+test("epoch-zero completed or publication-ready states and mismatched retry policy fail visible", () => {
+  const queued = durableRecord("macbook", 0, "queued");
+  for (const status of ["completed", "ready-to-publish"]) {
+    const impossible = durableRecord("zbook", 0, status);
+    impossible.clock = { macbook: 2, zbook: 2 };
+    assert.equal(resolveSyncRecords(queued, impossible).kind, "conflict");
+  }
+  const left = durableRecord("macbook", 2), right = durableRecord("zbook", 3);
+  left.value = { ...(left.value as object), maxAttempts: 3 };
+  right.value = { ...(right.value as object), maxAttempts: 8 };
+  assert.equal(resolveSyncRecords(left, right).kind, "conflict");
+  for (const value of [null, [], "malformed"]) {
+    right.value = value;
+    right.clock = { macbook: 2, zbook: 2 };
+    assert.equal(resolveSyncRecords(left, right).kind, "conflict");
+  }
+});

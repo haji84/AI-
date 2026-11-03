@@ -138,6 +138,7 @@ export function validateCognitiveMaterial(content: string, format: Material["for
 
 export class CognitiveLocalOutcomeCatalog {
   readonly contractDigest: string;
+  readonly evaluationGoalDigest: string;
   private readonly root: string;
   private readonly manifest: CognitiveLocalOutcomeManifest;
   private readonly files: LocalFileCapability;
@@ -168,6 +169,7 @@ export class CognitiveLocalOutcomeCatalog {
       materials: manifest.materials.map(({ id, path, sha256, format }) => ({ id, path, sha256, format })),
       outcomes: manifest.outcomes.map(({ id, materialId, path, domain, criteria }) => ({ id, materialId, path, domain, criteria: [...criteria] })) };
     this.contractDigest = cognitiveDigest({ root: this.root, manifest: this.manifest });
+    this.evaluationGoalDigest = cognitiveDigest(goal);
     this.files = new LocalFileCapability(this.root);
   }
   private readId(material: Material) { return "material:" + cognitiveDigest({ root: this.root, goalId: this.manifest.goalId, material }); }
@@ -197,6 +199,32 @@ export class CognitiveLocalOutcomeCatalog {
         const material = this.manifest.materials.find(m => m.id === outcome.materialId)!;
         return completedIds.includes(this.outputId(material, outcome));
       });
+  }
+  /** Scope enumeration only; it does not complete or execute prerequisites. */
+  evaluationDescriptor() {
+    const candidates = this.manifest.materials.map(m => this.candidate(m));
+    for (const outcome of this.manifest.outcomes) candidates.push(this.candidate(this.manifest.materials.find(m => m.id === outcome.materialId)!, outcome));
+    return { materialSha256: [...new Set(this.manifest.materials.map(m => m.sha256))].sort(), candidates };
+  }
+  /** Root/Goal-ID-independent comparison; relative targets and all oracle criteria remain fixed. */
+  async skillEvaluationDescriptor() {
+    const descriptor = this.evaluationDescriptor();
+    const artifacts = Object.fromEntries(await Promise.all(descriptor.candidates.map(async c => {
+      const binding = this.binding(c.action), prepared = await this.prepare(binding.material, binding.outcome);
+      return [c.id, [prepared.source, ...(prepared.artifact ? [prepared.artifact] : [])].map(({ domain, expectedSha256 }) => ({ domain, expectedSha256 }))];
+    })));
+    return { ...descriptor, artifacts, scenarioDigest: cognitiveDigest({ goal: this.evaluationGoalDigest,
+      materials: this.manifest.materials, outcomes: this.manifest.outcomes }) };
+  }
+  /** Only used by host setup; canonical paths never enter model/learning receipts. */
+  async evaluationDataRoot(): Promise<string> { return realpath(this.root); }
+  async assertEvaluationPristine(): Promise<void> {
+    for (const material of this.manifest.materials) await this.prepare(material);
+    for (const outcome of this.manifest.outcomes) {
+      try { await lstat(dataPath(this.root, outcome.path)); }
+      catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") continue; throw error; }
+      throw Error("Matched evaluation requires pristine absent output targets");
+    }
   }
   private binding(action: ProposedAction): { material: Material; outcome?: Outcome } {
     for (const material of this.manifest.materials) {
@@ -250,17 +278,23 @@ export class CognitiveLocalOutcomeCatalog {
       } catch { return { actionId: action.id, ok: false, summary: "Local material or outcome failed bounded policy checks", blocker: "local_outcome_unavailable" }; }
     } });
   }
-  verifier(fallback: Verifier): Verifier {
+  verifier(fallback: Verifier, measureFailures = false): Verifier {
     return { verify: async input => {
       if (!CAPABILITIES.includes(input.action.capability)) return fallback.verify(input);
       try {
         const { material, outcome } = this.binding(input.action);
-        if (!input.result.ok || input.result.actionId !== input.action.id) throw Error("Action result mismatch");
+        if ((!input.result.ok && !measureFailures) || input.result.actionId !== input.action.id) throw Error("Action result mismatch");
         const prepared = await this.prepare(material, outcome);
-        if (outcome) await boundedRead(await containedFile(this.root, outcome.path), MAX_OUTPUT_BYTES);
+        if (outcome) {
+          const exists = await lstat(dataPath(this.root, outcome.path)).catch(error => {
+            if (measureFailures && (error as NodeJS.ErrnoException).code === "ENOENT") return null;
+            throw error;
+          });
+          if (exists) await boundedRead(await containedFile(this.root, outcome.path), MAX_OUTPUT_BYTES);
+        }
         const lineage = await new LocalArtifactVerifier(this.root).buildLineage([{ artifact: prepared.source }, ...(prepared.artifact ? [{ artifact: prepared.artifact, parentIndexes: [0] }] : [])]);
-        return { ok: lineage.ok, summary: lineage.ok ? "Source and persisted output independently verified" : "Source or persisted output failed independent verification",
-          evidence: { refs: ["local-outcome-verification:" + cognitiveDigest({ goalId: this.manifest.goalId, actionId: input.action.id, lineage: lineage.evidence })], lineage: lineage.evidence } };
+        return { ok: lineage.ok && input.result.ok, summary: lineage.ok && input.result.ok ? "Source and persisted output independently verified" : "Source or persisted output failed independent verification",
+          evidence: { refs: ["local-outcome-verification:" + cognitiveDigest({ goalId: this.manifest.goalId, actionId: input.action.id, lineage: lineage.evidence, ...(measureFailures ? { measurements: lineage.verifications } : {}) })], lineage: lineage.evidence, ...(measureFailures ? { measurements: lineage.verifications } : {}) } };
       } catch { return { ok: false, summary: "Local outcome independent verification failed", evidence: { refs: [], blocker: "local_outcome_verification_failed" } }; }
     } };
   }

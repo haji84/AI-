@@ -84,3 +84,100 @@ test("goal continuation has a bounded stagnation guard", async () => {
   assert.equal(calls, 3);
   assert.equal(result.reason, "goal_continuation_budget_exhausted");
 });
+
+test("publication wait is a durable continuation boundary, not a failed Goal or exhausted retry", async () => {
+  const adapter: GoalExecutionAdapter = {
+    async run() {
+      return { cycles: [], stopReason: "cycle_budget_exhausted", goalEvaluation: { achieved: false, reason: "ready to publish", verifiedRequired: [], failedRequired: [], unverifiedRequired: ["release"], blockers: [], remainingGaps: ["publication_connectivity_unavailable"] } };
+    },
+  };
+  const result = await new GoalControllerExecutionBridge(adapter).executeUntilGoalTerminal(
+    decision("CONTINUE_GOAL", "goal-1"),
+    { maxRuns: 1 },
+  );
+  assert.equal(result.reason, "publication_wait");
+  assert.equal(result.report?.stopReason, "cycle_budget_exhausted");
+});
+
+test("missing independent verifier evidence waits durably without exhausting Goal retries", async () => {
+  let calls = 0;
+  const adapter: GoalExecutionAdapter = {
+    async run() {
+      calls++;
+      return { cycles: [], stopReason: "cycle_budget_exhausted", goalEvaluation: {
+        achieved: false, verifiedRequired: [], failedRequired: [], unverifiedRequired: ["release"],
+        blockers: [], remainingGaps: ["independent_verifier_pending:missing_evidence:lint"],
+      } };
+    },
+  };
+  const result = await new GoalControllerExecutionBridge(adapter).executeUntilGoalTerminal(
+    decision("CONTINUE_GOAL", "goal-1"), { maxRuns: 12 },
+  );
+  assert.equal(result.reason, "verification_wait");
+  assert.equal(calls, 1);
+});
+
+test("paused Goal stops continuation after one read without consuming the run budget", async () => {
+  let calls = 0;
+  const adapter: GoalExecutionAdapter = { async run() {
+    calls++;
+    return { cycles: [], stopReason: "paused", goalEvaluation: { achieved: false, verifiedRequired: ["criterion-1"],
+      failedRequired: [], unverifiedRequired: ["criterion-2"], blockers: [], remainingGaps: ["project_paused"] } };
+  } };
+  const result = await new GoalControllerExecutionBridge(adapter).executeUntilGoalTerminal(decision("CONTINUE_GOAL", "goal-1"), { maxRuns: 12 });
+  assert.equal(calls, 1);
+  assert.equal(result.reason, "paused");
+  assert.equal(result.reports?.length, 1);
+});
+
+for (const [stopReason, gap, expected] of [
+  ["paused", "", "paused"],
+  ["approval_required", "", "human_gate"],
+  ["blocked", "", "blocked"],
+  ["retry_exhausted", "", "retry_exhausted"],
+  ["cycle_budget_exhausted", "resource_wait:busy", "resource_wait"],
+  ["cycle_budget_exhausted", "independent_verifier_pending:missing_evidence:unit", "verification_wait"],
+  ["cycle_budget_exhausted", "publication_wait:offline", "publication_wait"],
+] as const) test(`explicit ${expected} takes priority over a conflicting achieved claim`, async () => {
+  let calls = 0;
+  const adapter: GoalExecutionAdapter = { async run() {
+    calls++;
+    return { cycles: [], stopReason, goalEvaluation: {
+      achieved: true, verifiedRequired: [], failedRequired: [], unverifiedRequired: [],
+      blockers: [], remainingGaps: gap ? [gap] : [],
+    } };
+  } };
+  const result = await new GoalControllerExecutionBridge(adapter).executeUntilGoalTerminal(
+    decision("CONTINUE_GOAL", "goal-1"), { maxRuns: 3 },
+  );
+  assert.equal(result.reason, expected);
+  assert.equal(calls, 1, "a stop boundary must not cause additional adapter runs");
+});
+
+for (const [name, achieved, failedRequired, unverifiedRequired, blockers, remainingGaps] of [
+  ["unachieved terminal", false, [], [], [], []],
+  ["unverified criterion", true, [], ["criterion-2"], [], []],
+  ["failed criterion", true, ["criterion-1"], [], [], []],
+  ["unresolved blocker", true, [], [], ["safety_block"], []],
+  ["remaining gap", true, [], [], [], ["criterion-2"]],
+] as const) test(`conflicting completion evidence: ${name} is never promoted to Goal completion`, async () => {
+  let calls = 0;
+  const adapter: GoalExecutionAdapter = { async run() {
+    calls++;
+    return { cycles: [], stopReason: "goal_complete", goalEvaluation: {
+      achieved, verifiedRequired: [], failedRequired: [...failedRequired], unverifiedRequired: [...unverifiedRequired],
+      blockers: [...blockers], remainingGaps: [...remainingGaps],
+    } };
+  } };
+  const result = await new GoalControllerExecutionBridge(adapter).executeUntilGoalTerminal(
+    decision("CONTINUE_GOAL", "goal-1"), { maxRuns: 3 },
+  );
+  assert.equal(result.reason, "goal_evaluation_conflict");
+  assert.equal(calls, 1, "conflicting evidence must stop for recovery, not rerun blindly");
+});
+
+test("legacy terminal reports without a Goal evaluation retain their existing contract", async () => {
+  const adapter: GoalExecutionAdapter = { async run() { return { cycles: [], stopReason: "goal_complete" }; } };
+  const result = await new GoalControllerExecutionBridge(adapter).executeUntilGoalTerminal(decision("CONTINUE_GOAL", "goal-1"));
+  assert.equal(result.reason, "goal_complete");
+});

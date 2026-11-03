@@ -78,6 +78,27 @@ Irreversible or hard-to-reverse operations must be detected before execution. De
 
 A restoration is not complete until required CI, Verifier, security, runtime, and Goal-progress checks rerun against the restored state and produce valid evidence. The Goal Controller receives the resulting state and decides the next recovery/replan action; rollback does not silently abandon the parent Goal.
 
+## Distributed node fabric invariants
+
+After Mac stabilization is completed and verified, GORIQ must operate as a distributed self-complementing node fabric rather than treating any one physical PC as the permanent system body.
+
+- The active GORIQ body is the currently available trusted node set plus durable Goal/Task/State/Memory/Evidence.
+- Coordinator is a transferable logical role. Coordinator loss must not equal GORIQ loss.
+- Placement considers verified capability, CPU/GPU/RAM, platform, load, data locality, network, power/thermal constraints, risk and privacy.
+- Independent work runs in parallel when dependency and verification contracts permit.
+- Loss of a preferred fast path triggers a slower safe fallback before a Goal is blocked.
+- Only work that truly requires a missing capability enters a waiting state; unrelated work continues.
+- Every durable Task declares one migration class: MIGRATABLE, RESTARTABLE, PINNED, or SIDE_EFFECTING.
+- Distributed execution ownership uses Task ID, idempotency key, lease expiry, execution epoch, fencing token, checkpoint/version and result provenance. A stale epoch/token may not commit after ownership moves.
+- Same-LAN trusted nodes should cooperate without Internet through the existing Local Device Mesh.
+- Partitions continue safe local work and reconcile deltas after reconnect. Critical state may not use naive last-write-wins; ownership, causal/version metadata and verifier evidence govern conflict resolution.
+- Returning or newly added trusted nodes refresh their capability/resource manifest and trigger task re-evaluation/rebalancing without manual topology reconstruction.
+- Existing Worker Runtime, Durable Task Runtime, Offline-First Runtime, Sync/Conflict Resolution, Local Device Mesh, Recovery, World/Resource Model and Capability Router are extended rather than duplicated.
+- Owner auth, Human Gates, node identities, signed request/result contracts, queues, history and audit evidence remain invariant across failover.
+- Initial physical rollout is MacBook + ZBook, then Nubia as the first full Android/mobile-edge canary, then iPhone within iOS limits, then future PCs. The preserved Android 38-device fleet is intentionally deferred until the Nubia Node Contract is proven.
+
+Normative architecture: `docs/architecture/goriq-distributed-node-fabric.md`.
+
 ## Completion
 
 A Goal becomes ACHIEVED only when required success criteria are supported by valid evidence and constraints remain satisfied. Merge, deployment, a green CI run, or an individual Job DONE is insufficient by itself.

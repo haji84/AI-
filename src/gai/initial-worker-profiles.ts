@@ -9,6 +9,7 @@ export const zbookWorkerProfile: WorkerDescriptor = {
     "local-model",
     "gpu",
     "windows-tooling",
+    "code-builder",
     "browser",
     "filesystem",
     "long-running",
@@ -46,6 +47,7 @@ export const macbookWorkerProfile: WorkerDescriptor = {
   capabilities: [
     "local-model",
     "macos-tooling",
+    "code-builder",
     "browser",
     "filesystem",
     "long-running",

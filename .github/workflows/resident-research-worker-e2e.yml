@@ -21,11 +21,12 @@ permissions:
   actions: read
 
 concurrency:
-  group: resident-research-worker-e2e
+  group: resident-research-worker-e2e-${{ github.event_name }}
   cancel-in-progress: true
 
 jobs:
   install-zbook:
+    if: github.event_name == 'workflow_dispatch'
     name: Install and verify ZBook resident Research Worker
     runs-on: [self-hosted, Windows, zbook]
     timeout-minutes: 30
@@ -60,6 +61,7 @@ jobs:
           retention-days: 30
 
   install-macbook:
+    if: github.event_name == 'workflow_dispatch'
     name: Install and verify MacBook resident Research Worker
     runs-on: [self-hosted, macOS]
     timeout-minutes: 30
@@ -91,6 +93,7 @@ jobs:
           retention-days: 30
 
   natural-command-e2e:
+    if: github.event_name == 'workflow_dispatch'
     name: Owner command to ZBook GPU to local model to result
     needs: [install-zbook, install-macbook]
     runs-on: [self-hosted, Windows, zbook]

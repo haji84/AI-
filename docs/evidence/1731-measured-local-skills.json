@@ -1,0 +1,153 @@
+{
+  "version": 1,
+  "issue": 1731,
+  "parentIssues": [
+    1216,
+    681,
+    1219
+  ],
+  "sourceBaseline": "b064fda706eacfe2805d8f03065a8be4329d89aa",
+  "testedCodeCommit": "1e39d61ae8e8bf54c412b4adf09431b8ec9b8b6d",
+  "testedCodeTree": "eef59c2571de6dda775987e56d0dd9f5ad16c4fa",
+  "observedAt": "2026-10-06T13:35:51.613597+00:00",
+  "evidenceClass": "MACHINE_VERIFIED",
+  "issuer": "Node.js node:test in isolated temporary Compass/Core/WorkState/artifact/learning fixtures",
+  "environment": {
+    "platform": "Linux cloud execution host",
+    "node": "24.19.0",
+    "pnpm": "11.19.0",
+    "typescript": "6.0.3",
+    "powershellFixture": "official PowerShell Linux 7.6.6; not Windows or Mac physical evidence"
+  },
+  "boundedResult": "PASS",
+  "functional_completion_claim": false,
+  "product_complete": false,
+  "skillPromoted": false,
+  "verification": {
+    "red": {
+      "tests": 5,
+      "pass": 0,
+      "fail": 5,
+      "reason": "missing matched evaluation helper plus supplied scores improperly activated material candidate"
+    },
+    "reviewRed": {
+      "tests": 2,
+      "fail": 2,
+      "reason": "truncated output measurements and lexical physical root alias both reproduced"
+    },
+    "reviewGreen": {
+      "tests": 22,
+      "pass": 22,
+      "fail": 0
+    },
+    "focused": {
+      "tests": 83,
+      "pass": 82,
+      "fail": 0,
+      "skip": 1
+    },
+    "full": {
+      "tests": 2283,
+      "pass": 2278,
+      "fail": 0,
+      "skip": 5
+    },
+    "p8Security": {
+      "tests": 332,
+      "pass": 332,
+      "fail": 0,
+      "skip": 0
+    },
+    "lint": "PASS",
+    "typecheck": "PASS",
+    "canonicalRequirements": 341,
+    "reverseSurfaces": 571,
+    "diffCheck": "PASS"
+  },
+  "independentReview": {
+    "reviewer": "review_1731_measured_skills",
+    "initialReadiness": "NO",
+    "findings": [
+      {
+        "priority": "P2",
+        "finding": "Incomplete source-only output receipts were counted as complete comparison measurements",
+        "repair": "Preallocate each action artifact cardinality/domain/expected source and encoded-output hashes; validate at receipt creation and ledger reload",
+        "regression": "PASS"
+      },
+      {
+        "priority": "P3",
+        "finding": "Direct catalog construction could reserve lexically distinct aliases of one physical data root; normal loader already blocked execution",
+        "repair": "Resolve actual roots before permanent allocation",
+        "regression": "PASS"
+      }
+    ],
+    "postFixIndependentRereviewClaim": false
+  },
+  "environmentFailure": {
+    "initialFull": {
+      "tests": 2281,
+      "pass": 2271,
+      "fail": 5,
+      "skip": 5
+    },
+    "causes": [
+      "three owner-home fixtures rejected with EROFS",
+      "network interface inspection denied",
+      "private-ingress child fixture could not consume restart budget under sandbox restrictions"
+    ],
+    "unchangedAffectedFixturesRetest": {
+      "tests": 26,
+      "pass": 26,
+      "fail": 0
+    },
+    "finalFullExecution": "approved context permitting isolated home fixtures and network interface inspection; no test weakening"
+  },
+  "scope": [
+    "atomic pre-effect allocation of both matched local catalog arms",
+    "exact Goal/criteria/materials/relative-targets and candidate/library subject",
+    "same-Goal exact evaluation-ID lookup and durable crash restart",
+    "required source plus file/XLSX/DOCX artifacts and hashes",
+    "train/heldout exclusions retained",
+    "equal or apparent filesystem gain never activates current identical procedure",
+    "legacy exact-action supplied-score path remains unmeasured and outside this increment",
+    "historical active test fixtures arrange recall/quarantine state; not new certification evidence"
+  ],
+  "remaining": [
+    "legacy exact-action measured certification and real candidate procedure experiments",
+    "unknown-task bounded plan compiler",
+    "Teaching-to-Core binding",
+    "historical revalidation and independent sharing redaction",
+    "actual R17 adapters and broad model campaigns",
+    "cross-host recovery and actual physical acceptance"
+  ],
+  "physical": {
+    "stageC": "BLOCKED",
+    "nubia": "owner-deferred",
+    "macPrivateDashboard": "expired scoped authorization plus pinned automatic PR1718 source guard; no bypass",
+    "windowsUac": "actual owner-native execution capability unavailable",
+    "offlineReconnectFailoverRebalance": "no current full physical E2E receipts"
+  },
+  "rollback": "Revert dependent code consistently; retain private reservations/receipts, no deletion or retrospective relabeling; compatible reader required after opt-in use. No production/native activation performed.",
+  "compassWriteback": "UNAVAILABLE; repository/Issue fallback",
+  "sourceHashes": {
+    "src/gai/cognitive-evaluation.ts": "43e6a0dae88a3b7ed34cf2badf4b8850362b2b44542e9a04547650d9658809b1",
+    "src/gai/cognitive-learning.ts": "6b377fb754af3a8262bf91af39f341674a21360d102013d3786b36ad6ede38d3",
+    "src/gai/cognitive-local-outcomes.ts": "aee7fb38142c1aa73214b18ce7d2b40d06f60cba718262a5cbb3df9454d41912",
+    "src/gai/cognitive-skill-evaluation.ts": "8c75a690ad89fc466504c1e67b9400e7d02d6cd373144ef5f86f989384a6d931",
+    "src/orchestrator/compass-goal-execution-adapter.ts": "22614eaab2575158d9fc32b990488f9864d1c1e075f1a36503652019f7f96df1",
+    "tests/cognitive-skill-evaluation.test.ts": "3f23db4ffba149d8db6eeda802cbd04a85e04b1f94adf79a5ffe51bc831a2d9b",
+    "tests/cognitive-operation-learning.test.ts": "849e5af58810228504e8142c05ffed9d86be580e3f6c39895e3ce2e9b81c41e0"
+  },
+  "logHashes": {
+    "goriq-1731-red.log": "c609e1d268c9c120a3b415d6c3ed976eab617c117f2ebb0a33d50e5112c652ee",
+    "goriq-1731-review-red.log": "de5bc26132d3c4f90b6616e18d15dc48182e4b99780545c7bba5aa699dfc29d5",
+    "goriq-1731-review-green.log": "ecb853e1c05cbb4fbfb70450596671d7a88a288832937b5b2c6644380b8c52d3",
+    "goriq-1731-focused-final.log": "271b752fe9e493052d58e8020b5f1a358dd7572cf2f79a0a1a5c19a2886b8d4b",
+    "goriq-1731-full.log": "30004b08a2bc7bded5e70af3a912b4af77dc8ace6634b275ffeba4b89d8d8e70",
+    "goriq-1731-environment-retest.log": "2d9d907601c6ccf91722ea654f022571d54659113222e154247faec52ada2a27",
+    "goriq-1731-full-final.log": "590a8a96bb8386a58bf4841e09534d21b939a3b5ffa5bcf5651c6511b96d2ad3",
+    "goriq-1731-p8-final.log": "0cb848d040ac52e9f5d1ed04488eb08956dcc38a4f4744433f35fef1000103f3",
+    "goriq-1731-lint-final.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "goriq-1731-tsc-final.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

@@ -1,0 +1,80 @@
+name: GORIQ Approved PC Task Execution
+
+on:
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: Exact successful current main SHA already active on both PCs
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: goriq-approved-pc-task-execution
+  cancel-in-progress: false
+
+env:
+  GORIQ_PC_APPROVED_REVISION: ${{ inputs.revision }}
+
+jobs:
+  source:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - name: Verify public exact main CI
+        run: node scripts/goriq-pc-approved-source.mjs
+
+  execute:
+    needs: source
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: '["self-hosted","macOS","ARM64"]'
+            shell: bash
+          - runner: '["self-hosted","Windows","X64"]'
+            shell: powershell
+    runs-on: ${{ fromJSON(matrix.runner) }}
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.revision }}
+      - name: Recheck exact main on Mac before bounded task execution
+        if: matrix.shell == 'bash'
+        shell: bash
+        run: node scripts/goriq-pc-approved-source.mjs
+      - name: Recheck exact main on ZBook before bounded task execution
+        if: matrix.shell == 'powershell'
+        shell: powershell
+        run: |
+          node scripts/goriq-pc-approved-source.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'PC_SOURCE_REJECTED' }
+      - name: Execute signed public filesystem task on registered Mac
+        if: matrix.shell == 'bash'
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +x
+          ENV_FILE="${JARVIS_ENV_FILE:-$HOME/Library/Application Support/JARVIS/jarvis.env}"
+          test -f "$ENV_FILE"
+          set -a
+          source "$ENV_FILE"
+          set +a
+          export JARVIS_DB_PATH="${JARVIS_DB_PATH:-$HOME/.goriq/state/jarvis.db}"
+          node scripts/goriq-pc-task-execute.ts
+      - name: Execute signed public filesystem task on registered ZBook
+        if: matrix.shell == 'powershell'
+        shell: powershell
+        run: |
+          node scripts/goriq-pc-task-execute.ts
+          if ($LASTEXITCODE -ne 0) { throw 'PC_TASK_EXECUTION_FAILED' }

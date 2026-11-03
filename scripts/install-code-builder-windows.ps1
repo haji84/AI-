@@ -12,9 +12,12 @@ if (-not $Workspace) {
   $Workspace = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 }
 
-$root = Join-Path $env:LOCALAPPDATA 'GAIWorker\code-builder'
+$gaiRoot = Join-Path $env:LOCALAPPDATA 'GAIWorker'
+$root = Join-Path $gaiRoot 'code-builder'
 $serviceSource = (Resolve-Path (Join-Path $PSScriptRoot 'code-builder-worker-service.ts')).Path
 $servicePath = Join-Path $root 'code-builder-worker-service.ts'
+$policySource = (Resolve-Path (Join-Path $PSScriptRoot '..\src\orchestrator\test-contract-evolution.ts')).Path
+$policyPath = Join-Path $gaiRoot 'src\orchestrator\test-contract-evolution.ts'
 $launcherPath = Join-Path $root 'run-code-builder.ps1'
 $tokenPath = Join-Path $root 'token.txt'
 $logPath = Join-Path $root 'worker.log'
@@ -25,7 +28,22 @@ $statusPath = Join-Path $root 'install-status.json'
 $taskName = 'GAI Code Builder Worker'
 
 New-Item -ItemType Directory -Force -Path $root | Out-Null
+New-Item -ItemType Directory -Force -Path (Split-Path $policyPath -Parent) | Out-Null
 Copy-Item -Force $serviceSource $servicePath
+Copy-Item -Force $policySource $policyPath
+$resourceRuntimeFiles = @(
+  'src/gai/development-resource-admission.ts',
+  'src/gai/worker-resource-probe.ts',
+  'src/gai/worker-runtime.ts',
+  'src/gai/cognitive-lease.ts',
+  'scripts/goriq-ollama-repair.mjs'
+)
+foreach ($runtimeFile in $resourceRuntimeFiles) {
+  $sourcePath = Join-Path (Join-Path $PSScriptRoot '..') $runtimeFile
+  $destinationPath = if ($runtimeFile.StartsWith('scripts/')) { Join-Path $root (Split-Path $runtimeFile -Leaf) } else { Join-Path $gaiRoot $runtimeFile }
+  New-Item -ItemType Directory -Force -Path (Split-Path $destinationPath -Parent) | Out-Null
+  Copy-Item -Force -LiteralPath $sourcePath -Destination $destinationPath
+}
 
 $node = (Get-Command node -ErrorAction Stop).Source
 $nodeVersion = (& $node --version 2>&1 | Out-String).Trim()

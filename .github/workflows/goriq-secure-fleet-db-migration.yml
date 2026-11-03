@@ -1,0 +1,149 @@
+name: GORIQ Secure Fleet DB Migration
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/goriq-fleet-db-migration.mjs'
+      - 'scripts/goriq-fleet-db-seal-windows.ps1'
+      - 'scripts/jarvis-mac-runtime-entry.sh'
+      - '.github/workflows/goriq-secure-fleet-db-migration.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  EXPECTED_FLEET_COUNT: '38'
+  EXPECTED_IDENTITY_COUNT: '38'
+
+jobs:
+  mac-prepare:
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - name: Create one-time Mac migration key
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .goriq-migration
+          MIGRATION_ROOT="$HOME/.goriq/migrations/$GITHUB_SHA"
+          mkdir -p "$MIGRATION_ROOT"
+          chmod 700 "$HOME/.goriq" "$HOME/.goriq/migrations" "$MIGRATION_ROOT" 2>/dev/null || true
+          export GORIQ_MIGRATION_PUBLIC_KEY="$GITHUB_WORKSPACE/.goriq-migration/mac-public.pem"
+          export GORIQ_MIGRATION_PRIVATE_KEY="$MIGRATION_ROOT/private.pem"
+          node scripts/goriq-fleet-db-migration.mjs keygen
+      - name: Upload public key only
+        uses: actions/upload-artifact@v4
+        with:
+          name: fleet-db-public-key-${{ github.sha }}
+          path: .goriq-migration/mac-public.pem
+          retention-days: 1
+
+  zbook-seal:
+    needs: mac-prepare
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - uses: actions/download-artifact@v4
+        with:
+          name: fleet-db-public-key-${{ github.sha }}
+          path: .goriq-migration/key
+      - name: Create encrypted 38-node DB snapshot
+        shell: powershell
+        env:
+          GORIQ_MIGRATION_PUBLIC_KEY: ${{ github.workspace }}\.goriq-migration\key\mac-public.pem
+          GORIQ_MIGRATION_BUNDLE: ${{ github.workspace }}\.goriq-migration\sealed\fleet-db.sealed.json
+          GORIQ_EXPECTED_FLEET_COUNT: ${{ env.EXPECTED_FLEET_COUNT }}
+          GORIQ_EXPECTED_IDENTITY_COUNT: ${{ env.EXPECTED_IDENTITY_COUNT }}
+        run: |
+          New-Item -ItemType Directory -Force -Path .goriq-migration\sealed | Out-Null
+          powershell -NoProfile -ExecutionPolicy Bypass -File scripts/goriq-fleet-db-seal-windows.ps1
+      - name: Upload ciphertext only
+        uses: actions/upload-artifact@v4
+        with:
+          name: fleet-db-sealed-${{ github.sha }}
+          path: .goriq-migration/sealed/fleet-db.sealed.json
+          retention-days: 1
+
+  mac-import:
+    needs: zbook-seal
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - uses: actions/download-artifact@v4
+        with:
+          name: fleet-db-sealed-${{ github.sha }}
+          path: .goriq-migration/sealed
+      - name: Restore stable fleet state and restart exact main
+        shell: bash
+        run: |
+          set -euo pipefail
+          STATE_ROOT="$HOME/Library/Application Support/JARVIS"
+          ENV_FILE="$STATE_ROOT/jarvis.env"
+          STABLE_ROOT="$HOME/.goriq/state"
+          BACKUP_ROOT="$HOME/.goriq/backups"
+          MIGRATION_ROOT="$HOME/.goriq/migrations/$GITHUB_SHA"
+          PRIVATE_KEY="$MIGRATION_ROOT/private.pem"
+          TARGET_DB="$STABLE_ROOT/jarvis.db"
+          TARGET_COMPASS="$STABLE_ROOT/compass.db"
+          BACKUP_DB="$BACKUP_ROOT/jarvis-pre-fleet-$GITHUB_SHA.db"
+          mkdir -p "$STABLE_ROOT" "$BACKUP_ROOT"
+          chmod 700 "$HOME/.goriq" "$STABLE_ROOT" "$BACKUP_ROOT" "$MIGRATION_ROOT" 2>/dev/null || true
+          test -s "$PRIVATE_KEY"
+          test -s "$ENV_FILE"
+
+          launchctl bootout "gui/$(id -u)/com.aicompany.jarvis-runtime" >/dev/null 2>&1 || true
+          launchctl bootout "gui/$(id -u)/com.aicompany.jarvis-broker" >/dev/null 2>&1 || true
+
+          export GORIQ_MIGRATION_BUNDLE="$GITHUB_WORKSPACE/.goriq-migration/sealed/fleet-db.sealed.json"
+          export GORIQ_MIGRATION_PRIVATE_KEY="$PRIVATE_KEY"
+          export GORIQ_TARGET_DB_PATH="$TARGET_DB"
+          export GORIQ_TARGET_DB_BACKUP="$BACKUP_DB"
+          export GORIQ_EXPECTED_FLEET_COUNT="$EXPECTED_FLEET_COUNT"
+          export GORIQ_EXPECTED_IDENTITY_COUNT="$EXPECTED_IDENTITY_COUNT"
+          node scripts/goriq-fleet-db-migration.mjs unseal
+
+          if [[ ! -s "$TARGET_COMPASS" ]]; then
+            for candidate in "$HOME/JARVIS-AI-/.jarvis/compass.db" "$GITHUB_WORKSPACE/.jarvis/compass.db"; do
+              if [[ -s "$candidate" ]]; then cp "$candidate" "$TARGET_COMPASS"; chmod 600 "$TARGET_COMPASS"; break; fi
+            done
+          fi
+
+          upsert_env() {
+            local key="$1" value="$2" tmp="$ENV_FILE.tmp.$$"
+            awk -F= -v k="$key" '$1 != k { print }' "$ENV_FILE" > "$tmp"
+            printf '%s=%s\n' "$key" "$value" >> "$tmp"
+            chmod 600 "$tmp"
+            mv "$tmp" "$ENV_FILE"
+          }
+          upsert_env JARVIS_DB_PATH "$TARGET_DB"
+          upsert_env JARVIS_COMPASS_DB_PATH "$TARGET_COMPASS"
+          upsert_env GORIQ_RUNTIME_REVISION "$GITHUB_SHA"
+
+          JARVIS_REPO_ROOT="$GITHUB_WORKSPACE" bash scripts/jarvis-mac-install-launchagent.sh
+          runtime_ok=false
+          for _ in $(seq 1 30); do
+            body="$(curl --fail --silent --show-error --max-time 3 http://127.0.0.1:8787/health 2>/dev/null || true)"
+            if node -e 'const x=JSON.parse(process.argv[1]);process.exit(x.ok===true&&x.runtimeRevision===process.argv[2]?0:1)' "$body" "$GITHUB_SHA" 2>/dev/null; then runtime_ok=true; break; fi
+            sleep 2
+          done
+          [[ "$runtime_ok" == true ]]
+
+          set -a; source "$ENV_FILE"; set +a
+          state="$(curl --fail --silent --show-error --max-time 5 -H "Authorization: Bearer $JARVIS_OWNER_TOKEN" http://127.0.0.1:8787/api/jarvis/admin/state)"
+          node -e 'const x=JSON.parse(process.argv[1]);const n=Array.isArray(x.fleet)?x.fleet.length:-1;if(n!==38){console.error("RESTORED_FLEET_COUNT_MISMATCH count="+n);process.exit(1)}console.log("RESTORED_FLEET_COUNT count=38")' "$state"
+
+          export GORIQ_DB_CONFIGURED_PATH="$TARGET_DB"
+          node scripts/goriq-broker-db-inventory.mjs | node -e 'let s="";process.stdin.on("data",c=>s+=c).on("end",()=>{const x=JSON.parse(s);const c=x.candidates.find(v=>v.label==="configured-production");if(!c||c.fleetCount!==38||c.workerIdentityCount!==38)process.exit(1);console.log(JSON.stringify({restored:true,fleetCount:c.fleetCount,workerIdentityCount:c.workerIdentityCount,sha256:c.sha256}))})'
+          rm -f "$PRIVATE_KEY"
+          echo 'GORIQ_FLEET_DB_MIGRATION_SUCCESS fleet=38 identities=38 stable_state=true'

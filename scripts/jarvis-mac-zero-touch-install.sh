@@ -84,6 +84,8 @@ for _ in $(seq 1 20); do
 done
 [[ -s "$STATE_ROOT/jarvis.env" ]] || { echo 'JARVIS reconciler did not create jarvis.env' >&2; exit 6; }
 
+CANONICAL_RUNTIME_PLIST="$HOME/Library/LaunchAgents/com.aicompany.jarvis-runtime.plist"
+if [[ ! -f "$CANONICAL_RUNTIME_PLIST" ]]; then
 cat >"$BROKER_PLIST" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -99,6 +101,7 @@ cat >"$BROKER_PLIST" <<PLIST
 <key>EnvironmentVariables</key><dict><key>PATH</key><string>$RUNTIME_PATH</string></dict>
 </dict></plist>
 PLIST
+fi
 
 cat >"$TUNNEL_PLIST" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -140,10 +143,16 @@ PLIST
 pkill -f 'scripts/jarvis-broker.ts' >/dev/null 2>&1 || true
 pkill -f 'cloudflared tunnel.*127.0.0.1:8787' >/dev/null 2>&1 || true
 for plist in "$BROKER_PLIST" "$TUNNEL_PLIST" "$ADB_ENROLL_PLIST"; do launchctl bootout "gui/$(id -u)" "$plist" >/dev/null 2>&1 || true; done
-launchctl bootstrap "gui/$(id -u)" "$BROKER_PLIST"
+if [[ -f "$CANONICAL_RUNTIME_PLIST" ]]; then
+  launchctl bootout "gui/$(id -u)/com.aicompany.jarvis-broker" >/dev/null 2>&1 || true
+  rm -f "$BROKER_PLIST"
+  launchctl kickstart -k "gui/$(id -u)/com.aicompany.jarvis-runtime" >/dev/null 2>&1 || true
+else
+  launchctl bootstrap "gui/$(id -u)" "$BROKER_PLIST"
+  launchctl kickstart -k "gui/$(id -u)/com.aicompany.jarvis-broker"
+fi
 launchctl bootstrap "gui/$(id -u)" "$TUNNEL_PLIST"
 launchctl bootstrap "gui/$(id -u)" "$ADB_ENROLL_PLIST"
-launchctl kickstart -k "gui/$(id -u)/com.aicompany.jarvis-broker"
 launchctl kickstart -k "gui/$(id -u)/com.aicompany.jarvis-broker-tunnel"
 launchctl kickstart -k "gui/$(id -u)/com.aicompany.jarvis-adb-enrollment"
 

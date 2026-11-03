@@ -16,6 +16,7 @@ export interface BoundedRunOptions {
 }
 
 export interface BoundedRunReport {
+  resourceWait?: import("./development-resource-wait.ts").DevelopmentResourceWait;
   cycles: CycleReport[];
   stopReason: StopReason | "cycle_budget_exhausted";
   goalEvaluation?: GoalEvaluation;

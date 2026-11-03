@@ -1,5 +1,7 @@
+import { evaluateWorkerResourcePlacement, type WorkerResourceSnapshot } from "../gai/worker-runtime.ts";
 import {
   JARVIS_MAX_NODES,
+  type JarvisAndroidNodeContractV1,
   type JarvisCapability,
   type JarvisNode,
   type JarvisNodeKind,
@@ -10,14 +12,186 @@ function hasCapabilities(node: JarvisNode, required: JarvisCapability[]): boolea
   return required.every((capability) => node.capabilities.includes(capability));
 }
 
+function finiteNumber(value: unknown, min: number, max: number): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) && value >= min && value <= max ? value : undefined;
+}
+
+function integer(value: unknown, min: number, max: number): number | undefined {
+  return Number.isInteger(value) && (value as number) >= min && (value as number) <= max ? value as number : undefined;
+}
+
+function boolean(value: unknown): boolean | undefined {
+  return typeof value === "boolean" ? value : undefined;
+}
+
+export function sanitizeJarvisAndroidNodeContract(
+  value: unknown,
+  now = new Date(),
+): JarvisAndroidNodeContractV1 | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const input = value as Record<string, unknown>;
+  if (input.schemaVersion !== 1 || input.platform !== "android") return undefined;
+  if (input.networkRequirement !== "offline-capable") return undefined;
+
+  const executionModes = Array.isArray(input.executionModes)
+    ? [...new Set(input.executionModes.filter(
+      (mode): mode is JarvisAndroidNodeContractV1["executionModes"][number] =>
+        mode === "foreground" || mode === "background-scheduled" || mode === "deferred",
+    ))]
+    : [];
+  if (executionModes.length === 0) return undefined;
+
+  const persistenceInput = input.persistence;
+  const migrationInput = input.migration;
+  const securityInput = input.security;
+  const constraintsInput = input.constraints;
+  const resourcesInput = input.resources;
+  if (!persistenceInput || typeof persistenceInput !== "object" || Array.isArray(persistenceInput)) return undefined;
+  if (!migrationInput || typeof migrationInput !== "object" || Array.isArray(migrationInput)) return undefined;
+  if (!securityInput || typeof securityInput !== "object" || Array.isArray(securityInput)) return undefined;
+  if (!constraintsInput || typeof constraintsInput !== "object" || Array.isArray(constraintsInput)) return undefined;
+  if (!resourcesInput || typeof resourcesInput !== "object" || Array.isArray(resourcesInput)) return undefined;
+
+  const persistence = persistenceInput as Record<string, unknown>;
+  const migration = migrationInput as Record<string, unknown>;
+  const security = securityInput as Record<string, unknown>;
+  const constraints = constraintsInput as Record<string, unknown>;
+  const resources = resourcesInput as Record<string, unknown>;
+
+  const supported = Array.isArray(migration.supported)
+    ? [...new Set(migration.supported.filter(
+      (item): item is "RESTARTABLE" | "PINNED" => item === "RESTARTABLE" || item === "PINNED",
+    ))]
+    : [];
+  if (supported.length === 0) return undefined;
+
+  // Stage C canary must report current limitations truthfully. These claims are
+  // intentionally fail-closed until physical Nubia evidence proves stronger semantics.
+  if (persistence.checkpointResume !== false || persistence.offlineQueue !== false) return undefined;
+  if (migration.checkpointResume !== false || migration.sideEffectingFencing !== false) return undefined;
+  if (constraints.residentExecution !== false || constraints.lockedUiRequiresHuman !== true) return undefined;
+  if (security.credentialIsolation !== true || security.taskScopedAuthorization !== true) return undefined;
+
+  const network = resources.network === "wifi" || resources.network === "cellular" || resources.network === "lan" || resources.network === "offline"
+    ? resources.network
+    : undefined;
+  const architecture = typeof input.architecture === "string" && /^[A-Za-z0-9._-]{1,64}$/.test(input.architecture.trim())
+    ? input.architecture.trim()
+    : null;
+
+  return {
+    schemaVersion: 1,
+    platform: "android",
+    architecture,
+    executionModes,
+    networkRequirement: "offline-capable",
+    persistence: {
+      localState: persistence.localState === true,
+      checkpointResume: false,
+      offlineQueue: false,
+    },
+    migration: {
+      supported,
+      checkpointResume: false,
+      sideEffectingFencing: false,
+    },
+    security: {
+      credentialIsolation: true,
+      taskScopedAuthorization: true,
+    },
+    constraints: {
+      residentExecution: false,
+      lockedUiRequiresHuman: true,
+    },
+    resources: {
+      cpuCores: integer(resources.cpuCores, 1, 1_024),
+      memoryAvailableMb: finiteNumber(resources.memoryAvailableMb, 0, 1_000_000_000),
+      freeStorageMb: finiteNumber(resources.freeStorageMb, 0, 1_000_000_000),
+      batteryPercent: finiteNumber(resources.batteryPercent, 0, 100),
+      charging: boolean(resources.charging),
+      network,
+    },
+    checkedAt: now.toISOString(),
+  };
+}
+
+export function sanitizeJarvisNodeTelemetry(value: unknown, now = new Date()): JarvisNode["telemetry"] | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const input = value as Record<string, unknown>;
+  const network = input.network === "wifi" || input.network === "cellular" || input.network === "lan" || input.network === "offline"
+    ? input.network
+    : undefined;
+  const thermalState = input.thermalState === "nominal"
+    || input.thermalState === "fair"
+    || input.thermalState === "serious"
+    || input.thermalState === "critical"
+    ? input.thermalState
+    : undefined;
+  const locality = Array.isArray(input.dataLocalityKeys)
+    ? [...new Set(input.dataLocalityKeys
+      .filter((item): item is string => typeof item === "string")
+      .map((item) => item.trim())
+      .filter((item) => /^[A-Za-z0-9._:-]{1,128}$/.test(item))
+      .slice(0, 32))]
+    : undefined;
+
+  return {
+    checkedAt: now.toISOString(),
+    remoteProtocol: integer(input.remoteProtocol, 1, 100),
+    androidApi: integer(input.androidApi, 1, 1_000),
+    batteryPercent: finiteNumber(input.batteryPercent, 0, 100),
+    charging: boolean(input.charging),
+    temperatureC: finiteNumber(input.temperatureC, -100, 200),
+    freeStorageMb: finiteNumber(input.freeStorageMb, 0, 1_000_000_000),
+    cpuLoadPercent: finiteNumber(input.cpuLoadPercent, 0, 100),
+    gpuLoadPercent: finiteNumber(input.gpuLoadPercent, 0, 100),
+    memoryAvailableMb: finiteNumber(input.memoryAvailableMb, 0, 1_000_000_000),
+    cpuAvailable: boolean(input.cpuAvailable),
+    gpuAvailable: boolean(input.gpuAvailable),
+    onExternalPower: boolean(input.onExternalPower),
+    thermalState,
+    dataLocalityKeys: locality,
+    network,
+    deviceOwner: boolean(input.deviceOwner),
+    adminActive: boolean(input.adminActive),
+    accessibilityEnabled: boolean(input.accessibilityEnabled),
+    locked: boolean(input.locked),
+    screenInteractive: boolean(input.screenInteractive),
+  };
+}
+
+function resourceSnapshot(node: JarvisNode): WorkerResourceSnapshot {
+  return {
+    cpuAvailable: node.telemetry.cpuAvailable,
+    gpuAvailable: node.telemetry.gpuAvailable,
+    cpuLoadPercent: node.telemetry.cpuLoadPercent,
+    gpuLoadPercent: node.telemetry.gpuLoadPercent,
+    memoryAvailableMb: node.telemetry.memoryAvailableMb,
+    diskAvailableMb: node.telemetry.freeStorageMb,
+    batteryPercent: node.telemetry.batteryPercent,
+    onExternalPower: node.telemetry.onExternalPower ?? node.telemetry.charging,
+    thermalState: node.telemetry.thermalState,
+    dataLocalityKeys: node.telemetry.dataLocalityKeys ? [...node.telemetry.dataLocalityKeys] : undefined,
+  };
+}
+
+function resourceEvaluation(node: JarvisNode, task: JarvisTask) {
+  return evaluateWorkerResourcePlacement({
+    resources: resourceSnapshot(node),
+    requirements: task.resourceRequirements,
+    gpuCapable: node.capabilities.includes("gpu"),
+    gpuRequested: task.requiredCapabilities.includes("gpu"),
+    longRunning: task.requiredCapabilities.includes("long-running"),
+  });
+}
+
 function nodeScore(node: JarvisNode, task: JarvisTask): number {
-  let score = 0;
+  const resource = resourceEvaluation(node, task);
+  let score = resource.score;
   if (node.status === "ready") score += 20;
   if (node.status === "busy") score -= 10;
   if (node.telemetry.charging) score += 3;
   if ((node.telemetry.batteryPercent ?? 100) >= 50) score += 2;
-  if ((node.telemetry.cpuLoadPercent ?? 0) < 70) score += 2;
-  if ((node.telemetry.gpuLoadPercent ?? 0) < 70 && node.capabilities.includes("gpu")) score += 1;
   if (task.preferredKinds?.includes(node.kind)) score += 5;
   if (node.enrollment === "full") score += 1;
   return score;
@@ -114,7 +288,7 @@ export class JarvisFleetManager {
 
   updateHeartbeat(
     nodeId: string,
-    patch: Partial<Pick<JarvisNode, "status" | "telemetry" | "lastSeenAt" | "capabilities" | "policy" | "enrollment">>,
+    patch: Partial<Pick<JarvisNode, "status" | "telemetry" | "nodeContract" | "lastSeenAt" | "capabilities" | "policy" | "enrollment">>,
   ): JarvisNode {
     const current = this.nodes.get(nodeId);
     if (!current) throw new Error(`Unknown JARVIS node: ${nodeId}`);
@@ -124,6 +298,7 @@ export class JarvisFleetManager {
       telemetry: patch.telemetry ? { ...current.telemetry, ...patch.telemetry } : current.telemetry,
       policy: patch.policy ? { ...current.policy, ...patch.policy } : current.policy,
       capabilities: patch.capabilities ? [...patch.capabilities] : current.capabilities,
+      nodeContract: patch.nodeContract ? structuredClone(patch.nodeContract) : current.nodeContract,
     };
     this.nodes.set(nodeId, updated);
     return structuredClone(updated);
@@ -134,6 +309,7 @@ export class JarvisFleetManager {
       const target = this.nodes.get(task.targetNodeId);
       if (!target || target.status === "offline" || target.status === "disabled") return undefined;
       if (!hasCapabilities(target, task.requiredCapabilities)) return undefined;
+      if (!resourceEvaluation(target, task).eligible) return undefined;
       return structuredClone(target);
     }
 
@@ -141,6 +317,7 @@ export class JarvisFleetManager {
       .filter((node) => node.status === "ready" || node.status === "busy")
       .filter((node) => hasCapabilities(node, task.requiredCapabilities))
       .filter((node) => (node.telemetry.batteryPercent ?? 100) > 15 || node.telemetry.charging)
+      .filter((node) => resourceEvaluation(node, task).eligible)
       .sort((a, b) => nodeScore(b, task) - nodeScore(a, task) || a.id.localeCompare(b.id));
 
     return candidates[0] ? structuredClone(candidates[0]) : undefined;

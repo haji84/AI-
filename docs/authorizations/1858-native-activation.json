@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "issue": 1858,
+  "operation": "five-target-acl-and-native-cutover",
+  "ownerSid": "S-1-5-21-3241814747-1938433149-1705921193-1004",
+  "ownerResponse": "この限定範囲の実装・権限修復・常用反映を承認する",
+  "questionItem": "call_d6ff976d41c642de923b5e70cd50164a:0",
+  "proposalSha256": "b1bfc50a28f7fd65b4c8819ae3da10f98e4739b217abb9115430d04a105866a7",
+  "approvedAt": "2026-10-23T11:16:26Z",
+  "forwardUntil": "2026-10-23T14:30:00Z",
+  "expiresAt": "2026-10-23T14:59:59Z"
+}

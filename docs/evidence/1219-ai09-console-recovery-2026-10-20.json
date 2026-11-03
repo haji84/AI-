@@ -1,0 +1,175 @@
+{
+  "schemaVersion": 1,
+  "issue": 1219,
+  "evidenceClass": "NATIVE_LIMITED_CONSOLE_PERMISSION_RECOVERY",
+  "physicalAcceptanceVerified": false,
+  "sourceRevision": "3dfc2b0727e39767dbaffdb48d4baa9421212e1f",
+  "ownerAuthorization": {
+    "reference": "owner-chat:1219:console-bootstrap:20261020",
+    "questionId": "call_923231bc2cff420a96bad7e427fc3591",
+    "answer": "このVM限定権限と限定復旧を承認",
+    "executionDeadline": "2026-10-20T13:00:00Z",
+    "scope": "one fixed VM/user console addition and exact own-entry removal only; no wider rights or guest/network/credential changes"
+  },
+  "originalGrant": {
+    "receipt": {
+      "version": 1,
+      "issue": 1219,
+      "status": "UNCERTAIN",
+      "success": false,
+      "approvalIssued": false,
+      "execution": true,
+      "authorizationReferenceRequested": "owner-chat:1219:console-bootstrap:20261020",
+      "expiresAt": "2026-10-20T13:00:00Z",
+      "coreSha256": "bf172830488f1410dff4e2bafe1c9a4831b249d8925a590e319f2c17a533c84d",
+      "dependencySha256": "1e7f2ca24588c3cde6fc7808d14783b0cce8fb88790f6eded73dd0ab79632a64",
+      "authenticatedGuest": false,
+      "physicalGoal": false,
+      "nativeTtlAvailable": false,
+      "nativeGrantExpiresAutomatically": false,
+      "sessionsTerminated": false,
+      "guestChangesReverted": false,
+      "oneAuthorizedWriterRequired": true,
+      "planSha256": "fb0133c6cf1e161bee9100ca53ded1974a761a539b851d5ef7fcd0a8f53f1d1f",
+      "coreResult": {
+        "issue": 1219,
+        "nativeGrantExpiresAutomatically": false,
+        "authenticatedGuest": false,
+        "success": false,
+        "code": "AFTER_STATE_UNCONFIRMED",
+        "status": "UNCERTAIN",
+        "physicalGoal": false,
+        "nativeTtlAvailable": false
+      }
+    },
+    "planSha256": "fb0133c6cf1e161bee9100ca53ded1974a761a539b851d5ef7fcd0a8f53f1d1f",
+    "journalSha256": "0cd0812bb1ca9eb29dae3aca1a4829e4505ab2f905dab96443133edef565da1f",
+    "rawAfterState": {
+      "authenticatedGuest": false,
+      "baseline": {
+        "hostName": "HAJI",
+        "vmId": "453b139b-cceb-446e-99fb-f45bf5895436",
+        "vmName": "GORIQ-AI09-Ubuntu",
+        "vmState": "Running",
+        "nicId": "Microsoft:453B139B-CCEB-446E-99FB-F45BF5895436\\796BBDF2-8959-42DE-BD42-E248AA53EB9D",
+        "nicMac": "00155DDC2C00",
+        "userName": "HAJI\\qq113",
+        "userSid": "S-1-5-21-3241814747-1938433149-1705921193-1004",
+        "aces": [
+          {
+            "UserName": "haji\\qq113",
+            "UserId": "S-1-5-21-3241814747-1938433149-1705921193-1004",
+            "VMName": "GORIQ-AI09-Ubuntu",
+            "VMId": "453b139b-cceb-446e-99fb-f45bf5895436",
+            "ComputerName": "HAJI",
+            "Access": "Allowed"
+          }
+        ]
+      },
+      "version": 1,
+      "baselineSha256": "d5b98a387ca61e773fe92f632345b068d23c5f6acf4518eb0c4221bb3e7c3ebe",
+      "nativeTtlAvailable": false,
+      "status": "OBSERVED",
+      "success": true,
+      "physicalGoal": false,
+      "observedAt": "2026-10-19T21:55:45.3123629+00:00",
+      "nativeGrantExpiresAutomatically": false,
+      "issue": 1219
+    },
+    "reconciliation": "Exactly one same-SID Allowed ACE; only target display UserName casing differs. Original UNCERTAIN status retained, never rewritten as APPLIED."
+  },
+  "clientObservation": {
+    "version": 1,
+    "issue": 1219,
+    "kind": "native-console-client-permission-observation",
+    "observedAt": "2026-10-19T22:03:06.5776637+00:00",
+    "sourceRevision": "3dfc2b0727e39767dbaffdb48d4baa9421212e1f",
+    "ownedClientPid": 29136,
+    "ownedClientExitVerified": true,
+    "preexistingClientPreserved": 35224,
+    "guestCommandExecuted": false,
+    "guestAuthenticated": false,
+    "physicalE2EVerified": false,
+    "wmiEvent": {
+      "operation": "IWbemServices::GetObject",
+      "clientProcessId": 29136,
+      "namespace": "root\\virtualization\\v2",
+      "timestamp": "2026-10-20T06:58:20.4580144+09:00",
+      "id": 5858,
+      "class": "Msvm_VirtualSystemManagementService",
+      "resultCode": "0x80041003"
+    },
+    "protectedListeners": [
+      {
+        "pid": 10068,
+        "port": 8787,
+        "listening": true
+      },
+      {
+        "pid": null,
+        "port": 8796,
+        "listening": false
+      },
+      {
+        "pid": 25144,
+        "port": 8797,
+        "listening": true
+      },
+      {
+        "pid": 12920,
+        "port": 11434,
+        "listening": true
+      }
+    ],
+    "protectedServicesChangedByThisAttempt": false,
+    "observationLimit": "8796 has no current listener; cause and stop time were not determined; no automatic restart performed"
+  },
+  "cleanup": {
+    "helperSha256": "ab3e8efc2c10a33efca151a9baf9a0afa48d82d48492f4a7f126b5f3875bc63d",
+    "fixtureSha256": "c86a0116e1cbdb4e5616efb90cfd25b82d60c4f10ca1ede6427dd3127afa826f",
+    "nativePid": 26056,
+    "nativeExitCode": 0,
+    "receipt": {
+      "version": 1,
+      "issue": 1219,
+      "status": "ROLLED_BACK",
+      "success": true,
+      "approvalIssued": false,
+      "execution": true,
+      "authorizationReferenceRequested": "owner-chat:1219:console-bootstrap:20261020",
+      "expiresAt": "2026-10-20T13:00:00Z",
+      "coreSha256": "bf172830488f1410dff4e2bafe1c9a4831b249d8925a590e319f2c17a533c84d",
+      "dependencySha256": "1e7f2ca24588c3cde6fc7808d14783b0cce8fb88790f6eded73dd0ab79632a64",
+      "frozenHelperSha256": "cd6bad2c84b980f63804a3d7ac5254e0dd18e18e44f6deff507fa08e41a604c5",
+      "originalGrantPlanSha256": "fb0133c6cf1e161bee9100ca53ded1974a761a539b851d5ef7fcd0a8f53f1d1f",
+      "originalJournalSha256": "0cd0812bb1ca9eb29dae3aca1a4829e4505ab2f905dab96443133edef565da1f",
+      "authenticatedGuest": false,
+      "physicalGoal": false,
+      "nativeTtlAvailable": false,
+      "nativeGrantExpiresAutomatically": false,
+      "sessionsTerminated": false,
+      "guestChangesReverted": false,
+      "oneAuthorizedWriterRequired": true,
+      "nativeCallTimeoutEnforced": false,
+      "beforeSha256": "13781537a494a3b040a6fcc768370b948088a343bde070e9f7cfd938b917917e",
+      "afterSha256": "2971736dffc936d91bb6e6149bc7bf9954b08f6757683be1ee0ee7f25c1ad271"
+    },
+    "receiptSha256": "d78fd030d634844360bc101072392d9c74300cab025a8b9fa7761026791cdc37",
+    "journalSha256": "84e76bdaa3294df86745f25832bb3784bab43c9daea2965e94ef72a19f899ff5",
+    "originalGrantJournalUnchanged": true,
+    "immediateCompleteNativeBaselineRestored": true,
+    "independentAdditionalInspectionCompleted": false,
+    "independentAdditionalInspectionReason": "Optional separate read-only launch waited for Windows UAC; its owned launcher was cancelled without a result. The recovery executor itself completed its actual full native readback."
+  },
+  "softwareRegression": {
+    "observedRed": "Native lowercase target returned UNCERTAIN instead of APPLIED",
+    "green": "Related Node5/5; PowerShell7 console87 assertions; Node wrapper also runs actual PS5 fixtures",
+    "scope": "Canonicalize only already SID/name-validated target UserName. Wrong identity, Denied and all unrelated policy drift remain rejected."
+  },
+  "limitations": [
+    "Not an authenticated guest connection, SSH-account repair or independent physical verifier proof.",
+    "No Windows OS reboot or nextJob physical continuation performed.",
+    "8787/8797 and Ollama retain observed PIDs. 8796 has no observed listener; stop time/cause unknown, no automatic restart performed.",
+    "Recovery restores owned permission metadata, not guest changes or arbitrary preexisting sessions."
+  ]
+}

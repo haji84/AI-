@@ -12,13 +12,15 @@ import {
 import { getSafeContextCandidates, resolveSafeContextReference } from "../context-reference";
 import { parseSafeMobileCommand } from "../voice-command";
 import {
+  applySpeechStyle,
   cancelLocalSpeech,
   DEFAULT_SPEECH_POLICY,
-  enqueueLocalSpeech,
   readSpeechPolicySettings,
+  shouldSpeakLocal,
   writeSpeechPolicySettings,
   type SpeechPolicySettings,
 } from "./speech-policy";
+import { playGoriqLocalVoice } from "../../voice-output";
 
 type FleetNode = { id: string; label: string; status: string; lastSeenAt: string };
 type StatePayload = { fleet?: FleetNode[]; message?: string };
@@ -97,8 +99,13 @@ export default function MobileVoiceCommander() {
 
   useEffect(() => {
     setSupported(Boolean(recognitionConstructor()));
-    setSpeechSupported(typeof window !== "undefined" && Boolean(window.speechSynthesis) && typeof SpeechSynthesisUtterance !== "undefined");
     setSpeechSettings(readSpeechPolicySettings());
+    void fetch("/api/jarvis/voice", { cache: "no-store" })
+      .then(async (response) => {
+        const body = await response.json().catch(() => ({})) as { available?: boolean };
+        setSpeechSupported(response.ok && body.available === true);
+      })
+      .catch(() => setSpeechSupported(false));
     setSharedContext(loadSharedCommandContext());
     void refresh();
     return () => {
@@ -129,6 +136,13 @@ export default function MobileVoiceCommander() {
     const next = writeSpeechPolicySettings({ ...speechSettings, ...patch });
     setSpeechSettings(next);
     if (next.muted) cancelLocalSpeech();
+  }
+
+  async function speakStatus(text: string, priority: "normal" | "high" = "normal") {
+    const allowed = shouldSpeakLocal(text, priority, speechSettings);
+    if (!allowed.allowed) return;
+    const result = await playGoriqLocalVoice(applySpeechStyle(text, speechSettings.style));
+    if (!result.ok) setMessage(`音声応答は再生できません: ${result.reason}`);
   }
 
   function stopListening() {
@@ -202,7 +216,7 @@ export default function MobileVoiceCommander() {
     if (!parsed.ok) {
       setError(parsed.message);
       if (parsed.reason === "protected") {
-        enqueueLocalSpeech("この操作は音声から実行できません。画面の確認手順を使ってください。", "high", speechSettings);
+        void speakStatus("この操作は音声から実行できません。画面の確認手順を使ってください。", "high");
       }
       setSharedContext(recordSharedCommand({
         source: "voice",
@@ -215,7 +229,7 @@ export default function MobileVoiceCommander() {
     }
     if (!selectedNodeId) {
       setError("操作する端末を選択してください。");
-      enqueueLocalSpeech("操作する端末を選択してください。", "normal", speechSettings);
+      void speakStatus("操作する端末を選択してください。", "normal");
       setSharedContext(recordSharedCommand({ source: "voice", command: text, outcome: "failed" }));
       return;
     }
@@ -238,7 +252,7 @@ export default function MobileVoiceCommander() {
       const body = await response.json() as { message?: string };
       if (!response.ok) throw new Error(body.message || `HTTP ${response.status}`);
       setMessage(`${selectedNode?.label ?? "端末"}へ確認済みの音声指示を送信しました。`);
-      enqueueLocalSpeech("指示を送信しました。", "normal", speechSettings);
+      void speakStatus("指示を送信しました。", "normal");
       setSharedContext(recordSharedCommand({
         source: "voice",
         command: text,
@@ -250,7 +264,7 @@ export default function MobileVoiceCommander() {
       setInterimTranscript("");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "音声指示を送信できませんでした");
-      enqueueLocalSpeech("指示を送信できませんでした。", "high", speechSettings);
+      void speakStatus("指示を送信できませんでした。", "high");
       setSharedContext(recordSharedCommand({
         source: "voice",
         command: text,
@@ -290,7 +304,7 @@ export default function MobileVoiceCommander() {
       </section>
 
       <section className="commander-card voice-policy-card">
-        <div className="commander-card-title"><span>音声応答</span><small>{speechSupported ? "端末内Web Speech" : "未対応"}</small></div>
+        <div className="commander-card-title"><span>音声応答</span><small>{speechSupported ? "Aivis / VOICEVOX" : "未検出"}</small></div>
         <button
           type="button"
           className="voice-mute-toggle"
@@ -318,7 +332,7 @@ export default function MobileVoiceCommander() {
             </select>
           </label>
         </div>
-        <p className="commander-hint">初期状態はミュートです。音声応答は端末内のWeb Speechだけを使い、有料APIへ送りません。Push-to-talk開始時は再生中の音声と待ち行列を停止して発話を優先します。</p>
+        <p className="commander-hint">初期状態はミュートです。音声応答はAivisSpeech Engineを優先し、VOICEVOX Engineを予備として使います。有料APIへ送りません。どちらも未検出なら文字表示だけを継続します。Push-to-talk開始時は再生中の音声を停止して発話を優先します。</p>
       </section>
 
       <section className="commander-card voice-input-card">

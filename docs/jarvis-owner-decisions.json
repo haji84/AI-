@@ -51,6 +51,109 @@
       "supersedes": [],
       "superseded_by": [],
       "next_action": "Implement audited reuse-first composition and tests A–J; retain local/model/physical evidence distinctions."
+    },
+    {
+      "id": "owner-2026-10-06-goriq-design-session",
+      "state": "SPEC_SYNCED",
+      "source": {
+        "kind": "owner_instruction",
+        "decision": "accepted",
+        "author": "haji84",
+        "ref": "https://github.com/haji84/AI-/issues/1719",
+        "excerpt": "ほな今作ってた設計仕様でGORIQの今の設計仕様で足りないもの、があれば追加してほしい",
+        "text_sha256": "e6c6fbd75fd1644df81110f40a62ba9058ac243e646b71aea7c6e4b91cbe4563",
+        "recorded_at": "2026-10-06T06:50:10Z"
+      },
+      "protected_changes": [],
+      "canonical": [
+        {
+          "id": "UI-002",
+          "fingerprint": "6763a9302ca686dc9dd79be93dce5ba78db1a5508619a2b2135f2c5422dc7f4c"
+        },
+        {
+          "id": "UI-003",
+          "fingerprint": "eb9373ee7cf01bfb7a17f896b6d0260f122419d893f741a7696af6a5416f751f"
+        },
+        {
+          "id": "UI-005",
+          "fingerprint": "8e7e45a606371e4bd0080e09706b371a264c4c5301e1b6b7922fa44ac81a57a8"
+        },
+        {
+          "id": "UI-006",
+          "fingerprint": "d54a56ece03e84f02dfd7b8c284ac111826bb67bd32d0d86d31489e4d4b80e7e"
+        },
+        {
+          "id": "UI-007",
+          "fingerprint": "aff9365b0ce0e40c876c71824041da85fe9f8822954a2b10ddda60c3a307f9ec"
+        },
+        {
+          "id": "UI-009",
+          "fingerprint": "d9d1e0d72c5377d57d76fe1a5a4808bbd485e6f693abb455bb50c636c996ece0"
+        },
+        {
+          "id": "UI-011",
+          "fingerprint": "fc19dfd8d7942f3f827d83f639707ce7587b5d9bdacde686224e14276590fbe1"
+        },
+        {
+          "id": "UI-012",
+          "fingerprint": "de591e137e8a4168d2bb829c5149c95d6f44fedd89ee66f17cbbaf1230fdf976"
+        },
+        {
+          "id": "UI-014",
+          "fingerprint": "6fdcde69fb29b9d0ad8486138c30bd0cb60954fbad694078986a11fa18cccd1d"
+        },
+        {
+          "id": "UI-019",
+          "fingerprint": "1f2b940f8eb61550e62e57a02c78a1bdf5291fcd8d794ba10c01d609d1d6a4f3"
+        },
+        {
+          "id": "UI-020",
+          "fingerprint": "fbdc98131480214171dd916d2c821b18e9be88d302a47bf80db66f262a03bf98"
+        },
+        {
+          "id": "UI-026",
+          "fingerprint": "03a5a4025c90bbc8ca58a0cc2fa30ee5aedc3d9b2c6ad56fdae8bd1b9f56c3c8"
+        },
+        {
+          "id": "UI-027",
+          "fingerprint": "e3aff9cf407cf820d6d5b4ed6462c55a6c4588d4bfb1a91694b6f2634a539841"
+        },
+        {
+          "id": "INT-001",
+          "fingerprint": "8bdbb14dd76e7ad596934ca1ea84a3277e0369f3b6e0050092563237f486f6b7"
+        },
+        {
+          "id": "INT-004",
+          "fingerprint": "6ea0f43d358cf890884becd569d4d85499a7b3fb7884695213e47cea24a37285"
+        },
+        {
+          "id": "INT-005",
+          "fingerprint": "5cd8fca0842faca400de0533c29a7302ea89f4c41aece1dd5939d55e56e9eb56"
+        },
+        {
+          "id": "INT-008",
+          "fingerprint": "2a91d8a1211a63e3b1e10ed6a85e54add27f8bcc8e633223afb235eb43d963ce"
+        },
+        {
+          "id": "INT-009",
+          "fingerprint": "1ed7baa907c1d5dac39cd4251f248b8ecbe27c87cd385605536a26047770a9ac"
+        },
+        {
+          "id": "AUTO-005",
+          "fingerprint": "cb993c44535c6afdf4f146876ed8f666fa804e6fbf3430ad39b02dcf751f38be"
+        },
+        {
+          "id": "AUTO-022",
+          "fingerprint": "4068bd76b3fedf3c06285c6c82d084c76e32e9cceed5e40d2a03ead0c5a6a613"
+        },
+        {
+          "id": "CORE-014",
+          "fingerprint": "d3a3999f74a4232a8e5f20dedd4b90fe096a55fe04a1fad46367a77460f35a55"
+        }
+      ],
+      "supersedes": [],
+      "superseded_by": [],
+      "next_action": "Implement only the gaps recorded in #1719 on top of current GORIQ; preserve existing Goal/Gate/State authority and do not treat specification sync as implementation or physical verification."
     }
   ]
 }

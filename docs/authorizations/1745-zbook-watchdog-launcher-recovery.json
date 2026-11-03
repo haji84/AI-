@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "issue": 1745,
+  "goalIssue": 1219,
+  "operation": "zbook-watchdog-launcher-recovery",
+  "nodeId": "zbook",
+  "approvedAt": "2026-10-08T04:34:51Z",
+  "bindingNote": "Issue creation binds the previously supplied owner completion instruction to this ordinary file repair; this timestamp does not claim a new permission or governance approval.",
+  "expiresAt": "2026-10-08T22:33:43Z",
+  "files": ["gai-zbook-launcher-file.ps1", "gai-zbook-watchdog.ps1", "gai-zbook-watchdog-launcher.vbs"],
+  "permissionsChanged": false,
+  "tasksChanged": false,
+  "ownerInstruction": "完了まで全て承認 / 今後完成まで必要な変更、検証、テスト、実行などの承認や確認はクリティカルリスクだけにして",
+  "criticalWorkflowGate": "separate-owner-approval-required-before-merge"
+}

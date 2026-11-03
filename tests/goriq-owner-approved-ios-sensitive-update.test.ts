@@ -1,0 +1,2 @@
+import assert from"node:assert/strict";import{readFile}from"node:fs/promises";import test from"node:test";import{URL}from"node:url";
+test("sensitive iOS update requires explicit Owner approval and exact current main",async()=>{const s=await readFile(new URL("../.github/workflows/iphone-owner-auto-update.yml",import.meta.url),"utf8");assert.match(s,/approve_sensitive_owner_update/);assert.match(s,/owner-approved-sensitive-current-main/);assert.match(s,/sensitive update must target exact current main/);assert.match(s,/workflow_dispatch/);});

@@ -1,10 +1,33 @@
 import { CompassStore } from "../src/compass/store.ts";
-import { CompassGoalExecutionAdapter } from "../src/orchestrator/compass-goal-execution-adapter.ts";
+import { compassGoalToLoopGoal } from "../src/orchestrator/compass-state-store.ts";
+import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { CompassGoalExecutionAdapter, type DevelopmentRuntimeOptions } from "../src/orchestrator/compass-goal-execution-adapter.ts";
 import { CompassGoalBridgeEventStore } from "../src/orchestrator/compass-goal-bridge-event-store.ts";
 import { CompassWorkRunStore } from "../src/orchestrator/compass-work-run-store.ts";
 import { GoalControllerExecutionBridge } from "../src/orchestrator/goal-controller-execution-bridge.ts";
 import { createGoalBridgeEvent } from "../src/orchestrator/goal-bridge-events.ts";
 import type { GoalControllerDecision } from "../src/orchestrator/goal-controller-runtime.ts";
+import { createDevelopmentChangeSet } from "../src/orchestrator/development-change-set.ts";
+import { JsonFileDevelopmentChangeSetStore } from "../src/orchestrator/development-change-set-store.ts";
+import { JsonFileDevelopmentJobStore } from "../src/orchestrator/development-job-store.ts";
+import { ResidentDevelopmentGoalHost } from "../src/orchestrator/resident-development-goal-host.ts";
+import { createRuntimeBuilderRouter } from "../src/orchestrator/runtime-builder-capability.ts";
+import { resolveResidentDevelopmentScope } from "../src/orchestrator/resident-development-scope.ts";
+import { localOllamaFixtureTestPath, runLocalTddVerification } from "../src/orchestrator/local-ollama-tdd.ts";
+import { readSignedLocalVerifierReceipt } from "../src/orchestrator/signed-local-verifier-receipt.ts";
+import { createRuntimeDevelopmentVerifier } from "../src/orchestrator/runtime-development-verifier.ts";
+import { HttpDevelopmentReleaseCapability } from "../src/orchestrator/http-development-release-capability.ts";
+import { createTaskCompletionAuthorization, normalizeTaskCompletionAuthorization } from "../src/orchestrator/task-authorization.ts";
+import { buildRepositoryDevelopmentContext } from "../src/orchestrator/repository-development-context.ts";
+import { createSequencedResidentRuntime } from "../src/orchestrator/sequenced-resident-runtime.ts";
+import { assertTrackedRepairProfileExclusive, createTrackedRepairResidentRuntime } from "../src/orchestrator/tracked-repair-resident-runtime.ts";
+import type { Goal } from "../src/orchestrator/goal-loop.ts";
+import { ResourceWaitError } from "../src/gai/development-resource-admission.ts";
+import { nextResourceWait, resourceWaitExhausted, resourceWaitFromEvidence, type DevelopmentResourceWait } from "../src/orchestrator/development-resource-wait.ts";
+import { loadCompletionRuntimeHandoff } from "../src/orchestrator/completion-runtime-handoff.ts";
 
 function requiredEnv(name: string): string {
   const value = process.env[name]?.trim();
@@ -44,6 +67,230 @@ function executorDecision(goalId: string): GoalControllerDecision {
   };
 }
 
+function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): DevelopmentRuntimeOptions | undefined {
+  const contextText = JSON.stringify(context);
+  const goalStore = new CompassStore(compassPath);
+  let persistedGoalText = "";
+  let persistedGoal: Goal | undefined;
+  let persistedOwnerCommand: string | undefined;
+  try {
+    const record = goalStore.getGoal();
+    if (record) {
+      const goal = compassGoalToLoopGoal(record);
+      persistedGoal = goal;
+      persistedGoalText = [goal.title, goal.description ?? "", ...goal.successCriteria].join("\n");
+      persistedOwnerCommand = goal.description?.trim() || goal.title;
+    }
+  } finally {
+    goalStore.close();
+  }
+  if (process.env.GORIQ_TRACKED_REPAIR_MANIFEST_FILE || process.env.GORIQ_TRACKED_REPAIR_MANIFEST_SHA256) {
+    if (!persistedGoal) throw Error("TRACKED_REPAIR_PERSISTED_GOAL_REQUIRED");
+    if (process.env.GORIQ_SELF_DEVELOPMENT_SEQUENCE_FILE || process.env.GORIQ_SELF_DEVELOPMENT_SEQUENCE_SHA256) throw Error("TRACKED_REPAIR_MULTIPLE_RUNTIME_PROFILES");
+    const runtime = createTrackedRepairResidentRuntime({ env: process.env, runtimeRoot: process.cwd(), compassPath, goal: persistedGoal });
+    if (!runtime) throw Error("TRACKED_REPAIR_MANIFEST_REQUIRED");
+    return { runtime };
+  }
+  if (process.env.GORIQ_SELF_DEVELOPMENT_SEQUENCE_FILE || process.env.GORIQ_SELF_DEVELOPMENT_SEQUENCE_SHA256) {
+    if (!persistedGoal) throw Error("RESIDENT_SEQUENCE_PERSISTED_GOAL_REQUIRED");
+    const runtime = createSequencedResidentRuntime({ env: process.env, runtimeRoot: process.cwd(), compassPath, goal: persistedGoal });
+    if (!runtime) throw Error("RESIDENT_SEQUENCE_CONFIGURATION_REQUIRED");
+    return { runtime };
+  }
+  const developmentSignalText = `${contextText}\n${persistedGoalText}`;
+  const explicitDevelopment = process.env.GORIQ_SELF_DEVELOPMENT_RUNTIME === "1";
+  const declaredDevelopment = context.some((item) => item && typeof item === "object" && (item as { intent?: unknown }).intent === "DEVELOPMENT_TASK");
+  const inferredDevelopment = /(?:GitHub|issue|PR|pull request|実装|修正|コード|開発|CI|test|テスト|src\/|tests\/|scripts\/|docs\/)/i.test(developmentSignalText);
+  if (!explicitDevelopment && !declaredDevelopment && !inferredDevelopment) return undefined;
+  const configuredFiles = (process.env.GORIQ_SELF_DEVELOPMENT_TARGET_FILES ?? "").split(",").map((item) => item.trim()).filter(Boolean);
+  const inferredFiles = contextText.match(/(?:src|tests|scripts|docs|apps)\/[A-Za-z0-9_./-]+/g) ?? [];
+  const executionScope = resolveResidentDevelopmentScope(process.env, process.cwd(), configuredFiles, inferredFiles);
+  const targetFiles = executionScope.targetFiles;
+  const taskScopeId = process.env.GORIQ_SELF_DEVELOPMENT_TASK_SCOPE_ID?.trim()
+    || `goal:${createHash("sha256").update(requiredEnv("JARVIS_GOAL_EXECUTION_GOAL_ID")).digest("hex").slice(0, 24)}`;
+  const ownerCommand = [...context].reverse().flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const value = item as { source?: unknown; text?: unknown };
+    return typeof value.text === "string" && (value.source === "trusted-device-development-intake" || value.source === "owner-work-intake")
+      ? [value.text]
+      : [];
+  })[0] ?? persistedOwnerCommand;
+  const authorization = process.env.GORIQ_SELF_DEVELOPMENT_TASK_AUTHORIZATION_JSON
+    ? normalizeTaskCompletionAuthorization(JSON.parse(process.env.GORIQ_SELF_DEVELOPMENT_TASK_AUTHORIZATION_JSON))
+    : ownerCommand
+      ? createTaskCompletionAuthorization(ownerCommand, { scopeId: taskScopeId })
+      : undefined;
+  const repositoryRoot = executionScope.repositoryRoot;
+  const baseRevision = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repositoryRoot, encoding: "utf8" }).trim();
+  const tracked = execFileSync("git", ["ls-files"], { cwd: repositoryRoot, encoding: "utf8" }).split(/\r?\n/).filter(Boolean);
+  const resolvedTargets = targetFiles.length
+    ? targetFiles
+    : executionScope.localOllama ? [] : tracked.filter((path) => /^(?:src|scripts|apps)\//.test(path)).slice(0, 80);
+  const relatedTests = tracked.filter((path) => path.startsWith("tests/") && resolvedTargets.some((target) => path.includes(target.split("/").at(-1)?.split(".")[0] ?? "\0")));
+  const candidatePaths = [...new Set([...resolvedTargets, ...relatedTests])].slice(0, 200);
+  const entries = candidatePaths.flatMap((path) => {
+    const absolute = resolve(repositoryRoot, path);
+    const rel = relative(repositoryRoot, absolute);
+    if (isAbsolute(rel) || rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`) || !existsSync(absolute)) return [];
+    const content = readFileSync(absolute, "utf8");
+    return [{ path: rel.replaceAll("\\", "/"), content: content.slice(0, 100_000) }];
+  });
+  const repositoryContext = buildRepositoryDevelopmentContext({ objective: "resident self-development", preferredFiles: resolvedTargets, entries, maxChars: 40_000 });
+  const router = createRuntimeBuilderRouter();
+  const verifier = createRuntimeDevelopmentVerifier();
+  const verifierReceipt = process.env.GORIQ_LOCAL_VERIFIER_RECEIPT_FILE?.trim();
+  const verifierPublicKey = process.env.GORIQ_LOCAL_VERIFIER_PUBLIC_KEY_FILE?.trim();
+  if (executionScope.localOllama && Boolean(verifierReceipt) !== Boolean(verifierPublicKey)) {
+    throw new Error("SIGNED_LOCAL_VERIFIER_CONFIGURATION_INCOMPLETE");
+  }
+  const verifierPublicKeySha256 = process.env.GORIQ_LOCAL_VERIFIER_PUBLIC_KEY_SHA256?.trim();
+  if (executionScope.localOllama && verifierReceipt && verifierPublicKey) {
+    if (!/^[a-f0-9]{64}$/.test(verifierPublicKeySha256 ?? "")) {
+      throw new Error("SIGNED_LOCAL_VERIFIER_PUBLIC_KEY_PIN_REQUIRED");
+    }
+    for (const file of [verifierReceipt, verifierPublicKey]) {
+      const rel = relative(repositoryRoot, resolve(file));
+      if (!isAbsolute(file) || rel === "" || (!isAbsolute(rel) && rel !== ".." && !rel.startsWith(".." + sep))) {
+        throw new Error("SIGNED_LOCAL_VERIFIER_AUTHORITY_MUST_BE_OUTSIDE_BUILDER_WORKSPACE");
+      }
+    }
+  }
+  const verifierKeyPem = executionScope.localOllama && verifierPublicKey
+    ? readFileSync(verifierPublicKey, "utf8") : null;
+  if (verifierKeyPem && createHash("sha256").update(verifierKeyPem).digest("hex") !== verifierPublicKeySha256) {
+    throw new Error("SIGNED_LOCAL_VERIFIER_PUBLIC_KEY_PIN_MISMATCH");
+  }
+  const releaseUrl = process.env.GORIQ_SELF_DEVELOPMENT_RELEASE_URL?.trim();
+  const releaseToken = process.env.GORIQ_SELF_DEVELOPMENT_RELEASE_TOKEN?.trim();
+  if (Boolean(releaseUrl) !== Boolean(releaseToken)) throw new Error("GORIQ release URL and token must be configured together");
+  const releaseRequired = /(?:PR|pull request|merge|マージ|本番反映|反映まで)/i.test(developmentSignalText);
+  if (releaseRequired && (!releaseUrl || !releaseToken)) throw new Error("SELF_DEVELOPMENT_RELEASE_CAPABILITY_MISSING: accepted Goal requires PR/merge/release but canonical Runtime did not inherit release configuration");
+  const release = releaseUrl && releaseToken ? new HttpDevelopmentReleaseCapability({ url: releaseUrl, token: releaseToken }) : undefined;
+  const stateRoot = join(dirname(compassPath), "self-development");
+  const host = new ResidentDevelopmentGoalHost({
+    jobs: new JsonFileDevelopmentJobStore(join(stateRoot, "jobs.json")),
+    changeSets: new JsonFileDevelopmentChangeSetStore(join(stateRoot, "change-sets.json")),
+    planning: {
+      requirementIds: ["CORE-014"],
+      baseRevision,
+      taskScopeId,
+      maxRisk: "medium",
+      targetFiles: resolvedTargets,
+      contextDigest: createHash("sha256").update(developmentSignalText).digest("hex"),
+    },
+    stages: {
+      builderId: "builder:resident",
+      deferMissingVerification: executionScope.localOllama,
+      async build({ job, context: runtimeContext, workItemId }) {
+        const workItem = job.workItems.find((item) => item.id === workItemId);
+        if (!workItem) throw new Error("resident Builder Work Item is not in the durable Job");
+        const tddPhase = workItem.id.endsWith(":test") ? "red" as const : "green" as const;
+        const action = {
+          id: `${job.jobId}:build:${workItem.id}:attempt:${job.attempts.length + 1}`,
+          description: workItem.objective,
+          capability: "code.builder",
+          risk: "low" as const,
+          input: {
+            goalId: job.goalId,
+            attemptId: `${job.jobId}:attempt:${job.attempts.length + 1}`,
+            strategyId: `${job.jobId}:strategy:${job.attempts.length + 1}`,
+            objective: workItem.objective,
+            files: executionScope.localOllama && process.env.GORIQ_LOCAL_OLLAMA_TDD_PROFILE === "python_add_v1" && tddPhase === "red"
+              ? [localOllamaFixtureTestPath] : resolvedTargets,
+            baseRevision: job.baseRevision,
+            previousFailureSignatures: job.failureSignatures,
+            previousStrategyFingerprints: job.rejectedStrategyIds,
+            hypothesis: job.attempts.at(-1)?.hypothesis,
+            localOnly: executionScope.localOnly,
+            tddPhase,
+          },
+        };
+        const result = await router.execute(action, [...runtimeContext, { source: "repository.development-context", summary: `Selected ${repositoryContext.selectedPaths.length} repository files`, data: repositoryContext }]);
+        if (!result.ok) throw (result.blocker === "WAITING_FOR_RESOURCE" ? resourceWaitFromEvidence(result.evidence) : null) ?? new Error(result.blocker ?? result.summary);
+        const envelope = (result.evidence as { changeSet?: { baseRevision?: string | null; changedPaths?: string[]; patchDigest?: string; candidateRevision?: string; artifactDigest?: string; artifactRef?: string; tddPhase?: "red" | "green"; tddEvidenceDigest?: string; builderId?: string } } | undefined)?.changeSet;
+        if (!envelope || envelope.baseRevision !== job.baseRevision || !envelope.patchDigest) throw new Error("resident Builder returned incomplete Change Set evidence");
+        return createDevelopmentChangeSet({
+          changeSetId: `${job.jobId}:change-set:${tddPhase}:attempt:${job.attempts.length + 1}`,
+          jobId: job.jobId,
+          workItemId,
+          deviceId: envelope.builderId ?? "builder:resident",
+          baseRevision: job.baseRevision,
+          changedPaths: envelope.changedPaths ?? [],
+          affectedSymbols: [],
+          patchDigest: envelope.patchDigest,
+          candidateRevision: envelope.candidateRevision,
+          artifactDigest: envelope.artifactDigest,
+          artifactRef: envelope.artifactRef,
+          tddPhase: envelope.tddPhase,
+          tddEvidenceDigest: envelope.tddEvidenceDigest,
+          evidenceDigest: createHash("sha256").update(JSON.stringify(result.evidence ?? null)).digest("hex"),
+          rollback: { kind: "git-base", reference: job.baseRevision },
+        });
+      },
+      ...(executionScope.localOllama && process.env.GORIQ_LOCAL_OLLAMA_TDD_PROFILE === "python_add_v1" ? {
+        async verifyRed({ changeSet }: { changeSet: { baseRevision: string; artifactDigest: string; candidateRevision: string; changedPaths: string[] } }) {
+          const red = runLocalTddVerification(repositoryRoot, changeSet.baseRevision, "red");
+          if (!red.ok || !red.evidenceDigest ||
+              red.evidence?.artifactSha256 !== changeSet.artifactDigest ||
+              red.evidence?.candidateRevision !== changeSet.candidateRevision ||
+              changeSet.changedPaths.length !== 1 || changeSet.changedPaths[0] !== localOllamaFixtureTestPath) {
+            throw new Error(red.blocker ?? "independent_red_artifact_binding_invalid");
+          }
+          return { digest: red.evidenceDigest, issuer: red.evidence!.verifierId };
+        },
+      } : {}),
+      async verify({ job, changeSet, plan, goal, context: runtimeContext }) {
+        const action = {
+          id: `${job.jobId}:verify:${changeSet.changeSetId}`,
+          description: `Independently verify ${goal.title}`,
+          capability: "code.builder",
+          risk: "low" as const,
+          input: {
+            verificationContract: { kind: "repository_checks", profile: "standard", requiredChecks: plan.requiredChecks },
+            candidate: { artifactRef: changeSet.artifactRef, changedPaths: changeSet.changedPaths },
+            releaseBinding: { builderId: plan.builderId, sourceRevision: plan.sourceRevision, artifactDigest: plan.artifactDigest },
+          },
+        };
+        if (executionScope.localOllama && process.env.GORIQ_LOCAL_OLLAMA_TDD_PROFILE === "python_add_v1") {
+          const green = runLocalTddVerification(repositoryRoot, changeSet.baseRevision, "green");
+          if (!green.ok || green.evidence?.artifactSha256 !== changeSet.artifactDigest ||
+              green.evidence?.candidateRevision !== plan.sourceRevision) return [];
+          if (verifierReceipt && verifierPublicKey && existsSync(verifierReceipt)) {
+            return readSignedLocalVerifierReceipt({ receiptPath: verifierReceipt,
+              publicKeyPem: verifierKeyPem!,
+              plan, changeSet, goalId: job.goalId });
+          }
+          // This narrow Python unit proof cannot be mislabeled as the complete
+          // repository-wide lint/typecheck/build/security gate.
+          return [{ check: "unit" as const, verifierId: green.evidence!.verifierId,
+            sourceRevision: plan.sourceRevision, artifactDigest: plan.artifactDigest,
+            status: "passed" as const, recordedAt: green.evidence!.recordedAt }];
+        }
+        if (executionScope.localOllama) {
+          if (!verifierReceipt || !verifierPublicKey || !existsSync(verifierReceipt)) return [];
+          return readSignedLocalVerifierReceipt({ receiptPath: verifierReceipt,
+            publicKeyPem: verifierKeyPem!, plan, changeSet, goalId: job.goalId });
+        }
+        const result = await verifier.verify({ goal, action, result: { actionId: action.id, ok: true, summary: "Change Set ready for verification" }, context: runtimeContext });
+        if (!result.ok) {
+          const wait = resourceWaitFromEvidence(result.evidence);
+          if (wait) throw wait;
+          return [];
+        }
+        const evidence = result.evidence as { verificationEvidence?: unknown } | undefined;
+        return Array.isArray(evidence?.verificationEvidence) ? evidence.verificationEvidence as never : [];
+      },
+      async releaseState(input) {
+        if (!release) return { connected: false, taskScopeId, taskAuthorization: authorization, protectedConditions: [], classifications: null, pullRequest: null, mainCi: null, deployment: null, postDeploymentEvidence: null };
+        const state = await release.state(input);
+        return { ...state, taskScopeId, taskAuthorization: authorization };
+      },
+      ...(release ? { async executeRelease(action: string, input: Parameters<HttpDevelopmentReleaseCapability["execute"]>[1]) { await release.execute(action, input); } } : {}),
+    },
+  });
+  return { runtime: host };
+}
+
 async function appendEvent(
   compassPath: string,
   input: Parameters<typeof createGoalBridgeEvent>[0],
@@ -56,13 +303,14 @@ async function appendEvent(
   }
 }
 
-async function updateWorkRun(compassPath: string, goalId: string, phase: "RUNNING" | "COMPLETED" | "BLOCKED" | "HUMAN_GATE", reason: string | null): Promise<void> {
+async function updateWorkRun(compassPath: string, goalId: string, phase: "RUNNING" | "COMPLETED" | "BLOCKED" | "HUMAN_GATE", reason: string | null, resourceWait?: DevelopmentResourceWait | null): Promise<void> {
   const compass = new CompassStore(compassPath);
   try {
     const store = new CompassWorkRunStore(compass);
     const current = await store.getByGoal(goalId);
     if (!current) throw new Error("Accepted Goal has no durable Work Run");
-    await store.put({ ...current, phase, blockers: phase === "BLOCKED" ? [reason ?? "execution_failed"] : [], nextAction: phase === "COMPLETED" ? null : reason, updatedAt: new Date().toISOString() });
+    if (compass.getState().status === "PAUSED" || current.phase === "HUMAN_GATE" && phase !== "HUMAN_GATE") return;
+    await store.put({ ...current, phase, resourceWait: resourceWait === undefined ? current.resourceWait : resourceWait ?? undefined, blockers: phase === "BLOCKED" ? [reason ?? "execution_failed"] : [], nextAction: phase === "COMPLETED" ? null : reason, updatedAt: new Date().toISOString() });
   } finally {
     compass.close();
   }
@@ -74,10 +322,41 @@ async function main(): Promise<void> {
   const context = decodeContext(process.env.JARVIS_GOAL_EXECUTION_CONTEXT_B64);
   const decision = executorDecision(goalId);
   try {
+    assertTrackedRepairProfileExclusive(process.env);
+    const compass = new CompassStore(compassPath);
+    try {
+      const current = await new CompassWorkRunStore(compass).getByGoal(goalId);
+      if (compass.getState().status === "PAUSED" || !current || !["QUEUED", "PLANNING", "RUNNING", "VERIFYING", "RECOVERING"].includes(current.phase)) return;
+      if (current.resourceWait) {
+        if (resourceWaitExhausted(current.resourceWait, new Date())) {
+          await updateWorkRun(compassPath, goalId, "BLOCKED", "resource_wait_budget_exhausted", null);
+          await appendEvent(compassPath, { goalId, type: "GOAL_BLOCKED", summary: "resource_wait_budget_exhausted", evidenceRefs: [] });
+          return;
+        }
+        if (Date.now() < Date.parse(current.resourceWait.retryAt)) return;
+      }
+    } finally { compass.close(); }
     await updateWorkRun(compassPath, goalId, "RUNNING", "Execute accepted Goal");
-    const bridge = new GoalControllerExecutionBridge(new CompassGoalExecutionAdapter(compassPath));
+    const goalStore = new CompassStore(compassPath);
+    const completionSource = await (async () => {
+      try {
+        const record = goalStore.getGoal();
+        if (!record) throw new Error("Compass goal is not set");
+        return await loadCompletionRuntimeHandoff(process.env, goalId, compassGoalToLoopGoal(record));
+      } finally { goalStore.close(); }
+    })();
+    // Validate an explicit host handoff before inspecting text for development
+    // intent. Invalid handoffs must never fall back to another model/controller.
+    const developmentRuntime = completionSource ? undefined : configuredDevelopmentRuntime(compassPath, context);
+    const adapter = completionSource
+      ? new CompassGoalExecutionAdapter(compassPath, {}, {}, undefined, completionSource)
+      : developmentRuntime
+        ? new CompassGoalExecutionAdapter(compassPath, {}, {}, developmentRuntime)
+        : new CompassGoalExecutionAdapter(compassPath);
+    const bridge = new GoalControllerExecutionBridge(adapter);
     const result = await bridge.executeUntilGoalTerminal(decision, { maxRuns: 12, context });
     const report = result.report;
+    if (result.reason === "paused") return;
     const type = result.reason === "goal_complete"
       ? "GOAL_COMPLETED"
       : result.reason === "human_gate"
@@ -85,8 +364,8 @@ async function main(): Promise<void> {
         : result.reason === "blocked" || result.reason === "retry_exhausted"
           ? "GOAL_BLOCKED"
           : "IMPORTANT_UPDATE";
-    const phase = result.reason === "goal_complete" ? "COMPLETED" : result.reason === "human_gate" ? "HUMAN_GATE" : "BLOCKED";
-    await updateWorkRun(compassPath, goalId, phase, result.reason ?? report?.stopReason ?? "goal_execution_incomplete");
+    const phase = result.reason === "goal_complete" ? "COMPLETED" : result.reason === "human_gate" ? "HUMAN_GATE" : result.reason === "publication_wait" || result.reason === "resource_wait" || result.reason === "verification_wait" ? "RUNNING" : "BLOCKED";
+    await updateWorkRun(compassPath, goalId, phase, result.reason ?? report?.stopReason ?? "goal_execution_incomplete", report?.resourceWait ?? null);
     await appendEvent(compassPath, {
       goalId,
       type,
@@ -97,6 +376,18 @@ async function main(): Promise<void> {
       console.error("[goriq-goal-executor]", goalId, result.reason);
     }
   } catch (error) {
+    if (error instanceof ResourceWaitError) {
+      const compass = new CompassStore(compassPath);
+      try {
+        const current = await new CompassWorkRunStore(compass).getByGoal(goalId);
+        if (!current) throw new Error("Accepted Goal has no durable Work Run");
+        const exhausted = current.resourceWait && resourceWaitExhausted(current.resourceWait, new Date());
+        const wait = exhausted ? null : nextResourceWait(current.resourceWait, error.outcome, new Date());
+        await updateWorkRun(compassPath, goalId, exhausted ? "BLOCKED" : "RUNNING", exhausted ? "resource_wait_budget_exhausted" : "resource_wait:" + error.outcome.reason, wait);
+        await appendEvent(compassPath, { goalId, type: exhausted ? "GOAL_BLOCKED" : "IMPORTANT_UPDATE", summary: exhausted ? "resource_wait_budget_exhausted" : "resource_wait", evidenceRefs: [] });
+      } finally { compass.close(); }
+      return;
+    }
     try {
       await updateWorkRun(compassPath, goalId, "BLOCKED", error instanceof Error ? error.message : "execution_failed");
       await appendEvent(compassPath, {

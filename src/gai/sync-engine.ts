@@ -1,7 +1,8 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
+import { isDeepStrictEqual } from "node:util";
 
-export type SyncEntityType = "goal" | "task" | "result" | "memory" | "skill" | "evidence" | "log";
+export type SyncEntityType = "goal" | "task" | "result" | "change-set" | "memory" | "skill" | "evidence" | "coordinator" | "log";
 export type SyncState = "local-only" | "pending-push" | "synced" | "conflicted";
 export type VerificationStatus = "pass" | "fail" | "unverified";
 export type CausalClock = Record<string, number>;
@@ -102,7 +103,11 @@ export interface SyncReport {
   conflicts: SyncConflict[];
 }
 
-const CRITICAL_ENTITIES = new Set<SyncEntityType>(["goal", "task", "result", "evidence"]);
+const CRITICAL_ENTITIES = new Set<SyncEntityType>(["goal", "task", "result", "change-set", "evidence", "coordinator"]);
+
+export interface SyncConflictResolver {
+  resolve(conflict: SyncConflict): Promise<SyncRecord | null>;
+}
 
 function assertRecord(record: SyncRecord): void {
   if (!record.recordId.trim() || !record.deviceId.trim()) throw new Error("recordId and deviceId are required");
@@ -154,12 +159,148 @@ function combineClocks(a: CausalClock, b: CausalClock): CausalClock {
   return out;
 }
 
+interface CoordinatorSyncValue {
+  clusterId: string;
+  coordinatorId: string;
+  epoch: number;
+  fencingToken: string;
+  leaseUntil: string;
+}
+
+function parseCoordinatorSyncValue(value: unknown): CoordinatorSyncValue | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const candidate = value as Partial<CoordinatorSyncValue>;
+  if (
+    typeof candidate.clusterId !== "string" || !candidate.clusterId.trim()
+    || typeof candidate.coordinatorId !== "string" || !candidate.coordinatorId.trim()
+    || !Number.isInteger(candidate.epoch) || (candidate.epoch ?? 0) < 1
+    || typeof candidate.fencingToken !== "string" || !candidate.fencingToken.trim()
+    || typeof candidate.leaseUntil !== "string" || !Number.isFinite(Date.parse(candidate.leaseUntil))
+  ) return null;
+  return candidate as CoordinatorSyncValue;
+}
+
+function coordinatorConflict(local: SyncRecord, remote: SyncRecord, reason: string): MergeDecision {
+  const conflict: SyncConflict = {
+    recordId: local.recordId,
+    entityType: local.entityType,
+    reason,
+    local: { ...cloneRecord(local), syncState: "conflicted" },
+    remote: { ...cloneRecord(remote), syncState: "conflicted" },
+  };
+  return { kind: "conflict", conflict, reason };
+}
+
+function resolveCoordinatorRecords(local: SyncRecord, remote: SyncRecord): MergeDecision | null {
+  if (local.entityType !== "coordinator") return null;
+  const left = parseCoordinatorSyncValue(local.value);
+  const right = parseCoordinatorSyncValue(remote.value);
+  if (!left || !right) return coordinatorConflict(local, remote, "invalid coordinator lease state");
+  if (left.clusterId !== right.clusterId) {
+    return coordinatorConflict(local, remote, "coordinator replicas belong to different clusters");
+  }
+
+  if (left.epoch !== right.epoch) {
+    const winner = left.epoch > right.epoch ? local : remote;
+    return {
+      kind: winner === local ? "local" : "remote",
+      record: cloneRecord(winner),
+      reason: "higher coordinator execution epoch fences stale replica",
+    };
+  }
+
+  const sameClaim = left.coordinatorId === right.coordinatorId
+    && left.fencingToken === right.fencingToken;
+  if (!sameClaim) {
+    return coordinatorConflict(local, remote, "same coordinator epoch has conflicting owner or fencing token");
+  }
+
+  const leftLease = Date.parse(left.leaseUntil);
+  const rightLease = Date.parse(right.leaseUntil);
+  if (leftLease !== rightLease) {
+    const winner = leftLease > rightLease ? local : remote;
+    return {
+      kind: winner === local ? "local" : "remote",
+      record: cloneRecord(winner),
+      reason: "same coordinator claim converged on later lease renewal",
+    };
+  }
+
+  if (JSON.stringify(local.value) === JSON.stringify(remote.value)) {
+    const winner = local.version >= remote.version ? local : remote;
+    return {
+      kind: winner === local ? "local" : "remote",
+      record: cloneRecord(winner),
+      reason: "same coordinator claim and lease",
+    };
+  }
+
+  return coordinatorConflict(local, remote, "same coordinator claim has incompatible replica state");
+}
+
+
+/** Execution metadata is authoritative over causal clocks and verifier ranking.
+ * These are replica reconciliation rules, not a lease/consensus authority.
+ */
+function resolveDurableTaskRecords(local: SyncRecord, remote: SyncRecord): MergeDecision | null {
+  if (local.entityType !== "task") return null;
+  const object = (value: unknown): Record<string, unknown> | null =>
+    value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
+  const left = object(local.value), right = object(remote.value);
+  if (!(left && "executionEpoch" in left) && !(right && "executionEpoch" in right)) return null;
+  const conflict = (reason: string) => coordinatorConflict(local, remote, reason);
+  if (!left || !right) return conflict("invalid durable task execution metadata");
+  const valid = (value: Record<string, unknown>) => typeof value.id === "string" && !!value.id.trim()
+    && typeof value.idempotencyKey === "string" && !!value.idempotencyKey.trim()
+    && Number.isSafeInteger(value.executionEpoch) && (value.executionEpoch as number) >= 0
+    && (!(value.status === "completed" || value.status === "ready-to-publish") || (value.executionEpoch as number) > 0)
+    && typeof value.status === "string"
+    && ["queued", "waiting-dependency", "leased", "running", "waiting-connectivity", "waiting-resource",
+      "ready-to-publish", "retrying", "completed", "failed", "cancelled"].includes(value.status);
+  if (!valid(left) || !valid(right)) return conflict("invalid durable task execution metadata");
+  for (const field of ["id", "idempotencyKey", "type", "payload", "migrationClass", "pinnedNodeId", "requiredCapabilities", "dependsOn", "maxAttempts"]) {
+    if (!isDeepStrictEqual(left[field], right[field])) return conflict("durable task identity or immutable input mismatch");
+  }
+  const active = (value: Record<string, unknown>) => value.status === "leased" || value.status === "running";
+  const validClaim = (value: Record<string, unknown>) => !active(value) || (
+    (value.executionEpoch as number) > 0 && typeof value.leaseOwner === "string" && !!value.leaseOwner.trim()
+    && typeof value.fencingToken === "string" && !!value.fencingToken.trim()
+    && typeof value.leaseUntil === "string" && Number.isFinite(Date.parse(value.leaseUntil)));
+  if (!validClaim(left) || !validClaim(right)) return conflict("invalid durable task execution claim");
+  if (left.executionEpoch !== right.executionEpoch) {
+    const winner = (left.executionEpoch as number) > (right.executionEpoch as number) ? local : remote;
+    return { kind: winner === local ? "local" : "remote", record: cloneRecord(winner),
+      reason: "higher durable task execution epoch fences stale replica" };
+  }
+  if (active(left) && active(right) &&
+    (left.leaseOwner !== right.leaseOwner || left.fencingToken !== right.fencingToken)) {
+    return conflict("same durable task epoch has conflicting owner or fencing token");
+  }
+  const terminal = (value: Record<string, unknown>) => ["completed", "failed", "cancelled"].includes(value.status as string);
+  if (terminal(left) && terminal(right) &&
+    (left.status !== right.status || !isDeepStrictEqual(left.result, right.result) || !isDeepStrictEqual(left.error, right.error))) {
+    return conflict("same durable task epoch has incompatible terminal outcomes");
+  }
+  if (terminal(left) !== terminal(right)) {
+    const relation = compareClocks(local.clock, remote.clock);
+    const terminalDominates = terminal(left) ? relation === "local-dominates" : relation === "remote-dominates";
+    if (!terminalDominates) return conflict("same durable task epoch terminal state requires causal reconciliation");
+  }
+  return null;
+}
+
 export function resolveSyncRecords(local: SyncRecord, remote: SyncRecord): MergeDecision {
   assertRecord(local);
   assertRecord(remote);
   if (local.recordId !== remote.recordId || local.entityType !== remote.entityType) {
     throw new Error("Cannot merge records with different identity or entity type");
   }
+
+  const coordinatorDecision = resolveCoordinatorRecords(local, remote);
+  if (coordinatorDecision) return coordinatorDecision;
+
+  const taskDecision = resolveDurableTaskRecords(local, remote);
+  if (taskDecision) return taskDecision;
 
   const relation = compareClocks(local.clock, remote.clock);
   if (relation === "local-dominates") {
@@ -303,10 +444,12 @@ export class SyncRepository {
 export class SyncEngine {
   private readonly local: SyncRepository;
   private readonly remote: SyncRepository;
+  private readonly conflictResolver?: SyncConflictResolver;
 
-  constructor(local: SyncRepository, remote: SyncRepository) {
+  constructor(local: SyncRepository, remote: SyncRepository, conflictResolver?: SyncConflictResolver) {
     this.local = local;
     this.remote = remote;
+    this.conflictResolver = conflictResolver;
   }
 
   async synchronize(now = new Date()): Promise<SyncReport> {
@@ -338,6 +481,23 @@ export class SyncEngine {
 
       const decision = resolveSyncRecords(local, remote);
       if (decision.kind === "conflict" && decision.conflict) {
+        if (decision.conflict.entityType === "change-set" && this.conflictResolver) {
+          const resolved = await this.conflictResolver.resolve(decision.conflict);
+          if (resolved) {
+            const merged: SyncRecord = {
+              ...cloneRecord(resolved),
+              recordId: id,
+              entityType: "change-set",
+              clock: incrementClock(combineClocks(local.clock, remote.clock), resolved.deviceId),
+              version: Math.max(local.version, remote.version) + 1,
+              syncState: "synced",
+            };
+            await this.local.put(merged, now);
+            await this.remote.put(merged, now);
+            report.converged.push(id);
+            continue;
+          }
+        }
         await this.local.put(decision.conflict.local, now);
         await this.remote.put(decision.conflict.remote, now);
         report.conflicts.push(decision.conflict);

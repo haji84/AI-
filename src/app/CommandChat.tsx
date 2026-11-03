@@ -1,9 +1,35 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { playGoriqLocalVoice } from "./jarvis/voice-output";
 
 const suggestions = ["進めて", "状態確認", "問題だけ確認", "今日のまとめ"];
 const MAX_ATTACHMENTS = 20;
+
+type RecognitionAlternative = { transcript: string };
+type RecognitionResult = { isFinal: boolean; 0: RecognitionAlternative; length: number };
+type RecognitionEventLike = { resultIndex: number; results: ArrayLike<RecognitionResult> };
+type RecognitionLike = {
+  lang: string;
+  interimResults: boolean;
+  continuous: boolean;
+  onstart: (() => void) | null;
+  onend: (() => void) | null;
+  onresult: ((event: RecognitionEventLike) => void) | null;
+  onerror: ((event: { error?: string }) => void) | null;
+  start(): void;
+  stop(): void;
+  abort(): void;
+};
+type RecognitionCtor = new () => RecognitionLike;
+type SpeechWindow = Window & typeof globalThis & { SpeechRecognition?: RecognitionCtor; webkitSpeechRecognition?: RecognitionCtor };
+
+function recognitionConstructor(): RecognitionCtor | null {
+  if (typeof window === "undefined") return null;
+  const value = window as SpeechWindow;
+  return value.SpeechRecognition ?? value.webkitSpeechRecognition ?? null;
+}
+
 
 type ChatEntry = {
   id: string;
@@ -59,7 +85,7 @@ function formatBytes(size: number): string {
   return `${(size / 1024 ** 3).toFixed(1)} GB`;
 }
 
-export default function CommandChat({ enabled }: { enabled: boolean }) {
+export default function CommandChat({ enabled, contextPath, compact = false }: { enabled: boolean; contextPath?: string; compact?: boolean }) {
   const [command, setCommand] = useState("");
   const [busy, setBusy] = useState(false);
   const [checking, setChecking] = useState(false);
@@ -71,10 +97,16 @@ export default function CommandChat({ enabled }: { enabled: boolean }) {
   const [memoryContext, setMemoryContext] = useState("");
   const [search, setSearch] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [listening, setListening] = useState(false);
+  const [voiceMessage, setVoiceMessage] = useState<string | null>(null);
   const lastFingerprint = useRef<string | null>(null);
   const lastAcceptedAt = useRef<string | null>(null);
   const pollTimer = useRef<number | null>(null);
+  const conversationPollTimer = useRef<number | null>(null);
   const fileInput = useRef<HTMLInputElement | null>(null);
+  const recognitionRef = useRef<RecognitionLike | null>(null);
+  const lastSeenAiId = useRef<string | null>(null);
+  const lastVoiceInput = useRef(false);
 
   const filteredConversations = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -97,8 +129,10 @@ export default function CommandChat({ enabled }: { enabled: boolean }) {
       const body = await response.json().catch(() => ({})) as Partial<ConversationDetail> & { message?: string };
       if (!response.ok || !body.id) throw new Error(body.message || "会話の取得に失敗しました");
       setConversationId(body.id);
-      setHistory(body.messages ?? []);
+      const messages = body.messages ?? [];
+      setHistory(messages);
       setMemoryContext(body.memoryContext ?? "");
+      lastSeenAiId.current = [...messages].reverse().find((entry) => entry.role === "ai")?.id ?? null;
       lastFingerprint.current = null;
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "会話の取得に失敗しました");
@@ -112,8 +146,22 @@ export default function CommandChat({ enabled }: { enabled: boolean }) {
     void refreshConversations().catch((error) => setMessage(error instanceof Error ? error.message : "会話一覧の取得に失敗しました"));
     return () => {
       if (pollTimer.current !== null) window.clearInterval(pollTimer.current);
+      if (conversationPollTimer.current !== null) window.clearInterval(conversationPollTimer.current);
+      recognitionRef.current?.abort();
+      recognitionRef.current = null;
     };
   }, [enabled]);
+
+  useEffect(() => {
+    const listener = (event: Event) => {
+      const detail = (event as CustomEvent<{ text?: string; source?: "text" | "voice" }>).detail;
+      const text = typeof detail?.text === "string" ? detail.text.trim() : "";
+      if (!text) return;
+      void send(text, detail?.source === "voice" ? "voice" : "text");
+    };
+    window.addEventListener("goriq-command-submit", listener);
+    return () => window.removeEventListener("goriq-command-submit", listener);
+  });
 
   async function createConversation(title: string): Promise<number> {
     const response = await fetch("/api/conversations", {
@@ -192,6 +240,93 @@ export default function CommandChat({ enabled }: { enabled: boolean }) {
     }, 5000);
   }
 
+  function startConversationPolling(id: number) {
+    if (conversationPollTimer.current !== null) window.clearInterval(conversationPollTimer.current);
+    let count = 0;
+    conversationPollTimer.current = window.setInterval(() => {
+      count += 1;
+      void (async () => {
+        try {
+          const response = await fetch(`/api/conversations?id=${id}`, { cache: "no-store" });
+          const body = await response.json().catch(() => ({})) as Partial<ConversationDetail> & { message?: string };
+          if (!response.ok || !body.id) return;
+          const messages = body.messages ?? [];
+          const latestAi = [...messages].reverse().find((entry) => entry.role === "ai") ?? null;
+          setHistory(messages);
+          setMemoryContext(body.memoryContext ?? "");
+          if (latestAi && latestAi.id !== lastSeenAiId.current) {
+            lastSeenAiId.current = latestAi.id;
+            if (lastVoiceInput.current) {
+              const spoken = await playGoriqLocalVoice(latestAi.text);
+              setVoiceMessage(spoken.ok ? `${spoken.engine}で音声回答を再生しました` : `音声回答は再生できません: ${spoken.reason}`);
+              lastVoiceInput.current = false;
+            }
+            if (conversationPollTimer.current !== null) {
+              window.clearInterval(conversationPollTimer.current);
+              conversationPollTimer.current = null;
+            }
+          }
+        } catch {
+          // Conversation polling is best-effort. Durable GitHub conversation history remains authoritative.
+        }
+      })();
+      if (count >= 30 && conversationPollTimer.current !== null) {
+        window.clearInterval(conversationPollTimer.current);
+        conversationPollTimer.current = null;
+      }
+    }, 4000);
+  }
+
+  function stopVoiceInput() {
+    recognitionRef.current?.stop();
+  }
+
+  function startVoiceInput() {
+    if (busy || listening || !enabled) return;
+    const Recognition = recognitionConstructor();
+    if (!Recognition) {
+      setVoiceMessage("このブラウザは音声入力に対応していません。文字入力はそのまま使えます。");
+      return;
+    }
+    const recognition = new Recognition();
+    recognition.lang = "ja-JP";
+    recognition.interimResults = true;
+    recognition.continuous = false;
+    recognition.onstart = () => {
+      lastVoiceInput.current = true;
+      setListening(true);
+      setVoiceMessage("話してください。認識した文字は送信前に表示します。");
+    };
+    recognition.onend = () => {
+      setListening(false);
+      if (recognitionRef.current === recognition) recognitionRef.current = null;
+    };
+    recognition.onerror = (event) => {
+      setListening(false);
+      setVoiceMessage(event.error ? `音声入力に失敗しました: ${event.error}` : "音声入力に失敗しました");
+    };
+    recognition.onresult = (event) => {
+      let finalText = "";
+      let interimText = "";
+      for (let index = event.resultIndex; index < event.results.length; index += 1) {
+        const result = event.results[index];
+        const text = result?.[0]?.transcript?.trim() ?? "";
+        if (!text) continue;
+        if (result.isFinal) finalText += `${finalText ? " " : ""}${text}`;
+        else interimText += `${interimText ? " " : ""}${text}`;
+      }
+      const next = [command, finalText || interimText].filter(Boolean).join(command && (finalText || interimText) ? " " : "").trim();
+      setCommand(next.slice(0, 500));
+    };
+    recognitionRef.current = recognition;
+    try { recognition.start(); }
+    catch (error) {
+      recognitionRef.current = null;
+      setListening(false);
+      setVoiceMessage(error instanceof Error ? error.message : "音声入力を開始できませんでした");
+    }
+  }
+
   async function uploadAttachments(): Promise<UploadedAttachment[]> {
     const uploaded: UploadedAttachment[] = [];
     for (const file of files) {
@@ -205,7 +340,7 @@ export default function CommandChat({ enabled }: { enabled: boolean }) {
     return uploaded;
   }
 
-  async function send(value?: string) {
+  async function send(value?: string, source: "text" | "voice" = "text") {
     const text = (value ?? command).trim();
     if (!text || busy || !enabled) return;
     setBusy(true);
@@ -213,15 +348,27 @@ export default function CommandChat({ enabled }: { enabled: boolean }) {
     try {
       const id = conversationId ?? await createConversation(text);
       const attachments = files.length ? await uploadAttachments() : [];
-      const attachmentMeta = attachments.length ? `添付: ${attachments.map((file) => file.name).join(", ")}` : undefined;
-      const ownerEntry = makeEntry("owner", text, attachmentMeta, attachments.map((item) => ({ name: item.name, type: item.type, size: item.size, pathname: item.pathname })));
+      const ownerMeta = [
+        source === "voice" ? "入力: 音声" : "入力: 文字",
+        contextPath ? `現在画面: ${contextPath}` : "",
+        attachments.length ? `添付: ${attachments.map((file) => file.name).join(", ")}` : "",
+      ].filter(Boolean).join(" / ");
+      const ownerEntry = makeEntry("owner", text, ownerMeta || undefined, attachments.map((item) => ({ name: item.name, type: item.type, size: item.size, pathname: item.pathname })));
+      lastVoiceInput.current = source === "voice";
       append(ownerEntry);
       await persistEntry(id, ownerEntry, attachments);
 
       const response = await fetch("/api/command", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ command: text, conversationId: id, memoryContext, ...(attachments.length ? { attachments } : {}) }),
+        body: JSON.stringify({
+          command: text,
+          conversationId: id,
+          memoryContext,
+          inputMode: source,
+          screenContext: contextPath ?? null,
+          ...(attachments.length ? { attachments } : {}),
+        }),
       });
       const body = await response.json().catch(() => ({})) as { message?: string; acceptedAt?: string };
       if (!response.ok) throw new Error(body.message || "指示の送信に失敗しました");
@@ -236,12 +383,14 @@ export default function CommandChat({ enabled }: { enabled: boolean }) {
       await refreshConversations();
       window.setTimeout(() => void fetchStatus(false), 1800);
       startPolling();
+      startConversationPolling(id);
     } catch (error) {
       const textError = error instanceof Error ? error.message : "指示の送信に失敗しました";
       const systemEntry = makeEntry("system", textError, "送信失敗");
       append(systemEntry);
       if (conversationId) void persistEntry(conversationId, systemEntry).catch(() => undefined);
       setMessage(textError);
+      lastVoiceInput.current = false;
     } finally {
       setBusy(false);
     }
@@ -269,11 +418,11 @@ export default function CommandChat({ enabled }: { enabled: boolean }) {
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    void send();
+    void send(undefined, lastVoiceInput.current ? "voice" : "text");
   }
 
   return (
-    <div className="command-chat chat-memory-shell">
+    <div className={`command-chat chat-memory-shell${compact ? " compact" : ""}`}>
       <aside className={`chat-history-sidebar ${sidebarOpen ? "open" : "closed"}`}>
         <div className="chat-history-header">
           <strong>会話</strong>
@@ -333,10 +482,11 @@ export default function CommandChat({ enabled }: { enabled: boolean }) {
               ))}
             </div>
           )}
-          <textarea aria-label="AI社員への指示" disabled={!enabled || busy} maxLength={500} onChange={(event) => setCommand(event.target.value)} placeholder="例：前の設計を引き継いで、この資料も見て完成させて" rows={3} value={command} />
+          <textarea aria-label="AI社員への指示" disabled={!enabled || busy} maxLength={500} onChange={(event) => { setCommand(event.target.value); lastVoiceInput.current = false; }} placeholder="例：前の設計を引き継いで、この資料も見て完成させて" rows={3} value={command} />
           <input accept="image/*,video/*,text/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.rtf" className="attachment-input" disabled={!enabled || busy} multiple onChange={(event) => addFiles(Array.from(event.target.files ?? []))} ref={fileInput} type="file" />
           <div className="command-footer">
             <div className="command-tools">
+              <button className="button secondary" disabled={!enabled || busy} aria-pressed={listening} onClick={() => listening ? stopVoiceInput() : startVoiceInput()} type="button">{listening ? "音声入力を終了" : "音声入力"}</button>
               <button className="button secondary attachment-button" disabled={!enabled || busy || files.length >= MAX_ATTACHMENTS} onClick={() => fileInput.current?.click()} type="button">＋ 添付</button>
               <small>{command.length}/500{files.length ? ` / 添付${files.length}件` : ""}</small>
             </div>
@@ -347,6 +497,7 @@ export default function CommandChat({ enabled }: { enabled: boolean }) {
           </div>
         </form>
         {!enabled && <p className="inline-note">この端末をオーナー認証するとAI社員へ指示できます。</p>}
+        {voiceMessage && <p className="control-message" role="status">{voiceMessage}</p>}
         {message && <p className="control-message" role="status">{message}</p>}
         <p className="command-safety">会話はGitHubへ長期保存し、添付本体はPrivate Blobに保持します。関連する決定・制約・未完了・Issue/PR/成果物を記憶コンテキストとして次の指示へ引き継ぎます。</p>
       </section>

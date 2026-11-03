@@ -5,18 +5,38 @@ WORKER_ID="${GAI_WORKER_ID:-macbook}"
 PORT="${CODE_BUILDER_PORT:-8796}"
 SOURCE_REPO="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
 EXEC_TIMEOUT_MS="${CODE_BUILDER_EXEC_TIMEOUT_MS:-600000}"
-ROOT="$HOME/Library/Application Support/GAIWorker/code-builder"
+GAI_ROOT="$HOME/Library/Application Support/GAIWorker"
+ROOT="$GAI_ROOT/code-builder"
 PLIST="$HOME/Library/LaunchAgents/com.gai.code-builder-worker.plist"
 SERVICE_SOURCE="$(cd "$(dirname "$0")" && pwd)/code-builder-worker-service.ts"
 SERVICE_PATH="$ROOT/code-builder-worker-service.ts"
+POLICY_SOURCE="$SOURCE_REPO/src/orchestrator/test-contract-evolution.ts"
+POLICY_PATH="$GAI_ROOT/src/orchestrator/test-contract-evolution.ts"
 TOKEN_PATH="$ROOT/token.txt"
 STATUS_PATH="$ROOT/install-status.json"
 WORKSPACE="$ROOT/workspace"
 LOG_PATH="$ROOT/worker.stdout.log"
 ERR_PATH="$ROOT/worker.stderr.log"
 
-mkdir -p "$ROOT" "$HOME/Library/LaunchAgents"
+mkdir -p "$ROOT" "$(dirname "$POLICY_PATH")" "$HOME/Library/LaunchAgents"
 cp "$SERVICE_SOURCE" "$SERVICE_PATH"
+cp "$POLICY_SOURCE" "$POLICY_PATH"
+RESOURCE_RUNTIME_FILES=(
+  'src/gai/development-resource-admission.ts'
+  'src/gai/worker-resource-probe.ts'
+  'src/gai/worker-runtime.ts'
+  'src/gai/cognitive-lease.ts'
+  'scripts/goriq-ollama-repair.mjs'
+)
+for runtime_file in "${RESOURCE_RUNTIME_FILES[@]}"; do
+  if [[ "$runtime_file" == scripts/* ]]; then
+    runtime_target="$ROOT/${runtime_file#scripts/}"
+  else
+    runtime_target="$GAI_ROOT/$runtime_file"
+  fi
+  mkdir -p "$(dirname "$runtime_target")"
+  cp "$SOURCE_REPO/$runtime_file" "$runtime_target"
+done
 
 if [[ ! -d "$WORKSPACE/.git" ]]; then
   origin="$(git -C "$SOURCE_REPO" remote get-url origin)"
@@ -34,6 +54,7 @@ else
 fi
 pnpm -C "$WORKSPACE" install --frozen-lockfile >/dev/null
 NODE_BIN="$(command -v node)"
+NODE_DIR="$(dirname "$NODE_BIN")"
 NODE_VERSION="$("$NODE_BIN" --version)"
 
 if [[ ! -s "$TOKEN_PATH" ]]; then
@@ -42,13 +63,18 @@ if [[ ! -s "$TOKEN_PATH" ]]; then
 fi
 TOKEN="$(cat "$TOKEN_PATH")"
 
-ENGINE=""
-for candidate in codex aider; do
-  if command -v "$candidate" >/dev/null 2>&1; then
-    ENGINE="$(command -v "$candidate")"
-    break
-  fi
-done
+ENGINE_DISCOVERY="resolved"
+if ENGINE="$(bash "$SOURCE_REPO/scripts/resolve-code-builder-engine.sh")"; then
+  :
+else
+  ENGINE=""
+  ENGINE_DISCOVERY="not-found"
+  echo "CODE_BUILDER_ENGINE_NOT_FOUND: Mac Builder will remain fail-closed until an existing supported engine is available." >&2
+fi
+
+ENGINE_DIR=""
+[[ -z "$ENGINE" ]] || ENGINE_DIR="$(dirname "$ENGINE")"
+BUILDER_RUNTIME_PATH="$NODE_DIR${ENGINE_DIR:+:$ENGINE_DIR}:$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 
 cat > "$PLIST" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -61,6 +87,7 @@ cat > "$PLIST" <<PLIST
 <key>KeepAlive</key><true/>
 <key>ThrottleInterval</key><integer>10</integer>
 <key>EnvironmentVariables</key><dict>
+<key>PATH</key><string>$BUILDER_RUNTIME_PATH</string>
 <key>GAI_WORKER_ID</key><string>$WORKER_ID</string>
 <key>CODE_BUILDER_HOST</key><string>127.0.0.1</string>
 <key>CODE_BUILDER_PORT</key><string>$PORT</string>
@@ -76,9 +103,35 @@ PLIST
 chmod 600 "$PLIST"
 
 UID_VALUE="$(id -u)"
-launchctl bootout "gui/$UID_VALUE/com.gai.code-builder-worker" >/dev/null 2>&1 || true
-launchctl bootstrap "gui/$UID_VALUE" "$PLIST"
-launchctl kickstart -k "gui/$UID_VALUE/com.gai.code-builder-worker"
+SERVICE_TARGET="gui/$UID_VALUE/com.gai.code-builder-worker"
+
+plutil -lint "$PLIST" >/dev/null
+
+retire_builder_service() {
+  launchctl bootout "$SERVICE_TARGET" >/dev/null 2>&1 || true
+  launchctl bootout "gui/$UID_VALUE" "$PLIST" >/dev/null 2>&1 || true
+  pkill -f "$SERVICE_PATH" >/dev/null 2>&1 || true
+}
+
+bootstrap_builder_service() {
+  retire_builder_service
+  sleep 1
+  if launchctl bootstrap "gui/$UID_VALUE" "$PLIST"; then
+    launchctl kickstart -k "$SERVICE_TARGET"
+    return 0
+  fi
+
+  echo "CODE_BUILDER_RECOVERY bootstrap_failed; retrying after full launchd cleanup" >&2
+  launchctl print "$SERVICE_TARGET" 2>&1 | tail -n 80 || true
+  plutil -lint "$PLIST" || true
+  retire_builder_service
+  sleep 2
+
+  launchctl bootstrap "gui/$UID_VALUE" "$PLIST"
+  launchctl kickstart -k "$SERVICE_TARGET"
+}
+
+bootstrap_builder_service
 
 healthy=false
 health_json='{}'
@@ -105,6 +158,7 @@ cat > "$STATUS_PATH" <<JSON
   "nodePath": "$(printf '%s' "$NODE_BIN" | sed 's/"/\\\"/g')",
   "nodeVersion": "$NODE_VERSION",
   "configuredEngine": "$(printf '%s' "$ENGINE" | sed 's/"/\\\"/g')",
+  "engineDiscovery": "$ENGINE_DISCOVERY",
   "activeEngine": "$(printf '%s' "$active_engine" | sed 's/"/\\\"/g')",
   "capabilities": $capabilities,
   "persistence": "launch-agent",

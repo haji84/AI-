@@ -1,3 +1,4 @@
+import { evaluationPlanDigest, matchedEvaluationArms, validatePlannedEvaluationArtifacts, validateEvaluationPlan, validateEvaluationMeasurement, validateMaterialHashes, type CognitiveEvaluationPlan, type CognitiveEvaluationMeasurement } from "./cognitive-evaluation.ts";
 import { evaluateCognitiveResearch, researchSummary, sameResearchMeasurement } from "./cognitive-research.ts";
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
@@ -24,6 +25,8 @@ export interface CognitiveLearningExperience {
   split?: "train" | "heldout"; goalCompleted?: boolean; unknownTask?: boolean; humanInterventions?: number; rollbackCount?: number;
   transferTask?: boolean; offline?: boolean; memoryAblation?: { pairId: string; condition: "with-memory" | "without-memory" };
   completionEvidenceRefs?: string[];
+  materialSha256?: string[];
+  evaluation?: CognitiveEvaluationMeasurement;
 }
 export interface CognitiveCorrection {
   id: string; partition: CognitiveLearningPartition; goalId: string; task: string; environment: string;
@@ -36,7 +39,7 @@ export interface CognitiveSkillCandidate {
   executionProcedure: string; expectedOutput: string; validation: string[]; commonFailures: string[]; recovery: string[];
   confidence: number; successCount: number; failureCount: number; version: number;
 }
-interface LearningFile { version: 1; experiences: CognitiveLearningExperience[]; corrections: CognitiveCorrection[]; candidates: CognitiveSkillCandidate[] }
+interface LearningFile { version: 1; experiences: CognitiveLearningExperience[]; corrections: CognitiveCorrection[]; candidates: CognitiveSkillCandidate[]; evaluations?: CognitiveEvaluationPlan[] }
 const SOURCE = new Set<CognitiveLearningSource>(["deterministic", "skill", "memory", "local-model", "local-experiment", "external-expert", "degraded"]);
 const pending = new Map<string, Promise<unknown>>();
 const MAX_ITEMS = 2_000;
@@ -136,7 +139,7 @@ export class CognitiveLearningEngine {
       const raw = await readFile(this.partitionPath(partition, "experience.json"), "utf8");
       if (Buffer.byteLength(raw) > MAX_BYTES) throw Error("Cognitive learning storage bound exceeded");
       const value = JSON.parse(raw) as LearningFile;
-      shape(value, ["version", "experiences", "corrections", "candidates"], "learning storage");
+      shape(value, ["version", "experiences", "corrections", "candidates", "evaluations"], "learning storage");
       if (value.version !== 1 || !Array.isArray(value.experiences) || !Array.isArray(value.corrections) || !Array.isArray(value.candidates) || value.experiences.length > MAX_ITEMS || value.corrections.length > MAX_ITEMS || value.candidates.length > MAX_ITEMS) throw Error("Invalid cognitive learning storage");
       for (const e of value.experiences) { this.validateExperience(e); if (hash(e.partition) !== hash(partition)) throw Error("Cognitive learning partition mismatch"); }
       for (const c of value.corrections) { validateCorrection(c); this.partitionPath(c.partition, "experience.json"); if (hash(c.partition) !== hash(partition)) throw Error("Cognitive correction partition mismatch"); }
@@ -164,6 +167,18 @@ export class CognitiveLearningEngine {
         }
       }
       for (const records of [value.experiences, value.corrections, value.candidates]) if (new Set(records.map((record) => record.id)).size !== records.length) throw Error("Duplicate learning record ID");
+      if (value.evaluations !== undefined) {
+        if (!Array.isArray(value.evaluations) || value.evaluations.length > MAX_ITEMS) throw Error("Invalid evaluation reservations");
+        const ids = new Set<string>(), previous: CognitiveEvaluationPlan[] = [];
+        for (const plan of value.evaluations) {
+          validateEvaluationPlan(plan);
+          if (hash(plan.partition) !== hash(partition) || ids.has(plan.id) || previous.some(p => (p.goalId === plan.goalId || p.materialSha256.some(h => plan.materialSha256.includes(h))) && !matchedEvaluationArms(p, plan))) throw Error("Evaluation reservation overlap");
+          ids.add(plan.id); previous.push(plan);
+        }
+        for (const plan of previous.filter(p => p.comparison)) if (previous.filter(p => p.comparison?.id === plan.comparison!.id).length !== 2 || !previous.some(p => matchedEvaluationArms(p, plan))) throw Error("Incomplete matched evaluation reservations");
+      }
+      for (const e of value.experiences) this.validateEvaluationBinding(e, value);
+      for (const c of value.corrections) this.validateCorrectionEvaluation(c, value);
       return value;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
@@ -182,7 +197,7 @@ export class CognitiveLearningEngine {
   }
 
   private validateExperience(input: CognitiveLearningExperience): CognitiveLearningExperience {
-    shape(input, ["id", "partition", "goalId", "task", "actionId", "strategyId", "environment", "learningOperation", "prediction", "observation", "verified", "evidenceRefs", "source", "durationMs", "externalCalls", "split", "goalCompleted", "unknownTask", "humanInterventions", "rollbackCount", "transferTask", "offline", "memoryAblation", "completionEvidenceRefs"], "experience");
+    shape(input, ["id", "partition", "goalId", "task", "actionId", "strategyId", "environment", "learningOperation", "prediction", "observation", "verified", "evidenceRefs", "source", "durationMs", "externalCalls", "split", "goalCompleted", "unknownTask", "humanInterventions", "rollbackCount", "transferTask", "offline", "memoryAblation", "completionEvidenceRefs", "materialSha256", "evaluation"], "experience");
     shape(input.prediction, ["expectedOutcome", "confidence"], "prediction");
     shape(input.observation, ["summary", "success"], "observation");
     this.partitionPath(input.partition, "experience.json");
@@ -190,6 +205,8 @@ export class CognitiveLearningEngine {
     if (input.split !== undefined && !["train", "heldout"].includes(input.split)) throw Error("Invalid learning split");
     for (const field of ["goalCompleted", "unknownTask", "transferTask", "offline"] as const) if (input[field] !== undefined && typeof input[field] !== "boolean") throw Error(`Invalid ${field}`);
     const copy = structuredClone(input);
+    if (input.materialSha256 !== undefined) validateMaterialHashes(input.materialSha256);
+    if (input.evaluation !== undefined) validateEvaluationMeasurement(input.evaluation);
     if (input.learningOperation !== undefined) copy.learningOperation = validateCognitiveOperation(input.learningOperation);
     for (const field of ["id", "goalId", "task", "actionId", "strategyId", "environment"] as const) copy[field] = cognitiveLearningText(input[field], field);
     copy.prediction.expectedOutcome = cognitiveLearningText(input.prediction.expectedOutcome, "prediction");
@@ -210,6 +227,79 @@ export class CognitiveLearningEngine {
     return copy;
   }
 
+  private validateEvaluationBinding(e: CognitiveLearningExperience, data: LearningFile) {
+    const plans = data.evaluations ?? [], plan = e.evaluation ? plans.find(p => evaluationPlanDigest(p) === e.evaluation!.planDigest && p.goalId === e.goalId) : plans.find(p => p.goalId === e.goalId && p.actions.some(a => a.actionId === e.actionId)) ?? plans.find(p => p.goalId === e.goalId);
+    if (plan) {
+      if (e.split !== "heldout" || e.environment !== plan.environment || hash(e.materialSha256) !== hash(plan.materialSha256)) throw Error("Evaluation observation binding changed");
+      const action = plan.actions.find(a => a.actionId === e.actionId);
+      if (!action || (e.verified && !e.evaluation) || (e.evaluation && (!e.verified || e.evaluation.planDigest !== evaluationPlanDigest(plan) || e.evaluation.actionFingerprint !== action.fingerprint ||
+          e.observation.success !== (e.evaluation.resultOk && e.evaluation.verifierOk) || !plan.materialSha256.includes(e.evaluation.artifacts[0].expectedSha256)))) throw Error("Evaluation receipt binding invalid");
+      if (e.evaluation) validatePlannedEvaluationArtifacts(plan, e.evaluation.actionFingerprint, e.evaluation.artifacts);
+    } else if (e.evaluation) throw Error("Evaluation receipt requires preallocated plan");
+    if (plans.some(p => p !== plan && e.materialSha256?.some(h => p.materialSha256.includes(h)) && (!plan || !matchedEvaluationArms(p, plan)))) throw Error("Heldout material evaluation overlap");
+    if (data.experiences.some(prior => prior.id !== e.id && (e.evaluation || prior.evaluation) && prior.evidenceRefs.some(r => e.evidenceRefs.includes(r)))) throw Error("Evaluation evidence overlap");
+  }
+
+  private validateCorrectionEvaluation(c: CognitiveCorrection, data: LearningFile) {
+    if (data.evaluations?.some(p => p.goalId === c.goalId) || data.experiences.some(e => e.evaluation && [...e.evidenceRefs, ...(e.completionEvidenceRefs ?? [])].some(r => c.evidenceRefs.includes(r)))) throw Error("Heldout evaluation cannot become a recalled correction");
+  }
+
+  async evaluationReservation(partition: CognitiveLearningPartition, goalId: string, id?: string): Promise<CognitiveEvaluationPlan | null> {
+    return this.serial(partition, async () => {
+      const plans = (await this.load(partition)).evaluations?.filter(p => p.goalId === goalId) ?? [];
+      if (plans.length > 1 && !id) throw Error("Evaluation comparison requires original host evaluation ID");
+      return structuredClone(plans.find(p => !id || p.id === id) ?? null);
+    });
+  }
+
+  /** Reserve before effects under the same lease as ordinary learning. */
+  async allocateEvaluation(input: CognitiveEvaluationPlan): Promise<CognitiveEvaluationPlan> {
+    const plan = validateEvaluationPlan(input);
+    if (plan.comparison) throw Error("Matched evaluation requires atomic pair allocation");
+    return this.serial(plan.partition, async () => {
+      const data = await this.load(plan.partition), plans = data.evaluations ?? [];
+      const existing = plans.find(p => p.id === plan.id || p.goalId === plan.goalId);
+      if (existing) { if (evaluationPlanDigest(existing) !== evaluationPlanDigest(plan)) throw Error("Evaluation plan conflict"); return structuredClone(existing); }
+      if (plans.length >= MAX_ITEMS) throw Error("Evaluation reservation capacity reached");
+      if (plans.some(p => p.materialSha256.some(h => plan.materialSha256.includes(h))) || data.experiences.some(e => e.goalId === plan.goalId ||
+          e.materialSha256?.some(h => plan.materialSha256.includes(h)) || (!e.materialSha256 && e.learningOperation?.startsWith("material:v1:"))) || data.corrections.some(c => c.goalId === plan.goalId)) throw Error("Evaluation history/material overlap or inconclusive legacy provenance");
+      data.evaluations = [...plans, plan]; await this.save(plan.partition, data); return structuredClone(plan);
+    });
+  }
+
+  /** Stable executable/provenance subject only; outcomes/status are not a new procedure version. */
+  async localSkillSubject(partition: CognitiveLearningPartition, skillId: string) {
+    return this.serial(partition, async () => this.skillSubject(await this.load(partition), partition, skillId));
+  }
+  private async skillSubject(data: LearningFile, partition: CognitiveLearningPartition, skillId: string) {
+    const candidate = data.candidates.find(c => c.id === skillId), library = new PersistentSkillLibrary(this.partitionPath(partition, "skills.json"));
+    const skill = await library.get(skillId);
+    if (!candidate || candidate.status !== "candidate" || !candidate.operation || candidate.operation.startsWith("material:v1:inspect:") || !skill || skill.status !== "candidate" || skill.procedure !== candidate.executionProcedure || skill.version !== candidate.version) throw Error("Local comparison subject changed or ineligible");
+    return { skillId, skillVersion: candidate.version, skillDigest: hash({ id: candidate.id, version: candidate.version, procedure: candidate.executionProcedure,
+      purpose: candidate.purpose, applicability: candidate.applicability, prerequisites: candidate.prerequisites, inputSchema: candidate.inputSchema,
+      expectedOutput: candidate.expectedOutput, sources: candidate.sourceExperiences, evidence: candidate.evidenceRefs, constraints: skill.constraints, provenance: skill.provenance }),
+      operation: candidate.operation, environment: catalogBinding(candidate.executionProcedure)!.environment };
+  }
+  async allocateSkillEvaluation(inputs: CognitiveEvaluationPlan[]): Promise<CognitiveEvaluationPlan[]> {
+    if (!Array.isArray(inputs) || inputs.length !== 2) throw Error("Matched evaluation requires two arms");
+    const plans = inputs.map(validateEvaluationPlan);
+    if (plans[0].comparison?.arm !== "baseline" || plans[1].comparison?.arm !== "candidate" || !matchedEvaluationArms(plans[0], plans[1])) throw Error("Matched evaluation scope disagreement");
+    return this.serial(plans[0].partition, async () => {
+      const data = await this.load(plans[0].partition), previous = data.evaluations ?? [];
+      const subject = await this.skillSubject(data, plans[0].partition, plans[0].comparison!.skillId);
+      if (plans.some(p => p.comparison!.skillDigest !== subject.skillDigest || p.comparison!.skillVersion !== subject.skillVersion || p.environment !== subject.environment)) throw Error("Local comparison subject changed");
+      const existing = previous.filter(p => p.comparison?.id === plans[0].comparison!.id);
+      if (existing.length) {
+        if (hash(existing) !== hash(plans)) throw Error("Matched evaluation plan conflict");
+        return structuredClone(existing);
+      }
+      if (previous.length + 2 > MAX_ITEMS || previous.some(p => plans.some(n => p.id === n.id || p.goalId === n.goalId || p.materialSha256.some(h => n.materialSha256.includes(h)))) ||
+          data.experiences.some(e => plans.some(p => e.goalId === p.goalId || e.materialSha256?.some(h => p.materialSha256.includes(h))) || !e.materialSha256 && e.learningOperation?.startsWith("material:v1:")) ||
+          data.corrections.some(c => plans.some(p => p.goalId === c.goalId))) throw Error("Matched evaluation history/material overlap or inconclusive legacy provenance");
+      data.evaluations = [...previous, ...plans]; await this.save(plans[0].partition, data); return structuredClone(plans);
+    });
+  }
+
   async observe(input: CognitiveLearningExperience): Promise<void> {
     const experience = this.validateExperience(input);
     await this.serial(input.partition, async () => {
@@ -221,6 +311,7 @@ export class CognitiveLearningEngine {
         if (hash(comparable) !== hash(experience)) throw Error("Cognitive experience replay conflict"); return;
       }
       if (data.experiences.length >= MAX_ITEMS) throw Error("Cognitive experience capacity reached");
+      this.validateEvaluationBinding(experience, data);
       data.experiences.push(experience);
       const memory = new PersistentMemoryStore(this.partitionPath(input.partition, "memory.json"));
       const skills = new PersistentSkillLibrary(this.partitionPath(input.partition, "skills.json"));
@@ -365,6 +456,7 @@ export class CognitiveLearningEngine {
       const existing = data.corrections.find((item) => item.id === copy.id);
       if (existing) { if (hash(existing) !== hash(copy)) throw Error("Correction replay conflict"); return; }
       if (data.corrections.length >= MAX_ITEMS) throw Error("Correction capacity reached");
+      this.validateCorrectionEvaluation(copy, data);
       data.corrections.push(copy);
       const affected = data.candidates.filter((c) => c.applicability.includes(copy.environment) && c.executionProcedure.includes(JSON.stringify(copy.originalActionId)));
       const skills = new PersistentSkillLibrary(this.partitionPath(input.partition, "skills.json"));
@@ -411,7 +503,22 @@ export class CognitiveLearningEngine {
     });
   }
 
-  async certify(input: { partition: CognitiveLearningPartition; skillId: string; evidenceRefs: string[]; baselinePassRate: number; candidatePassRate: number; safetyPassed: boolean; independent: boolean }) {
+  async certify(input: { partition: CognitiveLearningPartition; skillId: string; comparisonId: string } | { partition: CognitiveLearningPartition; skillId: string; evidenceRefs: string[]; baselinePassRate: number; candidatePassRate: number; safetyPassed: boolean; independent: boolean }): Promise<{ accepted: boolean; reasons: string[]; measurements?: { baselinePassRate: number; candidatePassRate: number; pairedActions: number } }> {
+    if ("comparisonId" in input) return this.serial(input.partition, async () => {
+      shape(input, ["partition", "skillId", "comparisonId"], "measured certification"); cognitiveLearningText(input.comparisonId, "comparison ID", 200);
+      const data = await this.load(input.partition), subject = await this.skillSubject(data, input.partition, input.skillId);
+      const plans = (data.evaluations ?? []).filter(p => p.comparison?.id === input.comparisonId);
+      if (plans.length !== 2 || !matchedEvaluationArms(plans[0], plans[1]) || plans.some(p => p.comparison!.skillId !== subject.skillId || p.comparison!.skillVersion !== subject.skillVersion || p.comparison!.skillDigest !== subject.skillDigest)) throw Error("Local comparison subject changed or unavailable");
+      if (data.experiences.some(e => plans.some(p => p.goalId === e.goalId && p.actions.some(a => a.actionId === e.actionId)) && (!e.verified || !e.evaluation))) return { accepted: false, reasons: ["incomplete_measured_comparison"] };
+      const results = plans.map(plan => plan.actions.map(action => {
+        const receipts = data.experiences.filter(e => e.evaluation?.planDigest === evaluationPlanDigest(plan) && e.actionId === action.actionId);
+        return receipts.length === 1 && receipts[0].verified && receipts[0].externalCalls === 0 && !(receipts[0].humanInterventions ?? 0) && !(receipts[0].rollbackCount ?? 0) ? receipts[0] : null;
+      }));
+      if (results.some(arm => arm.some(e => !e))) return { accepted: false, reasons: ["incomplete_measured_comparison"] };
+      const measurements = { baselinePassRate: ratio(results[0].filter(e => e!.observation.success).length, results[0].length)!, candidatePassRate: ratio(results[1].filter(e => e!.observation.success).length, results[1].length)!, pairedActions: results[0].length };
+      const loss = results[0].some((e, i) => e!.observation.success && !results[1][i]!.observation.success);
+      return { accepted: false, measurements, reasons: [loss ? "measured_regression" : measurements.baselinePassRate === measurements.candidatePassRate ? "no_measurable_gain" : "identical_procedure_cannot_establish_gain"] };
+    });
     boundedNumber(input.baselinePassRate, "baseline rate", 1); boundedNumber(input.candidatePassRate, "candidate rate", 1);
     const evidence = refs(input.evidenceRefs);
     return this.serial(input.partition, async () => {
@@ -419,6 +526,7 @@ export class CognitiveLearningEngine {
       const candidate = data.candidates.find((c) => c.id === input.skillId);
       if (!candidate || candidate.status !== "candidate") throw Error("Unknown or non-candidate skill");
       if (!input.independent || !evidence.length || evidence.some((e) => candidate.evidenceRefs.includes(e))) throw Error("Fresh independent benchmark evidence required");
+      if (candidate.operation) return { accepted: false, reasons: ["measured_local_comparison_required"] };
       const library = new PersistentSkillLibrary(this.partitionPath(input.partition, "skills.json"));
       const current = await library.get(candidate.id);
       if (!current || current.procedure !== candidate.executionProcedure) throw Error("Certified skill binding is unavailable");

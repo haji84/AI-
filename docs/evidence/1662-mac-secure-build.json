@@ -1,0 +1,159 @@
+{
+  "version": 1,
+  "issue": 1662,
+  "goalIssue": 1219,
+  "observedAt": "2026-10-06T17:17:03.083524+00:00",
+  "baseRevision": "a65a824628f0bccfde18331a0a41f9021ea58bdd",
+  "wholeProductComplete": false,
+  "nubiaOwnerDeferred": true,
+  "diagnosticBinding": {
+    "pr": 1735,
+    "receipt": "https://github.com/haji84/AI-/issues/1662#issuecomment-6018829193",
+    "mainCi": 37483014125,
+    "expiresAt": "2026-10-07T14:06:21Z",
+    "approvedNativeBlob": "807cde634fdc07872ec329a0d4ca59b3b55e2000"
+  },
+  "physicalDiagnostic": {
+    "run": 37484126601,
+    "job": 112339661416,
+    "sourceRevision": "a65a824628f0bccfde18331a0a41f9021ea58bdd",
+    "runner": "MacBook",
+    "event": "workflow_dispatch",
+    "actor": "haji84",
+    "failedStage": "release-inventory",
+    "failureReason": "RELEASE_OWNER_REJECTED",
+    "releaseBoundary": {
+      "surface": "build",
+      "itemClass": "file",
+      "ownerClass": "current-user",
+      "groupWritable": true,
+      "worldWritable": false
+    },
+    "buildPassed": true,
+    "existingSecretReused": true,
+    "activationSkipped": true,
+    "retainedExistingKeysAndState": true
+  },
+  "rootCause": {
+    "nextVersion": "16.3.2",
+    "upstreamPermissionsMode": "0664",
+    "explicitPostWriteSetPermissions": true,
+    "umaskAlready": "0077",
+    "sources": [
+      "https://github.com/vercel/next.js/blob/v16.3.2/turbopack/crates/turbo-tasks-fs/src/content.rs",
+      "https://github.com/vercel/next.js/blob/v16.3.2/turbopack/crates/turbo-tasks-fs/src/disk.rs",
+      "https://nextjs.org/docs/app/api-reference/cli/next#next-build-options"
+    ]
+  },
+  "candidate": {
+    "path": "scripts/goriq-mac-private-dashboard-native.mjs",
+    "gitBlob": "33d0d4f0abc3bbf159362fc3174a156b6c8d30c8",
+    "change": "scoped pnpm build --webpack",
+    "authorizationModified": false,
+    "physicalCandidateExecutionApproved": false,
+    "guardsUnchanged": true,
+    "chmodChownProductionAttempted": false,
+    "placementOnlyCompatibilityRepair": true
+  },
+  "softwareVerification": {
+    "evidenceClass": "MACHINE_VERIFIED_LINUX_FIXTURE_ONLY",
+    "focused": {
+      "pass": 1,
+      "fail": 0,
+      "realNextBuild": true,
+      "writeBitNegativeControl": true
+    },
+    "initialRed": "missing production build helper",
+    "fixtureEnvironmentFailures": [
+      "pnpm11 implicit install attempted against shared dependency link; isolated fixture setting now disables install",
+      "local cached dependency aliases restored from existing pnpm package map"
+    ],
+    "full": {
+      "tests": 2286,
+      "pass": 2281,
+      "fail": 0,
+      "skipped": 5
+    },
+    "review": {
+      "ready": true,
+      "reviewedHead": "863c04c1efdbe04758430c134e382f2f53d06c09",
+      "critical": 0,
+      "important": 0,
+      "minor": "extra blank line at auth.ts EOF removed after review",
+      "physicalAcceptanceReviewed": false
+    },
+    "p8": {
+      "tests": 332,
+      "pass": 332,
+      "fail": 0
+    },
+    "tsc": "PASS",
+    "lintCorrection": "test imports URL explicitly from node:url",
+    "logSha256": {
+      "focused": "8b809353eb73944ca4005f63d702ff56e70fb4a4a6c25c4a3efcd05a2aec2c3f",
+      "full": "f6e7dd894344446bac54fa9a69f615d3838a68fd322c3a1c213b6f352e5260be",
+      "p8": "6de23a6f24a0d52b745047e6c92d725a8bfb6b5d76daa3cabad0f6b35159f1a9",
+      "lint": "050c69da23536758722729aeda55a8d0fb9d557495ef6d33d70873a3b64a71c1",
+      "tsc": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "projectBuildRed": "90bebf8099a585d2013ee719ea5eaff6183149a513c0c626bfb6ec1d4ae16727",
+      "projectBuildGreen": "09686e383dcbc361b91f84eed4b734a69cc0710832268448866d8f5f1df9efd2",
+      "projectInventory": "fb035c9183d2ddbbf0df20b44d3776ba1fb1bcff65eb0e7c93c66bed163c7852",
+      "webpackHealth": "7675cd6b836b833d14e5820481779e60e573c083ad773ca388c06454be9871dc"
+    },
+    "lint": "PASS",
+    "projectWebpackBuild": "PASS",
+    "projectInventory": {
+      "realProjectWebpackBuild": true,
+      "sourceModesPreserved": true,
+      "entries": 767,
+      "unsafeWriteBits": 0,
+      "softwareOnly": true
+    },
+    "webpackHealth": {
+      "webpackProductionHealthOk": true,
+      "loopbackOnly": true,
+      "softwareOnly": true
+    },
+    "intermediateFullFailure": {
+      "tests": 2286,
+      "pass": 2272,
+      "fail": 9,
+      "skipped": 5,
+      "causes": [
+        "eight reverse-mapping/audit failures: two changed route hashes required reconciliation",
+        "one existing short-lease heartbeat timing failure while full Next build ran concurrently"
+      ],
+      "correction": "two existing traceability SHA256 fields updated; fixture uses one build CPU; no independent heavy build during final full suite; final full suite PASS"
+    },
+    "projectBuildRed": {
+      "compiled": true,
+      "typecheck": "FAIL",
+      "unsupportedRouteExports": [
+        "isAuthorizedRemoteMcpRequest",
+        "TRUSTED_DEVICE_CHALLENGE_COOKIE"
+      ],
+      "repair": "move unchanged helper and cookie constant to non-route modules; existing callers and auth assertions retained; no type-check bypass"
+    },
+    "workspaceInventoryLimitation": {
+      "failure": "NATIVE_PARENT_REJECTED",
+      "cause": "local /workspace ancestor mode0777",
+      "recovery": "copy completed build output into private owner fixture; compare every original/copy mode before original inventory validator; production guard unchanged"
+    }
+  },
+  "acceptance": {
+    "pr1648Main": "PASS",
+    "latestApkNubia": "BLOCKED",
+    "nubiaRegistered": "BLOCKED",
+    "nubiaNodeContract": "BLOCKED",
+    "nubiaTaskAssignment": "BLOCKED",
+    "pcCrossDeviceAssignment": "BLOCKED",
+    "offline": "BLOCKED",
+    "reconnect": "BLOCKED",
+    "failover": "BLOCKED",
+    "rebalance": "BLOCKED",
+    "attemptEvidenceSaved": "PASS",
+    "completeAcceptanceEvidence": "BLOCKED",
+    "noKnownUnresolvedBugs": "FAIL"
+  },
+  "compassAvailable": false
+}

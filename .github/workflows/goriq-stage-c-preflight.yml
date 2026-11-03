@@ -1,0 +1,39 @@
+name: GORIQ Stage C Read-only Nubia Preflight
+
+on:
+  workflow_dispatch:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: goriq-stage-c-read-only-preflight
+  cancel-in-progress: false
+
+jobs:
+  nubia-preflight:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.issue.number == 1650 &&
+      github.event.comment.user.login == 'haji84' &&
+      github.event.comment.body == '/goriq-stage-c-readonly-preflight')
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Collect existing authorized USB Nubia and local Broker state
+        shell: powershell
+        run: powershell -NoProfile -File scripts/goriq-stage-c-preflight-windows.ps1
+      - name: Preserve redacted read-only evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: goriq-stage-c-nubia-preflight-${{ github.run_id }}
+          path: .gai-results/stage-c/preflight.json
+          if-no-files-found: error
+          retention-days: 30

@@ -1,3 +1,4 @@
+import { evaluationPlanDigest, createEvaluationMeasurement, type CognitiveEvaluationPlan, type CognitiveEvaluationMeasurement } from "./cognitive-evaluation.ts";
 import type { CognitiveResearchSummary } from "./cognitive-research.ts";
 import { validateCognitiveOperation, type CognitiveOperation } from "./cognitive-operation.ts";
 import { randomUUID } from "node:crypto";
@@ -28,6 +29,9 @@ export interface CognitiveRecall {
   corrections: Array<{ originalActionId: string; replacementActionId: string; evidenceRefs: string[] }>;
 }
 export interface CognitiveExperience {
+  split?: "train" | "heldout";
+  materialSha256?: string[];
+  evaluation?: CognitiveEvaluationMeasurement;
   id: string; partition: CognitivePartition; goalId: string; task: string; actionId: string; strategyId: string; environment: string;
   prediction: { expectedOutcome: string; confidence: number }; observation: { summary: string; success: boolean };
   learningOperation?: CognitiveOperation;
@@ -45,6 +49,9 @@ export interface CognitiveCoreOptions {
   brain?: PrimaryBrainAdapter; learning?: CognitiveLearningBridge; world?: PersistentWorldModel;
   expert?: ExternalExpertProvider; allowExternal?: boolean; connectivity?: "online" | "offline" | "unknown";
   maxActions?: number;
+  evaluationPlan?: CognitiveEvaluationPlan;
+  evaluationVerifier?: Verifier;
+  materialSha256?: string[];
 }
 export function cognitiveActionFingerprint(action: ProposedAction): string {
   const copy = { ...action } as ProposedAction & { workItemId?: unknown; completesWorkItem?: unknown };
@@ -83,6 +90,7 @@ export class CognitiveCore implements Planner, ContextSource {
   }
   async proposeNextAction(input: { goal: Goal; context: ContextItem[]; intent: InferredIntent; previousResult?: ActionResult | null }): Promise<ProposedAction | null> {
     let state = await this.options.state.initialize(this.options.goalId, input.goal);
+    if ((state.evaluation_plan_digest ?? null) !== (this.options.evaluationPlan ? evaluationPlanDigest(this.options.evaluationPlan) : null)) throw Error("Evaluation allocation changed; original host plan required");
     state = await this.flushLearning(state);
     // Only host verifier/WorkState completion may terminate a Goal. Model null means no proposal.
     if (!state.pending_action && this.options.completion && await this.options.completion(state, input.goal, input.context)) return null;
@@ -182,27 +190,40 @@ export class CognitiveCore implements Planner, ContextSource {
       if (last && !state?.pending_action) await this.options.learning?.complete?.({ partition: this.options.partition, goalId: this.options.goalId, experienceId: last.id, evidenceRefs: last.evidenceRefs });
     }
     if (!this.selection || !record.result || !record.action) return;
+    const action = record.action, result = record.result;
     const selection = this.selection; this.selection = null;
     let state = await this.options.state.initialize(this.options.goalId, record.goal);
+    if (this.options.evaluationPlan && !record.verification && this.options.evaluationVerifier) {
+      // Authority has already committed failure; readback does not change WorkState.
+      record = { ...record, verification: await this.options.evaluationVerifier.verify({ goal: record.goal, action, result, context: [] }) };
+    }
     const refs = evidenceRefs(record.verification?.evidence);
-    const success = record.result.ok && record.verification?.ok === true;
+    const success = result.ok && record.verification?.ok === true;
     const verified = success && refs.length > 0 && selection.source !== "degraded";
     const observationVerified = record.verification !== undefined && record.verification !== null && refs.length > 0 && selection.source !== "degraded";
-    const summary = (record.verification?.ok === false ? record.verification.summary : record.result.summary).slice(0, 4000);
+    const summary = (record.verification?.ok === false ? record.verification.summary : result.summary).slice(0, 4000);
+    const allocated = !this.options.evaluationPlan || this.options.evaluationPlan.actions.some(a => a.actionId === selection.id);
     const experience: CognitiveExperience = {
       id: randomUUID(), partition: this.options.partition, goalId: this.options.goalId, task: record.goal.title,
       actionId: selection.id, strategyId: state.selected_strategy ?? selection.id, environment: this.options.environment,
       prediction: { expectedOutcome: state.prediction ?? "", confidence: state.confidence }, observation: { summary, success },
       ...(selection.learningOperation ? { learningOperation: selection.learningOperation } : {}),
+      ...(this.options.materialSha256 ? { materialSha256: [...this.options.materialSha256] } : {}),
+      ...(this.options.evaluationPlan ? { split: "heldout" as const } : {}),
       verified: observationVerified, evidenceRefs: refs, source: selection.source, durationMs: Date.now() - selection.started, externalCalls: selection.externalCalls,
     };
+    if (this.options.evaluationPlan && observationVerified && allocated) {
+      const fingerprint = cognitiveActionFingerprint(action);
+      if (!state.pending_action || state.pending_action.fingerprint !== fingerprint || !this.options.evaluationPlan.actions.some(a => a.actionId === selection.id && a.fingerprint === fingerprint)) throw Error("Evaluation measurement action binding invalid");
+      experience.evaluation = createEvaluationMeasurement(this.options.evaluationPlan, fingerprint, result.ok, record.verification!);
+    }
     assertCognitiveSafe(experience);
     const predictionError = Math.abs(state.confidence - (success ? 1 : 0));
     state = await this.options.state.save({ ...state, observation: summary, prediction_error: predictionError,
       known_facts: verified ? [...state.known_facts, summary].slice(-64) : state.known_facts,
       attempts: [...state.attempts, { id: experience.id, actionId: selection.id, ...(selection.learningOperation ? { learningOperation: selection.learningOperation } : {}), strategyId: experience.strategyId, environment: this.options.environment, source: selection.source, expectedOutcome: experience.prediction.expectedOutcome, confidence: state.confidence, observed: summary, success, verified, evidenceRefs: refs, predictionError, at: new Date().toISOString() }].slice(-256),
       next_action: record.nextAction ?? null, learning_candidates: verified ? [...state.learning_candidates, experience.id].slice(-64) : state.learning_candidates,
-      learning_outbox: this.options.learning ? experience : null,
+      learning_outbox: this.options.learning && allocated ? experience : null,
       pending_action: state.pending_action?.actionId === selection.id ? null : state.pending_action,
     }, state.revision);
     if (this.options.learning) {
@@ -241,6 +262,7 @@ export class CognitiveCore implements Planner, ContextSource {
       const state = await this.options.state.get(this.options.goalId);
       if (!state) throw new Error("cognitive state missing before execution");
       if (this.selection.source !== "degraded") {
+        if (this.options.evaluationPlan && !this.options.evaluationPlan.actions.some(a => a.actionId === this.selection!.id && a.fingerprint === cognitiveActionFingerprint(action))) throw Error("Evaluation execution action binding changed");
         if (state.pending_action) return { actionId: action.id, ok: false, summary: "Prior action outcome requires reconciliation", blocker: "cognitive_pending_action" };
         await this.options.state.save({ ...state, pending_action: { actionId: this.selection.id, ...(this.selection.learningOperation ? { learningOperation: this.selection.learningOperation } : {}), fingerprint: cognitiveActionFingerprint(action), startedAt: new Date().toISOString() } }, state.revision);
       }

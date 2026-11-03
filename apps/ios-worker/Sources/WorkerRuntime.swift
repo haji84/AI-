@@ -75,21 +75,37 @@ final class WorkerRuntime: ObservableObject {
     private var loop: Task<Void, Never>?
     private let session: URLSession
     private var completed = Set<String>()
-    private static let credentialAccount = "physical-iphone-device-secret"
+    private let credentialAccount: String
+    private let buildChallenge: String
+    private let bundleIdentifier: String
 
     init() {
-        bridgeURL = UserDefaults.standard.string(forKey: "bridgeURL") ?? ""
-        if let persisted = UserDefaults.standard.string(forKey: "deviceId"), !persisted.isEmpty {
-            deviceId = persisted
+        let resolvedBridgeURL = UserDefaults.standard.string(forKey: "bridgeURL") ?? ""
+        let acceptanceDeviceId = Bundle.main.object(forInfoDictionaryKey: "JARVISAcceptanceDeviceID") as? String
+        let configuredChallenge = Bundle.main.object(forInfoDictionaryKey: "JARVISBuildChallenge") as? String
+        let resolvedBuildChallenge: String = configuredChallenge?.hasPrefix("goriq-681-") == true ? configuredChallenge! : ""
+        let resolvedBundleIdentifier = Bundle.main.bundleIdentifier ?? ""
+        let resolvedDeviceId: String
+        if let acceptanceDeviceId, acceptanceDeviceId.hasPrefix("goriq-681-") {
+            resolvedDeviceId = acceptanceDeviceId
+        } else if let persisted = UserDefaults.standard.string(forKey: "deviceId"), !persisted.isEmpty {
+            resolvedDeviceId = persisted
         } else {
             let generated = UUID().uuidString.lowercased()
-            deviceId = generated
+            resolvedDeviceId = generated
             UserDefaults.standard.set(generated, forKey: "deviceId")
         }
-        token = KeychainStore.load(account: Self.credentialAccount) ?? ""
+        let resolvedCredentialAccount = resolvedBuildChallenge.isEmpty ? "physical-iphone-device-secret" : "physical-iphone-device-secret:\(resolvedDeviceId)"
         let configuration = URLSessionConfiguration.default
         configuration.timeoutIntervalForRequest = 5
         configuration.timeoutIntervalForResource = 10
+
+        bridgeURL = resolvedBridgeURL
+        deviceId = resolvedDeviceId
+        buildChallenge = resolvedBuildChallenge
+        bundleIdentifier = resolvedBundleIdentifier
+        credentialAccount = resolvedCredentialAccount
+        token = KeychainStore.load(account: resolvedCredentialAccount) ?? ""
         session = URLSession(configuration: configuration)
     }
 
@@ -144,7 +160,7 @@ final class WorkerRuntime: ObservableObject {
         token = ""
         lastTransportError = nil
         UserDefaults.standard.removeObject(forKey: "bridgeURL")
-        KeychainStore.delete(account: Self.credentialAccount)
+        KeychainStore.delete(account: credentialAccount)
         status = "Connection cleared"
     }
 
@@ -171,7 +187,9 @@ final class WorkerRuntime: ObservableObject {
         bootstrapRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         bootstrapRequest.httpBody = try JSONSerialization.data(withJSONObject: [
             "deviceId": deviceId,
-            "clientNonce": UUID().uuidString + UUID().uuidString
+            "clientNonce": UUID().uuidString + UUID().uuidString,
+            "buildChallenge": buildChallenge,
+            "bundleIdentifier": bundleIdentifier
         ])
         let (bootstrapData, bootstrapHTTP) = try await session.data(for: bootstrapRequest)
         try requireSuccess(bootstrapHTTP)
@@ -188,7 +206,9 @@ final class WorkerRuntime: ObservableObject {
         let enrollment = try JSONDecoder().decode(EnrollmentResponse.self, from: enrollData)
         guard enrollment.ok, enrollment.deviceId == deviceId else { throw WorkerError.binding }
         token = enrollment.deviceSecret
-        try KeychainStore.save(enrollment.deviceSecret, account: Self.credentialAccount)
+        if buildChallenge.isEmpty {
+            try KeychainStore.save(enrollment.deviceSecret, account: credentialAccount)
+        }
     }
 
     private func reconnect() async throws {
@@ -208,7 +228,9 @@ final class WorkerRuntime: ObservableObject {
             "platform": "ios",
             "workerProtocolVersion": 1,
             "capabilities": ["ios-tooling", "local-storage"],
-            "physicalDevice": true
+            "physicalDevice": true,
+            "buildChallenge": buildChallenge,
+            "bundleIdentifier": bundleIdentifier
         ])
     }
 
@@ -291,7 +313,9 @@ final class WorkerRuntime: ObservableObject {
                 "platform": "ios",
                 "deviceModel": UIDevice.current.model,
                 "systemVersion": UIDevice.current.systemVersion,
-                "executor": "JarvisIOSWorker"
+                "executor": "JarvisIOSWorker",
+                "buildChallenge": buildChallenge,
+                "bundleIdentifier": bundleIdentifier
             ],
             completedAt: ISO8601DateFormatter().string(from: Date()),
             nonce: task.nonce
@@ -308,12 +332,27 @@ final class WorkerRuntime: ObservableObject {
             nonce: unsigned.nonce,
             signature: signature
         )
+        try persistAcceptanceResult(result)
         try await submit(result)
+        if !buildChallenge.isEmpty {
+            KeychainStore.delete(account: credentialAccount)
+            token = ""
+            isRunning = false
+            loop?.cancel()
+        }
         completed.insert(task.taskId)
         lastResult = output
         lastTransportError = nil
         evidenceLog = "task=\(task.taskId) device=\(deviceId) physical=true completed=\(unsigned.completedAt)"
         status = "ACTIVE"
+    }
+
+    private func persistAcceptanceResult(_ result: WorkerResult) throws {
+        guard !buildChallenge.isEmpty else { return }
+        guard result.taskId.range(of: "^[A-Za-z0-9._-]+$", options: .regularExpression) != nil else { throw WorkerError.binding }
+        let directory = try FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+        let url = directory.appendingPathComponent("goriq-result-\(result.taskId).json")
+        try JSONEncoder().encode(result).write(to: url, options: .atomic)
     }
 
     private func submit(_ result: WorkerResult) async throws {

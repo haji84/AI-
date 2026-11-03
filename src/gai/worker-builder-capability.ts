@@ -4,6 +4,7 @@ import type { MultiWorkerRuntime, WorkerExecutionRequest } from "./worker-runtim
 
 export class WorkerBuilderCapability implements BuilderCapability {
   readonly id = "worker-code-builder";
+  readonly kind = "local" as const;
   private readonly runtime: MultiWorkerRuntime;
   private readonly preferredPlatform?: "windows" | "macos" | "linux";
 

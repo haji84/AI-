@@ -1,0 +1,148 @@
+{
+  "version": 1,
+  "issue": 1662,
+  "goalIssue": 1219,
+  "observedAt": "2026-10-06T14:31:43.463016Z",
+  "baseRevision": "a134f769e08f77269a23f7f846a10e788371e44c",
+  "wholeProductComplete": false,
+  "nubiaOwnerDeferred": true,
+  "renewal": {
+    "pr": 1733,
+    "ownerEvidence": "https://github.com/haji84/AI-/issues/1662#issuecomment-6018059315",
+    "approvedAt": "2026-10-06T14:06:21Z",
+    "expiresAt": "2026-10-07T14:06:21Z",
+    "fieldsChanged": [
+      "approvedAt",
+      "expiresAt",
+      "evidence"
+    ],
+    "artifactsChanged": false,
+    "review": "ready-yes-no-findings",
+    "prCi": 37476788876,
+    "mainCi": 37477197451
+  },
+  "production": {
+    "pushSync": 37477197474,
+    "ciTriggeredSync": 37477535077,
+    "macRuntimeExact": true,
+    "codeDeploymentSucceeded": true,
+    "windowsCurrentReceipt": false
+  },
+  "nativePlan": {
+    "run": 37477613670,
+    "job": 112317062839,
+    "event": "workflow_dispatch",
+    "actor": "haji84",
+    "failedStage": "private-network",
+    "failureReason": "NATIVE_PATH_REJECTED",
+    "activationAttempted": false
+  },
+  "nativePrepare": {
+    "run": 37477987235,
+    "job": 112318376418,
+    "event": "workflow_dispatch",
+    "actor": "haji84",
+    "sourceRevision": "a134f769e08f77269a23f7f846a10e788371e44c",
+    "passed": [
+      "source",
+      "approval",
+      "owner-environment",
+      "owner-auth",
+      "state",
+      "private-network",
+      "staging",
+      "dependencies",
+      "build",
+      "post-build-source",
+      "post-build-state",
+      "release-build-id"
+    ],
+    "failedStage": "release-inventory",
+    "failureReason": "RELEASE_OWNER_REJECTED",
+    "existingSecretReused": true,
+    "secretInitializationAttempted": false,
+    "internalPlanSkipped": true,
+    "activationSkipped": true,
+    "retainedExistingKeysAndState": true
+  },
+  "diagnosis": {
+    "constraint": "release entry owner differs from current uid or nonsymlink has group/world write bit",
+    "exactOffendingSurfaceKnown": false,
+    "exactOffendingOwnerOrWriteBitKnown": false,
+    "networkFailureProven": false,
+    "minimumNextAction": "preserve rejection and emit anonymous source/dependencies/build, item and owner classes and boolean write bits",
+    "permissionRepairAttempted": false
+  },
+  "proposedDiagnostic": {
+    "path": "scripts/goriq-mac-private-dashboard-native.mjs",
+    "oldApprovedGitBlob": "e57f1e0b9111362f687da943a81d6a885fbb809e",
+    "proposedGitBlob": "807cde634fdc07872ec329a0d4ca59b3b55e2000",
+    "nativeExecutionApproved": false,
+    "approvalRecordModified": false,
+    "guardConditionsUnchanged": true,
+    "pathsContentsSecretsNotEmitted": true,
+    "requiresOwnerArtifactBindingBeforeNativeUse": true
+  },
+  "localVerification": {
+    "evidenceClass": "LINUX_FIXTURE_AND_SOFTWARE_ONLY",
+    "initialRed": {
+      "tests": 2,
+      "fail": 2,
+      "expectedMissingDiagnostic": true
+    },
+    "focused": {
+      "tests": 42,
+      "pass": 42,
+      "fail": 0
+    },
+    "full": {
+      "tests": 2285,
+      "pass": 2280,
+      "fail": 0,
+      "skipped": 5
+    },
+    "logSha256": {
+      "focused": "f20b57d122c85aa9cb4a423f7c45e4015a71dc315b2e7c27dd4cfa7cdea7b080",
+      "full": "c2b1a2178ddb9917b5315723d517de6fd747f281522b8fffc2f82c6bc174a0f8",
+      "lint": "050c69da23536758722729aeda55a8d0fb9d557495ef6d33d70873a3b64a71c1",
+      "p8": "41d1745e27b6a6477f7ad6d244f3511b53628d76051b2039945a54c81fc03004",
+      "tsc": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "p8": {
+      "tests": 332,
+      "pass": 332,
+      "fail": 0,
+      "skipped": 0
+    },
+    "tsc": "PASS",
+    "initialEnvironmentFailure": {
+      "command": "default pnpm test",
+      "testsStarted": false,
+      "failure": "ERR_PNPM_UNSUPPORTED_ENGINE",
+      "expectedPnpm": "11.19.0",
+      "observedPnpm": "11.25.0",
+      "recovery": "existing cached locked pnpm11.19.0; no dependency change"
+    },
+    "initialLintFailure": {
+      "file": "tests/goriq-mac-release-owner-diagnostic.test.mjs",
+      "reason": "process no-undef",
+      "correction": "explicit node:process import"
+    },
+    "cacheFixtureCorrection": "existing inventory omits cache children; fixture targets writable cache directory checked before exclusion; production cache behavior unchanged"
+  },
+  "acceptance": {
+    "pr1648Main": "PASS",
+    "latestApkNubia": "BLOCKED",
+    "nubiaNodeContract": "BLOCKED",
+    "nubiaTaskAssignment": "BLOCKED",
+    "pcCrossDeviceAssignment": "BLOCKED",
+    "offline": "BLOCKED",
+    "reconnect": "BLOCKED",
+    "failover": "BLOCKED",
+    "rebalance": "BLOCKED",
+    "attemptEvidenceSaved": "PASS",
+    "completeAcceptanceEvidence": "BLOCKED",
+    "noKnownUnresolvedBugs": "FAIL"
+  },
+  "compassAvailable": false
+}

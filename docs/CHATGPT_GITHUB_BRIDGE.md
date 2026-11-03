@@ -37,3 +37,20 @@ This bridge does not make the AI Company able to wake or invoke a particular Cha
 - Existing task-scoped Production authorization remains authoritative.
 - HIGH/CRITICAL actions remain Human Gate protected.
 - Remembered instructions are context, not fresh execution authority.
+
+
+## Private repository creation from Chat
+
+The Remote MCP exposes `create_private_repository` for owner-authorized creation of a new private repository under the GitHub user authenticated by `AI_COMPANY_GITHUB_TOKEN`.
+
+Safety boundary:
+
+- Private repositories only.
+- Personal authenticated user only. Organization repository creation is not exposed.
+- Public repository creation is not exposed.
+- Repository deletion, collaborator changes, secret changes, and permission changes are not part of this tool.
+- The owner must explicitly approve the exact repository name in the current chat immediately before execution.
+- Accepted repository-bound approval forms are `承認: <repository-name>` or `CREATE PRIVATE REPOSITORY <repository-name>`.
+- The tool fails closed if approval is absent/mismatched or GitHub rejects the token scope.
+- The GitHub token value is never returned or logged.
+- New repositories are initialized with a README so the default branch exists immediately.

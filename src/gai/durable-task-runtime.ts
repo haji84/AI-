@@ -1,5 +1,8 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
+import { randomUUID } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
+import { acquireCognitiveLease } from "./cognitive-lease.ts";
 import type { WorkerCapability } from "./worker-runtime.ts";
 
 export type DurableTaskStatus =
@@ -9,12 +12,28 @@ export type DurableTaskStatus =
   | "running"
   | "waiting-connectivity"
   | "waiting-resource"
+  | "ready-to-publish"
   | "retrying"
   | "completed"
   | "failed"
   | "cancelled";
 
 export type DurableTaskPriority = "urgent" | "high" | "normal" | "low" | "background";
+export type DurableTaskMigrationClass = "MIGRATABLE" | "RESTARTABLE" | "PINNED" | "SIDE_EFFECTING";
+export type DurableTaskWaitReason =
+  | "connectivity"
+  | "resource"
+  | "pinned-node"
+  | "migration-checkpoint"
+  | "side-effect-reconciliation";
+
+export interface DurableTaskExecutionClaim {
+  taskId: string;
+  owner: string;
+  epoch: number;
+  fencingToken: string;
+  leaseUntil: string;
+}
 
 export interface DurableTaskTransition {
   from: DurableTaskStatus | null;
@@ -36,8 +55,13 @@ export interface DurableTask {
   dependsOn: string[];
   attempts: number;
   maxAttempts: number;
+  migrationClass: DurableTaskMigrationClass;
+  pinnedNodeId?: string;
+  waitReason?: DurableTaskWaitReason;
+  executionEpoch: number;
   leaseOwner?: string;
   leaseUntil?: string;
+  fencingToken?: string;
   nextAttemptAt?: string;
   checkpointRef?: string;
   result?: unknown;
@@ -56,6 +80,8 @@ export interface DurableTaskCreateInput {
   requiredCapabilities?: WorkerCapability[];
   dependsOn?: string[];
   maxAttempts?: number;
+  migrationClass?: DurableTaskMigrationClass;
+  pinnedNodeId?: string;
   checkpointRef?: string;
 }
 
@@ -68,6 +94,7 @@ export interface DurableTaskSnapshot {
 export interface DurableTaskStore {
   load(): Promise<DurableTaskSnapshot | null>;
   save(snapshot: DurableTaskSnapshot): Promise<void>;
+  compareAndSwap?(expected: DurableTaskSnapshot | null, next: DurableTaskSnapshot): Promise<boolean>;
 }
 
 export class MemoryDurableTaskStore implements DurableTaskStore {
@@ -79,6 +106,12 @@ export class MemoryDurableTaskStore implements DurableTaskStore {
 
   async save(snapshot: DurableTaskSnapshot): Promise<void> {
     this.snapshot = structuredClone(snapshot);
+  }
+
+  async compareAndSwap(expected: DurableTaskSnapshot | null, next: DurableTaskSnapshot): Promise<boolean> {
+    if (!isDeepStrictEqual(this.snapshot, expected)) return false;
+    this.snapshot = structuredClone(next);
+    return true;
   }
 }
 
@@ -106,7 +139,23 @@ export class JsonFileDurableTaskStore implements DurableTaskStore {
 
   async save(snapshot: DurableTaskSnapshot): Promise<void> {
     await mkdir(dirname(this.filePath), { recursive: true });
-    const temp = `${this.filePath}.tmp-${process.pid}-${Date.now()}`;
+    const release = await acquireCognitiveLease(`${this.filePath}.writer.lock`, 2000);
+    try { await this.writeSnapshot(snapshot); } finally { await release(); }
+  }
+
+  // Arbitration on one local filesystem; not distributed consensus across hosts.
+  async compareAndSwap(expected: DurableTaskSnapshot | null, next: DurableTaskSnapshot): Promise<boolean> {
+    await mkdir(dirname(this.filePath), { recursive: true });
+    const release = await acquireCognitiveLease(`${this.filePath}.writer.lock`, 2000);
+    try {
+      if (!isDeepStrictEqual(await this.load(), expected)) return false;
+      await this.writeSnapshot(next);
+      return true;
+    } finally { await release(); }
+  }
+
+  private async writeSnapshot(snapshot: DurableTaskSnapshot): Promise<void> {
+    const temp = `${this.filePath}.tmp-${process.pid}-${randomUUID()}`;
     await writeFile(temp, `${JSON.stringify(snapshot, null, 2)}\n`, "utf8");
     await rename(temp, this.filePath);
   }
@@ -121,16 +170,53 @@ const PRIORITY_WEIGHT: Record<DurableTaskPriority, number> = {
 };
 
 const TERMINAL = new Set<DurableTaskStatus>(["completed", "failed", "cancelled"]);
+const MIGRATION_CLASSES = new Set<DurableTaskMigrationClass>(["MIGRATABLE", "RESTARTABLE", "PINNED", "SIDE_EFFECTING"]);
+const WAIT_REASONS = new Set<DurableTaskWaitReason>([
+  "connectivity",
+  "resource",
+  "pinned-node",
+  "migration-checkpoint",
+  "side-effect-reconciliation",
+]);
 
 function cloneTask(task: DurableTask): DurableTask {
   return structuredClone(task);
+}
+
+function normalizeTask(task: DurableTask): DurableTask {
+  const clone = cloneTask(task);
+  const migrationClass = clone.migrationClass ?? "RESTARTABLE";
+  if (!MIGRATION_CLASSES.has(migrationClass)) {
+    throw new Error(`Invalid persisted migrationClass for task ${clone.id}`);
+  }
+  clone.migrationClass = migrationClass;
+  clone.executionEpoch = Number.isInteger(clone.executionEpoch) && clone.executionEpoch >= 0
+    ? clone.executionEpoch
+    : 0;
+  clone.fencingToken = typeof clone.fencingToken === "string" && clone.fencingToken.trim()
+    ? clone.fencingToken
+    : undefined;
+  clone.pinnedNodeId = typeof clone.pinnedNodeId === "string" && clone.pinnedNodeId.trim()
+    ? clone.pinnedNodeId.trim()
+    : undefined;
+  if (clone.migrationClass === "PINNED" && !clone.pinnedNodeId) {
+    throw new Error(`Persisted PINNED task ${clone.id} is missing pinnedNodeId`);
+  }
+  if (clone.migrationClass !== "PINNED" && clone.pinnedNodeId) {
+    throw new Error(`Persisted non-PINNED task ${clone.id} has pinnedNodeId`);
+  }
+  if (clone.waitReason !== undefined && !WAIT_REASONS.has(clone.waitReason)) {
+    throw new Error(`Invalid persisted waitReason for task ${clone.id}`);
+  }
+  return clone;
 }
 
 function iso(now: Date): string {
   return now.toISOString();
 }
 
-export class DurableTaskRuntime {
+// One private session per public operation, including its nested transitions.
+class DurableTaskSession {
   private readonly tasks = new Map<string, DurableTask>();
   private readonly store: DurableTaskStore;
   private loaded = false;
@@ -143,7 +229,7 @@ export class DurableTaskRuntime {
     if (this.loaded) return;
     const snapshot = await this.store.load();
     this.tasks.clear();
-    for (const task of snapshot?.tasks ?? []) this.tasks.set(task.id, cloneTask(task));
+    for (const task of snapshot?.tasks ?? []) this.tasks.set(task.id, normalizeTask(task));
     this.loaded = true;
   }
 
@@ -159,6 +245,11 @@ export class DurableTaskRuntime {
     }
     const maxAttempts = input.maxAttempts ?? 3;
     if (!Number.isInteger(maxAttempts) || maxAttempts < 1) throw new Error("maxAttempts must be a positive integer");
+    const migrationClass = input.migrationClass ?? "RESTARTABLE";
+    if (!MIGRATION_CLASSES.has(migrationClass)) throw new Error("invalid migrationClass");
+    const pinnedNodeId = input.pinnedNodeId?.trim() || undefined;
+    if (migrationClass === "PINNED" && !pinnedNodeId) throw new Error("PINNED task requires pinnedNodeId");
+    if (migrationClass !== "PINNED" && pinnedNodeId) throw new Error("pinnedNodeId is only valid for PINNED tasks");
     const createdAt = iso(now);
     const task: DurableTask = {
       id: input.id,
@@ -171,6 +262,9 @@ export class DurableTaskRuntime {
       dependsOn: [...new Set(input.dependsOn ?? [])],
       attempts: 0,
       maxAttempts,
+      migrationClass,
+      pinnedNodeId,
+      executionEpoch: 0,
       checkpointRef: input.checkpointRef,
       createdAt,
       updatedAt: createdAt,
@@ -197,7 +291,7 @@ export class DurableTaskRuntime {
   async next(now = new Date()): Promise<DurableTask | undefined> {
     await this.initialize();
     await this.reclaimExpiredLeases(now);
-    await this.refreshDependencyState(now);
+    if (await this.refreshDependencyState(now)) await this.persist(now);
     return [...this.tasks.values()]
       .filter((task) => task.status === "queued" || task.status === "retrying")
       .filter((task) => !task.nextAttemptAt || new Date(task.nextAttemptAt).getTime() <= now.getTime())
@@ -205,6 +299,26 @@ export class DurableTaskRuntime {
         PRIORITY_WEIGHT[b.priority] - PRIORITY_WEIGHT[a.priority] || a.createdAt.localeCompare(b.createdAt),
       )
       .map(cloneTask)[0];
+  }
+
+  async nextPublication(): Promise<DurableTask | undefined> {
+    await this.initialize();
+    return [...this.tasks.values()]
+      .filter((task) => task.status === "ready-to-publish")
+      .sort((a, b) => PRIORITY_WEIGHT[b.priority] - PRIORITY_WEIGHT[a.priority] || a.createdAt.localeCompare(b.createdAt))
+      .map(cloneTask)[0];
+  }
+
+  async completePublication(taskId: string, publisher: string, receipt: unknown, now = new Date()): Promise<DurableTask> {
+    await this.initialize();
+    if (!publisher.trim()) throw new Error("publisher identity is required");
+    const task = this.mustGet(taskId);
+    if (task.status !== "ready-to-publish") throw new Error(`Task ${taskId} is not ready to publish`);
+    task.result = { execution: structuredClone(task.result), publication: structuredClone(receipt) };
+    this.transition(task, "completed", "saved execution result published", now, publisher);
+    await this.refreshDependencyState(now);
+    await this.persist(now);
+    return cloneTask(task);
   }
 
   async lease(taskId: string, owner: string, leaseMs = 120_000, now = new Date()): Promise<DurableTask> {
@@ -216,16 +330,57 @@ export class DurableTaskRuntime {
     if (task.status !== "queued" && task.status !== "retrying") {
       throw new Error(`Task ${taskId} cannot be leased from status ${task.status}`);
     }
+    if (task.migrationClass === "PINNED" && task.pinnedNodeId !== owner) {
+      throw new Error(`PINNED_TASK_WRONG_NODE: task ${taskId} requires ${task.pinnedNodeId}`);
+    }
     if (task.nextAttemptAt && new Date(task.nextAttemptAt).getTime() > now.getTime()) {
       throw new Error(`Task ${taskId} retry delay has not elapsed`);
     }
     this.transition(task, "leased", "lease acquired", now, owner, {
       leaseUntil: new Date(now.getTime() + leaseMs).toISOString(),
     });
+    task.executionEpoch += 1;
     task.leaseOwner = owner;
     task.leaseUntil = new Date(now.getTime() + leaseMs).toISOString();
+    task.fencingToken = randomUUID();
     task.nextAttemptAt = undefined;
+    task.waitReason = undefined;
     task.attempts += 1;
+    await this.persist(now);
+    return cloneTask(task);
+  }
+
+  async leaseClaim(taskId: string, owner: string, leaseMs = 120_000, now = new Date()): Promise<DurableTaskExecutionClaim> {
+    const task = await this.lease(taskId, owner, leaseMs, now);
+    return this.claimFromTask(task);
+  }
+
+  async leaseClaimWithCapacity(taskId: string, owner: string, maxParallelTasks = 1, leaseMs = 120_000, now = new Date()): Promise<DurableTaskExecutionClaim> {
+    await this.initialize();
+    if (!Number.isSafeInteger(maxParallelTasks) || maxParallelTasks < 1) throw new Error("DURABLE_OWNER_CAPACITY_INVALID");
+    await this.reclaimExpiredLeases(now);
+    const active = [...this.tasks.values()].filter(task =>
+      (task.status === "leased" || task.status === "running") && task.leaseOwner === owner);
+    if (active.length >= maxParallelTasks) throw new Error("DURABLE_OWNER_CAPACITY_EXHAUSTED");
+    return this.leaseClaim(taskId, owner, leaseMs, now);
+  }
+
+  async heartbeatClaimed(claim: DurableTaskExecutionClaim, leaseMs = 120_000, now = new Date()): Promise<DurableTaskExecutionClaim> {
+    await this.initialize();
+    const task = this.mustGet(claim.taskId);
+    this.assertClaim(task, claim, now);
+    task.leaseUntil = new Date(now.getTime() + leaseMs).toISOString();
+    task.updatedAt = iso(now);
+    await this.persist(now);
+    return this.claimFromTask(task);
+  }
+
+  async markRunningClaimed(claim: DurableTaskExecutionClaim, now = new Date()): Promise<DurableTask> {
+    await this.initialize();
+    const task = this.mustGet(claim.taskId);
+    this.assertClaim(task, claim, now);
+    if (task.status !== "leased") throw new Error(`Task ${task.id} must be leased before running`);
+    this.transition(task, "running", "execution started", now, claim.owner, { executionEpoch: claim.epoch });
     await this.persist(now);
     return cloneTask(task);
   }
@@ -263,7 +418,84 @@ export class DurableTaskRuntime {
     task.error = undefined;
     task.leaseOwner = undefined;
     task.leaseUntil = undefined;
+    task.fencingToken = undefined;
+    task.waitReason = undefined;
     this.transition(task, "completed", "execution verified complete", now, owner);
+    await this.refreshDependencyState(now);
+    await this.persist(now);
+    return cloneTask(task);
+  }
+
+  async completeClaimed(claim: DurableTaskExecutionClaim, result?: unknown, now = new Date()): Promise<DurableTask> {
+    await this.initialize();
+    const task = this.mustGet(claim.taskId);
+    this.assertClaim(task, claim, now);
+    task.result = structuredClone(result);
+    task.error = undefined;
+    task.leaseOwner = undefined;
+    task.leaseUntil = undefined;
+    task.fencingToken = undefined;
+    task.waitReason = undefined;
+    this.transition(task, "completed", "execution verified complete", now, claim.owner, { executionEpoch: claim.epoch });
+    await this.refreshDependencyState(now);
+    await this.persist(now);
+    return cloneTask(task);
+  }
+
+  async readyToPublish(taskId: string, owner: string, result?: unknown, now = new Date()): Promise<DurableTask> {
+    await this.initialize();
+    const task = this.mustGet(taskId);
+    if ((task.status !== "running" && task.status !== "leased") || task.leaseOwner !== owner) {
+      throw new Error(`Task ${taskId} is not executable by ${owner}`);
+    }
+    task.result = structuredClone(result);
+    task.error = undefined;
+    task.leaseOwner = undefined;
+    task.leaseUntil = undefined;
+    task.fencingToken = undefined;
+    task.waitReason = undefined;
+    this.transition(task, "ready-to-publish", "offline execution verified; publication requires connectivity", now, owner);
+    await this.persist(now);
+    return cloneTask(task);
+  }
+
+  async readyToPublishClaimed(claim: DurableTaskExecutionClaim, result?: unknown, now = new Date()): Promise<DurableTask> {
+    await this.initialize();
+    const task = this.mustGet(claim.taskId);
+    this.assertClaim(task, claim, now);
+    task.result = structuredClone(result);
+    task.error = undefined;
+    task.leaseOwner = undefined;
+    task.leaseUntil = undefined;
+    task.fencingToken = undefined;
+    task.waitReason = undefined;
+    this.transition(task, "ready-to-publish", "offline execution verified; publication requires connectivity", now, claim.owner, { executionEpoch: claim.epoch });
+    await this.persist(now);
+    return cloneTask(task);
+  }
+
+  async failClaimed(
+    claim: DurableTaskExecutionClaim,
+    error: string,
+    retryDelayMs = 0,
+    now = new Date(),
+  ): Promise<DurableTask> {
+    await this.initialize();
+    const task = this.mustGet(claim.taskId);
+    this.assertClaim(task, claim, now);
+    task.error = error;
+    task.leaseOwner = undefined;
+    task.leaseUntil = undefined;
+    task.fencingToken = undefined;
+    task.waitReason = undefined;
+    const retry = task.attempts < task.maxAttempts;
+    if (retry) {
+      task.nextAttemptAt = new Date(now.getTime() + Math.max(0, retryDelayMs)).toISOString();
+      this.transition(task, "retrying", "execution failed; retry scheduled", now, claim.owner, { error, executionEpoch: claim.epoch });
+    } else {
+      task.nextAttemptAt = undefined;
+      this.transition(task, "failed", "retry budget exhausted", now, claim.owner, { error, executionEpoch: claim.epoch });
+    }
     await this.refreshDependencyState(now);
     await this.persist(now);
     return cloneTask(task);
@@ -284,6 +516,8 @@ export class DurableTaskRuntime {
     task.error = error;
     task.leaseOwner = undefined;
     task.leaseUntil = undefined;
+    task.fencingToken = undefined;
+    task.waitReason = undefined;
     const retry = task.attempts < task.maxAttempts;
     if (retry) {
       task.nextAttemptAt = new Date(now.getTime() + Math.max(0, retryDelayMs)).toISOString();
@@ -298,11 +532,15 @@ export class DurableTaskRuntime {
   }
 
   async waitForConnectivity(taskId: string, reason: string, now = new Date()): Promise<DurableTask> {
-    return this.wait(taskId, "waiting-connectivity", reason, now);
+    return this.wait(taskId, "waiting-connectivity", "connectivity", reason, now);
   }
 
   async waitForResource(taskId: string, reason: string, now = new Date()): Promise<DurableTask> {
-    return this.wait(taskId, "waiting-resource", reason, now);
+    return this.wait(taskId, "waiting-resource", "resource", reason, now);
+  }
+
+  async waitForPinnedNode(taskId: string, reason: string, now = new Date()): Promise<DurableTask> {
+    return this.wait(taskId, "waiting-resource", "pinned-node", reason, now);
   }
 
   async resumeWaiting(kind: "connectivity" | "resource", now = new Date()): Promise<number> {
@@ -311,6 +549,9 @@ export class DurableTaskRuntime {
     let count = 0;
     for (const task of this.tasks.values()) {
       if (task.status !== status) continue;
+      const expected = kind === "connectivity" ? "connectivity" : "resource";
+      if (task.waitReason && task.waitReason !== expected) continue;
+      task.waitReason = undefined;
       this.transition(task, "queued", `${kind} available`, now);
       count += 1;
     }
@@ -321,6 +562,75 @@ export class DurableTaskRuntime {
     return count;
   }
 
+  async resumePinnedNode(nodeId: string, now = new Date()): Promise<number> {
+    await this.initialize();
+    const normalized = nodeId.trim();
+    if (!normalized) throw new Error("nodeId is required");
+    let count = 0;
+    for (const task of this.tasks.values()) {
+      if (
+        task.status !== "waiting-resource" ||
+        task.waitReason !== "pinned-node" ||
+        task.migrationClass !== "PINNED" ||
+        task.pinnedNodeId !== normalized
+      ) continue;
+      task.waitReason = undefined;
+      this.transition(task, "queued", "pinned node available", now, normalized);
+      count += 1;
+    }
+    if (count > 0) await this.persist(now);
+    return count;
+  }
+
+  async provideMigrationCheckpoint(taskId: string, checkpointRef: string, now = new Date()): Promise<DurableTask> {
+    await this.initialize();
+    const task = this.mustGet(taskId);
+    const checkpoint = checkpointRef.trim();
+    if (!checkpoint) throw new Error("checkpointRef is required");
+    if (task.migrationClass !== "MIGRATABLE") throw new Error(`Task ${taskId} is not MIGRATABLE`);
+    task.checkpointRef = checkpoint;
+    if (task.status === "waiting-resource" && task.waitReason === "migration-checkpoint") {
+      task.waitReason = undefined;
+      task.nextAttemptAt = iso(now);
+      this.transition(task, "retrying", "migration checkpoint available", now);
+    } else {
+      task.updatedAt = iso(now);
+    }
+    await this.persist(now);
+    return cloneTask(task);
+  }
+
+  async reconcileSideEffect(
+    taskId: string,
+    actor: string,
+    outcome: "retry" | "completed",
+    evidence: Record<string, unknown>,
+    result?: unknown,
+    now = new Date(),
+  ): Promise<DurableTask> {
+    await this.initialize();
+    const task = this.mustGet(taskId);
+    if (!actor.trim()) throw new Error("reconciliation actor is required");
+    if (task.migrationClass !== "SIDE_EFFECTING") throw new Error(`Task ${taskId} is not SIDE_EFFECTING`);
+    if (task.status !== "waiting-resource" || task.waitReason !== "side-effect-reconciliation") {
+      throw new Error(`Task ${taskId} is not waiting for side-effect reconciliation`);
+    }
+    if (!evidence || Object.keys(evidence).length === 0) throw new Error("side-effect reconciliation evidence is required");
+    task.waitReason = undefined;
+    task.error = undefined;
+    if (outcome === "completed") {
+      task.result = structuredClone(result);
+      task.nextAttemptAt = undefined;
+      this.transition(task, "completed", "side effect reconciled as completed", now, actor, { reconciliation: structuredClone(evidence) });
+      await this.refreshDependencyState(now);
+    } else {
+      task.nextAttemptAt = iso(now);
+      this.transition(task, "retrying", "side effect reconciled safe to retry", now, actor, { reconciliation: structuredClone(evidence) });
+    }
+    await this.persist(now);
+    return cloneTask(task);
+  }
+
   async cancel(taskId: string, reason = "cancelled", now = new Date()): Promise<DurableTask> {
     await this.initialize();
     const task = this.mustGet(taskId);
@@ -328,6 +638,8 @@ export class DurableTaskRuntime {
     if (task.status === "cancelled") return cloneTask(task);
     task.leaseOwner = undefined;
     task.leaseUntil = undefined;
+    task.fencingToken = undefined;
+    task.waitReason = undefined;
     task.nextAttemptAt = undefined;
     this.transition(task, "cancelled", reason, now);
     await this.refreshDependencyState(now);
@@ -339,6 +651,20 @@ export class DurableTaskRuntime {
     await this.initialize();
     const task = this.mustGet(taskId);
     if (TERMINAL.has(task.status)) throw new Error(`Cannot update checkpoint for terminal task ${taskId}`);
+    task.checkpointRef = checkpointRef?.trim() || undefined;
+    task.updatedAt = iso(now);
+    await this.persist(now);
+    return cloneTask(task);
+  }
+
+  async setCheckpointRefClaimed(
+    claim: DurableTaskExecutionClaim,
+    checkpointRef: string | undefined,
+    now = new Date(),
+  ): Promise<DurableTask> {
+    await this.initialize();
+    const task = this.mustGet(claim.taskId);
+    this.assertClaim(task, claim, now);
     task.checkpointRef = checkpointRef?.trim() || undefined;
     task.updatedAt = iso(now);
     await this.persist(now);
@@ -374,6 +700,7 @@ export class DurableTaskRuntime {
   private async wait(
     taskId: string,
     status: "waiting-connectivity" | "waiting-resource",
+    waitReason: DurableTaskWaitReason,
     reason: string,
     now: Date,
   ): Promise<DurableTask> {
@@ -382,32 +709,93 @@ export class DurableTaskRuntime {
     if (TERMINAL.has(task.status)) throw new Error(`Terminal task ${taskId} cannot wait`);
     task.leaseOwner = undefined;
     task.leaseUntil = undefined;
+    task.fencingToken = undefined;
     task.nextAttemptAt = undefined;
-    this.transition(task, status, reason, now);
+    task.waitReason = waitReason;
+    this.transition(task, status, reason, now, undefined, { waitReason });
     await this.persist(now);
     return cloneTask(task);
   }
 
   private recoverTask(task: DurableTask, reason: string, now: Date): void {
+    const lostOwner = task.leaseOwner;
     task.leaseOwner = undefined;
     task.leaseUntil = undefined;
-    const retry = task.attempts < task.maxAttempts;
-    if (retry) {
-      task.nextAttemptAt = iso(now);
-      this.transition(task, "retrying", reason, now);
-    } else {
-      task.nextAttemptAt = undefined;
-      task.error = reason;
-      this.transition(task, "failed", `${reason}; retry budget exhausted`, now);
+    task.fencingToken = undefined;
+    task.nextAttemptAt = undefined;
+
+    switch (task.migrationClass) {
+      case "MIGRATABLE":
+        if (task.checkpointRef) {
+          task.waitReason = undefined;
+          if (task.attempts < task.maxAttempts) {
+            task.nextAttemptAt = iso(now);
+            this.transition(task, "retrying", `${reason}; resume from checkpoint`, now, undefined, {
+              migrationClass: task.migrationClass,
+              checkpointRef: task.checkpointRef,
+              lostOwner,
+            });
+          } else {
+            task.error = reason;
+            this.transition(task, "failed", `${reason}; retry budget exhausted`, now, undefined, {
+              migrationClass: task.migrationClass,
+              checkpointRef: task.checkpointRef,
+              lostOwner,
+            });
+          }
+        } else {
+          task.waitReason = "migration-checkpoint";
+          this.transition(task, "waiting-resource", `${reason}; migration checkpoint required`, now, undefined, {
+            migrationClass: task.migrationClass,
+            waitReason: task.waitReason,
+            lostOwner,
+          });
+        }
+        return;
+      case "RESTARTABLE":
+        task.waitReason = undefined;
+        if (task.attempts < task.maxAttempts) {
+          task.nextAttemptAt = iso(now);
+          this.transition(task, "retrying", `${reason}; restart on eligible node`, now, undefined, {
+            migrationClass: task.migrationClass,
+            lostOwner,
+          });
+        } else {
+          task.error = reason;
+          this.transition(task, "failed", `${reason}; retry budget exhausted`, now, undefined, {
+            migrationClass: task.migrationClass,
+            lostOwner,
+          });
+        }
+        return;
+      case "PINNED":
+        task.waitReason = "pinned-node";
+        this.transition(task, "waiting-resource", `${reason}; waiting for pinned node ${task.pinnedNodeId}`, now, undefined, {
+          migrationClass: task.migrationClass,
+          pinnedNodeId: task.pinnedNodeId,
+          waitReason: task.waitReason,
+          lostOwner,
+        });
+        return;
+      case "SIDE_EFFECTING":
+        task.waitReason = "side-effect-reconciliation";
+        this.transition(task, "waiting-resource", `${reason}; side effect reconciliation required`, now, undefined, {
+          migrationClass: task.migrationClass,
+          waitReason: task.waitReason,
+          lostOwner,
+        });
+        return;
     }
   }
 
-  private async refreshDependencyState(now: Date): Promise<void> {
+  private async refreshDependencyState(now: Date): Promise<boolean> {
+    let changed = false;
     for (const task of this.tasks.values()) {
       if (TERMINAL.has(task.status) || task.dependsOn.length === 0) continue;
       const dependencies = task.dependsOn.map((id) => this.tasks.get(id));
       const terminalFailure = dependencies.find((dep) => dep?.status === "failed" || dep?.status === "cancelled");
       if (terminalFailure) {
+        changed = true;
         task.error = `Dependency ${terminalFailure.id} ended as ${terminalFailure.status}`;
         this.transition(task, "failed", "dependency ended unsuccessfully", now, undefined, {
           dependencyId: terminalFailure.id,
@@ -417,11 +805,14 @@ export class DurableTaskRuntime {
       }
       const complete = dependencies.length === task.dependsOn.length && dependencies.every((dep) => dep?.status === "completed");
       if (complete && task.status === "waiting-dependency") {
+        changed = true;
         this.transition(task, "queued", "all dependencies completed", now);
       } else if (!complete && (task.status === "queued" || task.status === "retrying")) {
+        changed = true;
         this.transition(task, "waiting-dependency", "waiting for dependencies", now);
       }
     }
+    return changed;
   }
 
   private transition(
@@ -438,6 +829,34 @@ export class DurableTaskRuntime {
     task.history.push({ from, to, at: task.updatedAt, reason, actor, evidence });
   }
 
+  private claimFromTask(task: DurableTask): DurableTaskExecutionClaim {
+    if (!task.leaseOwner || !task.leaseUntil || !task.fencingToken || task.executionEpoch < 1) {
+      throw new Error(`Task ${task.id} has no active execution claim`);
+    }
+    return {
+      taskId: task.id,
+      owner: task.leaseOwner,
+      epoch: task.executionEpoch,
+      fencingToken: task.fencingToken,
+      leaseUntil: task.leaseUntil,
+    };
+  }
+
+  private assertClaim(task: DurableTask, claim: DurableTaskExecutionClaim, now: Date): void {
+    const active = task.status === "leased" || task.status === "running";
+    const leaseLive = Boolean(task.leaseUntil) && new Date(task.leaseUntil!).getTime() > now.getTime();
+    if (
+      !active ||
+      !leaseLive ||
+      task.leaseOwner !== claim.owner ||
+      task.executionEpoch !== claim.epoch ||
+      !task.fencingToken ||
+      task.fencingToken !== claim.fencingToken
+    ) {
+      throw new Error(`STALE_EXECUTION_CLAIM: task ${task.id} execution ownership has changed`);
+    }
+  }
+
   private mustGet(taskId: string): DurableTask {
     const task = this.tasks.get(taskId);
     if (!task) throw new Error(`Unknown durable task: ${taskId}`);
@@ -450,5 +869,157 @@ export class DurableTaskRuntime {
       tasks: [...this.tasks.values()].map(cloneTask),
       savedAt: iso(now),
     });
+  }
+}
+
+/** Fresh operation snapshots and atomic commits prevent stale owners and lost writes. */
+export class DurableTaskRuntime {
+  private readonly store: DurableTaskStore;
+
+  constructor(store: DurableTaskStore) { this.store = store; }
+
+  private async operate<T>(operation: (session: DurableTaskSession) => Promise<T>): Promise<T> {
+    const expected = await this.store.load();
+    let pending: DurableTaskSnapshot | null = null;
+    const session = new DurableTaskSession({
+      load: async () => expected ? structuredClone(expected) : null,
+      save: async snapshot => { pending = structuredClone(snapshot); },
+    });
+    const result = await operation(session);
+    if (pending) {
+      if (!this.store.compareAndSwap) throw new Error("DURABLE_TASK_ATOMIC_STORE_REQUIRED");
+      if (!await this.store.compareAndSwap(expected, pending)) {
+        throw new Error("DURABLE_TASK_STORE_CONFLICT: persisted ownership or task state changed; reevaluate before retry");
+      }
+    }
+    return result;
+  }
+
+  initialize(...args: Parameters<DurableTaskSession["initialize"]>): ReturnType<DurableTaskSession["initialize"]> {
+    return this.operate(session => session.initialize(...args));
+  }
+
+  enqueue(...args: Parameters<DurableTaskSession["enqueue"]>): ReturnType<DurableTaskSession["enqueue"]> {
+    return this.operate(session => session.enqueue(...args));
+  }
+
+  get(...args: Parameters<DurableTaskSession["get"]>): ReturnType<DurableTaskSession["get"]> {
+    return this.operate(session => session.get(...args));
+  }
+
+  list(...args: Parameters<DurableTaskSession["list"]>): ReturnType<DurableTaskSession["list"]> {
+    return this.operate(session => session.list(...args));
+  }
+
+  next(...args: Parameters<DurableTaskSession["next"]>): ReturnType<DurableTaskSession["next"]> {
+    return this.operate(session => session.next(...args));
+  }
+
+  nextPublication(...args: Parameters<DurableTaskSession["nextPublication"]>): ReturnType<DurableTaskSession["nextPublication"]> {
+    return this.operate(session => session.nextPublication(...args));
+  }
+
+  completePublication(...args: Parameters<DurableTaskSession["completePublication"]>): ReturnType<DurableTaskSession["completePublication"]> {
+    return this.operate(session => session.completePublication(...args));
+  }
+
+  lease(...args: Parameters<DurableTaskSession["lease"]>): ReturnType<DurableTaskSession["lease"]> {
+    return this.operate(session => session.lease(...args));
+  }
+
+  leaseClaim(...args: Parameters<DurableTaskSession["leaseClaim"]>): ReturnType<DurableTaskSession["leaseClaim"]> {
+    return this.operate(session => session.leaseClaim(...args));
+  }
+
+  leaseClaimWithCapacity(...args: Parameters<DurableTaskSession["leaseClaimWithCapacity"]>): ReturnType<DurableTaskSession["leaseClaimWithCapacity"]> {
+    return this.operate(session => session.leaseClaimWithCapacity(...args));
+  }
+
+  heartbeatClaimed(...args: Parameters<DurableTaskSession["heartbeatClaimed"]>): ReturnType<DurableTaskSession["heartbeatClaimed"]> {
+    return this.operate(session => session.heartbeatClaimed(...args));
+  }
+
+  markRunningClaimed(...args: Parameters<DurableTaskSession["markRunningClaimed"]>): ReturnType<DurableTaskSession["markRunningClaimed"]> {
+    return this.operate(session => session.markRunningClaimed(...args));
+  }
+
+  heartbeat(...args: Parameters<DurableTaskSession["heartbeat"]>): ReturnType<DurableTaskSession["heartbeat"]> {
+    return this.operate(session => session.heartbeat(...args));
+  }
+
+  markRunning(...args: Parameters<DurableTaskSession["markRunning"]>): ReturnType<DurableTaskSession["markRunning"]> {
+    return this.operate(session => session.markRunning(...args));
+  }
+
+  complete(...args: Parameters<DurableTaskSession["complete"]>): ReturnType<DurableTaskSession["complete"]> {
+    return this.operate(session => session.complete(...args));
+  }
+
+  completeClaimed(...args: Parameters<DurableTaskSession["completeClaimed"]>): ReturnType<DurableTaskSession["completeClaimed"]> {
+    return this.operate(session => session.completeClaimed(...args));
+  }
+
+  readyToPublish(...args: Parameters<DurableTaskSession["readyToPublish"]>): ReturnType<DurableTaskSession["readyToPublish"]> {
+    return this.operate(session => session.readyToPublish(...args));
+  }
+
+  readyToPublishClaimed(...args: Parameters<DurableTaskSession["readyToPublishClaimed"]>): ReturnType<DurableTaskSession["readyToPublishClaimed"]> {
+    return this.operate(session => session.readyToPublishClaimed(...args));
+  }
+
+  failClaimed(...args: Parameters<DurableTaskSession["failClaimed"]>): ReturnType<DurableTaskSession["failClaimed"]> {
+    return this.operate(session => session.failClaimed(...args));
+  }
+
+  fail(...args: Parameters<DurableTaskSession["fail"]>): ReturnType<DurableTaskSession["fail"]> {
+    return this.operate(session => session.fail(...args));
+  }
+
+  waitForConnectivity(...args: Parameters<DurableTaskSession["waitForConnectivity"]>): ReturnType<DurableTaskSession["waitForConnectivity"]> {
+    return this.operate(session => session.waitForConnectivity(...args));
+  }
+
+  waitForResource(...args: Parameters<DurableTaskSession["waitForResource"]>): ReturnType<DurableTaskSession["waitForResource"]> {
+    return this.operate(session => session.waitForResource(...args));
+  }
+
+  waitForPinnedNode(...args: Parameters<DurableTaskSession["waitForPinnedNode"]>): ReturnType<DurableTaskSession["waitForPinnedNode"]> {
+    return this.operate(session => session.waitForPinnedNode(...args));
+  }
+
+  resumeWaiting(...args: Parameters<DurableTaskSession["resumeWaiting"]>): ReturnType<DurableTaskSession["resumeWaiting"]> {
+    return this.operate(session => session.resumeWaiting(...args));
+  }
+
+  resumePinnedNode(...args: Parameters<DurableTaskSession["resumePinnedNode"]>): ReturnType<DurableTaskSession["resumePinnedNode"]> {
+    return this.operate(session => session.resumePinnedNode(...args));
+  }
+
+  provideMigrationCheckpoint(...args: Parameters<DurableTaskSession["provideMigrationCheckpoint"]>): ReturnType<DurableTaskSession["provideMigrationCheckpoint"]> {
+    return this.operate(session => session.provideMigrationCheckpoint(...args));
+  }
+
+  reconcileSideEffect(...args: Parameters<DurableTaskSession["reconcileSideEffect"]>): ReturnType<DurableTaskSession["reconcileSideEffect"]> {
+    return this.operate(session => session.reconcileSideEffect(...args));
+  }
+
+  cancel(...args: Parameters<DurableTaskSession["cancel"]>): ReturnType<DurableTaskSession["cancel"]> {
+    return this.operate(session => session.cancel(...args));
+  }
+
+  setCheckpointRef(...args: Parameters<DurableTaskSession["setCheckpointRef"]>): ReturnType<DurableTaskSession["setCheckpointRef"]> {
+    return this.operate(session => session.setCheckpointRef(...args));
+  }
+
+  setCheckpointRefClaimed(...args: Parameters<DurableTaskSession["setCheckpointRefClaimed"]>): ReturnType<DurableTaskSession["setCheckpointRefClaimed"]> {
+    return this.operate(session => session.setCheckpointRefClaimed(...args));
+  }
+
+  reclaimExpiredLeases(...args: Parameters<DurableTaskSession["reclaimExpiredLeases"]>): ReturnType<DurableTaskSession["reclaimExpiredLeases"]> {
+    return this.operate(session => session.reclaimExpiredLeases(...args));
+  }
+
+  recoverOrphans(...args: Parameters<DurableTaskSession["recoverOrphans"]>): ReturnType<DurableTaskSession["recoverOrphans"]> {
+    return this.operate(session => session.recoverOrphans(...args));
   }
 }

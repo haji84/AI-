@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { CompletionExecution, type CompletionSource } from './completion-execution.ts';
+import { PlannerEnhancementPlanner } from './planner-enhancement.ts';
 import type {
   ActionResult,
   CapabilityExecutor,
@@ -283,12 +285,35 @@ export function createWorkStateIntegratedGoalLoop(input: {
   workStateStore: WorkStateStore;
   approvalPolicy?: ApprovalPolicy;
   options?: GoalLoopOptions;
+  /** Trusted host opt-in only. No HTTP/model context may provide this adapter. */
+  completion?: { source: CompletionSource; now?: () => string };
 }): GoalDrivenLoop {
   const contextSources = [new WorkStateContextSource(input.workStateStore), ...input.contextSources];
-  const executor = new WorkStateGuardedExecutor(input.executor, input.workStateStore, input.goal);
-  const store = new WorkStateWriteBackStore(input.stateStore, input.workStateStore);
+  const guarded = new WorkStateGuardedExecutor(input.executor, input.workStateStore, input.goal);
+  const completion = input.completion ? new CompletionExecution(input.workStateStore, input.completion.source, input.completion.now, input.options?.approvedActionKey) : undefined;
+  const writeBack = new WorkStateWriteBackStore(completion ? {
+    getState: () => input.stateStore.getState(),
+    completionBlockers: goal => input.stateStore.completionBlockers?.(goal) ?? Promise.resolve([]),
+    async writeBack() { /* Publish global cycle only after authoritative completion commit. */ },
+  } : input.stateStore, input.workStateStore);
+  const executor: CapabilityExecutor = completion ? {
+    async execute(action, context) { await completion.beforeExecute(action, input.goal); return guarded.execute(action, context); },
+  } : guarded;
+  const store: StateStore = completion ? {
+    getState: () => writeBack.getState(),
+    async completionBlockers(goal) { return [...await writeBack.completionBlockers(goal), ...completion.completionBlockers()]; },
+    async writeBack(record) {
+      // Executor supplied booleans are not criterion evidence in this path.
+      const result = record.result ? { ...record.result, definitionOfDoneResults: [] } : record.result;
+      const action = record.action ? { ...record.action, satisfiesDefinitionOfDone: [] } : record.action;
+      if (!record.result) await completion.afterCycle(record);
+      await writeBack.writeBack({ ...record, result, action });
+      if (record.result) await completion.afterCycle(record);
+      await input.stateStore.writeBack({ ...record, result, action });
+    },
+  } : writeBack;
   return new GoalDrivenLoop(
-    input.planner,
+    completion ? new PlannerEnhancementPlanner(input.planner, completion) : input.planner,
     contextSources,
     executor,
     input.verifier,

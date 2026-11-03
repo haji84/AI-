@@ -1,3 +1,6 @@
+import { PcDurableWork, PcWorkConflict, assertPcExecutor } from "../src/jarvis/pc-durable-work.ts";
+import { PcTaskObservations, projectPcObservation, assertPcObserver, PC_OBSERVATION_EXPORT, PC_OBSERVATION_RECEIVE, PC_OBSERVATION_MAX_BYTES } from "../src/jarvis/pc-task-observation.ts";
+import { DurableTaskRuntime, JsonFileDurableTaskStore } from "../src/gai/durable-task-runtime.ts";
 import { MATERIAL_REQUEST_BYTES } from "../src/gai/cognitive-material-intake.ts";
 import { cognitiveHostOptions } from "../src/gai/cognitive-host-config.ts";
 import { CognitiveService } from "../src/gai/cognitive-service.ts";
@@ -8,10 +11,12 @@ import { loadCanonicalBundle, prepareSpecificationProposal } from "./jarvis-owne
 import { OwnerRequirementIntake, matchRequirementCandidates } from "../src/orchestrator/owner-requirement-intake.ts";
 import { execFileSync, spawn } from "node:child_process";
 import { createHash, createPublicKey, randomBytes, timingSafeEqual } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, readFileSync, lstatSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { createResidentReceiptWakes } from "../src/orchestrator/resident-receipt-wakes.ts";
 import { OwnerInvitationStore, INVITATION_PREFIX } from "../src/jarvis/owner-invitation.ts";
-import { TrustedDeviceRegistry } from "../src/jarvis/trusted-device-registry.ts";
+import { generateOwnerRecoveryCode, OwnerRecoveryRejectedError, TrustedDeviceRegistry } from "../src/jarvis/trusted-device-registry.ts";
+import { GoogleOwnerStateRegistry } from "../src/jarvis/google-owner-state-registry.ts";
 import { invitationUrl } from "../src/jarvis/invitation-link.ts";
 import { FixedEnrollmentRateLimiter } from "../src/jarvis/fixed-enrollment.ts";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
@@ -19,6 +24,8 @@ import {
   JarvisControlPlane,
   JarvisNonceRegistry,
   JarvisSqliteStateStore,
+  sanitizeJarvisAndroidNodeContract,
+  sanitizeJarvisNodeTelemetry,
   verifyWorkerRequest,
   type JarvisCapability,
   type JarvisNode,
@@ -31,13 +38,20 @@ import { WorkerRemoteMailbox } from "../src/jarvis/worker-remote-mailbox.ts";
 import { remoteDeviceInventory } from "../src/jarvis/remote-device-inventory.ts";
 import { PendingEnrollment } from "../src/jarvis/pending-enrollment.ts";
 import { CompassStore } from "../src/compass/store.ts";
+import { CompassWorkStateStoreAdapter } from "../src/orchestrator/compass-work-state-store.ts";
 import { GoalControllerRuntime, type GoalControllerDecision } from "../src/orchestrator/goal-controller-runtime.ts";
 import { CompassGoalRegistryAdapter, CompassGoalDecisionStoreAdapter } from "../src/orchestrator/compass-goal-controller.ts";
 import { CompassWorkRunStore } from "../src/orchestrator/compass-work-run-store.ts";
 import { CompassGoalBridgeEventStore } from "../src/orchestrator/compass-goal-bridge-event-store.ts";
+import { CompassGoalExecutionContextStore } from "../src/orchestrator/compass-goal-execution-context-store.ts";
 import { workRunProgress } from "../src/orchestrator/work-run-state.ts";
 import { createQueuedWorkRun } from "../src/orchestrator/work-run-state.ts";
+import { ResourceWaitScheduler } from "../src/orchestrator/development-resource-scheduler.ts";
 import { validateWindowsVerificationDispatch } from "../src/orchestrator/windows-verification-dispatch.ts";
+import { DeviceDevelopmentIntake, JsonFileDeviceDevelopmentInbox } from "../src/orchestrator/device-development-intake.ts";
+import { parseDailyDriverDeviceCommand } from "../src/jarvis/daily-driver-device-command.ts";
+import { PcEnrollmentService, validatePcEnrollmentApproval } from "../src/jarvis/pc-enrollment.ts";
+import { discoverLocalTts, synthesizeLocalTts } from "../src/jarvis/local-tts.ts";
 
 
 const host = process.env.JARVIS_BROKER_HOST?.trim() || "127.0.0.1";
@@ -60,18 +74,65 @@ if (host !== "127.0.0.1" && host !== "::1" && process.env.JARVIS_ALLOW_NON_LOOPB
 
 const plane = new JarvisControlPlane();
 const store = new JarvisSqliteStateStore(process.env.JARVIS_DB_PATH?.trim() || undefined);
+const pcWork = new PcDurableWork(new DurableTaskRuntime(new JsonFileDurableTaskStore((process.env.JARVIS_DB_PATH?.trim() || resolve(".jarvis", "jarvis.db")) + ".pc-tasks.json")), () => plane.snapshot().fleet);
+const pcObservations = new PcTaskObservations((process.env.JARVIS_DB_PATH?.trim() || resolve(".jarvis", "jarvis.db")) + ".pc-observations.json", process.env.GORIQ_RUNTIME_REVISION || "");
+const pcApprovalPath = (process.env.JARVIS_DB_PATH?.trim() || resolve(".jarvis", "jarvis.db")) + ".pc-enrollment-approval.json";
+let pcEnrollment: PcEnrollmentService | undefined;
+let pcApprovalDigest = "";
+function approvedPcEnrollment(): PcEnrollmentService {
+  const stat = lstatSync(pcApprovalPath);
+  if (!stat.isFile() || stat.size > 8192 || (process.platform !== "win32" &&
+    ((stat.mode & 0o077) !== 0 || stat.uid !== process.getuid?.()))) throw new Error("PC approval storage rejected");
+  const raw = readFileSync(pcApprovalPath, "utf8");
+  const approval = validatePcEnrollmentApproval(JSON.parse(raw));
+  const digest = createHash("sha256").update(raw).digest("hex");
+  if (!pcEnrollment || digest !== pcApprovalDigest) { pcEnrollment = new PcEnrollmentService(approval); pcApprovalDigest = digest; }
+  return pcEnrollment;
+}
 const compassPath = process.env.JARVIS_COMPASS_DB_PATH?.trim() || (process.env.JARVIS_DB_PATH?.trim() ? `${process.env.JARVIS_DB_PATH.trim()}.compass.sqlite` : resolve(".jarvis/compass.db"));
 const compass = new CompassStore(compassPath);
 const workRuns = new CompassWorkRunStore(compass);
+const completionWorkState = new CompassWorkStateStoreAdapter(compass);
 const goalBridgeEvents = new CompassGoalBridgeEventStore(compass);
+const goalExecutionContexts = new CompassGoalExecutionContextStore(compass);
 const cognitive = new CognitiveService(compassPath, cognitiveHostOptions(process.env));
 const ownerRequirements = new OwnerRequirementIntake(compass);
 const specificationPublisher = createSpecificationPublisher({root:fileURLToPath(new URL("../",import.meta.url)),intake:ownerRequirements,token:process.env.GITHUB_TOKEN});
+const goalWorkStates = new CompassWorkStateStoreAdapter(compass);
 const goalController = new GoalControllerRuntime({
-  registry: new CompassGoalRegistryAdapter(compass),
+  registry: new CompassGoalRegistryAdapter(compass, goalWorkStates),
+  workStateStore: goalWorkStates,
   decisionStore: new CompassGoalDecisionStoreAdapter(compass),
 });
+const deviceDevelopmentIntake = new DeviceDevelopmentIntake({
+  inbox: new JsonFileDeviceDevelopmentInbox(join(dirname(compassPath), "self-development", "device-intake.json")),
+  async submit(request) {
+    const decision = await goalController.handle(request);
+    const existingRun = decision.goalId ? await workRuns.getByGoal(decision.goalId) : null;
+    if (decision.goalId && !existingRun) await workRuns.put(createQueuedWorkRun(decision.goalId));
+    const terminal = existingRun && ["COMPLETED", "BLOCKED", "FAILED", "HUMAN_GATE"].includes(existingRun.phase);
+    if (!terminal) scheduleGoalExecution(decision, [{ source: "trusted-device-development-intake", text: request.text, intent: decision.resolution.intent, ...request.sourceContext }]);
+    return { goalId: decision.goalId, action: decision.action };
+  },
+});
 const activeGoalExecutions = new Map<string, ReturnType<typeof spawn>>();
+const resourceWaitScheduler = new ResourceWaitScheduler({
+  async read(goalId) {
+    const active = await new CompassGoalRegistryAdapter(compass).listActive();
+    return { active: compass.getState().status !== "PAUSED" && active.some(goal => goal.goalId === goalId), run: await workRuns.getByGoal(goalId) };
+  },
+  async resume(goalId) {
+    const active = (await new CompassGoalRegistryAdapter(compass).listActive()).find(goal => goal.goalId === goalId);
+    if (!active || compass.getState().status === "PAUSED") return;
+    scheduleGoalExecution({
+      action: "CONTINUE_GOAL", goalId, resolution: {
+        kind: "EXISTING_GOAL", intent: "COMMAND", goal: active, reason: "resume_persisted_resource_wait",
+        intake: { id: "resource-" + goalId, source: "event", text: "Recheck accepted resource wait", sourceContext: {}, idempotencyKey: "resource-" + goalId, goalHint: goalId },
+      },
+    }, goalExecutionContexts.get(goalId));
+  },
+  onError: error => console.error("[goriq-goal] resource_resume_failed", error),
+});
 
 function encodeGoalExecutionContext(context: unknown[]): string {
   const encoded = Buffer.from(JSON.stringify(context), "utf8").toString("base64");
@@ -80,6 +141,7 @@ function encodeGoalExecutionContext(context: unknown[]): string {
 }
 
 function scheduleGoalExecution(decision: GoalControllerDecision, context: unknown[] = []): boolean {
+  if (decision.goalId && context.length) goalExecutionContexts.put(decision.goalId, context);
   if (decision.action !== "CONTINUE_GOAL" || !decision.goalId) return false;
   if (activeGoalExecutions.has(decision.goalId)) return true;
   const goalId = decision.goalId;
@@ -109,6 +171,7 @@ function scheduleGoalExecution(decision: GoalControllerDecision, context: unknow
     if (code !== 0) {
       console.error("[goriq-goal]", goalId, `executor_exit=${code ?? "null"} signal=${signal ?? "none"} ${stderr.trim()}`.trim());
     }
+    if (code === 0) void resourceWaitScheduler.arm(goalId).catch(error => console.error("[goriq-goal] resource_resume_failed", error));
   });
   activeGoalExecutions.set(goalId, child);
   return true;
@@ -120,7 +183,8 @@ const remoteMailbox = new WorkerRemoteMailbox();
 const pendingEnrollment = new PendingEnrollment();
 const pairingWindow = new JarvisEnrollmentPairingWindow();
 const invitations = new OwnerInvitationStore((process.env.JARVIS_DB_PATH?.trim() || resolve(".jarvis/jarvis.db")) + ".invitation.json");
-const trustedDevices = new TrustedDeviceRegistry((process.env.JARVIS_DB_PATH?.trim() || resolve(".jarvis/jarvis.db")) + ".trusted-devices.json");
+const trustedDevices = new TrustedDeviceRegistry((process.env.JARVIS_DB_PATH?.trim() || resolve(".jarvis/jarvis.db")) + ".trusted-devices.json", ownerToken);
+const googleOwnerState = new GoogleOwnerStateRegistry((process.env.JARVIS_DB_PATH?.trim() || resolve(".jarvis/jarvis.db")) + ".google-owner.json");
 const invitationLimiter = new FixedEnrollmentRateLimiter(60_000, 100, 200);
 const replacementTransport = new JarvisDeviceReplacementTransport({ identityForNode: (nodeId) => store.getWorkerIdentity(nodeId) });
 let lastHeartbeatPersist = 0;
@@ -242,9 +306,13 @@ function asNumber(value: unknown, fallback: number): number { return typeof valu
 function validatedNode(value: unknown): JarvisNode {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("node object required");
   const node = value as JarvisNode;
+  if (node.pcAuthority !== undefined) throw new Error("Android cannot self-assign PC authority");
   if (!node.id || node.kind !== "android" || !Array.isArray(node.capabilities)) throw new Error("invalid Android node descriptor");
   if (node.policy?.allowPaidServices !== false) throw new Error("worker must disable paid services");
-  return node;
+  const rawContract = (value as Record<string, unknown>).nodeContract;
+  const nodeContract = rawContract === undefined ? undefined : sanitizeJarvisAndroidNodeContract(rawContract, new Date());
+  if (rawContract !== undefined && !nodeContract) throw new Error("invalid Android distributed node contract");
+  return { ...node, nodeContract };
 }
 function assignFleetNumber(node: JarvisNode): JarvisNode {
   const existing = plane.fleet.get(node.id);
@@ -285,9 +353,10 @@ function validatedAndroidTask(type: string, payload: Record<string, unknown>): R
 async function handler(request: IncomingMessage, response: ServerResponse): Promise<void> {
   const url = new URL(request.url || "/", "http://localhost");
   const path = url.pathname; const method = request.method || "GET";
-  const body = method === "GET" || method === "HEAD" ? Buffer.alloc(0) : await readBody(request);
+  const body = method === "GET" || method === "HEAD" ? Buffer.alloc(0) : await readBody(request,
+    [PC_OBSERVATION_EXPORT, PC_OBSERVATION_RECEIVE].includes(path) ? PC_OBSERVATION_MAX_BYTES : 1_000_000);
 
-  if (method === "GET" && path === "/health") return json(response, 200, { ok: true, service: "jarvis-broker", stats: plane.snapshot().stats, workerApkReady: Boolean(workerApkInfo()), pairingWindow: pairingWindow.status(), directGoalBridge: { version: 1, executorReady: existsSync(fileURLToPath(new URL("./jarvis-goal-executor.ts", import.meta.url))) } });
+  if (method === "GET" && path === "/health") return json(response, 200, { ok: true, service: "jarvis-broker", stats: plane.snapshot().stats, workerApkReady: Boolean(workerApkInfo()), pairingWindow: pairingWindow.status(), runtimeRevision: process.env.GORIQ_RUNTIME_REVISION?.trim() || null, directGoalBridge: { version: 1, executorReady: existsSync(fileURLToPath(new URL("./jarvis-goal-executor.ts", import.meta.url))), selfDevelopmentRuntime: process.env.GORIQ_SELF_DEVELOPMENT_RUNTIME === "1" } });
   if (method === "POST" && path === "/api/jarvis/enrollment-grant") {
     // Same owner-opened, bounded window as /enroll; never opens itself on worker demand.
     let origin: URL;
@@ -326,7 +395,82 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
 
   if (path.startsWith("/api/jarvis/admin/")) {
     if (!requireOwner(request)) return json(response, 401, { message: "owner authorization required" });
+
+    if (path === "/api/jarvis/admin/owner-recovery") {
+      response.setHeader("Referrer-Policy", "no-referrer");
+      if (method !== "POST" || body.length > 4096) return json(response, 400, { message: "invalid owner recovery request" });
+      let recoveryPayload: Record<string, unknown>;
+      try { recoveryPayload = parseJson(body); }
+      catch { return json(response, 400, { message: "invalid owner recovery request" }); }
+      try {
+        if (recoveryPayload.action === "issue" && typeof recoveryPayload.issuerDeviceId === "string") {
+          const code = generateOwnerRecoveryCode();
+          const issued = trustedDevices.issueRecovery({ issuerDeviceId: recoveryPayload.issuerDeviceId, code });
+          return json(response, 201, { code, expiresAt: issued.expiresAt });
+        }
+        if (recoveryPayload.action === "cancel" && typeof recoveryPayload.issuerDeviceId === "string") {
+          return json(response, 200, trustedDevices.cancelRecovery(recoveryPayload.issuerDeviceId));
+        }
+        if (recoveryPayload.action === "redeem" && typeof recoveryPayload.code === "string" && typeof recoveryPayload.deviceId === "string" &&
+          typeof recoveryPayload.label === "string" && typeof recoveryPayload.publicKeyThumbprint === "string" && typeof recoveryPayload.sourceBucket === "string") {
+          const device = trustedDevices.redeemRecovery({
+            code: recoveryPayload.code, deviceId: recoveryPayload.deviceId, label: recoveryPayload.label,
+            publicKeyThumbprint: recoveryPayload.publicKeyThumbprint, sourceBucket: recoveryPayload.sourceBucket,
+          });
+          return json(response, 200, { device });
+        }
+        return json(response, 400, { message: "invalid owner recovery request" });
+      } catch (error) {
+        return json(response, error instanceof OwnerRecoveryRejectedError ? 409 : 503, { message: "owner recovery rejected" });
+      }
+    }
+
     const payload = parseJson(body);
+    if (path === "/api/jarvis/admin/pc-enrollment/challenge" || path === "/api/jarvis/admin/pc-enrollment/prove") {
+      if (method !== "POST" || body.length > 4096) return json(response, 400, { message: "bounded PC enrollment request required" });
+      try {
+        const service = approvedPcEnrollment();
+        if (path.endsWith("/challenge")) {
+          if (typeof payload.nodeId === "string" && (plane.fleet.get(payload.nodeId) || store.getWorkerIdentity(payload.nodeId))) {
+            return json(response, 409, { message: "Existing identity must reconnect, not re-enroll" });
+          }
+          return json(response, 201, service.offer(payload));
+        }
+        if (Object.keys(payload).some(k => !["challengeId", "signatureBase64"].includes(k)) ||
+          typeof payload.challengeId !== "string" || typeof payload.signatureBase64 !== "string") throw new Error("Invalid proof");
+        const candidate = service.prove(payload.challengeId, payload.signatureBase64);
+        if (plane.fleet.get(candidate.node.id) || store.getWorkerIdentity(candidate.node.id)) throw new Error("Existing identity");
+        const before = plane.snapshot(), expected = store.load();
+        try {
+          const token = plane.createEnrollment({ mode: "full", ttlMs: 30_000, maxDevices: 1 });
+          const node = plane.enroll(token.token, candidate.node);
+          store.saveNewEnrollment(expected, plane.snapshot(), candidate.identity);
+          return json(response, 201, { node });
+        } catch (error) { plane.restore(before); throw error; }
+      } catch { return json(response, 409, { message: "PC enrollment approval, identity or proof rejected" }); }
+    }
+    if (path === "/api/jarvis/admin/google-owner") {
+      try {
+        if (method !== "POST" || body.length > 4096) return json(response, 400, { message: "invalid google owner state request" });
+        if (payload.action === "issueContext") return json(response, 200, googleOwnerState.issueContext({
+          deviceId: String(payload.deviceId ?? ""), publicKeyThumbprint: String(payload.publicKeyThumbprint ?? ""),
+          state: String(payload.state ?? ""), nonce: String(payload.nonce ?? ""), pkceChallenge: String(payload.pkceChallenge ?? ""),
+        }));
+        if (payload.action === "consumeContext") return json(response, 200, googleOwnerState.consumeContext({
+          contextId: String(payload.contextId ?? ""), deviceId: String(payload.deviceId ?? ""), publicKeyThumbprint: String(payload.publicKeyThumbprint ?? ""),
+          state: String(payload.state ?? ""), nonce: String(payload.nonce ?? ""),
+        }));
+        if (payload.action === "bindIdentity") return json(response, 200, googleOwnerState.bindIdentity({
+          sub: String(payload.sub ?? ""), email: typeof payload.email === "string" ? payload.email : undefined,
+          emailVerified: payload.emailVerified === true, bootstrapEmail: String(payload.bootstrapEmail ?? ""),
+        }));
+        if (payload.action === "identity") {
+          const identity = googleOwnerState.identity();
+          return json(response, 200, identity ? { bound: true, sub: identity.sub, boundAt: identity.boundAt } : { bound: false });
+        }
+        return json(response, 400, { message: "invalid google owner state request" });
+      } catch { return json(response, 409, { message: "google owner state rejected" }); }
+    }
     if (path === "/api/jarvis/admin/trusted-devices") {
       try {
         if (method === "GET" && url.searchParams.has("deviceId")) return json(response, 200, { revoked: trustedDevices.isRevoked(url.searchParams.get("deviceId") || "") });
@@ -335,6 +479,28 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
         if (method === "POST" && body.length <= 1024 && payload.action === "revoke" && typeof payload.deviceId === "string") return json(response, 200, { device: trustedDevices.revoke(payload.deviceId) });
         return json(response, 400, { message: "invalid trusted device request" });
       } catch { return json(response, 503, { message: "trusted device registry unavailable" }); }
+    }
+    if (path === "/api/jarvis/admin/voice") {
+      if (method === "GET") {
+        try { return json(response, 200, await discoverLocalTts()); }
+        catch (error) { return json(response, 503, { available: false, message: error instanceof Error ? error.message : "local TTS unavailable" }); }
+      }
+      if (method === "POST") {
+        if (body.length > 8192) return json(response, 413, { message: "local TTS request too large" });
+        try {
+          const result = await synthesizeLocalTts({
+            text: typeof payload.text === "string" ? payload.text : "",
+            voiceId: typeof payload.voiceId === "string" ? payload.voiceId : undefined,
+            rate: typeof payload.rate === "number" ? payload.rate : undefined,
+            pitch: typeof payload.pitch === "number" ? payload.pitch : undefined,
+            volume: typeof payload.volume === "number" ? payload.volume : undefined,
+          });
+          return json(response, 200, result);
+        } catch (error) {
+          return json(response, 503, { message: error instanceof Error ? error.message : "local TTS unavailable" });
+        }
+      }
+      return json(response, 405, { message: "Method not allowed" });
     }
     if (method === "GET" && path === "/api/jarvis/admin/state") return json(response, 200, plane.snapshot());
     if (method === "GET" && path === "/api/jarvis/admin/requirements") return json(response, 200, requirementWorkflow(ownerRequirements.list(),loadCanonicalBundle(fileURLToPath(new URL("../",import.meta.url))),fileURLToPath(new URL("../",import.meta.url)),!!process.env.GITHUB_TOKEN));
@@ -425,7 +591,17 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
       const goalId = decodeURIComponent(path.slice("/api/jarvis/admin/work/".length));
       const run = await workRuns.getByGoal(goalId);
       if (!run) return json(response, 404, { message: "Work Runがありません", goalId });
-      return json(response, 200, { run, progress: workRunProgress(run) });
+      const completion = (await completionWorkState.getCompletionHistory(goalId)).at(-1) ?? null;
+      return json(response, 200, { run, progress: workRunProgress(run), completion });
+    }
+    if (method === "POST" && path.startsWith("/api/jarvis/admin/work/")) {
+      if (body.length > 8_192) return json(response, 413, { message: 'notification receipt too large' });
+      const goalId = decodeURIComponent(path.slice('/api/jarvis/admin/work/'.length));
+      if (!(await workRuns.getByGoal(goalId))) return json(response, 404, { message: 'Work Runがありません' });
+      try {
+        const completion = await completionWorkState.acknowledgeCompletionNotifications(goalId, payload as unknown as { cycleId: string; notificationIds: string[] });
+        return json(response, 200, { completion });
+      } catch { return json(response, 409, { message: '通知の表示内容を再取得してください。承認状態は変更していません。' }); }
     }
     if (method === "POST" && path === "/api/jarvis/admin/work") {
       try {
@@ -433,6 +609,43 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
         const text = typeof payload.text === "string" ? payload.text.trim() : "";
         if (!text) return json(response, 400, { message: "仕事の内容を入力してください" });
         const idempotencyKey = typeof payload.idempotencyKey === "string" ? payload.idempotencyKey.trim() : undefined;
+        const deviceIntent = parseDailyDriverDeviceCommand(text);
+        if (deviceIntent.kind === "protected") {
+          return json(response, 409, {
+            accepted: false,
+            action: "DEVICE_ACTION_PROTECTED",
+            message: deviceIntent.message,
+            nextAction: "端末の詳細操作または既存Human Gateを使用してください",
+          });
+        }
+        if (deviceIntent.kind === "device") {
+          const type = deviceIntent.task.type;
+          let cleanPayload: Record<string, unknown>;
+          try { cleanPayload = validatedAndroidTask(type, deviceIntent.task.payload); }
+          catch (error) { return json(response, 400, { message: error instanceof Error ? error.message : "invalid device task" }); }
+          const capability = androidTaskCapabilities[type];
+          const fingerprint = JSON.stringify({ type, cleanPayload, source: "daily-driver" });
+          const task = plane.enqueueTask({
+            idempotencyKey: idempotencyKey || `daily-driver:${createHash("sha256").update(fingerprint).digest("hex")}`,
+            type,
+            payload: cleanPayload,
+            requiredCapabilities: [capability],
+            preferredKinds: ["android"],
+            priority: "normal",
+            requiresOnline: true,
+            maxAttempts: 3,
+          });
+          persist();
+          return json(response, 202, {
+            accepted: true,
+            executionScheduled: true,
+            goalId: null,
+            action: "DEVICE_ACTION",
+            resolution: "STANDALONE_ACTION",
+            nextAction: "端末タスクを実行中",
+            task,
+          });
+        }
         const requestedGoalHint = typeof payload.goalHint === "string" ? payload.goalHint.trim() : undefined;
         const requestedGoalContract = payload.goalContract && typeof payload.goalContract === "object" && !Array.isArray(payload.goalContract)
           ? payload.goalContract as { successCriteria?: unknown; constraints?: unknown }
@@ -463,7 +676,7 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
         const existingRun = decision.goalId ? await workRuns.getByGoal(decision.goalId) : null;
         if (decision.goalId && !existingRun) await workRuns.put(createQueuedWorkRun(decision.goalId));
         const terminal = existingRun && ["COMPLETED", "BLOCKED", "FAILED", "HUMAN_GATE"].includes(existingRun.phase);
-        const executionScheduled = !terminal && scheduleGoalExecution(decision, [{ source: "owner-work-intake", text }]);
+        const executionScheduled = !terminal && scheduleGoalExecution(decision, [{ source: "owner-work-intake", text, intent: decision.resolution.intent }]);
         return json(response, 202, {
           accepted: true,
           executionScheduled,
@@ -477,6 +690,25 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
         });
       } catch (error) {
         return json(response, 409, { message: error instanceof Error ? error.message : "Goal受付に失敗しました" });
+      }
+    }
+    if (method === "POST" && path === "/api/jarvis/admin/development-intake") {
+      if (body.length > 64_000) return json(response, 413, { message: "development intake too large" });
+      const deviceId = typeof payload.deviceId === "string" ? payload.deviceId.trim() : "";
+      if (!deviceId || !store.getWorkerIdentity(deviceId)) return json(response, 403, { message: "trusted device identity required" });
+      try {
+        const record = await deviceDevelopmentIntake.receive({
+          deviceId,
+          platform: payload.platform as "ios" | "windows" | "macos",
+          ownerCommandId: typeof payload.ownerCommandId === "string" ? payload.ownerCommandId : "",
+          text: typeof payload.text === "string" ? payload.text : "",
+          connectivity: payload.connectivity as "online" | "degraded" | "offline" | "recovering",
+          goalSnapshotDigest: typeof payload.goalSnapshotDigest === "string" ? payload.goalSnapshotDigest : "",
+          causalParentId: typeof payload.causalParentId === "string" ? payload.causalParentId : undefined,
+        });
+        return json(response, record.status === "SUBMITTED" ? 202 : 201, { accepted: true, record });
+      } catch (error) {
+        return json(response, 409, { message: error instanceof Error ? error.message : "development intake failed" });
       }
     }
     if (path === "/api/jarvis/admin/enrollment-pending") {
@@ -601,6 +833,10 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
         persist(); return json(response, 201, { task });
       } catch (error) { return json(response, 400, { message: error instanceof Error ? error.message : "invalid Windows verification task" }); }
     }
+    if (method === "POST" && path === "/api/jarvis/admin/pc-tasks") {
+      try { return json(response, 201, { task: await pcWork.enqueue(payload) }); }
+      catch (error) { return json(response, error instanceof PcWorkConflict ? 409 : 400, { message: error instanceof PcWorkConflict ? "PC task conflict" : "PC task scope or input rejected" }); }
+    }
     if (method === "POST" && path === "/api/jarvis/admin/tasks") {
       const type = typeof payload.type === "string" ? payload.type : "";
       const taskPayload = payload.payload && typeof payload.payload === "object" && !Array.isArray(payload.payload) ? payload.payload as Record<string, unknown> : {};
@@ -640,6 +876,7 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
 
   if (method === "POST" && path === "/api/jarvis/enroll") {
     const payload = parseJson(body); let tokenValue = "";
+    if (payload.node && typeof payload.node === "object" && "pcAuthority" in payload.node) return json(response, 400, { message: "Android cannot self-assign PC authority" });
     if (typeof payload.grant === "string" && payload.grant) {
       const grant = resolveEnrollmentGrant(payload.grant); if (!grant) return json(response, 410, { message: "expired or invalid enrollment link" }); tokenValue = grant.token;
     } else if (typeof payload.token === "string" && payload.token) {
@@ -680,20 +917,50 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
       const signed = signedWorkerRequest(request, path, body);
       if (!signed || !verifyWorkerRequest({ identity, request: signed, seenNonce: (id, nonce) => nonces.has(id, nonce) }).ok) return json(response, 401, { message: "Device key proof required" });
       nonces.record(signed.nodeId, signed.nonce);
-      const safeNode: JarvisNode = { id: node.id, label: node.label, kind: "android", capabilities: node.capabilities, status: "offline", enrollment: "quick", lastSeenAt: new Date().toISOString(), telemetry: { checkedAt: new Date().toISOString() }, policy: { allowPaidServices: false, allowDestructiveActions: false, allowExternalPublication: false, allowRemoteControl: false, requireHumanForLockedDevice: true } };
+      const safeNode: JarvisNode = { id: node.id, label: node.label, kind: "android", capabilities: node.capabilities, status: "offline", enrollment: "quick", lastSeenAt: new Date().toISOString(), telemetry: { checkedAt: new Date().toISOString() }, nodeContract: node.nodeContract, policy: { allowPaidServices: false, allowDestructiveActions: false, allowExternalPublication: false, allowRemoteControl: false, requireHumanForLockedDevice: true } };
       return json(response, 202, { pending: true, ...pendingEnrollment.offer(safeNode, identity) });
     } catch { return json(response, 400, { message: "Invalid registration request" }); }
   }
   if (path.startsWith("/api/jarvis/worker/")) {
     const identity = authenticateWorker(request, path, body); if (!identity) return json(response, 401, { message: "valid signed worker request required" });
     const payload = parseJson(body);
+    if (method === "POST" && [PC_OBSERVATION_EXPORT, PC_OBSERVATION_RECEIVE].includes(path)) {
+      try { assertPcObserver(plane.fleet.get(identity.nodeId), identity); }
+      catch { return json(response, 403, { message: "registered PC Storage and Coordinator required" }); }
+      try {
+        if (typeof payload.taskId !== "string" || !/^pc-[a-f0-9]{64}$/.test(payload.taskId) ||
+          typeof payload.revision !== "string" || !/^[a-f0-9]{40}$/.test(payload.revision) ||
+          payload.revision !== process.env.GORIQ_RUNTIME_REVISION) throw Error("PC observation scope rejected");
+        if (path === PC_OBSERVATION_EXPORT) {
+          if (Object.keys(payload).some(key => !["taskId", "revision"].includes(key))) throw Error("PC observation scope rejected");
+          const runtime = new DurableTaskRuntime(new JsonFileDurableTaskStore((process.env.JARVIS_DB_PATH?.trim() || resolve(".jarvis", "jarvis.db")) + ".pc-tasks.json"));
+          const task = await runtime.get(payload.taskId);
+          if (!task) return json(response, 404, { message: "PC observation task unavailable" });
+          return json(response, 200, projectPcObservation(task));
+        }
+        const signed = signedWorkerRequest(request, path, body);
+        if (!signed) throw Error("PC observation proof rejected");
+        return json(response, 200, await pcObservations.receive(payload, { identity, signed, rawBody: body.toString("utf8") }));
+      } catch { return json(response, 409, { message: "PC observation rejected or storage unavailable" }); }
+    }
     if (method === "POST" && path === "/api/jarvis/worker/heartbeat") {
-      const telemetry = payload.telemetry && typeof payload.telemetry === "object" && !Array.isArray(payload.telemetry) ? payload.telemetry as JarvisNode["telemetry"] : undefined;
+      const now = new Date();
+      const telemetry = sanitizeJarvisNodeTelemetry(payload.telemetry, now);
       const status = payload.status === "busy" || payload.status === "locked" || payload.status === "needs-human" ? payload.status : "ready";
       const capabilities = Array.isArray(payload.capabilities) ? payload.capabilities.filter((item): item is JarvisCapability => typeof item === "string") : undefined;
+      const pc = plane.fleet.get(identity.nodeId);
+      if (pc?.pcAuthority) {
+        if (payload.nodeContract !== undefined || payload.pcAuthority !== undefined ||
+          capabilities?.some(c => !pc.pcAuthority!.capabilityCeiling.includes(c))) return json(response, 403, { message: "PC capability or authority escalation rejected" });
+        const node = plane.heartbeat(identity.nodeId, { status, telemetry, capabilities, policy: pc.policy }, now);
+        persist(false); return json(response, 200, { node });
+      }
+      const rawContract = payload.nodeContract;
+      const nodeContract = rawContract === undefined ? undefined : sanitizeJarvisAndroidNodeContract(rawContract, now);
+      if (rawContract !== undefined && !nodeContract) return json(response, 400, { message: "invalid Android distributed node contract" });
       const current = plane.fleet.get(identity.nodeId);
       const policy = current ? { ...current.policy, allowPaidServices: false as const, allowRemoteControl: capabilities?.includes("ui-automation") === true, requireHumanForLockedDevice: true } : undefined;
-      const node = plane.heartbeat(identity.nodeId, { status, telemetry, capabilities, policy }); persist(false); return json(response, 200, { node });
+      const node = plane.heartbeat(identity.nodeId, { status, telemetry, nodeContract, capabilities, policy }, now); persist(false); return json(response, 200, { node });
     }
     if (method === "POST" && path === "/api/jarvis/worker/remote/next") {
       const node = plane.fleet.get(identity.nodeId);
@@ -704,6 +971,14 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
       if (typeof payload.id !== "string" || typeof payload.ok !== "boolean") return json(response, 400, { message: "Invalid remote result" });
       try { remoteMailbox.finish(identity.nodeId, payload.id, payload); return json(response, 200, { ok: true }); }
       catch { return json(response, 409, { message: "Unknown or expired remote result" }); }
+    }
+    if (method === "POST" && (path === "/api/jarvis/worker/pc/next" || path === "/api/jarvis/worker/pc/result")) {
+      try { assertPcExecutor(plane.fleet.get(identity.nodeId)); }
+      catch { return json(response, 403, { message: "registered PC Executor required" }); }
+      try {
+        const result = path.endsWith("/next") ? await pcWork.next(identity.nodeId, new Date(), payload.taskId as string | undefined) : { task: await pcWork.complete(identity.nodeId, payload) };
+        return json(response, 200, result);
+      } catch { return json(response, 409, { message: "PC execution claim, input or result rejected" }); }
     }
     if (method === "POST" && path === "/api/jarvis/worker/next") {
       if (remoteMailbox.pending(identity.nodeId)) return json(response, 200, { task: null });
@@ -726,25 +1001,62 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
 const server = createServer((request, response) => {
   handler(request, response).catch((error) => { console.error("[jarvis-broker] request failed", error); json(response, 500, { message: error instanceof Error ? error.message : "internal error" }); });
 });
+const verifierReceiptWakes = createResidentReceiptWakes(process.env, process.cwd());
+let verifierReceiptTimer: NodeJS.Timeout | undefined;
+
 server.listen(port, host, () => {
   console.log(`[jarvis-broker] listening on http://${host}:${port}`);
   console.log(`[jarvis-broker] nodes=${plane.snapshot().stats.registered} tasks=${plane.snapshot().tasks.length} workerApk=${workerApkInfo() ? "ready" : "missing"}`);
+  // A signer is a separate OS/VM principal. New receipt bytes wake an already
+  // accepted non-terminal Goal, never create a new Goal or grant approval.
+  // Signature, artifact binding and all gates are checked by Goal Executor.
+  if (verifierReceiptWakes.length) {
+    let inspecting = false;
+    verifierReceiptTimer = setInterval(() => {
+      if (inspecting || activeGoalExecutions.size > 0) return;
+      inspecting = true;
+      void (async () => {
+        const active = (await new CompassGoalRegistryAdapter(compass).listActive())[0];
+        if (!active) return;
+        const run = await workRuns.getByGoal(active.goalId);
+        if (!run || !["RUNNING", "VERIFYING"].includes(run.phase) ||
+            activeGoalExecutions.has(active.goalId)) return;
+        if (!verifierReceiptWakes.map(wake => wake.changedDigest()).some(Boolean)) return;
+        scheduleGoalExecution({
+          action: "CONTINUE_GOAL", goalId: active.goalId, resolution: {
+            kind: "EXISTING_GOAL", intent: "COMMAND", goal: active,
+            reason: "independent_verifier_receipt_arrived",
+            intake: { id: `verifier-resume-${active.goalId}`, source: "event",
+              text: "Resume accepted Goal after signed verifier receipt",
+              sourceContext: {}, idempotencyKey: `verifier-resume-${active.goalId}`,
+              goalHint: active.goalId },
+          },
+        }, goalExecutionContexts.get(active.goalId));
+      })().catch(error => console.error("[goriq-goal] verifier_receipt_wake_failed",
+        error instanceof Error ? error.name : "unknown"))
+        .finally(() => { inspecting = false; });
+    }, 15000);
+    verifierReceiptTimer.unref();
+  }
   // Only a previously accepted, non-terminal Work Run has execution authority.
   // A Broker restart must resume it without another owner message.
   void (async () => {
     const active = (await new CompassGoalRegistryAdapter(compass).listActive())[0];
-    if (!active) return;
+    if (!active || compass.getState().status === "PAUSED") return;
     const run = await workRuns.getByGoal(active.goalId);
     if (!run || !["QUEUED", "PLANNING", "RUNNING", "VERIFYING", "RECOVERING"].includes(run.phase)) return;
+    if (await resourceWaitScheduler.arm(active.goalId)) return;
     scheduleGoalExecution({
       action: "CONTINUE_GOAL", goalId: active.goalId, resolution: {
         kind: "EXISTING_GOAL", intent: "COMMAND", goal: active, reason: "resume_persisted_work_run",
         intake: { id: `resume-${active.goalId}`, source: "event", text: "Resume accepted Goal", sourceContext: {}, idempotencyKey: `resume-${active.goalId}`, goalHint: active.goalId },
       },
-    });
+    }, goalExecutionContexts.get(active.goalId));
   })().catch((error) => console.error("[goriq-goal] startup_resume_failed", error));
 });
 function shutdown(): void {
+  if (verifierReceiptTimer) clearInterval(verifierReceiptTimer);
+  resourceWaitScheduler.close();
   for (const child of activeGoalExecutions.values()) {
     if (child.exitCode === null && child.signalCode === null) child.kill();
   }

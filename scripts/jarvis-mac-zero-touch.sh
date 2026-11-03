@@ -22,14 +22,27 @@ read_env_value() {
 }
 write_env() {
   local owner="$1" remote="$2" serials="$3" broker_url="$4" remote_url="$5"
-  cat >"$ENV_FILE" <<EOF
+  local tmp="${ENV_FILE}.tmp.$$"
+  if [[ -f "$ENV_FILE" ]]; then
+    awk -F= '
+      $1 != "JARVIS_OWNER_TOKEN" &&
+      $1 != "JARVIS_REMOTE_GATEWAY_TOKEN" &&
+      $1 != "JARVIS_REMOTE_ALLOWED_SERIALS" &&
+      $1 != "JARVIS_PUBLIC_BROKER_URL" &&
+      $1 != "JARVIS_REMOTE_PUBLIC_URL" { print }
+    ' "$ENV_FILE" >"$tmp"
+  else
+    : >"$tmp"
+  fi
+  cat >>"$tmp" <<EOF
 JARVIS_OWNER_TOKEN=$owner
 JARVIS_REMOTE_GATEWAY_TOKEN=$remote
 JARVIS_REMOTE_ALLOWED_SERIALS=$serials
 JARVIS_PUBLIC_BROKER_URL=$broker_url
 JARVIS_REMOTE_PUBLIC_URL=$remote_url
 EOF
-  chmod 600 "$ENV_FILE"
+  chmod 600 "$tmp"
+  mv "$tmp" "$ENV_FILE"
 }
 launch_job_exists() {
   launchctl print "gui/$(id -u)/$1" >/dev/null 2>&1
@@ -64,7 +77,9 @@ start_bg() {
   if pgrep -f "$pattern" >/dev/null 2>&1; then return 0; fi
   nohup /bin/bash -c "$cmd" >>"$STATE_ROOT/$name.out.log" 2>>"$STATE_ROOT/$name.err.log" &
 }
-if launch_job_exists com.aicompany.jarvis-broker; then
+if launch_job_exists com.aicompany.jarvis-runtime; then
+  launchctl kickstart "gui/$(id -u)/com.aicompany.jarvis-runtime" >/dev/null 2>&1 || true
+elif launch_job_exists com.aicompany.jarvis-broker; then
   launchctl kickstart "gui/$(id -u)/com.aicompany.jarvis-broker" >/dev/null 2>&1 || true
 else
   start_bg broker 'scripts/jarvis-broker.ts' "cd '$REPO_ROOT' && pnpm jarvis:broker"
@@ -76,7 +91,8 @@ read_tunnel_url() {
   grep -Eo 'https://[a-zA-Z0-9-]+\.trycloudflare\.com' "$STATE_ROOT/${name}-tunnel.log" 2>/dev/null | tail -1 || true
 }
 start_tunnel_fallback() {
-  local name="$1" local_url="$2" log="$STATE_ROOT/${name}-tunnel.log"
+  local name="$1" local_url="$2"
+  local log="$STATE_ROOT/${name}-tunnel.log"
   if ! pgrep -f "cloudflared tunnel --.*url $local_url" >/dev/null 2>&1; then
     : >"$log"
     nohup cloudflared tunnel --no-autoupdate --url "$local_url" >"$log" 2>&1 &
@@ -97,7 +113,9 @@ done
 if [[ -n "$new_broker_url" && "$new_broker_url" != "$broker_url" ]]; then
   broker_url="$new_broker_url"
   write_env "$owner_token" "$remote_token" "$serials" "$broker_url" "$remote_url"
-  if launch_job_exists com.aicompany.jarvis-broker; then
+  if launch_job_exists com.aicompany.jarvis-runtime; then
+    launchctl kickstart -k "gui/$(id -u)/com.aicompany.jarvis-runtime"
+  elif launch_job_exists com.aicompany.jarvis-broker; then
     launchctl kickstart -k "gui/$(id -u)/com.aicompany.jarvis-broker"
   else
     pkill -f 'scripts/jarvis-broker.ts' >/dev/null 2>&1 || true

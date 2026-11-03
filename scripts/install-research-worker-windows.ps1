@@ -6,7 +6,8 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$root = Join-Path $env:LOCALAPPDATA 'GAIWorker\research-worker'
+$gaiRoot = Join-Path $env:LOCALAPPDATA 'GAIWorker'
+$root = Join-Path $gaiRoot 'research-worker'
 $serviceSource = (Resolve-Path (Join-Path $PSScriptRoot 'research-worker-service.ts')).Path
 $servicePath = Join-Path $root 'research-worker-service.ts'
 $launcherPath = Join-Path $root 'run-research-worker.ps1'
@@ -18,6 +19,18 @@ $taskName = 'GAI Research Worker'
 
 New-Item -ItemType Directory -Force -Path $root | Out-Null
 Copy-Item -Force $serviceSource $servicePath
+$resourceRuntimeFiles = @(
+  'src/gai/development-resource-admission.ts',
+  'src/gai/worker-resource-probe.ts',
+  'src/gai/worker-runtime.ts',
+  'src/gai/cognitive-lease.ts'
+)
+foreach ($runtimeFile in $resourceRuntimeFiles) {
+  $sourcePath = Join-Path (Join-Path $PSScriptRoot '..') $runtimeFile
+  $destinationPath = Join-Path $gaiRoot $runtimeFile
+  New-Item -ItemType Directory -Force -Path (Split-Path $destinationPath -Parent) | Out-Null
+  Copy-Item -Force -LiteralPath $sourcePath -Destination $destinationPath
+}
 
 $node = (Get-Command node -ErrorAction Stop).Source
 if (-not (Test-Path $tokenPath)) {

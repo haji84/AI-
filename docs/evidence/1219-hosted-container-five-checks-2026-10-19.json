@@ -1,0 +1,338 @@
+{
+  "schemaVersion": 1,
+  "evidenceClass": "HOSTED_CONTAINER_CI",
+  "sourceRevision": "79e07df368d4db6644b2e0475d52fdd1b550fcf9",
+  "runUrl": "https://github.com/haji84/AI-/actions/runs/39245845801",
+  "artifactId": 12183743692,
+  "artifactZipSha256": "b8fad16305de742e6221984c122af31a5eb8e7d93f5be8ad50184195f32b69ed",
+  "environment": {
+    "evidenceClass": "HOSTED_CONTAINER_CI",
+    "physicalAcceptanceVerified": false,
+    "baseRevision": "79e07df368d4db6644b2e0475d52fdd1b550fcf9",
+    "githubRunId": "39245845801",
+    "node": "v24.19.0",
+    "registryImage": "registry:2.8.3@sha256:a3d8aaa63ed8681a604f1dea0aa03f100d5895b6a58ace528858a7b332415373",
+    "dockerClient": "28.0.4",
+    "dockerServer": "28.0.4",
+    "limits": {
+      "timeoutMs": 180000,
+      "memoryBytes": 2147483648,
+      "pids": 128,
+      "tmpfsMiB": 1536,
+      "network": "none",
+      "uid": 65534
+    }
+  },
+  "image": {
+    "image": "127.0.0.1:32768/verifier@sha256:fcfec09b02e3cce0acf955f9b1a44ef18ab7e2d261747b97a54383af0a19efae",
+    "buildContextHashes": {
+      "Dockerfile": "7c19deb9eddf89715b13d9f12de548fdc1195b870b68c2d426a08c48ea7f3a7f",
+      "jarvis-verifier-offline-workspace.mjs": "a92a5c24ae9bad4b9db92eedbf6abb5d08e3835b79792c83c570d29229c711d3",
+      "package.json": "d92950d3516f24fd908d50348116150c197a3335e48590dcc1b0798e0aa59774",
+      "pnpm-lock.yaml": "2531ddfad5ef473ef7aa4b4c3cdbc77846db448129325fd2235f676b59dafd90"
+    }
+  },
+  "result": {
+    "status": "FAILED",
+    "physicalAcceptanceVerified": false,
+    "baseRevision": "79e07df368d4db6644b2e0475d52fdd1b550fcf9",
+    "image": "127.0.0.1:32768/verifier@sha256:fcfec09b02e3cce0acf955f9b1a44ef18ab7e2d261747b97a54383af0a19efae",
+    "error": "LIVE_CHECK_NOT_PASSED",
+    "fixtureCleanupConfirmed": true
+  },
+  "receipt": {
+    "payload": {
+      "version": 1,
+      "verifierId": "ci-host-signer",
+      "goalId": "ci-goal-538e29cb-47de-4bc8-81ec-d35d140c352f",
+      "jobId": "ci-job-538e29cb-47de-4bc8-81ec-d35d140c352f",
+      "changeSetId": "ci-change-538e29cb-47de-4bc8-81ec-d35d140c352f",
+      "builderId": "ci-untrusted-container",
+      "baseRevision": "79e07df368d4db6644b2e0475d52fdd1b550fcf9",
+      "sourceRevision": "3658e23982709f9b96d0523529ac0fcaf2bc2f4514cfdb874b9dcf1fce3fbc5d",
+      "artifactDigest": "7d09c38a61111fe40aed15c84cfd7c43e821dfad32986b3d997f50776d220a43",
+      "issuedAt": "2026-10-19T11:37:55.324Z",
+      "expiresAt": "2026-10-19T12:04:36.524Z",
+      "checks": [
+        {
+          "check": "lint",
+          "status": "passed",
+          "outputDigest": "0f5ed4aefca30b877b2928f5dce7cbc3939170d2b211847c85e8cbb17e6ed215",
+          "recordedAt": "2026-10-19T11:38:09.252Z"
+        },
+        {
+          "check": "typecheck",
+          "status": "passed",
+          "outputDigest": "d72a665dc284a4fa3c0565cd80115b1bf565eff17004fb7a53419a2861ad6b1f",
+          "recordedAt": "2026-10-19T11:38:22.463Z"
+        },
+        {
+          "check": "unit",
+          "status": "passed",
+          "outputDigest": "e0cbba869423804e93455c2cce37fca1f73aaf44898083c4e7fe45d021a90b11",
+          "recordedAt": "2026-10-19T11:41:18.419Z"
+        },
+        {
+          "check": "integration",
+          "status": "passed",
+          "outputDigest": "d1584a49a43dec0e4f51d14c58c31a04e7aecfd86ed92e88f4aeddf90a6de460",
+          "recordedAt": "2026-10-19T11:44:14.521Z"
+        },
+        {
+          "check": "security",
+          "status": "passed",
+          "outputDigest": "8969adf2f16ef0d9812cba5b25d7a8eb26f302107297b404a1e7eafaee975e22",
+          "recordedAt": "2026-10-19T11:44:34.181Z"
+        },
+        {
+          "check": "build",
+          "status": "failed",
+          "outputDigest": "9bbf2e227c4d2805a64cb75630be9e0905e4b3c88e43744b8d75aa1692255132",
+          "recordedAt": "2026-10-19T11:44:36.216Z"
+        }
+      ]
+    },
+    "signatureBase64": "fenGISwetXKqQIKVV87XyB1Qaz545k23UjE/D4WBnf/64YTkmz2F53Th+kBfzjvk5v0KOLa3PX8MOQD34gaOAA=="
+  },
+  "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAbFzZeaaNWG2d1pdLFkjVj3mSo7ksrEu7Xg5pV5hxVjU=\n-----END PUBLIC KEY-----\n",
+  "checks": [
+    {
+      "check": "lint",
+      "status": "passed",
+      "outputDigest": "0f5ed4aefca30b877b2928f5dce7cbc3939170d2b211847c85e8cbb17e6ed215",
+      "recordedAt": "2026-10-19T11:38:09.252Z",
+      "args": [
+        "lint"
+      ],
+      "exit": 0,
+      "errorCode": null,
+      "closeObserved": true,
+      "cleanup": {
+        "attempted": true,
+        "containerName": "goriq-verifier-eba38ca2-beff-4709-ab3c-e0d43e36981c",
+        "confirmed": true,
+        "removal": {
+          "status": 0,
+          "signal": null,
+          "stdout": "",
+          "stderr": "Error response from daemon: No such container: goriq-verifier-eba38ca2-beff-4709-ab3c-e0d43e36981c\n",
+          "errorCode": null,
+          "closeObserved": true
+        },
+        "inspection": {
+          "status": 0,
+          "signal": null,
+          "stdout": "",
+          "stderr": "",
+          "errorCode": null,
+          "closeObserved": true
+        }
+      }
+    },
+    {
+      "check": "typecheck",
+      "status": "passed",
+      "outputDigest": "d72a665dc284a4fa3c0565cd80115b1bf565eff17004fb7a53419a2861ad6b1f",
+      "recordedAt": "2026-10-19T11:38:22.463Z",
+      "args": [
+        "exec",
+        "tsc",
+        "--noEmit"
+      ],
+      "exit": 0,
+      "errorCode": null,
+      "closeObserved": true,
+      "cleanup": {
+        "attempted": true,
+        "containerName": "goriq-verifier-d037a956-a3c9-4e8e-9226-183761ca2c1c",
+        "confirmed": true,
+        "removal": {
+          "status": 0,
+          "signal": null,
+          "stdout": "",
+          "stderr": "Error response from daemon: No such container: goriq-verifier-d037a956-a3c9-4e8e-9226-183761ca2c1c\n",
+          "errorCode": null,
+          "closeObserved": true
+        },
+        "inspection": {
+          "status": 0,
+          "signal": null,
+          "stdout": "",
+          "stderr": "",
+          "errorCode": null,
+          "closeObserved": true
+        }
+      }
+    },
+    {
+      "check": "unit",
+      "status": "passed",
+      "outputDigest": "e0cbba869423804e93455c2cce37fca1f73aaf44898083c4e7fe45d021a90b11",
+      "recordedAt": "2026-10-19T11:41:18.419Z",
+      "args": [
+        "test"
+      ],
+      "exit": 0,
+      "errorCode": null,
+      "closeObserved": true,
+      "cleanup": {
+        "attempted": true,
+        "containerName": "goriq-verifier-dee31d25-56ae-4e15-b7c1-411cabd8464b",
+        "confirmed": true,
+        "removal": {
+          "status": 0,
+          "signal": null,
+          "stdout": "",
+          "stderr": "Error response from daemon: No such container: goriq-verifier-dee31d25-56ae-4e15-b7c1-411cabd8464b\n",
+          "errorCode": null,
+          "closeObserved": true
+        },
+        "inspection": {
+          "status": 0,
+          "signal": null,
+          "stdout": "",
+          "stderr": "",
+          "errorCode": null,
+          "closeObserved": true
+        }
+      }
+    },
+    {
+      "check": "integration",
+      "status": "passed",
+      "outputDigest": "d1584a49a43dec0e4f51d14c58c31a04e7aecfd86ed92e88f4aeddf90a6de460",
+      "recordedAt": "2026-10-19T11:44:14.521Z",
+      "args": [
+        "test"
+      ],
+      "exit": 0,
+      "errorCode": null,
+      "closeObserved": true,
+      "cleanup": {
+        "attempted": true,
+        "containerName": "goriq-verifier-9ed228d8-9cc6-4c2d-9dea-daa3628511c6",
+        "confirmed": true,
+        "removal": {
+          "status": 0,
+          "signal": null,
+          "stdout": "",
+          "stderr": "Error response from daemon: No such container: goriq-verifier-9ed228d8-9cc6-4c2d-9dea-daa3628511c6\n",
+          "errorCode": null,
+          "closeObserved": true
+        },
+        "inspection": {
+          "status": 0,
+          "signal": null,
+          "stdout": "",
+          "stderr": "",
+          "errorCode": null,
+          "closeObserved": true
+        }
+      }
+    },
+    {
+      "check": "security",
+      "status": "passed",
+      "outputDigest": "8969adf2f16ef0d9812cba5b25d7a8eb26f302107297b404a1e7eafaee975e22",
+      "recordedAt": "2026-10-19T11:44:34.181Z",
+      "args": [
+        "test:p8-security"
+      ],
+      "exit": 0,
+      "errorCode": null,
+      "closeObserved": true,
+      "cleanup": {
+        "attempted": true,
+        "containerName": "goriq-verifier-446c6aea-5d36-4121-bc0a-35511a4106a0",
+        "confirmed": true,
+        "removal": {
+          "status": 0,
+          "signal": null,
+          "stdout": "",
+          "stderr": "Error response from daemon: No such container: goriq-verifier-446c6aea-5d36-4121-bc0a-35511a4106a0\n",
+          "errorCode": null,
+          "closeObserved": true
+        },
+        "inspection": {
+          "status": 0,
+          "signal": null,
+          "stdout": "",
+          "stderr": "",
+          "errorCode": null,
+          "closeObserved": true
+        }
+      }
+    },
+    {
+      "check": "build",
+      "status": "failed",
+      "outputDigest": "9bbf2e227c4d2805a64cb75630be9e0905e4b3c88e43744b8d75aa1692255132",
+      "recordedAt": "2026-10-19T11:44:36.216Z",
+      "args": [
+        "build"
+      ],
+      "exit": 1,
+      "errorCode": null,
+      "closeObserved": true,
+      "cleanup": {
+        "attempted": true,
+        "containerName": "goriq-verifier-7e810790-12d3-477d-b2c2-8e9d11a9fe23",
+        "confirmed": true,
+        "removal": {
+          "status": 0,
+          "signal": null,
+          "stdout": "",
+          "stderr": "Error response from daemon: No such container: goriq-verifier-7e810790-12d3-477d-b2c2-8e9d11a9fe23\n",
+          "errorCode": null,
+          "closeObserved": true
+        },
+        "inspection": {
+          "status": 0,
+          "signal": null,
+          "stdout": "",
+          "stderr": "",
+          "errorCode": null,
+          "closeObserved": true
+        }
+      }
+    }
+  ],
+  "tmpfsBoundary": [
+    {
+      "check": "unit",
+      "uid": 65534,
+      "gid": 65534,
+      "mode": 448,
+      "mountOptions": [
+        "rw",
+        "nosuid",
+        "nodev",
+        "noexec",
+        "relatime"
+      ],
+      "nativeExecutionRejected": true,
+      "imageLinkExecuted": true
+    },
+    {
+      "check": "integration",
+      "uid": 65534,
+      "gid": 65534,
+      "mode": 448,
+      "mountOptions": [
+        "rw",
+        "nosuid",
+        "nodev",
+        "noexec",
+        "relatime"
+      ],
+      "nativeExecutionRejected": true,
+      "imageLinkExecuted": true
+    }
+  ],
+  "actualSixChecksComplete": false,
+  "physicalAcceptanceVerified": false,
+  "limitations": [
+    "Five checks passed; defaultTurbopackbuildfailed forimmutableexternaldependencylink.",
+    "Sourcecandidate/imageinputsreconstructedandall6signature/logbindingsvalidated; no physicalAI09/Windowsrebootacceptance."
+  ]
+}
