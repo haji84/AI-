@@ -1,7 +1,17 @@
-name: GORIQ Owner Code 1218 Read-only Native Acceptance
+name: GORIQ Owner Code 1218 Bounded Native Acceptance
 
 on:
   workflow_dispatch:
+    inputs:
+      owner_local_practical:
+        description: 'Separately approved issue1218 existing-code local practical test; never rotation'
+        required: false
+        type: boolean
+        default: false
+      approved_scope_base64:
+        description: 'Non-secret exact-source scope metadata; no credential value'
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -36,6 +46,23 @@ jobs:
           New-Item -ItemType Directory -Force -Path .gai-results | Out-Null
           powershell.exe -NoProfile -NonInteractive -File scripts/owner-code-preflight-1218.ps1 | Tee-Object -FilePath .gai-results/owner-code-preflight-1218.json
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Separately approved existing Owner code local practical test
+        if: ${{ inputs.owner_local_practical == true }}
+        working-directory: owner-native-${{ github.run_id }}-${{ github.run_attempt }}
+        env:
+          GORIQ_OWNER_PRACTICAL_APPROVAL_BASE64: ${{ inputs.approved_scope_base64 }}
+        shell: powershell
+        run: |
+          powershell.exe -NoLogo -NoProfile -STA -NonInteractive -File scripts/owner-code-practical-1218.ps1 -Apply | Tee-Object -FilePath .gai-results/owner-code-practical-1218.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Retain sanitized practical booleans only
+        if: ${{ always() && inputs.owner_local_practical == true }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: goriq-owner-1218-local-practical
+          path: owner-native-${{ github.run_id }}-${{ github.run_attempt }}/.gai-results/owner-code-practical-1218.json
+          if-no-files-found: error
+          retention-days: 14
       - name: Upload allowlisted metadata only
         if: always()
         uses: actions/upload-artifact@v4
