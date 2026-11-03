@@ -9,10 +9,10 @@ on:
         options: [legacy, A, B]
         default: legacy
       bootstrap_b64:
-        description: Phase A nonsecret gzip checkpoint, Base64
+        description: Phase A nonsecret compressed checkpoint, Base64
         type: string
       bootstrap_sha256:
-        description: SHA256 of decoded gzip bytes
+        description: SHA256 of decoded compressed bytes
         type: string
       cache_key:
         description: Phase B exact immutable phase-A cache key

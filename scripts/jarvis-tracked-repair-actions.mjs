@@ -1,7 +1,7 @@
 import {createHash} from 'node:crypto';
 import {Buffer} from 'node:buffer';
 import process from 'node:process';
-import {gzipSync,gunzipSync} from 'node:zlib';
+import {gzipSync,gunzipSync,brotliCompressSync,brotliDecompressSync,constants as zlibConstants} from 'node:zlib';
 import {existsSync,lstatSync,mkdirSync,readdirSync,readFileSync,writeFileSync,unlinkSync,appendFileSync} from 'node:fs';
 import {dirname,join,resolve} from 'node:path';
 import {execFileSync,spawnSync} from 'node:child_process';
@@ -60,9 +60,58 @@ export function validateCheckpoint(cp,{now=Date.now(),expectedHead,phase}={}){
  for(const f of prepared.files)if(!declared.some(p=>p.path===f.path)||typeof f.content!=='string'||!files.has('candidate/'+f.path)||hash(f.content)!==hash(files.get('candidate/'+f.path)))fail();
  return {manifest:m,files,change};
 }
-export function encodeCheckpoint(cp){validateCheckpoint(cp);const bytes=gzipSync(Buffer.from(JSON.stringify(cp)));const b64=bytes.toString('base64');if(b64.length>60000)throw Error('TRACKED_ACTIONS_DISPATCH_TOO_LARGE');return {b64,sha256:hash(bytes)};}
-export function decodeCheckpoint(b64,sha256){if(typeof b64!=='string'||b64.length>60000||!hex(sha256))fail();const bytes=Buffer.from(b64,'base64');if(bytes.toString('base64')!==b64||hash(bytes)!==sha256)fail();
- let cp;try{cp=JSON.parse(gunzipSync(bytes,{maxOutputLength:2097152}));}catch{fail();}validateCheckpoint(cp);return cp;}
+const mapPath='docs/jarvis-reverse-traceability.json',mapMarker='GORIQ_FIXED_TRACEABILITY_REFERENCE_V1';
+function packFixedMap(cp){
+ const m=JSON.parse(bytesFor(cp.files.find(r=>r.path==='manifest.json')));if(!m.bookkeeping)return null;
+ const document=bytesFor(cp.files.find(r=>r.path==='candidate/'+mapPath)),docText=document.toString('utf8'),docBase64=document.toString('base64');
+ const rows=cp.files.map(row=>{
+  if(row.path==='candidate/'+mapPath)return {path:row.path,sha256:row.sha256,codec:'fixed-map'};
+  if(!row.path.endsWith('.prepared.json')&&row.path!=='receipt.json.request.json')return row;
+  const raw=bytesFor(row).toString('utf8'),suffix=raw.endsWith('\n')?'\n':'',value=JSON.parse(raw);
+  if(JSON.stringify(value)+suffix!==raw)throw Error('TRACKED_ACTIONS_NONCANONICAL_JOURNAL');
+  const entries=value.files?.filter(f=>f.path===mapPath);if(entries?.length!==1)fail();
+  const codec=row.path.endsWith('.prepared.json')?'prepared-map':'outbox-map',field=codec==='prepared-map'?'content':'contentBase64';
+  if(entries[0][field]!== (field==='content'?docText:docBase64))fail();entries[0][field]=mapMarker;
+  return {path:row.path,sha256:row.sha256,codec,suffix,contentBase64:Buffer.from(JSON.stringify(value)).toString('base64')};
+ });
+ return {version:2,kind:'tracked-repair-actions-fixed-map',checkpoint:{...cp,files:rows}};
+}
+function unpackFixedMap(wire,{bookkeepingBaseline}={}){
+ if(!plain(wire)||Object.keys(wire).sort().join(',')!=='checkpoint,kind,version'||wire.version!==2||wire.kind!=='tracked-repair-actions-fixed-map'||!plain(wire.checkpoint)||!Array.isArray(wire.checkpoint.files)||wire.checkpoint.files.length>64)fail();
+ const cp=wire.checkpoint,m=JSON.parse(bytesFor(cp.files.find(r=>r.path==='manifest.json'))),base=m.sequence?.jobs?.[0]?.baseRevision;
+ if(m.bookkeeping?.path!==mapPath||!hex(m.bookkeeping.beforeSha256)||!/^[a-f0-9]{40}$/.test(base??'')||!Array.isArray(m.trackedFiles)||!m.trackedFiles.length||m.trackedFiles.length>8)fail();
+ const baseline=bookkeepingBaseline??execFileSync('git',['cat-file','blob',base+':'+mapPath],{maxBuffer:1048577,timeout:15000,
+  env:{PATH:process.env.PATH,HOME:process.env.HOME,GIT_CONFIG_NOSYSTEM:'1',GIT_CONFIG_GLOBAL:'/dev/null',GIT_TERMINAL_PROMPT:'0'}});
+ if(!Buffer.isBuffer(baseline)||baseline.length>1048576||hash(baseline)!==m.bookkeeping.beforeSha256)fail();
+ const document=JSON.parse(baseline);if(!Array.isArray(document.surfaces))fail();
+ for(const source of m.trackedFiles){
+  if(!safe(source.path)||! /^(src|scripts)\//.test(source.path)||!hex(source.beforeSha256))fail();
+  const rows=document.surfaces.filter(row=>row?.path===source.path);if(rows.length!==1||rows[0].sha256!==source.beforeSha256)fail();
+  rows[0].sha256=hash(bytesFor(cp.files.find(r=>r.path==='candidate/'+source.path)));
+ }
+ const doc=Buffer.from(JSON.stringify(document,null,2)+'\n');if(doc.length>1048576)fail();
+ const rows=cp.files.map(row=>{
+  if(!row.codec)return row;
+  if(!safe(row.path)||!hex(row.sha256))fail();let bytes;
+  if(row.codec==='fixed-map'&&row.path==='candidate/'+mapPath&&Object.keys(row).sort().join(',')==='codec,path,sha256')bytes=doc;
+  else{
+   if(Object.keys(row).sort().join(',')!=='codec,contentBase64,path,sha256,suffix'||!['','\n'].includes(row.suffix)||typeof row.contentBase64!=='string'||row.contentBase64.length>2796204)fail();
+   const packed=Buffer.from(row.contentBase64,'base64');if(packed.toString('base64')!==row.contentBase64)fail();const value=JSON.parse(packed);
+   const entries=value.files?.filter(f=>f.path===mapPath);if(entries?.length!==1)fail();
+   const prepared=row.codec==='prepared-map'&&/^state\/self-development\/tracked-repair\/[a-f0-9]{64}\.prepared\.json$/.test(row.path),outbox=row.codec==='outbox-map'&&row.path==='receipt.json.request.json';if(!prepared&&!outbox)fail();
+   const field=prepared?'content':'contentBase64';if(entries[0][field]!==mapMarker)fail();entries[0][field]=prepared?doc.toString('utf8'):doc.toString('base64');
+   bytes=Buffer.from(JSON.stringify(value)+row.suffix);
+  }
+  if(hash(bytes)!==row.sha256)throw Error('TRACKED_ACTIONS_RECONSTRUCTED_HASH_MISMATCH');return {path:row.path,sha256:row.sha256,contentBase64:bytes.toString('base64')};
+ });return {...cp,files:rows};
+}
+const brotli=raw=>brotliCompressSync(raw,{params:{[zlibConstants.BROTLI_PARAM_QUALITY]:5,[zlibConstants.BROTLI_PARAM_LGWIN]:22}});
+export function encodeCheckpoint(cp){validateCheckpoint(cp);const raw=Buffer.from(JSON.stringify(cp));if(raw.length>2097152)throw Error('TRACKED_ACTIONS_DISPATCH_TOO_LARGE');let bytes=gzipSync(raw);
+ if(bytes.toString('base64').length>60000)bytes=brotli(raw);
+ if(bytes.toString('base64').length>60000){const packed=packFixedMap(cp);if(packed)bytes=brotli(Buffer.from(JSON.stringify(packed)));}
+ const b64=bytes.toString('base64');if(b64.length>60000)throw Error('TRACKED_ACTIONS_DISPATCH_TOO_LARGE');return {b64,sha256:hash(bytes)};}
+export function decodeCheckpoint(b64,sha256,options={}){if(typeof b64!=='string'||b64.length>60000||!hex(sha256))fail();const bytes=Buffer.from(b64,'base64');if(bytes.toString('base64')!==b64||hash(bytes)!==sha256)fail();
+ let cp;try{cp=JSON.parse(bytes[0]===0x1f&&bytes[1]===0x8b?gunzipSync(bytes,{maxOutputLength:2097152}):brotliDecompressSync(bytes,{maxOutputLength:2097152}));if(cp?.kind==='tracked-repair-actions-fixed-map')cp=unpackFixedMap(cp,options);}catch{fail();}validateCheckpoint(cp);return cp;}
 const envFor=pin=>({GORIQ_TRACKED_REPAIR_MANIFEST_FILE:FIXED_ROOT+'/manifest.json',GORIQ_TRACKED_REPAIR_MANIFEST_SHA256:pin});
 async function currentIdentity(){const compass=new CompassStore(FIXED_ROOT+'/state/compass.sqlite');let goalId;try{const record=compass.getGoal();if(!record)fail();goalId=goalWorkStateId(compassGoalToLoopGoal(record));}finally{compass.close();}
  const jobs=await new JsonFileDevelopmentJobStore(FIXED_ROOT+'/state/self-development/jobs.json').getByGoal(goalId);if(jobs.length!==1)fail();

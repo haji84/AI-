@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {createHash,createPublicKey} from 'node:crypto';
 import {Buffer} from 'node:buffer';
-import {gzipSync} from 'node:zlib';
+import {gzipSync,brotliCompressSync,brotliDecompressSync,constants as zlibConstants} from 'node:zlib';
 import {FIXED_ROOT,validateCheckpoint,encodeCheckpoint,decodeCheckpoint} from '../scripts/jarvis-tracked-repair-actions.mjs';
 
 const hash=value=>createHash('sha256').update(value).digest('hex');
@@ -121,5 +121,56 @@ test('checkpoint admits exact pinned traceability bookkeeping and refuses any ot
   record.files.find(f=>f.path===path).path=other;update(cp,prepared.path,JSON.stringify(record));
   outbox.request.trackedEdits.files.find(f=>f.path===path).path=other;update(cp,outboxPath,JSON.stringify(outbox));replaceManifest(cp,m);
   assert.throws(()=>validateCheckpoint(cp,{expectedHead:head}));
+});
+
+test('checkpoint uses bounded Brotli fallback for duplicate nonsecret payload bytes',()=>{
+  const cp=fixture(),m=manifest(cp),path='docs/jarvis-reverse-traceability.json';
+  // Compression characterization only; this does not represent the real map.
+  const block=Array.from({length:387},(_,i)=>hash('duplicate-fixture-'+i)).join('');
+  const content=JSON.stringify({schema_version:1,notes:block.repeat(8)});
+  m.bookkeeping={path,beforeSha256:hash('original traceability bytes')};m.sequence.jobs[0].targetFiles.push(path);cp.files.push(file('candidate/'+path,content));
+  const prepared=cp.files.find(f=>f.path.endsWith('.prepared.json')),record=JSON.parse(Buffer.from(prepared.contentBase64,'base64'));
+  record.files.push({path,content});update(cp,prepared.path,JSON.stringify(record));
+  const outboxPath='receipt.json.request.json',outbox=JSON.parse(Buffer.from(cp.files.find(f=>f.path===outboxPath).contentBase64,'base64'));
+  outbox.request.trackedEdits.files.push({path,beforeSha256:m.bookkeeping.beforeSha256,afterSha256:hash(content)});
+  update(cp,outboxPath,JSON.stringify(outbox));replaceManifest(cp,m);
+  assert.doesNotThrow(()=>validateCheckpoint(cp,{expectedHead:head}));
+  const raw=Buffer.from(JSON.stringify(cp)),gzipSize=gzipSync(raw).toString('base64').length;
+  const brotliSize=brotliCompressSync(raw,{params:{[zlibConstants.BROTLI_PARAM_QUALITY]:5,[zlibConstants.BROTLI_PARAM_LGWIN]:22}}).toString('base64').length;
+  assert.ok(gzipSize>60000);assert.ok(brotliSize<=60000,'gzip='+gzipSize+', brotli='+brotliSize);
+  const encoded=encodeCheckpoint(cp);assert.ok(encoded.b64.length<=60000);assert.notEqual(Buffer.from(encoded.b64,'base64').subarray(0,2).toString('hex'),'1f8b');
+  assert.deepEqual(decodeCheckpoint(encoded.b64,encoded.sha256),cp);
+});
+
+test('fixed-map transport reconstructs exact realistic metadata from the pinned baseline and refuses a different baseline',()=>{
+  const cp=fixture(),m=manifest(cp),path='docs/jarvis-reverse-traceability.json';
+  const surfaces=Array.from({length:613},(_,i)=>({path:i===0?'scripts/logic.mjs':'src/orchestrator/fixture-surface-'+i+'.ts',
+    sha256:i===0?m.trackedFiles[0].beforeSha256:hash('actual-shape-surface-'+i),classification:'COVERED_BY_REQUIREMENT',requirement_ids:['CORE-014','AUTO-001','AUTO-004','GOV-025'],
+    reason:'Host-pinned verification and durable recovery preserve permission boundaries; implementation mapping only.'}));
+  const beforeMap={schema_version:1,source_main:base,hash_policy:'utf8-crlf-to-lf-v1;binary-raw',surfaces};
+  const baseline=Buffer.from(JSON.stringify(beforeMap,null,2)+'\n'),afterMap=JSON.parse(JSON.stringify(beforeMap));afterMap.surfaces[0].sha256=hash(source);
+  const content=JSON.stringify(afterMap,null,2)+'\n';
+  m.bookkeeping={path,beforeSha256:hash(baseline)};m.sequence.jobs[0].targetFiles.push(path);cp.files.push(file('candidate/'+path,content));
+  const prepared=cp.files.find(f=>f.path.endsWith('.prepared.json')),record=JSON.parse(Buffer.from(prepared.contentBase64,'base64'));
+  record.files.push({path,content});update(cp,prepared.path,JSON.stringify(record));
+  const outboxPath='receipt.json.request.json',outbox=JSON.parse(Buffer.from(cp.files.find(f=>f.path===outboxPath).contentBase64,'base64'));
+  outbox.request.trackedEdits.files.push({path,beforeSha256:hash(baseline),afterSha256:hash(content)});
+  outbox.files=[{path:'scripts/logic.mjs',sha256:hash(source),contentBase64:Buffer.from(source).toString('base64')},
+    {path:m.probe.targetPath,sha256:hash(probe),contentBase64:Buffer.from(probe).toString('base64')},
+    {path,sha256:hash(content),contentBase64:Buffer.from(content).toString('base64')}];
+  update(cp,outboxPath,JSON.stringify(outbox));replaceManifest(cp,m);
+  assert.doesNotThrow(()=>validateCheckpoint(cp,{expectedHead:head}));
+  const raw=Buffer.from(JSON.stringify(cp)),fullBrotli=brotliCompressSync(raw,{params:{[zlibConstants.BROTLI_PARAM_QUALITY]:5,[zlibConstants.BROTLI_PARAM_LGWIN]:22}});
+  assert.ok(fullBrotli.toString('base64').length>60000,'unpacked realistic metadata must exceed dispatch capacity');
+  const encoded=encodeCheckpoint(cp);assert.ok(encoded.b64.length<=60000);
+  assert.deepEqual(decodeCheckpoint(encoded.b64,encoded.sha256,{bookkeepingBaseline:baseline}),cp);
+  const wire=JSON.parse(brotliDecompressSync(Buffer.from(encoded.b64,'base64')));assert.equal(wire.kind,'tracked-repair-actions-fixed-map');
+  for(const target of ['candidate/'+path,prepared.path,outboxPath]){
+    const changed=JSON.parse(JSON.stringify(wire));changed.checkpoint.files.find(row=>row.path===target).sha256='e'.repeat(64);
+    const bytes=brotliCompressSync(Buffer.from(JSON.stringify(changed)),{params:{[zlibConstants.BROTLI_PARAM_QUALITY]:5,[zlibConstants.BROTLI_PARAM_LGWIN]:22}});
+    assert.throws(()=>decodeCheckpoint(bytes.toString('base64'),hash(bytes),{bookkeepingBaseline:baseline}),undefined,target);
+  }
+  const different=JSON.parse(JSON.stringify(beforeMap));different.surfaces[1].sha256='f'.repeat(64);
+  assert.throws(()=>decodeCheckpoint(encoded.b64,encoded.sha256,{bookkeepingBaseline:Buffer.from(JSON.stringify(different,null,2)+'\n')}));
 });
 
