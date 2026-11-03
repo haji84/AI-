@@ -2,6 +2,27 @@ name: GAI Real Builder Recovery E2E
 
 on:
   workflow_dispatch:
+    inputs:
+      phase:
+        description: Existing Windows path or owner-only tracked-source recovery
+        type: choice
+        options: [legacy, A, B]
+        default: legacy
+      bootstrap_b64:
+        description: Phase A nonsecret gzip checkpoint, Base64
+        type: string
+      bootstrap_sha256:
+        description: SHA256 of decoded gzip bytes
+        type: string
+      cache_key:
+        description: Phase B exact immutable phase-A cache key
+        type: string
+      receipt_b64:
+        description: Phase B public signed receipt JSON, Base64
+        type: string
+      receipt_sha256:
+        description: SHA256 of decoded receipt JSON bytes
+        type: string
   issues:
     types: [opened, reopened]
 
@@ -10,7 +31,7 @@ permissions:
 
 jobs:
   real-builder-recovery:
-    if: github.event_name != 'issues' || startsWith(github.event.issue.title, '[JARVIS REAL BUILDER E2E]')
+    if: (github.event_name != 'issues' || startsWith(github.event.issue.title, '[JARVIS REAL BUILDER E2E]')) && inputs.phase != 'A' && inputs.phase != 'B'
     runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 30
     steps:
@@ -75,3 +96,48 @@ jobs:
         shell: powershell
         run: |
           if ('${{ steps.run.outcome }}' -ne 'success') { throw 'Real Builder recovery E2E failed' }
+
+  tracked-source-recovery:
+    if: github.event_name == 'workflow_dispatch' && github.actor == 'haji84' && (inputs.phase == 'A' || inputs.phase == 'B')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - name: Restore exact phase-A checkpoint
+        if: inputs.phase == 'B'
+        uses: actions/cache/restore@v4
+        with:
+          path: .goriq-tracked-actions-cache/checkpoint.json
+          key: ${{ inputs.cache_key }}
+          fail-on-cache-miss: true
+      - name: Continue existing accepted Job
+        id: recover
+        env:
+          INPUT_PHASE: ${{ inputs.phase }}
+          INPUT_BOOTSTRAP_B64: ${{ inputs.bootstrap_b64 }}
+          INPUT_BOOTSTRAP_SHA256: ${{ inputs.bootstrap_sha256 }}
+          INPUT_CACHE_KEY: ${{ inputs.cache_key }}
+          INPUT_RECEIPT_B64: ${{ inputs.receipt_b64 }}
+          INPUT_RECEIPT_SHA256: ${{ inputs.receipt_sha256 }}
+        run: node scripts/jarvis-tracked-repair-actions.mjs run
+      - name: Save immutable phase-A checkpoint
+        if: inputs.phase == 'A'
+        uses: actions/cache/save@v4
+        with:
+          path: .goriq-tracked-actions-cache/checkpoint.json
+          key: ${{ steps.recover.outputs.cache_key }}
+      - name: Retain nonsecret recovery evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tracked-source-recovery-${{ inputs.phase }}-${{ github.run_id }}
+          path: .goriq-tracked-actions/
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 7
