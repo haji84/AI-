@@ -67,8 +67,11 @@ export class CompassWorkStateStoreAdapter implements WorkStateStore {
     return state;
   }
 
-  async put(state: WorkState): Promise<void> {
+  async put(state: WorkState, beforeCommit?: () => void): Promise<void> {
     this.compass.updateActive(active => {
+      // A synchronous precondition observes state under the same SQLite write
+      // transaction as the projection; a concurrent owner stop cannot slip in.
+      beforeCommit?.();
       const existing = active.find(entry => isEnvelope(entry) && entry.goalId === state.goalId) as WorkStateEnvelope | undefined;
       const next: WorkStateEnvelope = {
         ...existing,
