@@ -44,6 +44,7 @@ function Get-1218ReviewedArtifacts {
  $pins=[ordered]@{
   'owner-code-windows.ps1'='e8f0fe68f5ca8c6d8f5056299c1e805e05663d6782e744a69692ee5512262f43'
   'read-jarvis-production-config.ps1'='252f057b933ddd16c8eec85507fd43b084cf9f0cdba1ded93746ad5e199cccb5'
+  'install-owner-code-windows.ps1'='6e9b27be7a6fd75d751e6fd60f5ad30238d2e1e83716595a2050c873e557d2b0'
   'rotate-jarvis-owner-code-windows.ps1'='bff44e5b2135ace5cab6e18c806efe6445a6ac12574532599ad72d83fe9acced'
  }
  $artifacts=@()

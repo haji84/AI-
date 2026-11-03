@@ -13,13 +13,13 @@ test('failure JSON remains available in a deliberately restricted child without 
  const r=runPS("New-1218FailureReport -Stage 'source-artifacts' -ReasonCode 'UNREVIEWED_SOURCE' | ConvertTo-Json -Depth 6 -Compress",true);assert.equal(r.languageMode,'ConstrainedLanguage');assert.equal(r.reasonCode,'UNREVIEWED_SOURCE');assert.equal(r.complete,false);
 });
 test('fresh materialization preserves full source identity after an eol-policy transition',()=>{
- const d=mkdtempSync(join(tmpdir(),'owner-checkout-'));const names=['owner-code-windows.ps1','read-jarvis-production-config.ps1','rotate-jarvis-owner-code-windows.ps1'];
+ const d=mkdtempSync(join(tmpdir(),'owner-checkout-'));const names=['owner-code-windows.ps1','read-jarvis-production-config.ps1','rotate-jarvis-owner-code-windows.ps1','install-owner-code-windows.ps1'];
  const env={...process.env,GIT_CONFIG_NOSYSTEM:'1',GIT_CONFIG_GLOBAL:process.platform==='win32'?'NUL':'/dev/null',GIT_TERMINAL_PROMPT:'0'};
  const git=(cwd,args)=>execFileSync('git',args,{cwd,env,encoding:'utf8',stdio:'pipe'}).trim();
  try{const seed=join(d,'seed');mkdirSync(seed);mkdirSync(join(seed,'scripts'));for(const n of names)copyFileSync(resolve('scripts',n),join(seed,'scripts',n));git(seed,['init']);git(seed,['config','user.name','Fixture']);git(seed,['config','user.email','fixture@example.invalid']);git(seed,['config','core.autocrlf','false']);git(seed,['add','.']);git(seed,['commit','-m','old']);const old=git(seed,['rev-parse','HEAD']);writeFileSync(join(seed,'.gitattributes'),names.map(n=>'scripts/'+n+' text eol=lf').join('\n')+'\n');git(seed,['add','.gitattributes']);git(seed,['commit','-m','exact LF']);const current=git(seed,['rev-parse','HEAD']);
  const existing=join(d,'existing');git(d,['clone','--shared','--no-checkout',seed,existing]);git(existing,['config','core.autocrlf','true']);git(existing,['checkout','--force',old]);git(existing,['checkout','--force',current]);
  const fresh=join(d,'fresh');git(d,['clone','--shared','--no-checkout',seed,fresh]);git(fresh,['config','core.autocrlf','true']);git(fresh,['checkout','--force',current]);
  for(const n of names){const expected=createHash('sha256').update(readFileSync(resolve('scripts',n))).digest('hex');const actual=createHash('sha256').update(readFileSync(join(fresh,'scripts',n))).digest('hex');assert.equal(actual,expected);}
- const verified=runPS(`@(Get-1218ReviewedArtifacts ${quote(fresh)}).Count | ConvertTo-Json -Compress`);assert.equal(verified,3);
+ const verified=runPS(`@(Get-1218ReviewedArtifacts ${quote(fresh)}).Count | ConvertTo-Json -Compress`);assert.equal(verified,4);
  }finally{rmSync(d,{recursive:true,force:true});}
 });

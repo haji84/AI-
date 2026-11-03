@@ -13,3 +13,5 @@ scripts/owner-code-windows.ps1 text eol=lf
 scripts/read-jarvis-production-config.ps1 text eol=lf
 scripts/rotate-jarvis-owner-code-windows.ps1 text eol=lf
 scripts/owner-code-preflight-1218.ps1 text eol=lf
+scripts/install-owner-code-windows.ps1 text eol=lf
+scripts/owner-code-practical-1218.ps1 text eol=lf

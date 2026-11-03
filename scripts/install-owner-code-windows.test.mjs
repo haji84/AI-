@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {existsSync, mkdtempSync, readdirSync, rmSync} from 'node:fs';
+import {existsSync, mkdtempSync, readdirSync, rmSync, mkdirSync, readFileSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join, resolve} from 'node:path';
-import {spawnSync} from 'node:child_process';
+import {spawnSync, execFileSync} from 'node:child_process';
 
 const installer = resolve('scripts/install-owner-code-windows.ps1');
 const fixture = resolve('tests/install-owner-code-windows.fixture.ps1');
@@ -47,4 +47,20 @@ test('production Apply rejects arbitrary destination and Desktop overrides', {sk
     assert.match(result.stderr.replace(/\s+/g, ' '), /parameter.*DestinationRoot|DestinationRoot.*parameter/i);
     assert.deepEqual(readdirSync(directory), []);
   } finally { rmSync(directory, {recursive:true, force:true}); }
+});
+
+
+test('Windows-style fresh checkout preserves canonical approved recovery package bytes', () => {
+  const directory=mkdtempSync(join(tmpdir(),'owner-package-eol-'));
+  const names=['owner-code-windows.ps1','read-jarvis-production-config.ps1','install-owner-code-windows.ps1'];
+  const env={...process.env,GIT_CONFIG_NOSYSTEM:'1',GIT_CONFIG_GLOBAL:process.platform==='win32'?'NUL':'/dev/null',GIT_TERMINAL_PROMPT:'0'};
+  const git=(cwd,args)=>execFileSync('git',args,{cwd,env,stdio:'pipe'});
+  try {
+    const seed=join(directory,'seed');mkdirSync(seed);mkdirSync(join(seed,'scripts'));
+    for(const name of names)writeFileSync(join(seed,'scripts',name),git(resolve('.'),['show','HEAD:scripts/'+name]));
+    writeFileSync(join(seed,'.gitattributes'),readFileSync('.gitattributes'));
+    git(seed,['init']);git(seed,['config','user.name','Fixture']);git(seed,['config','user.email','fixture@example.invalid']);git(seed,['config','core.autocrlf','false']);git(seed,['add','.']);git(seed,['commit','-m','canonical public package']);
+    const checkout=join(directory,'windows-style');git(directory,['clone','--shared','--no-checkout',seed,checkout]);git(checkout,['config','core.autocrlf','true']);git(checkout,['checkout','--force','HEAD']);
+    for(const name of names)assert.deepEqual(readFileSync(join(checkout,'scripts',name)),git(seed,['show','HEAD:scripts/'+name]),'Full public source bytes changed during Windows checkout: '+name);
+  } finally {rmSync(directory,{recursive:true,force:true});}
 });
