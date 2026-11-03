@@ -239,7 +239,7 @@ export function createTrackedRepairResidentRuntime(input:{env:Record<string,stri
           return {digest:hash(bytes),issuer:"trusted-baseline-probe"};
         }
         let output="",status=0;
-        try {output=execFileSync(process.execPath,["--test",m.probe.targetPath],{cwd:m.baselineWorkspace,env:{PATH:process.env.PATH??"",SystemRoot:process.env.SystemRoot??""},encoding:"utf8",timeout:30000,maxBuffer:1048576,windowsHide:true});}
+        try {output=execFileSync(process.execPath,["--test",m.probe.targetPath],{cwd:m.baselineWorkspace,env:{PATH:process.env.PATH??"",SystemRoot:process.env.SystemRoot??"",NODE_ENV:"test"},encoding:"utf8",timeout:30000,maxBuffer:1048576,windowsHide:true});}
         catch(error){const e=error as {status?:number;stdout?:string;stderr?:string};status=e.status??-1;output=String(e.stdout??"")+String(e.stderr??"");}
         if(status!==1||!output.includes(m.probe.expectedRedText))throw Error("TRACKED_REPAIR_RED_NOT_PROVEN");
         attest(m.baselineWorkspace);writeFileSync(redPath(job.jobId)+".log",output,{flag:"wx",mode:0o600});

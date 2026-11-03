@@ -6635,7 +6635,7 @@
     },
     {
       "path": "src/orchestrator/tracked-repair-resident-runtime.ts",
-      "sha256": "315d97d430924c87161dd564592bad915b27893aa37a14d05d6a67aa65eadeb8",
+      "sha256": "840623cf4d6523491656c5d19ac4466a1f34defbb71599d4aae0f0c4653efb47",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
