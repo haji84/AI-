@@ -87,7 +87,7 @@ try {
         Start-Sleep -Seconds 1
         if ((Get-ScheduledTask -TaskName $taskName).State -ne 'Running') { continue }
         try {
-          $response = Invoke-WebRequest -UseBasicParsing -Method POST -Uri 'http://127.0.0.1:3000/api/owner-login' -Headers @{ Accept = 'application/json' } -Body @{ passcode = $code } -TimeoutSec 3
+          $response = Invoke-WebRequest -UseBasicParsing -MaximumRedirection 0 -Method POST -Uri 'http://127.0.0.1:3000/api/owner-login' -Headers @{ Accept = 'application/json' } -Body @{ passcode = $code } -TimeoutSec 3
           if ($response.StatusCode -eq 200 -and ($response.Content | ConvertFrom-Json).ok -eq $true) { return $true }
         } catch { }
       }
