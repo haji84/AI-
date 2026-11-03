@@ -88,7 +88,8 @@ export function readTrackedRepairManifest(env:Record<string,string|undefined>,go
   if(hash(readBoundedRuntimeFile(m.probe.file,131072))!==m.probe.sha256)throw Error("TRACKED_REPAIR_PROBE_PIN_MISMATCH");
   const publicKey=readBoundedRuntimeFile(m.verifier.publicKeyFile,8192);
   if(hash(publicKey)!==m.verifier.publicKeySha256)throw Error("SIGNED_LOCAL_VERIFIER_PUBLIC_KEY_PIN_MISMATCH");
-  if(!publicKey.toString("utf8").startsWith("-----BEGIN PUBLIC KEY-----")||createPublicKey(publicKey).asymmetricKeyType!=="ed25519")throw Error("TRACKED_REPAIR_PUBLIC_KEY_INVALID");
+  if(!/^-----BEGIN PUBLIC KEY-----\r?\n[A-Za-z0-9+/=\r\n]+-----END PUBLIC KEY-----\r?\n?$/.test(publicKey.toString("utf8"))
+    ||createPublicKey(publicKey).asymmetricKeyType!=="ed25519")throw Error("TRACKED_REPAIR_PUBLIC_KEY_INVALID");
   if(goal)validateResidentDevelopmentSequence(m.sequence,goal,{taskScopeId:m.sequence.taskScopeId,maxRisk:"low"});
   return {manifest:m,pin};
 }

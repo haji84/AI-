@@ -143,6 +143,12 @@ test("probe and manifest pins fail before model execution",t=>{
   assert.deepEqual(f.counts(),{calls:0,templates:0});
 });
 
+test("pinned verifier input admits only one public PEM and rejects an appended private PEM bundle",t=>{
+  const f=fixture(t),bundle=publicKey+fixtureKey.export({format:"pem",type:"pkcs8"}).toString();
+  writeFileSync(f.manifest.verifier.publicKeyFile,bundle);f.manifest.verifier.publicKeySha256=hash(bundle);f.repin();
+  assert.throws(()=>f.create(),/TRACKED_REPAIR_PUBLIC_KEY_INVALID/);assert.deepEqual(f.counts(),{calls:0,templates:0});
+});
+
 test("resource wait before network leaves inference retry available without duplicating a call",async t=>{
   const f=fixture(t),wait=async()=>{throw new ResourceWaitError({status:"WAITING_FOR_RESOURCE",reason:"test pressure",retryAfterMs:1,observedAt:new Date().toISOString()});};
   await f.create({resourceAdmission:wait}).run({goalId:f.goalId,goal:f.goal,context:[]});
