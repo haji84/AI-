@@ -100,7 +100,7 @@ export async function runVerifierContainer(args, {
         /^--(?:name|cidfile)(?:=|$)/.test(arg)) ||
       !Array.isArray(untrustedExecutableRoots) || untrustedExecutableRoots.length > 8 ||
       untrustedExecutableRoots.some(root => typeof root !== "string" || !isAbsolute(root) || root.includes("\0")) ||
-      !bounded(timeoutMs, 180_000) || !bounded(maxBuffer, 2 * 1024 * 1024) ||
+      !bounded(timeoutMs, 300_000) || !bounded(maxBuffer, 2 * 1024 * 1024) ||
       !bounded(cleanupTimeoutMs, 30_000) || !bounded(killGraceMs, 1_000)) {
     throw failure("VERIFIER_CONTAINER_REQUEST_INVALID");
   }
