@@ -10,7 +10,7 @@ import { Buffer } from "node:buffer";
 import { createHash, createPrivateKey, sign } from "node:crypto";
 import { chmodSync, closeSync, constants, copyFileSync, existsSync, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, readSync, realpathSync, writeFileSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
-import { attestLocalCandidate } from "./jarvis-independent-artifact-attestation.mjs";
+import { attestLocalCandidate, validateTrackedEditsManifest } from "./jarvis-independent-artifact-attestation.mjs";
 import { safeGit } from "./jarvis-verifier-safe-git.mjs";
 import { runVerifierContainer } from "./jarvis-verifier-container.mjs";
 
@@ -117,6 +117,10 @@ function exactGitRoot(input) {
   return root;
 }
 export function validateVerifierRunRequest(req) {
+  let edits;
+  try { edits=validateTrackedEditsManifest(req?.trackedEdits); }
+  catch { throw Error("VERIFIER_REQUEST_NOT_BOUNDED"); }
+  const paths=[...(Array.isArray(req?.allowedUntracked)?req.allowedUntracked:[]),...edits.map(edit=>edit.path)];
   if(!req||typeof req!=="object"||Array.isArray(req)||
     !["goalId","jobId","changeSetId","builderId","verifierId"].every(x=>typeof req[x]==="string"&&req[x].length>0&&req[x].length<=128)||
     req.verifierId===req.builderId||
@@ -124,14 +128,15 @@ export function validateVerifierRunRequest(req) {
     !/^[a-f0-9]{64}$/.test(req.sourceRevision??"")||
     !/^[a-f0-9]{64}$/.test(req.artifactDigest??"")||
     !validPath(req.targetPath)||
-    !Array.isArray(req.allowedUntracked)||req.allowedUntracked.length<1||req.allowedUntracked.length>32||
+    !Array.isArray(req.allowedUntracked)||paths.length<1||paths.length>32||req.allowedUntracked.length>32||
     req.allowedUntracked.some(p=>!validPath(p))||new Set(req.allowedUntracked).size!==req.allowedUntracked.length||
-    !req.allowedUntracked.includes(req.targetPath)||
+    new Set(paths).size!==paths.length||!paths.includes(req.targetPath)||
     !Array.isArray(req.requiredChecks)||req.requiredChecks.length<1||req.requiredChecks.length>6||
     req.requiredChecks.some(x=>!names.includes(x))||new Set(req.requiredChecks).size!==req.requiredChecks.length||
     !["candidateWorkspace","verifierWorkspace","privateKeyFile","receiptFile"].every(x=>typeof req[x]==="string"&&isAbsolute(req[x]))) {
     throw Error("VERIFIER_REQUEST_NOT_BOUNDED");
   }
+  if(edits.length&&JSON.stringify(req.requiredChecks)!==JSON.stringify(names))throw Error("VERIFIER_REQUEST_NOT_BOUNDED");
   if(req.expiresAt!==undefined){
     const deadline=typeof req.expiresAt==="string"?Date.parse(req.expiresAt):NaN;
     if(!Number.isFinite(deadline)||new Date(deadline).toISOString()!==req.expiresAt)
@@ -141,6 +146,48 @@ export function validateVerifierRunRequest(req) {
   // This profile cannot attest visual/mobile/device checks; those remain pending.
   return req;
 }
+
+/** Byte staging only, not an isolation, executable-check, signature or release
+ * verdict. Both worktrees must be host-controlled for the entire operation. */
+export function stageIndependentCandidate(req) {
+  const edits=validateTrackedEditsManifest(req.trackedEdits);
+  if(!edits.length)throw Error("VERIFIER_TRACKED_EDITS_REQUIRED");
+  const candidate=exactGitRoot(req.candidateWorkspace),runner=exactGitRoot(req.verifierWorkspace);
+  if(candidate===runner||candidate.startsWith(runner+sep)||runner.startsWith(candidate+sep))
+    throw Error("VERIFIER_MUST_HAVE_DISTINCT_RUNNER_WORKSPACE");
+  if(git(runner,"rev-parse","HEAD")!==req.baseRevision||git(runner,"status","--porcelain","-uall")!=="")
+    throw Error("VERIFIER_RUNNER_NOT_CLEAN");
+  if(git(runner,"ls-files","-v","-z").split("\0").filter(Boolean).some(entry=>!entry.startsWith("H ")))
+    throw Error("VERIFIER_RUNNER_INDEX_UNSAFE");
+  const scope={baseRevision:req.baseRevision,targetPath:req.targetPath,allowedUntracked:req.allowedUntracked,trackedEdits:req.trackedEdits};
+  const before=attestLocalCandidate({workspace:candidate,...scope});
+  if(before.artifactDigest!==req.artifactDigest||before.candidateRevision!==req.sourceRevision)
+    throw Error("VERIFIER_CANDIDATE_BINDING_MISMATCH");
+  const paths=[...req.allowedUntracked,...edits.map(edit=>edit.path)];
+  // Preflight every destination before any overwrite. Hard links and aliases
+  // must not turn a fresh verifier worktree write into an external mutation.
+  for(const path of paths) {
+    let parent=runner;
+    for(const part of path.split("/").slice(0,-1)) {
+      parent=join(parent,part);
+      const info=lstatSync(parent);
+      if(!info.isDirectory()||info.isSymbolicLink())throw Error("VERIFIER_TARGET_UNSAFE");
+    }
+    const target=join(runner,path),edit=edits.find(edit=>edit.path===path);
+    if(edit) {
+      const info=lstatSync(target);
+      if(!info.isFile()||info.isSymbolicLink()||info.nlink!==1||info.size>131072
+        ||hash(readFileSync(target))!==edit.beforeSha256)throw Error("VERIFIER_TARGET_BASELINE_MISMATCH");
+    } else if(existsSync(target))throw Error("VERIFIER_TARGET_NOT_NEW");
+  }
+  for(const path of paths)copyFileSync(join(candidate,path),join(runner,path),
+    edits.some(edit=>edit.path===path)?0:constants.COPYFILE_EXCL);
+  const staged=attestLocalCandidate({workspace:runner,...scope});
+  if(staged.artifactDigest!==before.artifactDigest||staged.candidateRevision!==before.candidateRevision)
+    throw Error("VERIFIER_STAGING_MISMATCH");
+  return staged;
+}
+
 export async function runIndependentVerifier(req) {
   validateVerifierRunRequest(req);
   if(process.env.GORIQ_VERIFIER_OPERATOR_ISOLATED!=="1")throw Error("VERIFIER_SEPARATE_PRINCIPAL_NOT_ACKNOWLEDGED");
@@ -151,7 +198,7 @@ export async function runIndependentVerifier(req) {
   if(git(runner,"rev-parse","HEAD")!==req.baseRevision||git(runner,"status","--porcelain","-uall")!=="")
     throw Error("VERIFIER_RUNNER_NOT_CLEAN");
   const before=attestLocalCandidate({workspace:candidate,baseRevision:req.baseRevision,
-    targetPath:req.targetPath,allowedUntracked:req.allowedUntracked});
+    targetPath:req.targetPath,allowedUntracked:req.allowedUntracked,trackedEdits:req.trackedEdits});
   if(before.artifactDigest!==req.artifactDigest||before.candidateRevision!==req.sourceRevision)
     throw Error("VERIFIER_CANDIDATE_BINDING_MISMATCH");
   const keyFile=externalPath(candidate,runner,req.privateKeyFile);
@@ -163,14 +210,14 @@ export async function runIndependentVerifier(req) {
   const key=readPrivateKey(keyFile);
   if(key.asymmetricKeyType!=="ed25519")throw Error("VERIFIER_SIGNER_NOT_ED25519");
   validateVerifierRunRequest(req);
-  for(const path of req.allowedUntracked) {
+  if(req.trackedEdits===undefined)for(const path of req.allowedUntracked) {
     const target=resolve(runner,path),parent=dirname(target);
     if(!realpathSync(parent).startsWith(runner+sep)||existsSync(target))
       throw Error("VERIFIER_TARGET_NOT_NEW");
     copyFileSync(resolve(candidate,path),target,constants.COPYFILE_EXCL);
   }
-  const staged=attestLocalCandidate({workspace:runner,baseRevision:req.baseRevision,
-    targetPath:req.targetPath,allowedUntracked:req.allowedUntracked});
+  const staged=req.trackedEdits===undefined?attestLocalCandidate({workspace:runner,baseRevision:req.baseRevision,
+    targetPath:req.targetPath,allowedUntracked:req.allowedUntracked}):stageIndependentCandidate(req);
   if(staged.artifactDigest!==before.artifactDigest||staged.candidateRevision!==before.candidateRevision)
     throw Error("VERIFIER_STAGING_MISMATCH");
   const logDirectory=externalPath(candidate,runner,receiptFile+".logs");
@@ -223,11 +270,11 @@ export async function runIndependentVerifier(req) {
     if(status!=="passed")break;
   }
   const after=attestLocalCandidate({workspace:candidate,baseRevision:req.baseRevision,
-    targetPath:req.targetPath,allowedUntracked:req.allowedUntracked});
+    targetPath:req.targetPath,allowedUntracked:req.allowedUntracked,trackedEdits:req.trackedEdits});
   if(after.artifactDigest!==before.artifactDigest||after.candidateRevision!==before.candidateRevision)
     throw Error("VERIFIER_CANDIDATE_CHANGED_DURING_EXECUTION");
   const runnerAfter=attestLocalCandidate({workspace:runner,baseRevision:req.baseRevision,
-    targetPath:req.targetPath,allowedUntracked:req.allowedUntracked});
+    targetPath:req.targetPath,allowedUntracked:req.allowedUntracked,trackedEdits:req.trackedEdits});
   if(runnerAfter.candidateRevision!==before.candidateRevision)
     throw Error("VERIFIER_RUNNER_CHANGED_DURING_EXECUTION");
   validateVerifierRunRequest(req);
