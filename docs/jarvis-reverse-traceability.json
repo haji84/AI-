@@ -6392,7 +6392,7 @@
     },
     {
       "path": "scripts/jarvis-independent-check-runner.mjs",
-      "sha256": "16366d2c199efdbbaa7514a656d3aaa2f74271b6b3218e4c9121f00e4e0efa0d",
+      "sha256": "7a94db1ee12e9393aca6b04e8c3e0168e8d9a3908b70084ea893b84debd0812d",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -6416,7 +6416,7 @@
     },
     {
       "path": "scripts/jarvis-verifier-container.mjs",
-      "sha256": "a4f13822e102c95405d53dd69172b7c8a5e9e73e7d11cb254b92fa506ac5733f",
+      "sha256": "76217aa6c0f4209cecf01e4d6802d3bad8d9fccb65c68ce63245d23660e233a6",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "CORE-010",
@@ -6427,7 +6427,7 @@
     },
     {
       "path": "scripts/jarvis-verifier-live-ci.mjs",
-      "sha256": "a03467593a33f573adeec3f54494ecc21ec5a38f884e9ca88437f1ab34385b86",
+      "sha256": "162a524acd473db6b26d4197183093a1d550e652eb5946f46b25267a2ab4cb14",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "CORE-010",

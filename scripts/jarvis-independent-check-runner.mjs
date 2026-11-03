@@ -36,6 +36,10 @@ export function verifierCommand(name) {
     default: throw Error("VERIFIER_CHECK_UNSUPPORTED");
   }
 }
+export function verifierCheckTimeoutMs(name) {
+  verifierCommand(name); // the same fixed enum; no request/environment override
+  return name === "unit" || name === "integration" ? 300000 : 180000;
+}
 function canonical(payload) {
   return JSON.stringify({
     version:payload.version,verifierId:payload.verifierId,goalId:payload.goalId,
@@ -284,15 +288,16 @@ export async function runIndependentVerifier(req, options = {}) {
       "--mount",`type=bind,source=${snapshot},target=/source,readonly`,
       "--workdir","/","--entrypoint","/bin/sh",
       image,"-ec",staticScript];
+    const timeoutMs=verifierCheckTimeoutMs(name);
     const output=await runVerifierContainer(dockerArgs,{cwd:runner,
       untrustedExecutableRoots:[candidate,runner,snapshot],
-      timeoutMs:180000,maxBuffer:2*1024*1024,env:{
+      timeoutMs,maxBuffer:2*1024*1024,env:{
         PATH:process.env.PATH??"",SystemRoot:process.env.SystemRoot??"",
       }});
     const status=output.error||output.status===null?"inconclusive":output.status===0?"passed":"failed";
     const log=JSON.stringify({
       sourceRevision:before.candidateRevision,fileHashes:before.fileHashes,
-      command, args, executionProfile:name==="build"?"next-webpack-v1":null,
+      command, args, timeoutMs, executionProfile:name==="build"?"next-webpack-v1":null,
       containerImage:image, exit:output.status, signal:output.signal,
       stdout:output.stdout??"", stderr:output.stderr??"",
       errorCode:output.error?.code??null,
