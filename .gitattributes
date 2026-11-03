@@ -15,3 +15,19 @@ scripts/rotate-jarvis-owner-code-windows.ps1 text eol=lf
 scripts/owner-code-preflight-1218.ps1 text eol=lf
 scripts/install-owner-code-windows.ps1 text eol=lf
 scripts/owner-code-practical-1218.ps1 text eol=lf
+scripts/owner-code-rotation-worker.ps1 text eol=lf
+scripts/owner-code-rotation-acceptance.mjs text eol=lf
+scripts/owner-code-fleet-preservation.mjs text eol=lf
+scripts/validate-jarvis-production-config.mjs text eol=lf
+scripts/jarvis-production-config.mjs text eol=lf
+scripts/jarvis-windows-install-paths.mjs text eol=lf
+
+# Frozen rotation/preservation fixture contracts must keep the same bytes in CI.
+scripts/owner-code-fleet-preservation.test.mjs text eol=lf
+scripts/owner-code-rotation-acceptance.test.mjs text eol=lf
+scripts/owner-code-rotation-transaction.test.mjs text eol=lf
+scripts/owner-code-rotation-authority.test.mjs text eol=lf
+scripts/owner-code-rotation-redirect.test.mjs text eol=lf
+scripts/owner-code-rotation.test.mjs text eol=lf
+tests/owner-code-rotation-transaction.fixture.ps1 text eol=lf
+tests/owner-code-rotation-authority.fixture.ps1 text eol=lf
