@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([switch]$Apply, [string]$Version)
+param([switch]$Apply, [string]$Version, [switch]$StartMenu)
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 
@@ -27,7 +27,7 @@ function Get-OwnerCodeInstallPath([string]$Path) {
 }
 
 function Install-OwnerCodePackage {
- param([string]$SourceDirectory,[string]$DestinationDirectory,[string]$DesktopDirectory,[string]$Version)
+ param([string]$SourceDirectory,[string]$DestinationDirectory,[string]$DesktopDirectory,[string]$Version,[ValidateSet('Desktop','StartMenu')][string]$LauncherKind='Desktop')
  if ($Version -cnotmatch '^[a-f0-9]{40}$') { throw 'EXACT_VERSION_REQUIRED' }
  $source=Get-OwnerCodeInstallPath $SourceDirectory
  $destination=Get-OwnerCodeInstallPath $DestinationDirectory
@@ -81,23 +81,27 @@ function Install-OwnerCodePackage {
  $stream=[IO.File]::Open($temporaryLauncher,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
  try { $bytes=[Text.Encoding]::ASCII.GetBytes($command); $stream.Write($bytes,0,$bytes.Length) } finally { $stream.Dispose() }
  [IO.File]::Move($temporaryLauncher,$launcher)
- return [pscustomobject]@{version=$Version;publicFilesInstalled=2;desktopLauncherInstalled=$true;utilityExecuted=$false}
+ return [pscustomobject]@{version=$Version;publicFilesInstalled=2;desktopLauncherInstalled=($LauncherKind -ceq 'Desktop');startMenuLauncherInstalled=($LauncherKind -ceq 'StartMenu');utilityExecuted=$false}
 }
 
 if ($MyInvocation.InvocationName -ne '.') {
  if (-not $Apply) {
-  Write-Output 'PLAN ONLY: install two public Owner utility files and one same-Owner Desktop launcher. No credential or Production state is accessed.'
+  if ($StartMenu) { Write-Output 'PLAN ONLY: install two public Owner utility files and one same-Owner Start Menu launcher. No credential or Production state is accessed.' }
+  else { Write-Output 'PLAN ONLY: install two public Owner utility files and one same-Owner Desktop launcher. No credential or Production state is accessed.' }
   exit 0
  }
  try {
   if ($env:OS -ne 'Windows_NT' -or [Security.Principal.WindowsIdentity]::GetCurrent().IsSystem) { throw 'WINDOWS_OWNER_REQUIRED' }
   $profile=Get-OwnerCodeInstallPath ([Environment]::GetFolderPath('UserProfile'))
-  $desktop=Get-OwnerCodeInstallPath ([Environment]::GetFolderPath('DesktopDirectory'))
+  $launcherKind=if ($StartMenu) {'StartMenu'} else {'Desktop'}
+  $folder=if ($StartMenu) {'Programs'} else {'DesktopDirectory'}
+  $desktop=Get-OwnerCodeInstallPath ([Environment]::GetFolderPath($folder))
+  if ($StartMenu -and $desktop -ine $profile -and -not $desktop.StartsWith($profile+'\',[StringComparison]::OrdinalIgnoreCase)) { throw 'OWNER_PROFILE_PATH_REQUIRED' }
   $windows=Get-OwnerCodeInstallPath ([Environment]::GetFolderPath('Windows'))
   if ($profile -ine [IO.Path]::GetFullPath($env:USERPROFILE) -or $windows -ine [IO.Path]::GetFullPath($env:SystemRoot)) { throw 'OWNER_ENVIRONMENT_MISMATCH' }
   $destination=Join-Path (Join-Path $profile 'JARVIS\tools\owner-code') $Version
-  Install-OwnerCodePackage -SourceDirectory $PSScriptRoot -DestinationDirectory $destination -DesktopDirectory $desktop -Version $Version | Out-Null
-  Write-Output 'Owner utility public files and Desktop launcher installed. No credential was accessed or changed.'
+  Install-OwnerCodePackage -SourceDirectory $PSScriptRoot -DestinationDirectory $destination -DesktopDirectory $desktop -Version $Version -LauncherKind $launcherKind | Out-Null
+  Write-Output ('Owner utility public files and '+$launcherKind+' launcher installed. No credential was accessed or changed.')
  } catch {
   [Console]::Error.WriteLine('Owner utility installation unavailable. Existing files were not overwritten; retain any incomplete public staging files for review.')
   exit 1

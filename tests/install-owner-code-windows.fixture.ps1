@@ -1,11 +1,11 @@
 param([Parameter(Mandatory=$true)][string]$InstallerPath,
- [ValidateSet('install','existing-package','existing-launcher','missing-reader','invalid-version','unsafe-paths','reparse-source','reparse-desktop','overlap','source-drift')][string]$Case)
+ [ValidateSet('install','existing-package','existing-launcher','missing-reader','invalid-version','unsafe-paths','reparse-source','reparse-desktop','overlap','source-drift','start-menu-install','start-menu-existing-launcher','start-menu-reparse','start-menu-overlap','invalid-launcher-kind')][string]$Case)
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 . $InstallerPath
 $temporary=Join-Path ([IO.Path]::GetTempPath()) ('owner-install-'+[guid]::NewGuid().ToString('N'))
 $source=Join-Path $temporary 'source'
-$desktop=Join-Path $temporary 'Desktop'
+$desktop=Join-Path $temporary $(if ($Case -like 'start-menu-*') {'Programs'} else {'Desktop'})
 $version='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
 $target=Join-Path (Join-Path $temporary 'tools') $version
 function Assert-Fixture([bool]$Condition,[string]$Message) { if (-not $Condition) { throw $Message } }
@@ -16,6 +16,7 @@ try {
  foreach ($name in @('owner-code-windows.ps1','read-jarvis-production-config.ps1')) { Copy-Item -LiteralPath (Join-Path (Split-Path -Parent $InstallerPath) $name) -Destination (Join-Path $source $name) }
  [IO.File]::WriteAllText((Join-Path $source 'unrelated-token-store.txt'),'public fixture: never package this file')
  $arguments=@{SourceDirectory=$source;DestinationDirectory=$target;DesktopDirectory=$desktop;Version=$version}
+ if ($Case -like 'start-menu-*') { $arguments.LauncherKind='StartMenu' }
  $launcher=Join-Path $desktop 'GORIQ Owner Code.cmd'
  switch ($Case) {
   'install' {
@@ -34,6 +35,40 @@ try {
    Assert-Fixture ($command.Contains('-NoProfile -STA -File') -and $command.Contains('%USERPROFILE%\JARVIS\tools\owner-code\'+$version+'\owner-code-windows.ps1')) 'Static graphical entry missing'
    Assert-Fixture ($command -notmatch 'Bypass|ExecutionPolicy|Apply|Reveal|Copy|config.dpapi') 'Launcher must open only default utility without privileged options'
    Assert-Fixture (@(Get-ChildItem $desktop -File).Count -eq 1) 'Only one Desktop entry'
+  }
+  'start-menu-install' {
+   $installed=Install-OwnerCodePackage @arguments
+   Assert-Fixture ($installed.startMenuLauncherInstalled -eq $true -and $installed.desktopLauncherInstalled -eq $false) 'Start Menu install must not claim a Desktop launcher'
+   Assert-Fixture ($installed.publicFilesInstalled -eq 2 -and -not $installed.utilityExecuted) 'Only public files may be installed'
+   $names=@(Get-ChildItem -LiteralPath $target -File | Select-Object -ExpandProperty Name | Sort-Object)
+   Assert-Fixture (($names -join '|') -ceq 'manifest.json|owner-code-windows.ps1|read-jarvis-production-config.ps1') 'Start Menu package must contain only pinned public files and manifest'
+   $command=[IO.File]::ReadAllText($launcher)
+   Assert-Fixture ($command.Contains('-NoProfile -STA -File') -and $command.Contains('%USERPROFILE%\JARVIS\tools\owner-code\'+$version+'\owner-code-windows.ps1')) 'Start Menu launcher must open the masked utility'
+   Assert-Fixture ($command -notmatch 'Bypass|ExecutionPolicy|Apply|Reveal|Copy|config.dpapi') 'Start Menu launcher must not reveal or alter credentials'
+   Assert-Fixture (@(Get-ChildItem $desktop -File).Count -eq 1) 'Only one Start Menu entry'
+  }
+  'start-menu-existing-launcher' {
+   [IO.File]::WriteAllText($launcher,'preserve existing launcher')
+   Assert-Fixture (Refused $arguments) 'Existing Start Menu launcher must be refused'
+   Assert-Fixture ([IO.File]::ReadAllText($launcher) -ceq 'preserve existing launcher') 'Start Menu launcher overwritten'
+   Assert-Fixture (-not (Test-Path $target)) 'No package on existing Start Menu entry refusal'
+  }
+  'start-menu-reparse' {
+   $link=Join-Path $temporary 'programs-link'
+   New-Item -ItemType $(if ($env:OS -eq 'Windows_NT') {'Junction'} else {'SymbolicLink'}) -Path $link -Target $desktop | Out-Null
+   $arguments.DesktopDirectory=$link
+   Assert-Fixture (Refused $arguments) 'Reparse Start Menu must be refused'
+   Assert-Fixture (-not (Test-Path $target) -and -not (Test-Path $launcher)) 'Reparse Start Menu published files'
+  }
+  'start-menu-overlap' {
+   $arguments.DestinationDirectory=Join-Path $desktop $version
+   Assert-Fixture (Refused $arguments) 'Start Menu/destination overlap must be refused'
+   Assert-Fixture (-not (Test-Path $launcher)) 'Overlap published Start Menu launcher'
+  }
+  'invalid-launcher-kind' {
+   $arguments.LauncherKind='unapproved-location'
+   Assert-Fixture (Refused $arguments) 'Unknown launcher selection must be refused'
+   Assert-Fixture (-not (Test-Path $target) -and -not (Test-Path $launcher)) 'Invalid launcher selection wrote files'
   }
   'existing-package' {
    New-Item -ItemType Directory -Path $target -Force | Out-Null

@@ -44,7 +44,7 @@ function Get-1218ReviewedArtifacts {
  $pins=[ordered]@{
   'owner-code-windows.ps1'='e8f0fe68f5ca8c6d8f5056299c1e805e05663d6782e744a69692ee5512262f43'
   'read-jarvis-production-config.ps1'='252f057b933ddd16c8eec85507fd43b084cf9f0cdba1ded93746ad5e199cccb5'
-  'install-owner-code-windows.ps1'='6e9b27be7a6fd75d751e6fd60f5ad30238d2e1e83716595a2050c873e557d2b0'
+  'install-owner-code-windows.ps1'='160b03d5660831717cdf8b3ca2501cda56d474d5fd2b0c72f750320971ef1ad6'
   'rotate-jarvis-owner-code-windows.ps1'='bff44e5b2135ace5cab6e18c806efe6445a6ac12574532599ad72d83fe9acced'
  }
  $artifacts=@()
@@ -141,7 +141,7 @@ function Get-1218PracticalReadiness {
   $result.reasonCode='PROFILE_MISMATCH'
   if (-not $result.profileMatchesEnvironment -or $ConfigurationPath -ine (Join-Path $profile 'JARVIS\production\config.dpapi')) { return [pscustomobject]$result }
   $result.encryptedReadLock=Get-1218EncryptedReadLock -Path $ConfigurationPath -ExpectedSha256 $ConfigSha256
-  $targets=[ordered]@{'owner-profile'=$profile;'tool-parent'=(Join-Path $profile 'JARVIS\tools\owner-code');'desktop'=[Environment]::GetFolderPath('DesktopDirectory');'encrypted-config'=$ConfigurationPath}
+  $targets=[ordered]@{'owner-profile'=$profile;'tool-parent'=(Join-Path $profile 'JARVIS\tools\owner-code');'desktop'=[Environment]::GetFolderPath('DesktopDirectory');'start-menu'=[Environment]::GetFolderPath('Programs');'encrypted-config'=$ConfigurationPath}
   foreach ($role in $targets.Keys) { $observation=Get-1218OwnerPathProtection -Path $targets[$role] -OwnerProfile $profile -OwnerSid $OwnerSid; $result.paths+=@{role=$role;state=$observation.state;reasonCode=$observation.reasonCode} }
   $result.state='observed';$result.reasonCode='READ_ONLY_GUARDS_OBSERVED'
  } catch { $result.state='unavailable';$result.reasonCode='PRACTICAL_METADATA_UNAVAILABLE' }
