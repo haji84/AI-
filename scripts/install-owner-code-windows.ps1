@@ -42,12 +42,20 @@ function Install-OwnerCodePackage {
  }
  $launcher=Get-OwnerCodeInstallPath (Join-Path $desktop 'GORIQ Owner Code.cmd')
  if ((Test-Path -LiteralPath $destination) -or (Test-Path -LiteralPath $launcher)) { throw 'REFUSE_OVERWRITE' }
+ $pins=@{
+  'owner-code-windows.ps1'='e8f0fe68f5ca8c6d8f5056299c1e805e05663d6782e744a69692ee5512262f43'
+  'read-jarvis-production-config.ps1'='252f057b933ddd16c8eec85507fd43b084cf9f0cdba1ded93746ad5e199cccb5'
+ }
  $files=@()
  foreach ($name in @('owner-code-windows.ps1','read-jarvis-production-config.ps1')) {
   $path=Get-OwnerCodeInstallPath (Join-Path $source $name)
   $item=Get-Item -LiteralPath $path -Force
   if ($item -isnot [IO.FileInfo] -or $item.Length -gt 262144) { throw 'PUBLIC_SOURCE_REQUIRED' }
-  $files+=@{name=$name;bytes=[IO.File]::ReadAllBytes($path)}
+  $bytes=[IO.File]::ReadAllBytes($path)
+  $sha=[Security.Cryptography.SHA256]::Create()
+  try { $digest=([BitConverter]::ToString($sha.ComputeHash($bytes))).Replace('-','').ToLowerInvariant() } finally { $sha.Dispose() }
+  if ($digest -cne $pins[$name]) { throw 'UNREVIEWED_PUBLIC_SOURCE' }
+  $files+=@{name=$name;bytes=$bytes}
  }
  $parent=Split-Path -Parent $destination
  [IO.Directory]::CreateDirectory($parent) | Out-Null

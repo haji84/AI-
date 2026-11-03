@@ -82,7 +82,10 @@ function Show-OwnerCodeDialog {
     }.GetNewClosure())
     $form.Controls.Add($copyButton)
     $form.Controls.Add($status)
-    $form.Add_Deactivate({ $field.UseSystemPasswordChar = $true }.GetNewClosure())
+    $form.Add_Deactivate({
+      $field.UseSystemPasswordChar = $true
+      $show.Text = -join @([char]0x8868, [char]0x793A)
+    }.GetNewClosure())
     $form.ShowDialog() | Out-Null
   } finally {
     $field.Clear()

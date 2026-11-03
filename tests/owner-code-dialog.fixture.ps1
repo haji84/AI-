@@ -9,7 +9,7 @@ $oldOverride = $env:JARVIS_PRODUCTION_CONFIG
 New-Item -ItemType Directory -Path $fixtureRoot | Out-Null
 @{environment=@{JARVIS_OWNER_SECRET=$dummy;JARVIS_OWNER_TOKEN='PUBLIC-UNRELATED-FIXTURE-MUST-NOT-DISPLAY'}} | ConvertTo-Json -Depth 3 -Compress | ConvertTo-SecureString -AsPlainText -Force | ConvertFrom-SecureString | Set-Content -LiteralPath $fixtureConfig
 $env:JARVIS_PRODUCTION_CONFIG = $fixtureConfig
-$observed = @{masked=$false;revealed=$false;hiddenAgain=$false;copied=$false;confirmed=$false;localClipboardOnly=$false;clearedOnClose=$false}
+$observed = @{masked=$false;revealed=$false;hiddenAgain=$false;remaskedOnDeactivate=$false;copied=$false;confirmed=$false;localClipboardOnly=$false;clearedOnClose=$false}
 $state = @{failure=$null;ticks=0;field=$null}
 $timer = New-Object System.Windows.Forms.Timer
 $timer.Interval = 100
@@ -26,6 +26,10 @@ $timer.Add_Tick({
   $observed.masked = $field.UseSystemPasswordChar -and $field.Text -ceq $dummy
   $show.PerformClick()
   $observed.revealed = -not $field.UseSystemPasswordChar -and $field.Text -ceq $dummy
+  $form.GetType().GetMethod('OnDeactivate', [Reflection.BindingFlags]'Instance,NonPublic').Invoke($form, @([EventArgs]::Empty)) | Out-Null
+  $observed.remaskedOnDeactivate = $field.UseSystemPasswordChar -and $show.Text -ceq (-join @([char]0x8868,[char]0x793A))
+  $show.PerformClick()
+  if ($field.UseSystemPasswordChar) { throw 'REVEAL_ACTION_CHANGED_AFTER_DEACTIVATION' }
   $show.PerformClick()
   $observed.hiddenAgain = $field.UseSystemPasswordChar
   [System.Windows.Forms.Clipboard]::SetText('PUBLIC-FIXTURE-BEFORE')

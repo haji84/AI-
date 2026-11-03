@@ -12,6 +12,6 @@ test('loading the dialog functions does not consume protected configuration', ()
 test('real Windows dialog masks then reveals, hides and copies from one click without output', {skip:process.platform !== 'win32'}, () => {
   const result = spawnSync(shell, ['-NoProfile', '-STA', '-File', resolve('tests/owner-code-dialog.fixture.ps1')], {encoding:'utf8', timeout:30000});
   assert.equal(result.error, undefined); assert.equal(result.status, 0, result.stderr);
-  assert.deepEqual(JSON.parse(result.stdout.trim()), {masked:true,revealed:true,hiddenAgain:true,copied:true,confirmed:true,localClipboardOnly:true,clearedOnClose:true});
+  assert.deepEqual(JSON.parse(result.stdout.trim()), {masked:true,revealed:true,hiddenAgain:true,remaskedOnDeactivate:true,copied:true,confirmed:true,localClipboardOnly:true,clearedOnClose:true});
   assert.equal((result.stdout+result.stderr).includes('PUBLIC-DUMMY-OWNER-CODE-1234567890'), false);
 });

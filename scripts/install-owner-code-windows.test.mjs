@@ -26,7 +26,7 @@ test('Owner installer defaults to an inert plan without installation inputs', {s
   assert.equal(result.stderr, '');
 });
 
-for (const scenario of ['install', 'existing-package', 'existing-launcher', 'missing-reader', 'invalid-version', 'unsafe-paths', 'reparse-source', 'reparse-desktop', 'overlap']) {
+for (const scenario of ['install', 'existing-package', 'existing-launcher', 'missing-reader', 'invalid-version', 'unsafe-paths', 'reparse-source', 'reparse-desktop', 'overlap','source-drift']) {
   test(`public Owner package filesystem contract: ${scenario}`, {skip:unavailable}, () => {
     const result = run([fixture, '-InstallerPath', installer, '-Case', scenario]);
     assert.equal(result.status, 0, result.stdout + result.stderr);
@@ -44,7 +44,7 @@ test('production Apply rejects arbitrary destination and Desktop overrides', {sk
   try {
     const result = run([installer, '-Apply', '-Version', 'a'.repeat(40), '-DestinationRoot', directory, '-DesktopPath', directory]);
     assert.notEqual(result.status, 0);
-    assert.match(result.stderr, /parameter.*DestinationRoot|DestinationRoot.*parameter/i);
+    assert.match(result.stderr.replace(/\s+/g, ' '), /parameter.*DestinationRoot|DestinationRoot.*parameter/i);
     assert.deepEqual(readdirSync(directory), []);
   } finally { rmSync(directory, {recursive:true, force:true}); }
 });
