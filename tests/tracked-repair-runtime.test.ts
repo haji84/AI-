@@ -1,0 +1,166 @@
+import assert from "node:assert/strict";
+import test, { type TestContext } from "node:test";
+import { createResidentReceiptWakes } from "../src/orchestrator/resident-receipt-wakes.ts";
+import { createHash, createPrivateKey, createPublicKey, sign } from "node:crypto";
+import { execFileSync } from "node:child_process";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { createTrackedRepairResidentRuntime, type TrackedRepairManifest } from "../src/orchestrator/tracked-repair-resident-runtime.ts";
+import { residentDevelopmentGoalDigest } from "../src/orchestrator/resident-development-sequence.ts";
+import { goalWorkStateId } from "../src/orchestrator/work-state-integration.ts";
+import { JsonFileDevelopmentJobStore } from "../src/orchestrator/development-job-store.ts";
+import { JsonFileDevelopmentChangeSetStore } from "../src/orchestrator/development-change-set-store.ts";
+import { canonicalLocalVerifierPayload, type SignedLocalVerifierPayload } from "../src/orchestrator/signed-local-verifier-receipt.ts";
+import { ResourceWaitError } from "../src/gai/development-resource-admission.ts";
+import { createServer } from "node:http";
+import { once } from "node:events";
+import { spawn, type ChildProcess } from "node:child_process";
+import { fileURLToPath, pathToFileURL } from "node:url";
+
+const hash=(s:string|Buffer)=>createHash("sha256").update(s).digest("hex");
+// Published RFC8032 fixture, not a newly generated or trusted operator key.
+const fixtureKey=createPrivateKey({key:Buffer.from("302e020100300506032b657004220420"+"9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60","hex"),format:"der",type:"pkcs8"});
+const publicKey=createPublicKey(fixtureKey).export({format:"pem",type:"spki"}).toString();
+const admit=async<T>(work:()=>Promise<T>)=>work();
+function fixture(t:TestContext){
+  const root=mkdtempSync(join(tmpdir(),"tracked-runtime-"));t.after(()=>rmSync(root,{recursive:true,force:true}));
+  const repo=join(root,"repo"),workspace=join(root,"candidate"),baselineWorkspace=join(root,"baseline"),runtimeRoot=join(root,"runtime");
+  mkdirSync(repo);mkdirSync(runtimeRoot);mkdirSync(join(repo,"scripts"));mkdirSync(join(repo,"tests"));
+  writeFileSync(join(repo,"tests/.keep"),"keep\n");const before="export const answer = 0;\n";
+  writeFileSync(join(repo,"scripts/logic.mjs"),before);
+  const git=(...args:string[])=>execFileSync("git",args,{cwd:repo,encoding:"utf8",stdio:["ignore","pipe","pipe"]}).trim();
+  git("init");git("config","user.name","Runtime test");git("config","user.email","runtime@example.invalid");git("config","core.autocrlf","false");git("add",".");git("commit","-m","base");
+  const base=git("rev-parse","HEAD");git("worktree","add","--detach",workspace,base);git("worktree","add","--detach",baselineWorkspace,base);
+  const text="Repair the pinned frozen source regression",goal={title:text,description:text,successCriteria:["Frozen regression and the signed suite pass"],constraints:["Isolated artifacts only; no publication"]};
+  const probeFile=join(root,"probe.mjs"),probe="import assert from 'node:assert/strict';\nimport {pathToFileURL} from 'node:url';\nimport {join} from 'node:path';\nconst {answer}=await import(pathToFileURL(join(process.cwd(),'scripts/logic.mjs')).href);\nassert.equal(answer,42);\n";
+  writeFileSync(probeFile,probe);const publicKeyFile=join(root,"public.pem");writeFileSync(publicKeyFile,publicKey);
+  const manifest:TrackedRepairManifest={version:1,profile:"tracked-source-repair-v1",sequence:{version:1,goalDigest:residentDevelopmentGoalDigest(goal),taskScopeId:"issue:1219",maxRisk:"low",completionMode:"verified-local-artifact",
+    expiresAt:new Date(Date.now()+3600000).toISOString(),jobs:[{key:"repair",objective:"Repair answer to pass the frozen regression",criterionIds:["criterion-1"],targetFiles:["scripts/logic.mjs","tests/frozen.test.mjs"],baseRevision:base}]},
+    workspace,baselineWorkspace,targetPath:"scripts/logic.mjs",trackedFiles:[{path:"scripts/logic.mjs",beforeSha256:hash(before)}],slots:[{id:1,path:"scripts/logic.mjs",before:"0"}],
+    probe:{file:probeFile,sha256:hash(probe),targetPath:"tests/frozen.test.mjs",expectedRedText:"0 !== 42"},model:{endpoint:"http://127.0.0.1:11435/completion",id:"fixture-model",sha256:"a".repeat(64),nPredict:512,timeoutMs:5000},
+    verifier:{publicKeyFile,publicKeySha256:hash(publicKey),receiptFile:join(root,"receipt.json")}};
+  const manifestFile=join(root,"manifest.json");let bytes=JSON.stringify(manifest);writeFileSync(manifestFile,bytes);
+  const env={GORIQ_TRACKED_REPAIR_MANIFEST_FILE:manifestFile,GORIQ_TRACKED_REPAIR_MANIFEST_SHA256:hash(bytes)};
+  const compassPath=join(root,"state/compass.sqlite"),stateRoot=join(root,"state/self-development");
+  let calls=0,templates=0;
+  const fetchImpl:typeof fetch=async(url,options)=>{
+    if(String(url).endsWith("/apply-template")){
+      templates++;const prompt=JSON.parse(String(options?.body)).messages[1].content as string;
+      assert.ok(prompt.includes("SOURCE scripts/logic.mjs\nexport const answer = 0;\n"));
+      assert.ok(prompt.indexOf("SOURCE ")<prompt.indexOf("Objective: "));
+      assert.ok(prompt.includes("Repair answer to pass the frozen regression"));
+      assert.equal(prompt.includes("Objective: undefined"),false);
+      return new Response(JSON.stringify({prompt:"<|im_start|>user\n"+prompt+"<|im_end|>\n<|im_start|>assistant\n"}));
+    }
+    calls++;assert.ok(existsSync(join(stateRoot,"tracked-repair")),"state exists before inference");
+    return new Response(JSON.stringify({model:"fixture-model",stop:true,truncated:false,stop_type:"eos",content:JSON.stringify({edits:[{slot:1,after:"42"}]})}));
+  };
+  const create=(overrides:Partial<Parameters<typeof createTrackedRepairResidentRuntime>[0]>={})=>createTrackedRepairResidentRuntime({env,runtimeRoot,compassPath,goal,fetchImpl,resourceAdmission:admit,...overrides})!;
+  return {root,workspace,baselineWorkspace,manifest,env,goal,goalId:goalWorkStateId(goal),compassPath,stateRoot,create,fetchImpl,
+    counts:()=>({calls,templates}),jobs:()=>new JsonFileDevelopmentJobStore(join(stateRoot,"jobs.json")),
+    changes:()=>new JsonFileDevelopmentChangeSetStore(join(stateRoot,"change-sets.json")),
+    repin:()=>{bytes=JSON.stringify(manifest);writeFileSync(manifestFile,bytes);env.GORIQ_TRACKED_REPAIR_MANIFEST_SHA256=hash(bytes);}};
+}
+
+test("tracked repair profile is selected fail-closed before a Broker can ignore an incomplete host pin",()=>{
+  assert.throws(()=>createResidentReceiptWakes({GORIQ_TRACKED_REPAIR_MANIFEST_FILE:"/tmp/not-configured.json"},process.cwd()),/TRACKED_REPAIR_MANIFEST_PIN_REQUIRED/);
+});
+
+test("real durable host performs trusted RED then one bounded edit and waits for a bound receipt",async t=>{
+  const f=fixture(t),runtime=f.create();assert.equal(runtime.matches(f.goal),true);
+  const report=await runtime.run({goalId:f.goalId,goal:f.goal,context:[]});
+  assert.equal(report.goalEvaluation?.achieved,false);assert.deepEqual(f.counts(),{calls:1,templates:1});
+  assert.equal(readFileSync(join(f.workspace,"scripts/logic.mjs"),"utf8"),"export const answer = 42;\n");
+  assert.equal(readFileSync(join(f.baselineWorkspace,"scripts/logic.mjs"),"utf8"),"export const answer = 0;\n");
+  const job=(await f.jobs().getByGoal(f.goalId))[0]!;assert.equal(job.phase,"VERIFYING");
+  const request=JSON.parse(readFileSync(f.manifest.verifier.receiptFile+".request.json","utf8"));
+  assert.equal(request.version,2);assert.equal(request.request.jobId,job.jobId);assert.equal(request.request.goalId,f.goalId);
+  assert.deepEqual(request.request.requiredChecks,["lint","typecheck","unit","integration","security","build"]);
+  assert.equal(request.request.trackedEdits.files[0].afterSha256,hash("export const answer = 42;\n"));
+  const restarted=await f.create({fetchImpl:async()=>{assert.fail("persisted candidate must not reinvoke model");}}).run({goalId:f.goalId,goal:f.goal,context:[]});
+  assert.equal(restarted.goalEvaluation?.achieved,false);assert.deepEqual(f.counts(),{calls:1,templates:1});
+  assert.equal((await f.jobs().getByGoal(f.goalId))[0]!.jobId,job.jobId);
+});
+
+test("the exact six-check receipt completes only the isolated criterion without rebuilding",async t=>{
+  const f=fixture(t);await f.create().run({goalId:f.goalId,goal:f.goal,context:[]});
+  const job=(await f.jobs().getByGoal(f.goalId))[0]!,change=(await f.changes().list()).find(c=>c.workItemId.endsWith(":implement"))!;
+  const at=new Date().toISOString(),p:SignedLocalVerifierPayload={version:1,verifierId:"fixture-not-independent",goalId:f.goalId,jobId:job.jobId,changeSetId:change.changeSetId,builderId:change.deviceId,
+    baseRevision:change.baseRevision,sourceRevision:change.candidateRevision,artifactDigest:change.artifactDigest,issuedAt:at,expiresAt:new Date(Date.now()+600000).toISOString(),
+    checks:["lint","typecheck","unit","integration","security","build"].map(check=>({check:check as "lint",status:"passed",outputDigest:hash(check),recordedAt:at}))};
+  const receipt={payload:p,signatureBase64:sign(null,Buffer.from(canonicalLocalVerifierPayload(p)),fixtureKey).toString("base64")};
+  writeFileSync(f.manifest.verifier.receiptFile,JSON.stringify(receipt));
+  const report=await f.create({fetchImpl:async()=>{assert.fail("receipt continuation never rebuilds");}}).run({goalId:f.goalId,goal:f.goal,context:[]});
+  assert.equal(report.goalEvaluation?.achieved,true);assert.equal((await f.jobs().getByGoal(f.goalId))[0]!.phase,"COMPLETED");
+  assert.deepEqual(f.counts(),{calls:1,templates:1});
+});
+
+test("receipt presence alone cannot pass the profile and changed candidate bytes cannot reuse it",async t=>{
+  const f=fixture(t);await f.create().run({goalId:f.goalId,goal:f.goal,context:[]});
+  writeFileSync(f.manifest.verifier.receiptFile,JSON.stringify({payload:{},signatureBase64:"A".repeat(86)+"=="}));
+  await assert.rejects(()=>f.create().run({goalId:f.goalId,goal:f.goal,context:[]}),/SIGNED_VERIFIER_/);
+  writeFileSync(join(f.workspace,"scripts/logic.mjs"),"export const answer = 43;\n");
+  await assert.rejects(()=>f.create().run({goalId:f.goalId,goal:f.goal,context:[]}),/CONTENT_MISMATCH/);
+  assert.equal((await f.jobs().getByGoal(f.goalId))[0]!.phase,"VERIFYING");assert.equal(f.counts().calls,1);
+});
+
+test("generated source is treated as bytes and is never executed by the Broker-side runtime",async t=>{
+  const f=fixture(t),marker=join(f.root,"host-execution-forbidden");
+  const fetchImpl:typeof fetch=async(url,options)=>String(url).endsWith("/apply-template")?f.fetchImpl(url,options):
+    new Response(JSON.stringify({model:"fixture-model",stop:true,truncated:false,stop_type:"eos",content:JSON.stringify({edits:[{slot:1,after:"42; await import('node:fs').then(m=>m.writeFileSync("+JSON.stringify(marker)+",'bad'))"}]})}));
+  const report=await f.create({fetchImpl}).run({goalId:f.goalId,goal:f.goal,context:[]});
+  assert.equal(report.goalEvaluation?.achieved,false);assert.equal(existsSync(marker),false);
+});
+
+test("probe and manifest pins fail before model execution",t=>{
+  const f=fixture(t);f.env.GORIQ_TRACKED_REPAIR_MANIFEST_SHA256="0".repeat(64);
+  assert.throws(()=>f.create(),/MANIFEST_PIN_MISMATCH/);
+  f.repin();writeFileSync(f.manifest.probe.file,"changed test\n");assert.throws(()=>f.create(),/PROBE_PIN_MISMATCH/);
+  assert.deepEqual(f.counts(),{calls:0,templates:0});
+});
+
+test("resource wait before network leaves inference retry available without duplicating a call",async t=>{
+  const f=fixture(t),wait=async()=>{throw new ResourceWaitError({status:"WAITING_FOR_RESOURCE",reason:"test pressure",retryAfterMs:1,observedAt:new Date().toISOString()});};
+  await f.create({resourceAdmission:wait}).run({goalId:f.goalId,goal:f.goal,context:[]});
+  assert.deepEqual(f.counts(),{calls:0,templates:0});
+  const records=await f.jobs().getByGoal(f.goalId);assert.equal(records[0]!.phase,"WAITING_FOR_RESOURCE");
+});
+
+test("authenticated Broker selects tracked profile and restarts the same waiting Job without another model call",{timeout:45000},async t=>{
+  const f=fixture(t),repositoryRoot=fileURLToPath(new URL("../",import.meta.url));let child:ChildProcess|undefined,diagnostics="",calls=0;
+  const model=createServer((request,response)=>{
+    const chunks:Buffer[]=[];request.on("data",c=>chunks.push(Buffer.from(c)));request.once("end",()=>{
+      response.setHeader("content-type","application/json");
+      if(request.url==="/apply-template")return response.end(JSON.stringify({prompt:"<|im_start|>assistant\n"}));
+      calls++;response.end(JSON.stringify({model:"fixture-model",stop:true,truncated:false,stop_type:"eos",content:JSON.stringify({edits:[{slot:1,after:"42"}]})}));
+    });
+  });
+  model.listen(0,"127.0.0.1");await once(model,"listening");t.after(()=>new Promise<void>(r=>model.close(()=>r())));
+  f.manifest.model.endpoint=`http://127.0.0.1:${(model.address() as {port:number}).port}/completion`;f.repin();
+  const socket=createServer();socket.listen(0,"127.0.0.1");await once(socket,"listening");const port=(socket.address() as {port:number}).port;await new Promise<void>(r=>socket.close(()=>r()));
+  const owner="tracked-profile-test-owner",headers={Authorization:`Bearer ${owner}`,"content-type":"application/json"},url=`http://127.0.0.1:${port}/api/jarvis/admin`;
+  const resource=join(f.root,"resource");mkdirSync(resource);
+  const env={...process.env,...f.env,GITHUB_TOKEN:"",GH_TOKEN:"",CODE_BUILDER_LOCAL_TOKEN:"",CODE_BUILDER_LOCAL_URL:"",
+    GORIQ_SELF_DEVELOPMENT_SEQUENCE_FILE:"",GORIQ_SELF_DEVELOPMENT_SEQUENCE_SHA256:"",GORIQ_COMPLETION_HANDOFF_PATH:"",GORIQ_COMPLETION_HANDOFF_SHA256:"",
+    JARVIS_BROKER_HOST:"127.0.0.1",JARVIS_BROKER_PORT:String(port),JARVIS_OWNER_TOKEN:owner,JARVIS_DB_PATH:join(f.root,"broker.sqlite"),JARVIS_COMPASS_DB_PATH:f.compassPath,
+    JARVIS_PUBLIC_BROKER_URL:"",JARVIS_WORKER_INSTALL_URL:"",JARVIS_WORKER_APK_PATH:"",XDG_STATE_HOME:resource,
+    NODE_OPTIONS:`--import=${pathToFileURL(join(repositoryRoot,"tests/helpers/resource-telemetry-preload.mjs")).href}`};
+  const stop=async()=>{if(child&&child.exitCode===null&&child.signalCode===null){const done=once(child,"exit");child.kill();await done;}child=undefined;};
+  t.after(stop);
+  const start=()=>{child=spawn(process.execPath,[join(repositoryRoot,"scripts/jarvis-broker.ts")],{cwd:repositoryRoot,env,stdio:["ignore","ignore","pipe"]});
+    child.stderr?.on("data",c=>{diagnostics=(diagnostics+String(c)).slice(-12000);});};
+  const wait=async(label:string,check:()=>Promise<boolean>)=>{const until=Date.now()+15000;while(Date.now()<until){if(child?.exitCode!==null&&child?.exitCode!==undefined)assert.fail(label+diagnostics);
+    if(await check())return;await new Promise(r=>setTimeout(r,100));}assert.fail(label+diagnostics);};
+  const ready=()=>wait("Broker ready",async()=>{try{return(await fetch(url+"/bridge/events",{headers,signal:AbortSignal.timeout(500)})).ok;}catch{return false;}});
+  start();await ready();
+  const body=JSON.stringify({text:f.goal.title,goalContract:{successCriteria:f.goal.successCriteria,constraints:f.goal.constraints},idempotencyKey:"tracked-profile-intake"});
+  assert.equal((await fetch(url+"/work",{method:"POST",headers:{"content-type":"application/json"},body})).status,401);
+  const response=await fetch(url+"/work",{method:"POST",headers,body});assert.equal(response.status,202);
+  const accepted=await response.json() as {goalId:string;executionScheduled:boolean};assert.equal(accepted.executionScheduled,true);
+  await wait("tracked Job VERIFYING",async()=>{const jobs=await f.jobs().getByGoal(accepted.goalId);return jobs.length===1&&jobs[0]!.phase==="VERIFYING"&&existsSync(f.manifest.verifier.receiptFile+".request.json");});
+  const before=(await f.jobs().getByGoal(accepted.goalId))[0]!;assert.equal(calls,1);const pid=child!.pid;
+  await stop();start();await ready();assert.notEqual(child!.pid,pid);
+  await wait("same waiting Job",async()=>{const response=await fetch(url+"/work/"+accepted.goalId,{headers});const state=await response.json() as {run?:{nextAction?:string}};return state.run?.nextAction==="verification_wait";});
+  assert.equal(calls,1);assert.equal((await f.jobs().getByGoal(accepted.goalId))[0]!.jobId,before.jobId);
+});

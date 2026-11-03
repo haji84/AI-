@@ -23,6 +23,7 @@ import { HttpDevelopmentReleaseCapability } from "../src/orchestrator/http-devel
 import { createTaskCompletionAuthorization, normalizeTaskCompletionAuthorization } from "../src/orchestrator/task-authorization.ts";
 import { buildRepositoryDevelopmentContext } from "../src/orchestrator/repository-development-context.ts";
 import { createSequencedResidentRuntime } from "../src/orchestrator/sequenced-resident-runtime.ts";
+import { createTrackedRepairResidentRuntime } from "../src/orchestrator/tracked-repair-resident-runtime.ts";
 import type { Goal } from "../src/orchestrator/goal-loop.ts";
 import { ResourceWaitError } from "../src/gai/development-resource-admission.ts";
 import { nextResourceWait, resourceWaitExhausted, resourceWaitFromEvidence, type DevelopmentResourceWait } from "../src/orchestrator/development-resource-wait.ts";
@@ -82,6 +83,13 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
     }
   } finally {
     goalStore.close();
+  }
+  if (process.env.GORIQ_TRACKED_REPAIR_MANIFEST_FILE || process.env.GORIQ_TRACKED_REPAIR_MANIFEST_SHA256) {
+    if (!persistedGoal) throw Error("TRACKED_REPAIR_PERSISTED_GOAL_REQUIRED");
+    if (process.env.GORIQ_SELF_DEVELOPMENT_SEQUENCE_FILE || process.env.GORIQ_SELF_DEVELOPMENT_SEQUENCE_SHA256) throw Error("TRACKED_REPAIR_MULTIPLE_RUNTIME_PROFILES");
+    const runtime = createTrackedRepairResidentRuntime({ env: process.env, runtimeRoot: process.cwd(), compassPath, goal: persistedGoal });
+    if (!runtime) throw Error("TRACKED_REPAIR_MANIFEST_REQUIRED");
+    return { runtime };
   }
   if (process.env.GORIQ_SELF_DEVELOPMENT_SEQUENCE_FILE || process.env.GORIQ_SELF_DEVELOPMENT_SEQUENCE_SHA256) {
     if (!persistedGoal) throw Error("RESIDENT_SEQUENCE_PERSISTED_GOAL_REQUIRED");
