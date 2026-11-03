@@ -959,7 +959,7 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "c1f61815d6cf9f19be4a2a60320b5dae6e1f0de569c95a57f195264ca74cc161",
+      "sha256": "01b5517f14958ec5038e970786b7f148d6ce3f5baf0e2204127db0da6bd0ee99",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-003",
@@ -1073,7 +1073,7 @@
     },
     {
       "path": "scripts/jarvis-goal-executor.ts",
-      "sha256": "6906441c42ed407f9071acb3f781a2d89d51e2e8e20f5a5295499d6fcdfd015e",
+      "sha256": "754dbf5f7241512640efcbde42cf8a8b5b1ec72fec09b2b781534d34a1f02f2b",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "AUTO-001",
@@ -2944,7 +2944,7 @@
     },
     {
       "path": "src/compass/store.ts",
-      "sha256": "480a4d6f421ae78afbd0493f5a22a2c7b4933fe731e0fc70ddf5da690438a755",
+      "sha256": "3864d349f6f65abe5a5e33c715ffc09bc9e46abc41da7b5450f9b3bb4b557de8",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
@@ -4963,7 +4963,7 @@
     },
     {
       "path": "src/orchestrator/compass-goal-bridge-event-store.ts",
-      "sha256": "ea3faea6edf2b7aaa56d17df4b7d33383ff2d72ea819c0c67f5dc344dcf5745c",
+      "sha256": "2c067013863e7e46f58d061310b65c0afdd728df14fef2b84828e9471826f697",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "AUTO-001",
@@ -4975,7 +4975,7 @@
     },
     {
       "path": "src/orchestrator/compass-goal-controller.ts",
-      "sha256": "133ede30533ca6ee8acfc606d67e1e0f7225fd3024341ff446e64dde782a2fdf",
+      "sha256": "c0a1bc2230a1f3151192bee42d4c3dd6337e6b6b4da635f2510610c32da36b96",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
@@ -4986,7 +4986,7 @@
     },
     {
       "path": "src/orchestrator/compass-goal-execution-adapter.ts",
-      "sha256": "e8ea1346373cd59910ae593f391655e18cab98ef9d226401119a5fd09b6f8cdd",
+      "sha256": "81b88c21120ef46efd30278f03cb9d4709b3fdb099b73abac56d14a4c388111b",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
@@ -4998,7 +4998,7 @@
     },
     {
       "path": "src/orchestrator/compass-goal-execution-context-store.ts",
-      "sha256": "219d820abba835a7bd3821cca0ee2c27d6265ab511cff8a69585d999d412c4bf",
+      "sha256": "033b82f13c8d736f891150a99c13c68cfb0594d735131f97dfd30279928ce1ea",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
@@ -5031,7 +5031,7 @@
     },
     {
       "path": "src/orchestrator/compass-work-run-store.ts",
-      "sha256": "6d837f5e43173ff33c3bdb2e8d07af7808fefdfbfa22c2b1497013ab7195044b",
+      "sha256": "5547a9933315be8e7014340eea494762deec3c8c7274d18c1a3785eeca56a4d5",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
@@ -6656,6 +6656,17 @@
         "GOV-025"
       ],
       "reason": "#1219 owner-only Actions A/B recovery of an existing accepted tracked-repair checkpoint through the existing executor, with fixed nonsecret file transport and exact Job/candidate/receipt binding; source mapping only, no independent principal, real model, physical acceptance, next issue or global completion inference."
+    },
+    {
+      "path": "src/orchestrator/approved-next-work.ts",
+      "sha256": "51f45e0c87d817dd96a6da2b2d71d856301fcde45b76e4e424606b6621c2fc56",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-002",
+        "AUTO-004",
+        "AUTO-026"
+      ],
+      "reason": "Owner-authenticated deferred next work and atomic verified-predecessor retirement; implementation linkage only, no global completion or privileged execution authority."
     }
   ],
   "hash_policy": "utf8-crlf-to-lf-v1;binary-raw"
