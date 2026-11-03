@@ -59,13 +59,20 @@ function completed(goal:GoalRecord,state:StateRecord,id:string):boolean {
  const work=state.active.filter(v=>object(v)&&v.kind==="gai-work-state"&&v.goalId===id);
  const runs=state.active.filter(v=>object(v)&&v.kind==="jarvis-work-runs");
  if(work.length!==1||runs.length!==1||(work[0] as {version?:unknown}).version!==1||(runs[0] as {version?:unknown}).version!==1)return false;
- const ws=(work[0] as {state?:WorkState}).state,rr=(runs[0] as {runs?:Array<{goalId:string;phase:string}>}).runs?.filter(r=>r.goalId===id);
- if(!ws||ws.goalId!==id||ws.objective!==(goal.description.trim()||goal.title)||JSON.stringify(ws.constraints)!==JSON.stringify(goal.constraints)||ws.status!=="COMPLETED"||!rr||rr.length!==1||rr[0]!.phase!=="COMPLETED"
+ const ws=(work[0] as {state?:WorkState}).state,rr=(runs[0] as {runs?:Array<{goalId:string;phase:string;blockers?:unknown}>}).runs?.filter(r=>r.goalId===id);
+ if(!ws||ws.goalId!==id||ws.objective!==(goal.description.trim()||goal.title)||JSON.stringify(ws.constraints)!==JSON.stringify(goal.constraints)||ws.status!=="COMPLETED"||!rr||rr.length!==1||rr[0]!.phase!=="COMPLETED"||!Array.isArray(rr[0]!.blockers)||rr[0]!.blockers.length>0
   ||!Array.isArray(ws.definitionOfDone)||!ws.definitionOfDone.length||!Array.isArray(ws.verificationResults)
   ||!Array.isArray(ws.blockers)||ws.blockers.length||!Array.isArray(ws.childWorkItems)||ws.childWorkItems.some(x=>x.status!=="COMPLETED"))return false;
  const criteria=goal.successCriteria;
  if(!criteria.length||ws.definitionOfDone.length!==criteria.length||ws.definitionOfDone.some((c,i)=>c.id!==`criterion-${i+1}`||c.description!==criteria[i]||c.required!==true))return false;
- return ws.definitionOfDone.every(c=>ws.verificationResults.some(r=>r.itemId===c.id&&r.passed===true&&!r.waived&&r.evidence!==undefined&&r.evidence!==null));
+ const resultIds=new Set<string>(),criterionIds=new Set(ws.definitionOfDone.map(c=>c.id));
+ for(const r of ws.verificationResults){
+  if(!object(r)||typeof r.itemId!=="string"||!criterionIds.has(r.itemId)||resultIds.has(r.itemId)||typeof r.passed!=="boolean"
+   ||r.waived!==undefined&&typeof r.waived!=="boolean")return false;
+  resultIds.add(r.itemId);
+ }
+ const proof=(v:unknown):boolean=>typeof v==="string"?v.trim().length>0:Array.isArray(v)?v.length>0&&v.some(proof):object(v)&&Object.keys(v).length>0;
+ return ws.definitionOfDone.every(c=>ws.verificationResults.some(r=>r.itemId===c.id&&r.passed===true&&!r.waived&&proof(r.evidence)));
 }
 
 /** Trusted Owner-admin integration only. Persisted context/model proposals do

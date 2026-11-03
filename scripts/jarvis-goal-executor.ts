@@ -357,7 +357,9 @@ async function main(): Promise<void> {
       ? new CompassGoalExecutionAdapter(compassPath, {}, {}, undefined, completionSource)
       : developmentRuntime
         ? new CompassGoalExecutionAdapter(compassPath, {}, {}, developmentRuntime)
-        : new CompassGoalExecutionAdapter(compassPath, {}, {}, undefined, undefined, { inspectionOnly });
+        : inspectionOnly
+        ? new CompassGoalExecutionAdapter(compassPath, {}, {}, undefined, undefined, { inspectionOnly: true })
+        : new CompassGoalExecutionAdapter(compassPath);
     const bridge = new GoalControllerExecutionBridge(adapter);
     const result = await bridge.executeUntilGoalTerminal(decision, { maxRuns: 12, context });
     const report = result.report;

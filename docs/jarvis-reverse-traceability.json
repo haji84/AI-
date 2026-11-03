@@ -1073,7 +1073,7 @@
     },
     {
       "path": "scripts/jarvis-goal-executor.ts",
-      "sha256": "a3f0b3c4accf2f3102286c21117a42d5b6cce926605de2f5c7f33761020f5626",
+      "sha256": "754dbf5f7241512640efcbde42cf8a8b5b1ec72fec09b2b781534d34a1f02f2b",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "AUTO-001",
@@ -6659,7 +6659,7 @@
     },
     {
       "path": "src/orchestrator/approved-next-work.ts",
-      "sha256": "498e205d0ed190c5a5c290c96444f15d9d92c72b5384b6113777d38a52f88153",
+      "sha256": "51f45e0c87d817dd96a6da2b2d71d856301fcde45b76e4e424606b6621c2fc56",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",

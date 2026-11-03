@@ -111,3 +111,13 @@ test("new predecessor constraints and unknown evidence envelope versions stay un
 test("the normal GoalLoop goal_complete write-back permits an already verified successor",async()=>{
  const f=await fixture();try{f.compass.writeBack({status:"goal_complete",summary:"Normal GoalLoop terminal record"});const a=f.next.accept(f.request);assert.ok(f.next.promote(a.id));}finally{f.compass.close();}
 });
+
+test("conflicting duplicate criterion results cannot trigger the next Goal",async()=>{
+ const f=await fixture();try{const a=f.next.accept(f.request),work={...f.work,verificationResults:[{itemId:"criterion-1",passed:false,evidence:{kind:"failed-fixture"}},{itemId:"criterion-1",passed:true,evidence:{kind:"later-fixture"}}]};await f.states.put(work);assert.equal((await import("../src/orchestrator/work-state.ts")).canCompleteWorkState(work),false);assert.equal(f.next.promote(a.id),null);}finally{f.compass.close();}
+});
+test("an empty proof array cannot certify predecessor completion",async()=>{
+ const f=await fixture();try{const a=f.next.accept(f.request);await f.states.put({...f.work,verificationResults:[{itemId:"criterion-1",passed:true,evidence:[]}]});assert.equal(f.next.promote(a.id),null);}finally{f.compass.close();}
+});
+test("outstanding WorkRun Human Gate blockers override its completed phase",async()=>{
+ const f=await fixture();try{const a=f.next.accept(f.request);await f.runs.put({...createQueuedWorkRun(f.goalId),phase:"COMPLETED",blockers:["human_gate_required"]});assert.equal(f.next.promote(a.id),null);}finally{f.compass.close();}
+});
