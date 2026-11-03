@@ -1,4 +1,4 @@
-name: GORIQ ZBook Goal 1218 Read-only Diagnosis
+name: GORIQ Owner Code 1218 Read-only Native Acceptance
 
 on:
   workflow_dispatch:
@@ -6,36 +6,69 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: goriq-owner-1218-readonly
+  cancel-in-progress: false
+
 jobs:
   inspect:
+    if: github.repository == 'haji84/AI-' && github.ref == 'refs/heads/main' && github.actor == 'haji84'
     runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v5
-      - name: Inspect persisted Goal state
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - name: Require exact current main with successful CI
+        env:
+          GORIQ_PC_APPROVED_REVISION: ${{ github.sha }}
+        run: node scripts/goriq-pc-approved-source.mjs
+      - name: Inspect Owner artifact identity and encrypted-file metadata; execute no-argument PLAN ONLY
         shell: powershell
-        run: node scripts/zbook-goal-diagnostics.ts
-      - name: Verify shell syntax checks on ZBook checkout
-        shell: powershell
-        run: node --test tests/jarvis-adb-mass-enrollment.test.ts
-      - name: Verify Owner credential reader and utility on ZBook
-        shell: powershell
-        run: node --test scripts/owner-code-windows.test.mjs scripts/jarvis-production-config.test.mjs
-      - name: Verify Owner trusted-device revocation on ZBook
-        shell: powershell
-        run: node --test tests/trusted-device-registry.test.ts src/app/owner-auth.test.ts
-      - name: Verify Owner rotation preflight and DPAPI callback on ZBook
-        shell: powershell
-        run: node --test scripts/owner-code-rotation.test.mjs
-      - name: Inspect isolated workspace test names
-        shell: powershell
-        run: node scripts/zbook-isolated-test-diagnostic.ts
-      - name: Upload bounded diagnosis
+        run: |
+          New-Item -ItemType Directory -Force -Path .gai-results | Out-Null
+          powershell.exe -NoProfile -NonInteractive -File scripts/owner-code-preflight-1218.ps1 | Tee-Object -FilePath .gai-results/owner-code-preflight-1218.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Upload allowlisted metadata only
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: goriq-zbook-goal-1218-diagnosis
-          path: |
-            .gai-results/goal-1218-bridge-diagnostics.json
-            .gai-results/goal-1218-isolated-test-diagnosis.json
-          retention-days: 30
+          name: goriq-owner-1218-readonly-windows
+          path: .gai-results/owner-code-preflight-1218.json
+          if-no-files-found: error
+          retention-days: 14
+
+  iphone-visibility:
+    if: github.repository == 'haji84/AI-' && github.ref == 'refs/heads/main' && github.actor == 'haji84'
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - name: Require exact current main with successful CI
+        env:
+          GORIQ_PC_APPROVED_REVISION: ${{ github.sha }}
+        run: node scripts/goriq-pc-approved-source.mjs
+      - name: Count existing physical iPhones without pairing or installation
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .gai-results
+          node scripts/iphone-owner-visibility-1218.mjs | tee .gai-results/iphone-owner-visibility-1218.json
+      - name: Upload redacted availability counts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: goriq-owner-1218-readonly-iphone
+          path: .gai-results/iphone-owner-visibility-1218.json
+          if-no-files-found: error
+          retention-days: 14
