@@ -141,5 +141,38 @@
   "nextAction": "Use the retained frozen reproduction and source-only Job; obtain an already-authorized local-model/runtime route and GitHub write/Actions access without creating credentials or widening permissions. Review actual same-purpose existing PR scope before applying this patch. Prove actual model authorship, Actions A/B, trusted independent verification and protected integration before claiming product completion or auto-start of #1218.",
   "rollback": "Revert the coherent scoped source/test/two-fingerprint commit on the working branch; retain reproduction, Job history and evidence. No runtime keys, permissions, schema, paid service or production state changed.",
   "productGoalAchieved": false,
-  "recordedAt": "2026-11-03T00:11:34.173089+00:00"
+  "recordedAt": "2026-11-03T00:11:34.173089+00:00",
+  "continuationValidation": {
+    "checkedAt": "2026-11-03T00:26:34.322762+00:00",
+    "sourceUnchangedFrom": "58e2b50b7632487ae37c2f070cffeeb58a2581f0",
+    "remoteMainUnchanged": "a11292400f2b162811d2348acc2729c2c085e665",
+    "validation": {
+      "tests": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "scope": "Local fixture probes, not actual model/Actions/production acceptance",
+      "cases": [
+        "Real second Node writer holds SQLite lock; precondition sees committed PAUSED after acquiring write transaction; projection rolled back",
+        "Unrelated storage error propagates by identity",
+        "Unrelated error with identical RESIDENT_PROGRESS_STOPPED message propagates by identity"
+      ]
+    },
+    "previousReviewCoverageGaps": "Exercised in retained local probes; original frozen test file unchanged",
+    "networkBlocker": {
+      "apiGithubHostAllowed": false,
+      "policyEnforced": true,
+      "changeRequested": "Add only api.github.com to custom allowed domains while preserving presets and all existing rules",
+      "approval": "PENDING",
+      "runtimeChangeApplied": false
+    },
+    "modelConnection": "No configured local model binding found; existing authorized connection location requested; no credential values requested",
+    "sha256": {
+      "transaction-and-error.test.ts": "8c6ecd7ec8ec1e0b4947dd3fc4a39987a465e8f3ad508ae710aa3a5a75e741a5",
+      "probes.log": "47930380d7eebdffe2e1df6a53f5af927dae3519809abccf800d64887f4c929a",
+      "main-ref.txt": "45e8d7155eb50000aae402451554ee22b00fd7b756ed0472b51882428122b13b"
+    },
+    "actionsRunIds": [],
+    "productGoalAchieved": false
+  }
 }
