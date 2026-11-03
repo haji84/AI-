@@ -68,8 +68,7 @@ export default function TrustedDeviceSettings() {
       if (!response.ok) throw new Error("サーバーで失効できなかったため端末内の登録を残しました");
       await removeTrustedDevice();
       setTrusted(false);
-      setMessage("この端末のPINログイン資格を失効しました。");
-      await refresh();
+      window.location.replace("/jarvis/login");
     } catch (error) { setMessage(error instanceof Error ? error.message : "失効できませんでした"); }
     finally { setBusy(false); }
   }

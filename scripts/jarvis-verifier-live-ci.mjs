@@ -7,7 +7,7 @@ import { execFileSync } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { runIndependentVerifier, verifierCommand } from "./jarvis-independent-check-runner.mjs";
+import { runIndependentVerifier, verifierCommand, verifierCheckTimeoutMs } from "./jarvis-independent-check-runner.mjs";
 import { attestLocalCandidate } from "./jarvis-independent-artifact-attestation.mjs";
 import { createDevelopmentVerificationPlan, evaluateDevelopmentVerification } from "../src/orchestrator/development-verification-plan.ts";
 import { validateSignedLocalVerifierReceipt } from "../src/orchestrator/signed-local-verifier-receipt.ts";
@@ -140,7 +140,8 @@ async function executeHostedCI() {
       baseRevision, githubRunId: process.env.GITHUB_RUN_ID, node: process.version,
       registryImage, dockerClient: version.Client.Version, dockerServer: version.Server.Version,
       buildProfile: { id: "next-webpack-v1", command: "pnpm", args: ["build", "--webpack"] },
-      limits: { timeoutMs: 180_000, memoryBytes: 2147483648, pids: 128, tmpfsMiB: 1536, network: "none", uid: 65534 } });
+      limits: { timeoutMs: 180_000, timeoutMsByCheck: Object.fromEntries(CHECKS.map(name => [name, verifierCheckTimeoutMs(name)])),
+        memoryBytes: 2147483648, pids: 128, tmpfsMiB: 1536, network: "none", uid: 65534 } });
     const context = join(root, "image-context"); mkdirSync(context, { mode: 0o700 });
     for (const file of ["package.json", "pnpm-lock.yaml"]) copyFileSync(join(repo, file), join(context, file));
     copyFileSync(join(repo, "scripts/jarvis-verifier-offline-workspace.mjs"), join(context, "jarvis-verifier-offline-workspace.mjs"));
