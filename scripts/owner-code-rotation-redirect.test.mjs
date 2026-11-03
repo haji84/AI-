@@ -3,6 +3,7 @@ import test from 'node:test';
 import {createServer} from 'node:http';
 import {spawn} from 'node:child_process';
 import {resolve,join} from 'node:path';
+import {URLSearchParams} from 'node:url';
 const shell=process.platform==='win32'?join(process.env.SystemRoot,'System32/WindowsPowerShell/v1.0/powershell.exe'):'pwsh';
 const quote=s=>"'"+s.replaceAll("'","''")+"'";
 function client(){
