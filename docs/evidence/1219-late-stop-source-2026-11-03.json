@@ -174,5 +174,54 @@
     },
     "actionsRunIds": [],
     "productGoalAchieved": false
+  },
+  "publishedCloudContinuation": {
+    "recordedAt": "2026-11-03T01:29:48.513356+00:00",
+    "sourceRepairStillCodex": true,
+    "sourceBlobsUnchangedFrom": "58e2b50b7632487ae37c2f070cffeeb58a2581f0",
+    "freshValidation": {
+      "full": {
+        "tests": 2996,
+        "pass": 2990,
+        "fail": 0,
+        "skipped": 6
+      },
+      "p8": {
+        "tests": 332,
+        "pass": 332,
+        "fail": 0,
+        "skipped": 0
+      }
+    },
+    "lint": "PASS",
+    "typecheckAndBuild": "PASS",
+    "apiReadAndIssueWrite": "PASS",
+    "checkpoint": "https://github.com/haji84/AI-/issues/1219#issuecomment-6592889613",
+    "zbookReadOnlyDiagnostic": {
+      "runId": 41558977546,
+      "attempt": 1,
+      "headSha": "a11292400f2b162811d2348acc2729c2c085e665",
+      "runnerName": "ZBook",
+      "runnerId": 21,
+      "conclusion": "success",
+      "scope": "Existing read-only diagnosis, not current-Job model repair or auto successor"
+    },
+    "modelReadinessRunId": 41559853640,
+    "actionsSameJobReplayVerified": false,
+    "existingPrReuseDecision": {
+      "at": "2026-11-03T01:25:59.864919+00:00",
+      "existingPr": 1764,
+      "head": "eb7eeb93271715763f8b6c0c44163e0e9597f36d",
+      "decision": "Do not fold broad existing candidate into this source-only repair",
+      "evidence": [
+        "35-file prior candidate adds src/compass/execution-lease.ts and CREATE TABLE compass_execution_lease / compass_execution_effect",
+        "Existing acceptance contract retains shared-authority/physical/Human Gate holds",
+        "Merging would expand the current small resident projection fix into execution-authority/schema changes"
+      ],
+      "rollback": "git merge --abort completed; original local HEAD and clean status machine-verified",
+      "alternative": "One narrowly scoped PR for the reproduced late-owner-stop defect; no replacement of merged PRs, no new foundation or changes to prior PR"
+    },
+    "plan": "Publish one narrow PR for this confirmed resident projection defect; no schema or execution-authority changes; native/model acceptance remains separate",
+    "noWorkflowPermissionKeyServiceOrProductionChange": true
   }
 }
