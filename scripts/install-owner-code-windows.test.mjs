@@ -57,7 +57,8 @@ test('Windows-style fresh checkout preserves canonical approved recovery package
   const git=(cwd,args)=>execFileSync('git',args,{cwd,env,stdio:'pipe'});
   try {
     const seed=join(directory,'seed');mkdirSync(seed);mkdirSync(join(seed,'scripts'));
-    for(const name of names)writeFileSync(join(seed,'scripts',name),git(resolve('.'),['show','HEAD:scripts/'+name]));
+    // Build canonical LF input independently; exported verifier snapshots intentionally have no .git.
+    for(const name of names)writeFileSync(join(seed,'scripts',name),readFileSync(resolve('scripts',name),'utf8').replace(/\r\n/g,'\n'));
     writeFileSync(join(seed,'.gitattributes'),readFileSync('.gitattributes'));
     git(seed,['init']);git(seed,['config','user.name','Fixture']);git(seed,['config','user.email','fixture@example.invalid']);git(seed,['config','core.autocrlf','false']);git(seed,['add','.']);git(seed,['commit','-m','canonical public package']);
     const checkout=join(directory,'windows-style');git(directory,['clone','--shared','--no-checkout',seed,checkout]);git(checkout,['config','core.autocrlf','true']);git(checkout,['checkout','--force','HEAD']);
