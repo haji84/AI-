@@ -19,6 +19,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: ${{ github.sha }}
+          path: owner-native-${{ github.run_id }}-${{ github.run_attempt }}
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
@@ -26,8 +27,10 @@ jobs:
       - name: Require exact current main with successful CI
         env:
           GORIQ_PC_APPROVED_REVISION: ${{ github.sha }}
+        working-directory: owner-native-${{ github.run_id }}-${{ github.run_attempt }}
         run: node scripts/goriq-pc-approved-source.mjs
       - name: Inspect Owner artifact identity and encrypted-file metadata; execute no-argument PLAN ONLY
+        working-directory: owner-native-${{ github.run_id }}-${{ github.run_attempt }}
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force -Path .gai-results | Out-Null
@@ -38,7 +41,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: goriq-owner-1218-readonly-windows
-          path: .gai-results/owner-code-preflight-1218.json
+          path: owner-native-${{ github.run_id }}-${{ github.run_attempt }}/.gai-results/owner-code-preflight-1218.json
           if-no-files-found: error
           retention-days: 14
 
@@ -50,6 +53,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: ${{ github.sha }}
+          path: owner-native-${{ github.run_id }}-${{ github.run_attempt }}
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
@@ -57,8 +61,10 @@ jobs:
       - name: Require exact current main with successful CI
         env:
           GORIQ_PC_APPROVED_REVISION: ${{ github.sha }}
+        working-directory: owner-native-${{ github.run_id }}-${{ github.run_attempt }}
         run: node scripts/goriq-pc-approved-source.mjs
       - name: Count existing physical iPhones without pairing or installation
+        working-directory: owner-native-${{ github.run_id }}-${{ github.run_attempt }}
         shell: bash
         run: |
           set -euo pipefail
@@ -69,6 +75,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: goriq-owner-1218-readonly-iphone
-          path: .gai-results/iphone-owner-visibility-1218.json
+          path: owner-native-${{ github.run_id }}-${{ github.run_attempt }}/.gai-results/iphone-owner-visibility-1218.json
           if-no-files-found: error
           retention-days: 14

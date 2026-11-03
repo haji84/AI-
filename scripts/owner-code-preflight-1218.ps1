@@ -3,6 +3,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $env:PSModulePath = Join-Path $PSHOME 'Modules'
 $script:PreflightRoot = Split-Path -Parent $PSScriptRoot
+$script:LastSourceArtifact = $null
 
 function Get-1218FileMetadata {
  param([string]$Path, [long]$Limit = 4194304)
@@ -48,7 +49,9 @@ function Get-1218ReviewedArtifacts {
  $artifacts=@()
  foreach ($name in $pins.Keys) {
   $file=Join-Path (Join-Path $Root 'scripts') $name
+  $script:LastSourceArtifact=@{name=$name;state='unobserved';sha256=$null;expectedSha256=$pins[$name]}
   $meta=Get-1218FileMetadata $file -Limit 262144
+  $script:LastSourceArtifact.state=$meta.state; $script:LastSourceArtifact.sha256=$meta.sha256
   if ($meta.state -ne 'regular' -or $meta.sha256 -cne $pins[$name]) { throw 'UNREVIEWED_SOURCE' }
   $tokens=$null; $errors=$null
   $ast=[Management.Automation.Language.Parser]::ParseFile($file,[ref]$tokens,[ref]$errors)
@@ -80,12 +83,23 @@ function Invoke-1218PlanOnly {
  } finally { if (-not $process.HasExited) { $process.Kill(); $null=$process.WaitForExit(2000) }; $process.Dispose() }
 }
 
+function New-1218FailureReport {
+ param([string]$Stage, [string]$ReasonCode, [int]$FailureLine=0)
+ if ($Stage -notin @('platform','source-artifacts','identity','configuration-metadata','installed-artifacts','prior-workspace-artifacts','plan-only')) { $Stage='unknown' }
+ if ($ReasonCode -notin @('WINDOWS_REQUIRED','UNREVIEWED_SOURCE','SOURCE_PARSE_FAILED','PLAN_START_FAILED','PLAN_TIMEOUT')) { $ReasonCode='PREFLIGHT_RUNTIME_ERROR' }
+ return @{schemaVersion=1;issue=1218;readOnly=$true;complete=$false;failedStage=$Stage;reasonCode=$ReasonCode;failureLine=$FailureLine;languageMode=[string]$ExecutionContext.SessionState.LanguageMode;sourceArtifact=$script:LastSourceArtifact;actualDpapiUsed=$false;secretDisplayed=$false;clipboardAccessed=$false;credentialGenerated=$false;serviceOrTaskMutation=$false;databaseOpened=$false;originalAcceptanceConditionsPassed=0}
+}
+
 function Invoke-1218NativePreflight {
+ $stage='platform'
  try {
   if ($env:OS -ne 'Windows_NT') { throw 'WINDOWS_REQUIRED' }
+  $stage='source-artifacts'
   $artifacts=@(Get-1218ReviewedArtifacts $script:PreflightRoot)
+  $stage='identity'
   $identity=[Security.Principal.WindowsIdentity]::GetCurrent()
   $sid=$identity.User.Value
+  $stage='configuration-metadata'
   $config=$env:JARVIS_PRODUCTION_CONFIG; $origin='environment-override'
   if (-not $config) {
    $config=Join-Path $env:USERPROFILE 'JARVIS\production\config.dpapi'; $origin='owner-profile'
@@ -94,6 +108,7 @@ function Invoke-1218NativePreflight {
   $meta=Get-1218FileMetadata $config
   $configOwner=$null
   if ($meta.state -eq 'regular') { try { $acl=Get-Acl -LiteralPath $config; $configOwner=$acl.GetOwner([Security.Principal.SecurityIdentifier]).Value } catch {} }
+  $stage='installed-artifacts'
   $installed=@(); $taskReadable=$false
   try {
    $task=Get-ScheduledTask -TaskName 'JARVIS Remote Host' -ErrorAction Stop
@@ -103,11 +118,20 @@ function Invoke-1218NativePreflight {
     foreach ($source in $artifacts) { $installedMeta=Get-1218FileMetadata (Join-Path (Join-Path $root 'scripts') $source.name) -Limit 262144; $installed+=@{name=$source.name;state=$installedMeta.state;sha256=$installedMeta.sha256;matchesReviewedSource=($installedMeta.state -eq 'regular' -and $installedMeta.sha256 -ceq $source.sha256)} }
    }
   } catch {}
+  $stage='prior-workspace-artifacts'
+  $priorWorkspace=@()
+  if ($env:GITHUB_WORKSPACE -and $env:GITHUB_WORKSPACE -ne $script:PreflightRoot) {
+   foreach ($source in $artifacts) {
+    $prior=Get-1218FileMetadata (Join-Path (Join-Path $env:GITHUB_WORKSPACE 'scripts') $source.name) -Limit 262144
+    $priorWorkspace+=@{name=$source.name;state=$prior.state;sha256=$prior.sha256;matchesReviewedSource=($prior.state -eq 'regular' -and $prior.sha256 -ceq $source.sha256)}
+   }
+  }
+  $stage='plan-only'
   $plan=Invoke-1218PlanOnly $script:PreflightRoot
   $revision=$env:GITHUB_SHA
   if ($revision -notmatch '^[a-f0-9]{40}$') { $revision=$null }
-  [ordered]@{schemaVersion=1;issue=1218;sourceRevision=$revision;readOnly=$true;actualWindowsSid=$sid;isSystem=$identity.IsSystem;processSessionId=[Diagnostics.Process]::GetCurrentProcess().SessionId;environmentUserInteractive=[Environment]::UserInteractive;desktopInputControl='UNVERIFIED';sourceArtifacts=$artifacts;installedArtifacts=$installed;installedTaskReadable=$taskReadable;encryptedConfiguration=@{origin=$origin;state=$meta.state;sha256=$meta.sha256;ownerSid=$configOwner;ownerIsExecutingUser=($null -ne $configOwner -and $configOwner -ceq $sid)};rotationPlan=$plan;actualDpapiUsed=$false;secretDisplayed=$false;clipboardAccessed=$false;credentialGenerated=$false;serviceOrTaskMutation=$false;databaseOpened=$false;originalAcceptanceConditionsPassed=0} | ConvertTo-Json -Depth 8 -Compress
+  [ordered]@{schemaVersion=1;issue=1218;sourceRevision=$revision;readOnly=$true;complete=[bool]$plan.expectedOutputMatched;languageMode=[string]$ExecutionContext.SessionState.LanguageMode;priorWorkspaceArtifacts=$priorWorkspace;actualWindowsSid=$sid;isSystem=$identity.IsSystem;processSessionId=[Diagnostics.Process]::GetCurrentProcess().SessionId;environmentUserInteractive=[Environment]::UserInteractive;desktopInputControl='UNVERIFIED';sourceArtifacts=$artifacts;installedArtifacts=$installed;installedTaskReadable=$taskReadable;encryptedConfiguration=@{origin=$origin;state=$meta.state;sha256=$meta.sha256;ownerSid=$configOwner;ownerIsExecutingUser=($null -ne $configOwner -and $configOwner -ceq $sid)};rotationPlan=$plan;actualDpapiUsed=$false;secretDisplayed=$false;clipboardAccessed=$false;credentialGenerated=$false;serviceOrTaskMutation=$false;databaseOpened=$false;originalAcceptanceConditionsPassed=0} | ConvertTo-Json -Depth 8 -Compress
   if (-not $plan.expectedOutputMatched) { exit 1 }
- } catch { [Console]::Error.WriteLine('Owner preflight unavailable. No secret-bearing diagnostic is emitted.'); exit 1 }
+ } catch { New-1218FailureReport -Stage $stage -ReasonCode ([string]$_.Exception.Message) -FailureLine ([int]$_.InvocationInfo.ScriptLineNumber) | ConvertTo-Json -Depth 8 -Compress; exit 1 }
 }
 if ($MyInvocation.InvocationName -ne '.') { Invoke-1218NativePreflight }
