@@ -42,7 +42,7 @@ function Get-1218FileMetadata {
 function Get-1218ReviewedArtifacts {
  param([string]$Root)
  $pins=[ordered]@{
-  'owner-code-windows.ps1'='06ba9f46c4074c737cc836ad6c35f32e836bf1a100eb5e02eb80f52148e06803'
+  'owner-code-windows.ps1'='e8f0fe68f5ca8c6d8f5056299c1e805e05663d6782e744a69692ee5512262f43'
   'read-jarvis-production-config.ps1'='252f057b933ddd16c8eec85507fd43b084cf9f0cdba1ded93746ad5e199cccb5'
   'rotate-jarvis-owner-code-windows.ps1'='3e8b032e408b7c41add4b4cbb8e34bf69eef31846e4c43e81c6252c1e6de0c00'
  }

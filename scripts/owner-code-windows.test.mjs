@@ -18,7 +18,8 @@ test('owner-code utility is masked by default and gates reveal and clipboard cop
   assert.match(source, /MessageBoxButtons\]::YesNo/);
   assert.match(source, /MessageBoxDefaultButton\]::Button2/);
   assert.match(source, /if \(\$choice -eq \[System\.Windows\.Forms\.DialogResult\]::Yes\)/);
-  assert.match(source, /\[System\.Windows\.Forms\.Clipboard\]::SetText\(\$ownerCode\)/);
+  assert.match(source, /\[System\.Windows\.Forms\.Clipboard\]::SetDataObject\(\$data, \$true\)/);
+  assert.match(source, /ExcludeClipboardContentFromMonitorProcessing/);
 });
 
 test('owner-code utility reuses the production reader and selects only the owner login code', () => {
@@ -64,9 +65,9 @@ test('wrong-identity errors fail closed without secret output or artifacts', () 
 
 test('owner login explains same-owner local recovery without rotation or re-enrollment', () => {
   assert.match(ownerLoginSource, /Production PCで同じWindowsオーナーとして/);
-  assert.match(ownerLoginSource, /scripts\/owner-code-windows\.ps1/);
-  assert.match(ownerLoginSource, /-Reveal/);
-  assert.match(ownerLoginSource, /-Copy/);
+  assert.match(ownerLoginSource, /設置済みのデスクトップの「GORIQ Owner Code」/);
+  assert.match(ownerLoginSource, /「表示」で確認/);
+  assert.match(ownerLoginSource, /「コピー」でこのPCのクリップボードへ/);
   assert.match(ownerLoginSource, /コードの再発行やWorkerの再登録は不要です/);
 });
 
