@@ -1,0 +1,145 @@
+{
+  "version": 1,
+  "issue": 1219,
+  "parentGoal": 681,
+  "experimentJobId": "issue-1219-workstate-stop-20261103",
+  "scope": "SOURCE_ONLY_LINUX_REGRESSION_NOT_AUTHENTICATED_PRODUCT_GOAL",
+  "baseRevision": "a11292400f2b162811d2348acc2729c2c085e665",
+  "sourceRevision": "58e2b50b7632487ae37c2f070cffeeb58a2581f0",
+  "actualImplementationAuthor": "Codex",
+  "localModel": {
+    "status": "NOT_RUN",
+    "repairPassed": false,
+    "reason": "No configured local-model binding or reachable existing loopback Ollama in this cloud instance. No model installed or inference budget reset."
+  },
+  "defect": {
+    "status": "REPRODUCED_ON_CURRENT_MAIN",
+    "trigger": "Owner PAUSED or global blocker committed during final resident Job acceptance",
+    "before": {
+      "report": "goal_complete",
+      "achieved": true,
+      "workState": "COMPLETED"
+    },
+    "after": {
+      "report": "paused or blocked",
+      "achieved": false,
+      "projection": "Rolled back before persisted completion; completed Jobs retained"
+    },
+    "mechanism": "Synchronous projection precondition within existing BEGIN IMMEDIATE updateActive transaction"
+  },
+  "tests": {
+    "fullSuite": {
+      "tests": 2996,
+      "pass": 2990,
+      "fail": 0,
+      "skipped": 6
+    },
+    "security": {
+      "tests": 332,
+      "pass": 332,
+      "fail": 0,
+      "skipped": 0
+    },
+    "red": {
+      "tests": 12,
+      "pass": 10,
+      "fail": 2,
+      "skipped": 0
+    },
+    "green": {
+      "tests": 12,
+      "pass": 12,
+      "fail": 0,
+      "skipped": 0
+    }
+  },
+  "frozenResidentTestSha256": "c6e5d46aa0d64206db0fd8ac9ad3b43a4e213c26321152a7a4e25062723bd743",
+  "existingResidentTestsUnchanged": true,
+  "lint": "PASS",
+  "typecheckAndBuild": "PASS",
+  "secretAudit": "PASS",
+  "reverseTraceability": {
+    "status": "PASS",
+    "surfaces": 611,
+    "requirements": 341,
+    "requirementStatusesChanged": false
+  },
+  "processRecovery": {
+    "scope": "TEST_FIXTURE_NOT_ACTIONS_NOT_REAL_MODEL_NOT_OS_REBOOT",
+    "processA": 71340,
+    "processB": 71352,
+    "goalId": "goal-3f1a3e126a1df2ad",
+    "persistedJobIds": [
+      "development-8e95acfb6b2d939be937887a224c364c8508bf05f78f3948ef1178858b0fc88e",
+      "development-a11faf9c2c655ceb0d5fc14e2dabe3ec55bd5730f13ea82e098a1ae42def17a6"
+    ],
+    "sameJobsPreserved": true,
+    "resumeBuildCalls": 0,
+    "stopPersistedBeforeResume": true
+  },
+  "independentSourceReview": {
+    "reviewer": "Separate Codex review context /root/review_late_stop",
+    "configuredModel": "gpt-6-astra",
+    "servingDigestObserved": false,
+    "result": "No Critical/Important findings; 12 focused tests independently executed",
+    "formalGitHubApproval": false,
+    "signedTrustedVerifier": false,
+    "minorGapsDeferred": [
+      "Direct lock-boundary regression test",
+      "Unrelated-error propagation fault-injection test"
+    ]
+  },
+  "actions": {
+    "runA": null,
+    "runB": null,
+    "replayVerified": false,
+    "reason": "GitHub API GET returned Forbidden; no workflow dispatched. Local process replay does not establish Actions replay."
+  },
+  "remaining": {
+    "actualLocalModelRepair": false,
+    "authenticatedResidentGoal": false,
+    "signedIndependentCandidateVerification": false,
+    "protectedSourceIntegration": false,
+    "postIntegrationRuntime": false,
+    "automaticIssue1218Start": false,
+    "hubRollout": false,
+    "longRunTwoProjectAcceptance": false
+  },
+  "existingWorkPreserved": {
+    "mergedPrsNotRecreated": [
+      1824,
+      1826,
+      1827
+    ],
+    "docsPr1818Unchanged": true,
+    "openPrsInspected": [
+      1764,
+      1819
+    ],
+    "pr1764Head": "eb7eeb93271715763f8b6c0c44163e0e9597f36d",
+    "pr1764Scope": "Existing broad #1763 continuation work; not overwritten. Scoped delta prepared against current main.",
+    "previousSourceJob": "issue-1219-terminal-conflict-20261102",
+    "oldExpiryReused": false,
+    "modelAttemptsReset": false,
+    "compassUnrelatedGoalUntouched": true
+  },
+  "rawEvidenceDirectory": "/workspace/.goriq-handoff/1219-20261103",
+  "sha256": {
+    "main-red.log": "c87e958a26c406df69909eea4d31643949456a07f2e983a44d4f3a548e534022",
+    "frozen-red.log": "809fca073fac2f497a00a29be4505930bb66f0d441a8fe90c7b5a3185e2070e4",
+    "frozen-green.log": "3d400505151245ada50b8abc7431e39b36cc5f701380733c92796758a9f700cb",
+    "full-test.log": "6969f1293716062da887390346d4bf916a0f5c88ff9b8538df1852c3270c987e",
+    "security.log": "4a30d1ad8a78e0901a965bcd5326b377482dc26f24241578aef0fbd3abb8f42c",
+    "lint.log": "050c69da23536758722729aeda55a8d0fb9d557495ef6d33d70873a3b64a71c1",
+    "build.log": "074a59ee22f21ae151885529a284535b77e955cfa556fd4ea04fa2e4785f73e3",
+    "audit.log": "e6510d193f45a9ecd0bdcff745fb5f2b98586d743a26ff544900c993defa5298",
+    "secret-audit.log": "35bc10fcd910bf95281d24a36623b8c9ff0426dd9536cb50b21fdbfeff2a7445",
+    "process-resume.ts": "94e9b23d1f01ca37c0958d72809c8e5b37978093086aae644656546d03d99893",
+    "process-A.json": "7031e61e49397869e5b5052fa42525ca9f88e365ae17e777b7989fe152112e6a",
+    "process-B.json": "0a02964f31d4ec6d356ad972135cead1cc2fbee6f36cc51bcca7d3066f26360b"
+  },
+  "nextAction": "Use the retained frozen reproduction and source-only Job; obtain an already-authorized local-model/runtime route and GitHub write/Actions access without creating credentials or widening permissions. Review actual same-purpose existing PR scope before applying this patch. Prove actual model authorship, Actions A/B, trusted independent verification and protected integration before claiming product completion or auto-start of #1218.",
+  "rollback": "Revert the coherent scoped source/test/two-fingerprint commit on the working branch; retain reproduction, Job history and evidence. No runtime keys, permissions, schema, paid service or production state changed.",
+  "productGoalAchieved": false,
+  "recordedAt": "2026-11-03T00:11:34.173089+00:00"
+}
