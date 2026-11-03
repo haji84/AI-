@@ -29,7 +29,7 @@ test('metadata refuses a reparse point in any ancestor',()=>fixture(dir=>{
  assert.equal(ps(`Get-1218FileMetadata ${quote(join(link,'config.dpapi'))} | ConvertTo-Json -Compress`).state,'reparse');
 }));
 test('reviewed artifacts reject drift before plan execution',()=>fixture(dir=>{
- mkdirSync(join(dir,'scripts'));for(const n of ['owner-code-windows.ps1','read-jarvis-production-config.ps1','rotate-jarvis-owner-code-windows.ps1'])copyFileSync(resolve('scripts',n),join(dir,'scripts',n));
+ mkdirSync(join(dir,'scripts'));for(const n of ['owner-code-windows.ps1','read-jarvis-production-config.ps1','rotate-jarvis-owner-code-windows.ps1','install-owner-code-windows.ps1'])copyFileSync(resolve('scripts',n),join(dir,'scripts',n));
  writeFileSync(join(dir,'scripts/rotate-jarvis-owner-code-windows.ps1'),'throw "unreviewed must not execute"');
  assert.equal(ps(`try { Get-1218ReviewedArtifacts ${quote(dir)} | Out-Null; 'false' } catch { 'true' }`),true);
 }));
