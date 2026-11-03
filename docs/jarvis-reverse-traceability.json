@@ -1073,7 +1073,7 @@
     },
     {
       "path": "scripts/jarvis-goal-executor.ts",
-      "sha256": "941f42e314abd29e43c402b2331f9e76595eaaafb3c8e9104133557a472e5998",
+      "sha256": "6906441c42ed407f9071acb3f781a2d89d51e2e8e20f5a5295499d6fcdfd015e",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "AUTO-001",
@@ -6380,7 +6380,7 @@
     },
     {
       "path": "scripts/jarvis-independent-artifact-attestation.mjs",
-      "sha256": "b1df4d1e8bfb30a1ed9753cfa86b208eb6b6b50b3b076c91bfffc658df87ed9f",
+      "sha256": "95b9a30f3bb9fe2aceb78b819b7b228d50209552e1b4db16801b347a64c470a1",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -6392,7 +6392,7 @@
     },
     {
       "path": "scripts/jarvis-independent-check-runner.mjs",
-      "sha256": "522ab29f0336da6a2cc3157ab65641b50cd7a85b7398ddd911fef47d048f8762",
+      "sha256": "16366d2c199efdbbaa7514a656d3aaa2f74271b6b3218e4c9121f00e4e0efa0d",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -6438,7 +6438,7 @@
     },
     {
       "path": "scripts/jarvis-verifier-safe-git.mjs",
-      "sha256": "5fd766222076ce5ae74c925c7dc6fb0563ff18458b936e2b63ab436010661559",
+      "sha256": "fb319bd6cdb15c65a26395415b83f071b0b7f18b5ef1696e6de194d5f7339a24",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "CORE-010",
@@ -6542,7 +6542,7 @@
     },
     {
       "path": "src/orchestrator/resident-receipt-wakes.ts",
-      "sha256": "6024c76704e90c6ac7fd39c0f192639d753aa475c55ea7124b668a282fc96538",
+      "sha256": "f8ffe782254a81ad87b77774ace0084f4664db3b8ef1a3920f1c42bd7c6d65ef",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -6632,6 +6632,30 @@
         "GOV-025"
       ],
       "reason": "#1219 immutable create-only, fsynced external prepared-write journal binds the trusted execution contract and exact Goal/Job/WorkItem/attempt/phase/base/workspace/path/model and public fixture bytes. It supports interrupted local execution recovery under the existing host authority; unverified intent grants no criterion acceptance, signer authority or physical reboot completion."
+    },
+    {
+      "path": "src/orchestrator/tracked-repair-resident-runtime.ts",
+      "sha256": "840623cf4d6523491656c5d19ac4466a1f34defbb71599d4aae0f0c4653efb47",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1219 opt-in host-pinned tracked-source repair, frozen baseline RED, bounded model edits, durable prepared candidate and signed six-check receipt continuation; implementation mapping only, no physical or global product completion claim."
+    },
+    {
+      "path": "scripts/jarvis-tracked-repair-actions.mjs",
+      "sha256": "dfc236325609e183866b69f7c99b1f9d8f985a4c7f96fca2c46c09bbea1e68de",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1219 owner-only Actions A/B recovery of an existing accepted tracked-repair checkpoint through the existing executor, with fixed nonsecret file transport and exact Job/candidate/receipt binding; source mapping only, no independent principal, real model, physical acceptance, next issue or global completion inference."
     }
   ],
   "hash_policy": "utf8-crlf-to-lf-v1;binary-raw"

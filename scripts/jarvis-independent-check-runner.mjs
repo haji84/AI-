@@ -7,10 +7,11 @@ import { Buffer } from "node:buffer";
  * The private key must not be readable by the Broker, Builder or model.
  * Does not listen on a port, install packages, fetch models, commit or publish.
  */
-import { createHash, createPrivateKey, sign } from "node:crypto";
+import { createHash, createPrivateKey, createPublicKey, sign, verify } from "node:crypto";
+import { clearTimeout, setTimeout } from "node:timers";
 import { chmodSync, closeSync, constants, copyFileSync, existsSync, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, readSync, realpathSync, writeFileSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
-import { attestLocalCandidate } from "./jarvis-independent-artifact-attestation.mjs";
+import { attestLocalCandidate, validateTrackedEditsManifest } from "./jarvis-independent-artifact-attestation.mjs";
 import { safeGit } from "./jarvis-verifier-safe-git.mjs";
 import { runVerifierContainer } from "./jarvis-verifier-container.mjs";
 
@@ -116,22 +117,28 @@ function exactGitRoot(input) {
     ||!lstatSync(join(root,".git")).isFile()||git(root,"branch","--show-current")!=="")throw Error("VERIFIER_WORKSPACE_NOT_ISOLATED");
   return root;
 }
-export function validateVerifierRunRequest(req) {
-  if(!req||typeof req!=="object"||Array.isArray(req)||
+export function validateVerifierRunRequest(req, { externalSigner = false } = {}) {
+  let edits;
+  try { edits=validateTrackedEditsManifest(req?.trackedEdits); }
+  catch { throw Error("VERIFIER_REQUEST_NOT_BOUNDED"); }
+  const paths=[...(Array.isArray(req?.allowedUntracked)?req.allowedUntracked:[]),...edits.map(edit=>edit.path)];
+  if(typeof externalSigner!=="boolean"||!req||typeof req!=="object"||Array.isArray(req)||Object.hasOwn(req,"signerTransport")||
     !["goalId","jobId","changeSetId","builderId","verifierId"].every(x=>typeof req[x]==="string"&&req[x].length>0&&req[x].length<=128)||
     req.verifierId===req.builderId||
     !/^[a-f0-9]{40}$/.test(req.baseRevision??"")||
     !/^[a-f0-9]{64}$/.test(req.sourceRevision??"")||
     !/^[a-f0-9]{64}$/.test(req.artifactDigest??"")||
     !validPath(req.targetPath)||
-    !Array.isArray(req.allowedUntracked)||req.allowedUntracked.length<1||req.allowedUntracked.length>32||
+    !Array.isArray(req.allowedUntracked)||paths.length<1||paths.length>32||req.allowedUntracked.length>32||
     req.allowedUntracked.some(p=>!validPath(p))||new Set(req.allowedUntracked).size!==req.allowedUntracked.length||
-    !req.allowedUntracked.includes(req.targetPath)||
+    new Set(paths).size!==paths.length||!paths.includes(req.targetPath)||
     !Array.isArray(req.requiredChecks)||req.requiredChecks.length<1||req.requiredChecks.length>6||
     req.requiredChecks.some(x=>!names.includes(x))||new Set(req.requiredChecks).size!==req.requiredChecks.length||
-    !["candidateWorkspace","verifierWorkspace","privateKeyFile","receiptFile"].every(x=>typeof req[x]==="string"&&isAbsolute(req[x]))) {
+    !["candidateWorkspace","verifierWorkspace","receiptFile",...(externalSigner?[]:["privateKeyFile"])].every(x=>typeof req[x]==="string"&&isAbsolute(req[x]))||
+    (externalSigner&&Object.hasOwn(req,"privateKeyFile"))) {
     throw Error("VERIFIER_REQUEST_NOT_BOUNDED");
   }
+  if((edits.length||externalSigner)&&JSON.stringify(req.requiredChecks)!==JSON.stringify(names))throw Error("VERIFIER_REQUEST_NOT_BOUNDED");
   if(req.expiresAt!==undefined){
     const deadline=typeof req.expiresAt==="string"?Date.parse(req.expiresAt):NaN;
     if(!Number.isFinite(deadline)||new Date(deadline).toISOString()!==req.expiresAt)
@@ -141,8 +148,84 @@ export function validateVerifierRunRequest(req) {
   // This profile cannot attest visual/mobile/device checks; those remain pending.
   return req;
 }
-export async function runIndependentVerifier(req) {
-  validateVerifierRunRequest(req);
+
+/** Trusted host dependency, never deserialized from a request, Goal or env.
+ * A callback is not principal evidence. Its owner must independently establish
+ * key custody, isolation and bounded cleanup of the actual signing process. */
+export function createTrustedVerifierSigner(transport) {
+  if(!transport||typeof transport!=="object"||Array.isArray(transport)
+    ||Object.keys(transport).some(key=>!["publicKeyPem","sign","timeoutMs"].includes(key))
+    ||typeof transport.publicKeyPem!=="string"||!transport.publicKeyPem||Buffer.byteLength(transport.publicKeyPem)>8192
+    ||!/^-----BEGIN PUBLIC KEY-----\r?\n[A-Za-z0-9+/=\r\n]+-----END PUBLIC KEY-----\r?\n?$/.test(transport.publicKeyPem)
+    ||typeof transport.sign!=="function"||(transport.timeoutMs!==undefined
+      &&(!Number.isInteger(transport.timeoutMs)||transport.timeoutMs<1||transport.timeoutMs>15000)))
+    throw Error("VERIFIER_SIGNER_TRANSPORT_INVALID");
+  let key;
+  try {key=createPublicKey(transport.publicKeyPem); if(key.asymmetricKeyType!=="ed25519")throw Error();}
+  catch {throw Error("VERIFIER_SIGNER_TRANSPORT_INVALID");}
+  const signPayload=transport.sign,timeoutMs=transport.timeoutMs??15000;
+  return async bytes=>{
+    if(!Buffer.isBuffer(bytes)||!bytes.length||bytes.length>24576)throw Error("VERIFIER_SIGNER_PAYLOAD_INVALID");
+    const bound=Buffer.from(bytes); let timer,signature;
+    try {
+      signature=await Promise.race([
+        Promise.resolve().then(()=>signPayload(Buffer.from(bound))).catch(()=>{throw Error("VERIFIER_SIGNER_TRANSPORT_FAILED");}),
+        new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error("VERIFIER_SIGNER_TRANSPORT_TIMEOUT")),timeoutMs);}),
+      ]);
+    } finally {clearTimeout(timer);}
+    if(typeof signature!=="string"||signature.length!==88||!/^[A-Za-z0-9+/]{86}==$/.test(signature)
+      ||!verify(null,bound,key,Buffer.from(signature,"base64")))throw Error("VERIFIER_SIGNER_SIGNATURE_INVALID");
+    return signature;
+  };
+}
+
+/** Byte staging only, not an isolation, executable-check, signature or release
+ * verdict. Both worktrees must be host-controlled for the entire operation. */
+export function stageIndependentCandidate(req) {
+  const edits=validateTrackedEditsManifest(req.trackedEdits);
+  if(!edits.length)throw Error("VERIFIER_TRACKED_EDITS_REQUIRED");
+  const candidate=exactGitRoot(req.candidateWorkspace),runner=exactGitRoot(req.verifierWorkspace);
+  if(candidate===runner||candidate.startsWith(runner+sep)||runner.startsWith(candidate+sep))
+    throw Error("VERIFIER_MUST_HAVE_DISTINCT_RUNNER_WORKSPACE");
+  if(git(runner,"rev-parse","HEAD")!==req.baseRevision||git(runner,"status","--porcelain","-uall")!=="")
+    throw Error("VERIFIER_RUNNER_NOT_CLEAN");
+  if(git(runner,"ls-files","-v","-z").split("\0").filter(Boolean).some(entry=>!entry.startsWith("H ")))
+    throw Error("VERIFIER_RUNNER_INDEX_UNSAFE");
+  const scope={baseRevision:req.baseRevision,targetPath:req.targetPath,allowedUntracked:req.allowedUntracked,trackedEdits:req.trackedEdits};
+  const before=attestLocalCandidate({workspace:candidate,...scope});
+  if(before.artifactDigest!==req.artifactDigest||before.candidateRevision!==req.sourceRevision)
+    throw Error("VERIFIER_CANDIDATE_BINDING_MISMATCH");
+  const paths=[...req.allowedUntracked,...edits.map(edit=>edit.path)];
+  // Preflight every destination before any overwrite. Hard links and aliases
+  // must not turn a fresh verifier worktree write into an external mutation.
+  for(const path of paths) {
+    let parent=runner;
+    for(const part of path.split("/").slice(0,-1)) {
+      parent=join(parent,part);
+      const info=lstatSync(parent);
+      if(!info.isDirectory()||info.isSymbolicLink())throw Error("VERIFIER_TARGET_UNSAFE");
+    }
+    const target=join(runner,path),edit=edits.find(edit=>edit.path===path);
+    if(edit) {
+      const info=lstatSync(target);
+      if(!info.isFile()||info.isSymbolicLink()||info.nlink!==1||info.size>(path==="docs/jarvis-reverse-traceability.json"?1048576:131072)
+        ||hash(readFileSync(target))!==edit.beforeSha256)throw Error("VERIFIER_TARGET_BASELINE_MISMATCH");
+    } else if(existsSync(target))throw Error("VERIFIER_TARGET_NOT_NEW");
+  }
+  for(const path of paths)copyFileSync(join(candidate,path),join(runner,path),
+    edits.some(edit=>edit.path===path)?0:constants.COPYFILE_EXCL);
+  const staged=attestLocalCandidate({workspace:runner,...scope});
+  if(staged.artifactDigest!==before.artifactDigest||staged.candidateRevision!==before.candidateRevision)
+    throw Error("VERIFIER_STAGING_MISMATCH");
+  return staged;
+}
+
+export async function runIndependentVerifier(req, options = {}) {
+  if(!options||typeof options!=="object"||Array.isArray(options)||Object.keys(options).some(key=>key!=="signerTransport"))
+    throw Error("VERIFIER_SIGNER_TRANSPORT_INVALID");
+  const transport=Object.hasOwn(options,"signerTransport")?createTrustedVerifierSigner(options.signerTransport):null;
+  const mode={externalSigner:transport!==null};
+  validateVerifierRunRequest(req,mode);
   if(process.env.GORIQ_VERIFIER_OPERATOR_ISOLATED!=="1")throw Error("VERIFIER_SEPARATE_PRINCIPAL_NOT_ACKNOWLEDGED");
   if(!/^[a-z0-9][a-z0-9._/:@-]*@sha256:[0-9a-f]{64}$/.test(process.env.GORIQ_VERIFIER_CONTAINER_IMAGE??""))
     throw Error("VERIFIER_TRUSTED_CONTAINER_IMAGE_REQUIRED");
@@ -151,26 +234,26 @@ export async function runIndependentVerifier(req) {
   if(git(runner,"rev-parse","HEAD")!==req.baseRevision||git(runner,"status","--porcelain","-uall")!=="")
     throw Error("VERIFIER_RUNNER_NOT_CLEAN");
   const before=attestLocalCandidate({workspace:candidate,baseRevision:req.baseRevision,
-    targetPath:req.targetPath,allowedUntracked:req.allowedUntracked});
+    targetPath:req.targetPath,allowedUntracked:req.allowedUntracked,trackedEdits:req.trackedEdits});
   if(before.artifactDigest!==req.artifactDigest||before.candidateRevision!==req.sourceRevision)
     throw Error("VERIFIER_CANDIDATE_BINDING_MISMATCH");
-  const keyFile=externalPath(candidate,runner,req.privateKeyFile);
+  const keyFile=transport?null:externalPath(candidate,runner,req.privateKeyFile);
   const receiptFile=externalPath(candidate,runner,req.receiptFile);
   if(existsSync(receiptFile))throw Error("VERIFIER_RECEIPT_MUST_BE_NEW");
-  if(!existsSync(keyFile)||lstatSync(keyFile).isSymbolicLink()||!lstatSync(keyFile).isFile())
+  if(!transport&&(!existsSync(keyFile)||lstatSync(keyFile).isSymbolicLink()||!lstatSync(keyFile).isFile()))
     throw Error("VERIFIER_PRIVATE_KEY_UNAVAILABLE");
-  validateVerifierRunRequest(req);
-  const key=readPrivateKey(keyFile);
-  if(key.asymmetricKeyType!=="ed25519")throw Error("VERIFIER_SIGNER_NOT_ED25519");
-  validateVerifierRunRequest(req);
-  for(const path of req.allowedUntracked) {
+  validateVerifierRunRequest(req,mode);
+  const key=transport?null:readPrivateKey(keyFile);
+  if(!transport&&key.asymmetricKeyType!=="ed25519")throw Error("VERIFIER_SIGNER_NOT_ED25519");
+  validateVerifierRunRequest(req,mode);
+  if(req.trackedEdits===undefined)for(const path of req.allowedUntracked) {
     const target=resolve(runner,path),parent=dirname(target);
     if(!realpathSync(parent).startsWith(runner+sep)||existsSync(target))
       throw Error("VERIFIER_TARGET_NOT_NEW");
     copyFileSync(resolve(candidate,path),target,constants.COPYFILE_EXCL);
   }
-  const staged=attestLocalCandidate({workspace:runner,baseRevision:req.baseRevision,
-    targetPath:req.targetPath,allowedUntracked:req.allowedUntracked});
+  const staged=req.trackedEdits===undefined?attestLocalCandidate({workspace:runner,baseRevision:req.baseRevision,
+    targetPath:req.targetPath,allowedUntracked:req.allowedUntracked}):stageIndependentCandidate(req);
   if(staged.artifactDigest!==before.artifactDigest||staged.candidateRevision!==before.candidateRevision)
     throw Error("VERIFIER_STAGING_MISMATCH");
   const logDirectory=externalPath(candidate,runner,receiptFile+".logs");
@@ -181,7 +264,7 @@ export async function runIndependentVerifier(req) {
   exportSnapshot(runner,snapshot,staged.fileHashes);
   const issuedAt=new Date().toISOString(),checks=[];
   for(const name of req.requiredChecks) {
-    validateVerifierRunRequest(req);
+    validateVerifierRunRequest(req,mode);
     const [command,args]=verifierCommand(name);
     // Untrusted generated code must NEVER execute with this signer's host
     // identity or have access to the Ed25519 private key. A preinstalled,
@@ -223,21 +306,23 @@ export async function runIndependentVerifier(req) {
     if(status!=="passed")break;
   }
   const after=attestLocalCandidate({workspace:candidate,baseRevision:req.baseRevision,
-    targetPath:req.targetPath,allowedUntracked:req.allowedUntracked});
+    targetPath:req.targetPath,allowedUntracked:req.allowedUntracked,trackedEdits:req.trackedEdits});
   if(after.artifactDigest!==before.artifactDigest||after.candidateRevision!==before.candidateRevision)
     throw Error("VERIFIER_CANDIDATE_CHANGED_DURING_EXECUTION");
   const runnerAfter=attestLocalCandidate({workspace:runner,baseRevision:req.baseRevision,
-    targetPath:req.targetPath,allowedUntracked:req.allowedUntracked});
+    targetPath:req.targetPath,allowedUntracked:req.allowedUntracked,trackedEdits:req.trackedEdits});
   if(runnerAfter.candidateRevision!==before.candidateRevision)
     throw Error("VERIFIER_RUNNER_CHANGED_DURING_EXECUTION");
-  validateVerifierRunRequest(req);
+  validateVerifierRunRequest(req,mode);
   const expiry=new Date(Math.min(Date.now()+20*60_000,
     req.expiresAt===undefined?Infinity:Date.parse(req.expiresAt))).toISOString();
   const payload={version:1,verifierId:req.verifierId,goalId:req.goalId,
     jobId:req.jobId,changeSetId:req.changeSetId,builderId:req.builderId,
     baseRevision:req.baseRevision,sourceRevision:req.sourceRevision,
     artifactDigest:req.artifactDigest,issuedAt,expiresAt:expiry,checks};
-  const signatureBase64=sign(null,Buffer.from(canonical(payload)),key).toString("base64");
+  const bytes=Buffer.from(canonical(payload));
+  const signatureBase64=transport?await transport(bytes):sign(null,bytes,key).toString("base64");
+  validateVerifierRunRequest(req,mode); // an asynchronous signer cannot extend expired scope
   const receipt={payload,signatureBase64};
   externalPath(candidate,runner,receiptFile);
   mkdirSync(dirname(receiptFile),{recursive:true});

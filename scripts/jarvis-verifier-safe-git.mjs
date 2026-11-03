@@ -13,6 +13,7 @@ const allowedQueries = new Set([
   JSON.stringify(["branch", "--show-current"]),
   JSON.stringify(["status", "--porcelain", "-uall"]),
   JSON.stringify(["ls-files", "-z", "--cached"]),
+  JSON.stringify(["ls-files", "-v", "-z"]),
 ]);
 const nullFile = process.platform === "win32" ? "NUL" : "/dev/null";
 const configOverrides = [
@@ -22,6 +23,7 @@ const configOverrides = [
   "-c", "core.untrackedCache=false",
   "-c", `core.attributesFile=${nullFile}`,
   "-c", "submodule.recurse=false",
+  ...(process.platform === "win32" ? [] : ["-c", "core.filemode=true"]),
 ];
 
 function environment() {
@@ -54,15 +56,20 @@ function gitExecutable(cwd, env) {
 }
 
 export function safeGit(cwd, args) {
+  const blobQuery = Array.isArray(args) && args.length === 3 && args[0] === "cat-file" && args[1] === "blob"
+    && /^[a-f0-9]{40,64}$/.test(args[2]);
+  const treeQuery = Array.isArray(args) && args.length === 5 && args.slice(0,4).join("\0") === "ls-tree\0-z\0HEAD\0--"
+    && /^(src|scripts|tests|docs)\/[A-Za-z0-9_./-]+$/.test(args[4])
+    && !args[4].split("/").some(part => !part || part === "." || part === "..");
   if (typeof cwd !== "string" || !isAbsolute(cwd) || !Array.isArray(args) ||
-      args.some(arg => typeof arg !== "string") || !allowedQueries.has(JSON.stringify(args))) {
+      args.some(arg => typeof arg !== "string") || !(allowedQueries.has(JSON.stringify(args)) || blobQuery || treeQuery)) {
     throw Error("VERIFIER_GIT_QUERY_NOT_ALLOWED");
   }
   const root = realpathSync(cwd), env = environment(), executable = gitExecutable(root, env);
-  const invoke = commandArgs => {
+  const invoke = (commandArgs, encoding = "utf8") => {
     try {
       return execFileSync(executable, commandArgs, { cwd: root, env,
-        encoding: "utf8", windowsHide: true, timeout: 8000, killSignal: "SIGKILL",
+        encoding, windowsHide: true, timeout: 8000, killSignal: "SIGKILL",
         maxBuffer: 1024 * 1024, stdio: ["ignore", "pipe", "pipe"] });
     } catch {
       // Git diagnostics/config values can contain private local data.
@@ -91,7 +98,9 @@ export function safeGit(cwd, args) {
     }
   }
   const query = args[0] === "status" ? [...args, "--ignore-submodules=all"] : args;
-  const output = invoke([...configOverrides, ...query]);
+  const output = invoke([...configOverrides, ...query], blobQuery ? null : "utf8");
+  if (blobQuery) return output; // exact raw blob bytes, including final newlines
+  if (args[0] === "status") return output.trimEnd(); // preserve index/worktree columns
   // NUL-delimited inventories contain literal paths, including whitespace.
-  return args[0] === "ls-files" ? output : output.trim();
+  return args[0] === "ls-files" || treeQuery ? output : output.trim();
 }
