@@ -8,17 +8,28 @@ function Get-1218FileMetadata {
  param([string]$Path, [long]$Limit = 4194304)
  $result = [ordered]@{state='rejected-path';present=$false;sha256=$null;sizeBytes=$null}
  try {
-  if (-not [IO.Path]::IsPathRooted($Path) -or $Path.StartsWith('\\') -or $Path.StartsWith('//') -or
-      $Path -match '^[A-Za-z]:[^\\/]' -or $Path -match ':' -and $Path -notmatch '^[A-Za-z]:[\\/][^:]*$') { return [pscustomobject]$result }
-  $full = [IO.Path]::GetFullPath($Path)
-  if (-not (Test-Path -LiteralPath $full)) { $result.state='missing'; return [pscustomobject]$result }
-  $item = Get-Item -LiteralPath $full -Force
-  $result.present=$true
-  $ancestor=$item
-  while ($null -ne $ancestor) {
-   if (($ancestor.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { $result.state='reparse'; return [pscustomobject]$result }
-   if ($ancestor -is [IO.DirectoryInfo]) { $ancestor=$ancestor.Parent } else { $ancestor=$ancestor.Directory }
+  $windows=[IO.Path]::DirectorySeparatorChar -eq [char]92
+  if (-not [IO.Path]::IsPathRooted($Path) -or $Path -match '^[\\/]{2}' -or
+      ($windows -and $Path -notmatch '^[A-Za-z]:[\\/]') -or
+      ($Path -match ':' -and $Path -notmatch '^[A-Za-z]:[\\/][^:]*$')) { return [pscustomobject]$result }
+  $full=[IO.Path]::GetFullPath($Path)
+  $root=[IO.Path]::GetPathRoot($full)
+  if ($windows -and ($full -notmatch '^[A-Za-z]:\\' -or
+      ([IO.DriveInfo]::new($root)).DriveType -ne [IO.DriveType]::Fixed)) { return [pscustomobject]$result }
+  # Inspect every ancestor before descending; Test-Path on the full child could follow a network junction.
+  $current=$root
+  $parts=@($full.Substring($root.Length).Split([IO.Path]::DirectorySeparatorChar) | Where-Object { $_.Length -gt 0 })
+  $item=Get-Item -LiteralPath $root -Force
+  foreach ($part in $parts) {
+   if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { $result.state='reparse'; return [pscustomobject]$result }
+   $current=Join-Path $current $part
+   try { $item=Get-Item -LiteralPath $current -Force } catch {
+    $result.state=if ($_.CategoryInfo.Category -eq [Management.Automation.ErrorCategory]::ObjectNotFound) { 'missing' } else { 'unreadable' }
+    return [pscustomobject]$result
+   }
   }
+  $result.present=$true
+  if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { $result.state='reparse'; return [pscustomobject]$result }
   if ($item -isnot [IO.FileInfo]) { $result.state='not-regular'; return [pscustomobject]$result }
   if ($item.Length -gt $Limit) { $result.state='oversize'; return [pscustomobject]$result }
   $result.state='regular'; $result.sizeBytes=$item.Length
@@ -78,7 +89,7 @@ function Invoke-1218NativePreflight {
   $config=$env:JARVIS_PRODUCTION_CONFIG; $origin='environment-override'
   if (-not $config) {
    $config=Join-Path $env:USERPROFILE 'JARVIS\production\config.dpapi'; $origin='owner-profile'
-   if (-not (Test-Path -LiteralPath $config -PathType Leaf)) { $config=Join-Path $env:LOCALAPPDATA 'JARVIS\production\config.dpapi'; $origin='legacy-localappdata' }
+   if ((Get-1218FileMetadata $config).state -eq 'missing') { $config=Join-Path $env:LOCALAPPDATA 'JARVIS\production\config.dpapi'; $origin='legacy-localappdata' }
   }
   $meta=Get-1218FileMetadata $config
   $configOwner=$null

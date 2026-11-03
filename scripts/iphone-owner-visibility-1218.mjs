@@ -3,7 +3,7 @@ import {promisify} from 'node:util';
 import {pathToFileURL} from 'node:url';
 export function summarizeIPhones(records) {
  if (!Array.isArray(records)) return {readable:false,physicalIPhoneCount:null,availablePhysicalIPhoneCount:null};
- const phones=records.filter(d=>d?.simulator===false&&(String(d.platform??'').toLowerCase()==='com.apple.platform.iphoneos'||String(d.platform??'').toLowerCase()==='iphoneos'||/^iphone(?:\s|\d|$)/i.test(String(d.modelName??''))));
+ const phones=records.filter(d=>d?.simulator===false&&/^iphone(?:\s|\d|$)/i.test(String(d.modelName??'')));
  return {readable:true,physicalIPhoneCount:phones.length,availablePhysicalIPhoneCount:phones.filter(d=>d.available===true).length};
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){

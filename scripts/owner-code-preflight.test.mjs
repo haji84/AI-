@@ -44,3 +44,11 @@ test('native Windows entry probes a temporary encrypted-blob metadata fixture wi
 test('native acceptance workflow no longer opens historical Goal state or runs its workspace',()=>{
  const text=readFileSync('.github/workflows/gai-zbook-diagnostic-1218.yml','utf8');assert.doesNotMatch(text,/zbook-goal-diagnostics|zbook-isolated-test-diagnostic/);assert.match(text,/owner-code-preflight-1218\.ps1/);assert.match(text,/goriq-pc-approved-source\.mjs/);assert.match(text,/iphone-owner-visibility-1218\.mjs/);assert.doesNotMatch(text,/secrets\.|permissions:\s*write|ExecutionPolicy Bypass|approve_ephemeral_pairing/);
 });
+
+for(const mixed of [String.raw`/\untrusted.invalid\share\config.dpapi`,String.raw`\/untrusted.invalid\share\config.dpapi`])test('mixed UNC separators are rejected before any filesystem lookup: '+mixed,()=>{
+ const r=ps(`$script:lookup=$false; function Test-Path { $script:lookup=$true; throw 'NO_REMOTE_LOOKUP' }; $m=Get-1218FileMetadata ${quote(mixed)}; @{state=$m.state;lookup=$script:lookup} | ConvertTo-Json -Compress`);assert.equal(r.state,'rejected-path');assert.equal(r.lookup,false);
+});
+test('reparse ancestors are rejected before looking up their child',()=>fixture(dir=>{
+ const target=join(dir,'real'),link=join(dir,'link'),child=join(link,'config.dpapi');mkdirSync(target);writeFileSync(join(target,'config.dpapi'),'unchanged');symlinkSync(target,link,process.platform==='win32'?'junction':'dir');
+ const r=ps(`$script:childLookup=$false; function Get-Item { param([string]$LiteralPath,[switch]$Force) if ($LiteralPath -ceq ${quote(child)}) { $script:childLookup=$true }; Microsoft.PowerShell.Management\\Get-Item -LiteralPath $LiteralPath -Force }; $m=Get-1218FileMetadata ${quote(child)}; @{state=$m.state;childLookup=$script:childLookup} | ConvertTo-Json -Compress`);assert.equal(r.state,'reparse');assert.equal(r.childLookup,false);
+}));
