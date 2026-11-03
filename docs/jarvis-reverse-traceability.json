@@ -6380,7 +6380,7 @@
     },
     {
       "path": "scripts/jarvis-independent-artifact-attestation.mjs",
-      "sha256": "ea5a574ea4ea1390dfcfbbdf14b290990a05beabc4ac09369712a7208f8cad07",
+      "sha256": "95b9a30f3bb9fe2aceb78b819b7b228d50209552e1b4db16801b347a64c470a1",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -6392,7 +6392,7 @@
     },
     {
       "path": "scripts/jarvis-independent-check-runner.mjs",
-      "sha256": "91f9de1b820464dd35cad03920f010148f1795e34f3ff547a6e2ba91bb9e3b05",
+      "sha256": "16366d2c199efdbbaa7514a656d3aaa2f74271b6b3218e4c9121f00e4e0efa0d",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -6635,7 +6635,7 @@
     },
     {
       "path": "src/orchestrator/tracked-repair-resident-runtime.ts",
-      "sha256": "dc55a7f32f13bffc45c3fe2a3bdea33d24c39abb899f55d0a60acf0188a16c80",
+      "sha256": "315d97d430924c87161dd564592bad915b27893aa37a14d05d6a67aa65eadeb8",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -6644,6 +6644,18 @@
         "GOV-025"
       ],
       "reason": "#1219 opt-in host-pinned tracked-source repair, frozen baseline RED, bounded model edits, durable prepared candidate and signed six-check receipt continuation; implementation mapping only, no physical or global product completion claim."
+    },
+    {
+      "path": "scripts/jarvis-tracked-repair-actions.mjs",
+      "sha256": "7dba0d605e7a049d698679b260cb72b1757cadce2058e6856b60c7d42904d7b5",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1219 owner-only Actions A/B recovery of an existing accepted tracked-repair checkpoint through the existing executor, with fixed nonsecret file transport and exact Job/candidate/receipt binding; source mapping only, no independent principal, real model, physical acceptance, next issue or global completion inference."
     }
   ],
   "hash_policy": "utf8-crlf-to-lf-v1;binary-raw"

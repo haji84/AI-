@@ -28,12 +28,14 @@ const hash=(s:string|Buffer)=>createHash("sha256").update(s).digest("hex");
 const fixtureKey=createPrivateKey({key:Buffer.from("302e020100300506032b657004220420"+"9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60","hex"),format:"der",type:"pkcs8"});
 const publicKey=createPublicKey(fixtureKey).export({format:"pem",type:"spki"}).toString();
 const admit=async<T>(work:()=>Promise<T>)=>work();
-function fixture(t:TestContext){
+function fixture(t:TestContext,bookkeeping=false,rows="valid"){
   const root=mkdtempSync(join(tmpdir(),"tracked-runtime-"));t.after(()=>rmSync(root,{recursive:true,force:true}));
   const repo=join(root,"repo"),workspace=join(root,"candidate"),baselineWorkspace=join(root,"baseline"),runtimeRoot=join(root,"runtime");
   mkdirSync(repo);mkdirSync(runtimeRoot);mkdirSync(join(repo,"scripts"));mkdirSync(join(repo,"tests"));
   writeFileSync(join(repo,"tests/.keep"),"keep\n");const before="export const answer = 0;\n";
   writeFileSync(join(repo,"scripts/logic.mjs"),before);
+  const mapPath="docs/jarvis-reverse-traceability.json",map=JSON.stringify({schema_version:1,scope:"unchanged",padding:"x".repeat(276713),surfaces:[{path:"scripts/logic.mjs",sha256:hash(before),classification:"INTERNAL_IMPLEMENTATION_DETAIL",requirement_ids:["CORE-014"],reason:"unchanged"}]},null,2)+"\n";
+  if(bookkeeping){mkdirSync(join(repo,"docs"));const doc=JSON.parse(map);if(rows==="missing")doc.surfaces=[];if(rows==="duplicate")doc.surfaces.push(structuredClone(doc.surfaces[0]));writeFileSync(join(repo,mapPath),JSON.stringify(doc,null,2)+"\n");}
   const git=(...args:string[])=>execFileSync("git",args,{cwd:repo,encoding:"utf8",stdio:["ignore","pipe","pipe"]}).trim();
   git("init");git("config","user.name","Runtime test");git("config","user.email","runtime@example.invalid");git("config","core.autocrlf","false");git("add",".");git("commit","-m","base");
   const base=git("rev-parse","HEAD");git("worktree","add","--detach",workspace,base);git("worktree","add","--detach",baselineWorkspace,base);
@@ -45,6 +47,7 @@ function fixture(t:TestContext){
     workspace,baselineWorkspace,targetPath:"scripts/logic.mjs",trackedFiles:[{path:"scripts/logic.mjs",beforeSha256:hash(before)}],slots:[{id:1,path:"scripts/logic.mjs",before:"0"}],
     probe:{file:probeFile,sha256:hash(probe),targetPath:"tests/frozen.test.mjs",expectedRedText:"0 !== 42"},model:{endpoint:"http://127.0.0.1:11435/completion",id:"fixture-model",sha256:"a".repeat(64),nPredict:512,timeoutMs:5000},
     verifier:{publicKeyFile,publicKeySha256:hash(publicKey),receiptFile:join(root,"receipt.json")}};
+  if(bookkeeping){Object.assign(manifest,{bookkeeping:{path:mapPath,beforeSha256:hash(readFileSync(join(repo,mapPath)))}});manifest.sequence.jobs[0]!.targetFiles.push(mapPath);}
   const manifestFile=join(root,"manifest.json");let bytes=JSON.stringify(manifest);writeFileSync(manifestFile,bytes);
   const env={GORIQ_TRACKED_REPAIR_MANIFEST_FILE:manifestFile,GORIQ_TRACKED_REPAIR_MANIFEST_SHA256:hash(bytes)};
   const compassPath=join(root,"state/compass.sqlite"),stateRoot=join(root,"state/self-development");
@@ -213,3 +216,35 @@ test("authenticated Broker selects tracked profile and restarts the same waiting
   await wait("same waiting Job",async()=>{const response=await fetch(url+"/work/"+accepted.goalId,{headers});const state=await response.json() as {run?:{nextAction?:string}};return state.run?.nextAction==="verification_wait";});
   assert.equal(calls,1);assert.equal((await f.jobs().getByGoal(accepted.goalId))[0]!.jobId,before.jobId);
 });
+
+
+test("host bookkeeping binds a large pinned map and preserves every field except changed source SHA",async t=>{
+  const f=fixture(t,true),before=JSON.parse(readFileSync(join(f.baselineWorkspace,"docs/jarvis-reverse-traceability.json"),"utf8"));
+  await f.create().run({goalId:f.goalId,goal:f.goal,context:[]});
+  const after=JSON.parse(readFileSync(join(f.workspace,"docs/jarvis-reverse-traceability.json"),"utf8"));
+  const expected=structuredClone(before);expected.surfaces[0].sha256=hash("export const answer = 42;\n");assert.deepEqual(after,expected);
+  assert.equal(readFileSync(join(f.workspace,"docs/jarvis-reverse-traceability.json"),"utf8"),readFileSync(join(f.baselineWorkspace,"docs/jarvis-reverse-traceability.json"),"utf8").replace(before.surfaces[0].sha256,expected.surfaces[0].sha256));
+  const request=JSON.parse(readFileSync(f.manifest.verifier.receiptFile+".request.json","utf8"));
+  const doc=request.request.trackedEdits.files.find((v:{path:string})=>v.path==="docs/jarvis-reverse-traceability.json");
+  assert.equal(doc.beforeSha256,hash(readFileSync(join(f.baselineWorkspace,doc.path))));assert.equal(doc.afterSha256,hash(readFileSync(join(f.workspace,doc.path))));
+  await f.create({fetchImpl:async()=>{assert.fail("bookkeeping recovery must not infer");}}).run({goalId:f.goalId,goal:f.goal,context:[]});assert.equal(f.counts().calls,1);
+});
+
+test("bookkeeping prepared recovery rejects metadata tampering without invoking a model",async t=>{
+  const f=fixture(t,true);await f.create().run({goalId:f.goalId,goal:f.goal,context:[]});
+  const job=(await f.jobs().getByGoal(f.goalId))[0]!,file=join(f.stateRoot,"tracked-repair",hash(job.jobId)+".prepared.json");
+  const prepared=JSON.parse(readFileSync(file,"utf8")),doc=prepared.files.find((v:{path:string})=>v.path==="docs/jarvis-reverse-traceability.json");
+  doc.content=doc.content.replace('"scope": "unchanged"','"scope": "forged"');writeFileSync(file,JSON.stringify(prepared));
+  await assert.rejects(()=>f.create({fetchImpl:async()=>{assert.fail("no retry");}}).run({goalId:f.goalId,goal:f.goal,context:[]}),/BOOKKEEPING/);assert.equal(f.counts().calls,1);
+});
+
+test("bookkeeping cannot be used as a model slot or select an arbitrary docs path",t=>{
+  const f=fixture(t,true);f.manifest.slots.push({id:2,path:"docs/jarvis-reverse-traceability.json",before:"unchanged"});f.repin();
+  assert.throws(()=>f.create(),/SCOPE_INVALID/);f.manifest.slots.pop();Object.assign(f.manifest,{bookkeeping:{path:"docs/other.json",beforeSha256:"a".repeat(64)}});f.repin();
+  assert.throws(()=>f.create(),/BOOKKEEPING/);
+});
+
+for(const rows of ["missing","duplicate"]){test(`bookkeeping refuses ${rows} source rows without materializing candidate`,async t=>{
+  const f=fixture(t,true,rows);await assert.rejects(()=>f.create().run({goalId:f.goalId,goal:f.goal,context:[]}),/BOOKKEEPING_ROW_PIN_INVALID/);
+  assert.equal(readFileSync(join(f.workspace,"scripts/logic.mjs"),"utf8"),"export const answer = 0;\n");assert.equal(f.counts().calls,1);
+});}

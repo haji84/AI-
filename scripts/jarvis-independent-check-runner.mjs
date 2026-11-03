@@ -208,7 +208,7 @@ export function stageIndependentCandidate(req) {
     const target=join(runner,path),edit=edits.find(edit=>edit.path===path);
     if(edit) {
       const info=lstatSync(target);
-      if(!info.isFile()||info.isSymbolicLink()||info.nlink!==1||info.size>131072
+      if(!info.isFile()||info.isSymbolicLink()||info.nlink!==1||info.size>(path==="docs/jarvis-reverse-traceability.json"?1048576:131072)
         ||hash(readFileSync(target))!==edit.beforeSha256)throw Error("VERIFIER_TARGET_BASELINE_MISMATCH");
     } else if(existsSync(target))throw Error("VERIFIER_TARGET_NOT_NEW");
   }

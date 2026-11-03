@@ -151,3 +151,19 @@ test("v2 refuses undeclared chmod even when repository filemode detection is dis
   git(f.candidate,"config","core.filemode","false"); chmodSync(join(f.candidate,"src/b.ts"),0o755);
   assert.throws(()=>attestLocalCandidate(f.scope),/STATUS_MISMATCH/);
 });
+
+
+test("only the exact tracked reverse map gets a bounded one MiB allowance",t=>{
+  const f=fixture(t),name="docs/jarvis-reverse-traceability.json";mkdirSync(join(f.repo,"docs"));
+  const before=JSON.stringify({padding:"x".repeat(276713)}),after=JSON.stringify({padding:"y".repeat(276713)});
+  writeFileSync(join(f.repo,name),before);git(f.repo,"add",name);git(f.repo,"commit","-m","large known map");
+  git(f.candidate,"reset","--hard",git(f.repo,"rev-parse","HEAD"));
+  writeFileSync(join(f.candidate,name),after);writeFileSync(join(f.candidate,"src/a.ts"),"export const answer = 42;\n");
+  const scope={...f.scope,baseRevision:git(f.repo,"rev-parse","HEAD"),trackedEdits:{version:2,files:[f.changes[0],{path:name,beforeSha256:hash(before),afterSha256:hash(after)}]}};
+  const identity=attestLocalCandidate(scope);assert.equal(identity.fileHashes[name],hash(after));
+  git(f.verifier,"reset","--hard",scope.baseRevision);
+  const staged=runner.stageIndependentCandidate({...scope,candidateWorkspace:f.candidate,verifierWorkspace:f.verifier,sourceRevision:identity.candidateRevision,artifactDigest:identity.artifactDigest});
+  assert.equal(staged.fileHashes[name],hash(after));
+  writeFileSync(join(f.candidate,name),"z".repeat(1048577));assert.throws(()=>attestLocalCandidate(scope),/FILE_UNSAFE/);
+  writeFileSync(join(f.candidate,name),after);writeFileSync(join(f.candidate,"src/a.ts"),"z".repeat(131073));assert.throws(()=>attestLocalCandidate(scope),/FILE_UNSAFE/);
+});

@@ -22,9 +22,11 @@ const builderId="local-tracked-model-builder";
 const checks=["lint","typecheck","unit","integration","security","build"];
 interface FilePin {path:string;beforeSha256:string}
 interface Slot {id:number;path:string;before:string}
+const bookkeepingPath="docs/jarvis-reverse-traceability.json";
+const fileLimit=(name:string)=>name===bookkeepingPath?1048576:131072;
 export interface TrackedRepairManifest {
   version:1;profile:"tracked-source-repair-v1";sequence:ResidentDevelopmentSequence;
-  workspace:string;baselineWorkspace:string;targetPath:string;trackedFiles:FilePin[];slots:Slot[];
+  workspace:string;baselineWorkspace:string;targetPath:string;trackedFiles:FilePin[];slots:Slot[];bookkeeping?:FilePin;
   probe:{file:string;sha256:string;targetPath:string;expectedRedText:string};
   model:{endpoint:string;id:string;sha256:string;nPredict:number;timeoutMs:number};
   verifier:{publicKeyFile:string;publicKeySha256:string;receiptFile:string};
@@ -55,7 +57,8 @@ export function readTrackedRepairManifest(env:Record<string,string|undefined>,go
   const bytes=readBoundedRuntimeFile(file,131072);
   if(hash(bytes)!==pin)throw Error("TRACKED_REPAIR_MANIFEST_PIN_MISMATCH");
   const value:unknown=JSON.parse(bytes.toString("utf8"));
-  if(!exact(value,"baselineWorkspace,model,probe,profile,sequence,slots,targetPath,trackedFiles,verifier,version,workspace")
+  if(!(exact(value,"baselineWorkspace,model,probe,profile,sequence,slots,targetPath,trackedFiles,verifier,version,workspace")
+    ||exact(value,"baselineWorkspace,bookkeeping,model,probe,profile,sequence,slots,targetPath,trackedFiles,verifier,version,workspace"))
     ||value.version!==1||value.profile!=="tracked-source-repair-v1")throw Error("TRACKED_REPAIR_MANIFEST_INVALID");
   const m=value as unknown as TrackedRepairManifest;
   if(!m.sequence||m.sequence.jobs?.length!==1||m.sequence.completionMode!=="verified-local-artifact"||m.sequence.maxRisk!=="low"
@@ -78,7 +81,8 @@ export function readTrackedRepairManifest(env:Record<string,string|undefined>,go
     throw Error("TRACKED_REPAIR_MODEL_ENDPOINT_INVALID");
   if(!exact(m.verifier,"publicKeyFile,publicKeySha256,receiptFile")||!isAbsolute(m.verifier.publicKeyFile??"")||!isAbsolute(m.verifier.receiptFile??"")||!digest(m.verifier.publicKeySha256))
     throw Error("TRACKED_REPAIR_VERIFIER_INVALID");
-  const targets=[...m.trackedFiles.map(f=>f.path),m.probe.targetPath].sort();
+  if(m.bookkeeping!==undefined&&(!exact(m.bookkeeping,"beforeSha256,path")||m.bookkeeping.path!==bookkeepingPath||!digest(m.bookkeeping.beforeSha256)))throw Error("TRACKED_REPAIR_BOOKKEEPING_INVALID");
+  const targets=[...m.trackedFiles.map(f=>f.path),...(m.bookkeeping?[m.bookkeeping.path]:[]),m.probe.targetPath].sort();
   if(JSON.stringify([...m.sequence.jobs[0]!.targetFiles].sort())!==JSON.stringify(targets)||!/^[a-f0-9]{40}$/.test(m.sequence.jobs[0]!.baseRevision))
     throw Error("TRACKED_REPAIR_TARGET_MISMATCH");
   for(const root of [m.workspace,m.baselineWorkspace])assertExternalRuntimePath(root,[]);
@@ -104,6 +108,25 @@ export function createTrackedRepairResidentRuntime(input:{env:Record<string,stri
   assertExternalRuntimePath(privateRoot,[m.workspace,m.baselineWorkspace]); mkdirSync(privateRoot,{recursive:true,mode:0o700});
   const key=readBoundedRuntimeFile(m.verifier.publicKeyFile,8192).toString("utf8");
   const probe=readBoundedRuntimeFile(m.probe.file,131072);
+  const filePins=[...m.trackedFiles,...(m.bookkeeping?[m.bookkeeping]:[])];
+  // Only host bookkeeping owns this map. It never enters the model prompt/slots.
+  const updateBookkeeping=(sourceFiles:Array<{path:string;content:string}>):string|undefined=>{
+    if(!m.bookkeeping)return undefined;
+    const original=readBoundedRuntimeFile(join(m.baselineWorkspace,bookkeepingPath),1048576);
+    if(hash(original)!==m.bookkeeping.beforeSha256)throw Error("TRACKED_REPAIR_BOOKKEEPING_BEFORE_PIN_MISMATCH");
+    const document=JSON.parse(original.toString("utf8"));
+    if(!document||!Array.isArray(document.surfaces))throw Error("TRACKED_REPAIR_BOOKKEEPING_ROWS_INVALID");
+    if(JSON.stringify(document,null,2)+"\n"!==original.toString("utf8"))throw Error("TRACKED_REPAIR_BOOKKEEPING_FORMAT_INVALID");
+    for(const source of sourceFiles){
+      const sourcePin=m.trackedFiles.find(f=>f.path===source.path);if(!sourcePin)throw Error("TRACKED_REPAIR_BOOKKEEPING_SOURCE_INVALID");
+      const rows=document.surfaces.filter((row:{path?:unknown})=>row?.path===source.path);
+      if(rows.length!==1||rows[0].sha256!==sourcePin.beforeSha256)throw Error("TRACKED_REPAIR_BOOKKEEPING_ROW_PIN_INVALID");
+      rows[0].sha256=hash(source.content);
+    }
+    const content=JSON.stringify(document,null,2)+"\n";
+    if(Buffer.byteLength(content)>1048576)throw Error("TRACKED_REPAIR_BOOKKEEPING_TOO_LARGE");
+    return content;
+  };
   const readback=fileURLToPath(new URL("../../scripts/jarvis-local-artifact-readback.mjs",import.meta.url));
   const attest=(workspace:string,trackedEdits?:unknown):Attestation=>{
     const run=spawnSync(process.execPath,[readback],{input:JSON.stringify({workspace,baseRevision:base,targetPath:trackedEdits?m.targetPath:m.probe.targetPath,
@@ -121,16 +144,21 @@ export function createTrackedRepairResidentRuntime(input:{env:Record<string,stri
   const redPath=(jobId:string)=>join(privateRoot,hash(jobId)+".red.json");
   const preparedPath=(jobId:string)=>join(privateRoot,hash(jobId)+".prepared.json");
   const loadPrepared=(jobId:string):{binding:string;files:Array<{path:string;content:string}>;responseSha256:string;promptSha256:string}=>{
-    const record=JSON.parse(readBoundedRuntimeFile(preparedPath(jobId),262144).toString("utf8"));
-    if(record.binding!==hash(pin+"\0"+jobId)||!Array.isArray(record.files)||!record.files.length||record.files.length>m.trackedFiles.length
-      ||record.files.some((f:{path:string;content:string})=>!m.trackedFiles.some(p=>p.path===f.path)||typeof f.content!=="string"||Buffer.byteLength(f.content)>131072)
+    const record=JSON.parse(readBoundedRuntimeFile(preparedPath(jobId),4194304).toString("utf8"));
+    if(record.binding!==hash(pin+"\0"+jobId)||!Array.isArray(record.files)||!record.files.length||record.files.length>filePins.length
+      ||record.files.some((f:{path:string;content:string})=>!filePins.some(p=>p.path===f.path)||typeof f.content!=="string"||Buffer.byteLength(f.content)>fileLimit(f.path))
       ||new Set(record.files.map((f:{path:string})=>f.path)).size!==record.files.length||!digest(record.responseSha256)||!digest(record.promptSha256))
       throw Error("TRACKED_REPAIR_PREPARED_BINDING_INVALID");
+    if(m.bookkeeping){
+      const sourceFiles=record.files.filter((f:{path:string})=>f.path!==bookkeepingPath);
+      const doc=record.files.find((f:{path:string})=>f.path===bookkeepingPath);
+      if(!sourceFiles.some((f:{path:string})=>f.path===m.targetPath)||!doc||doc.content!==updateBookkeeping(sourceFiles))throw Error("TRACKED_REPAIR_BOOKKEEPING_PREPARED_INVALID");
+    }
     return record;
   };
   const candidate=(jobId:string)=>{
     ensureProbe(m.workspace); const p=loadPrepared(jobId);
-    const trackedEdits={version:2,files:p.files.map(f=>({path:f.path,beforeSha256:m.trackedFiles.find(p=>p.path===f.path)!.beforeSha256,afterSha256:hash(f.content)}))};
+    const trackedEdits={version:2,files:p.files.map(f=>({path:f.path,beforeSha256:filePins.find(p=>p.path===f.path)!.beforeSha256,afterSha256:hash(f.content)}))};
     return {prepared:p,trackedEdits,identity:attest(m.workspace,trackedEdits)};
   };
   return new ResidentDevelopmentGoalHost({jobs:new JsonFileDevelopmentJobStore(join(stateRoot,"jobs.json")),
@@ -185,16 +213,17 @@ export function createTrackedRepairResidentRuntime(input:{env:Record<string,stri
           }
           const changed=[...content].filter(([path,value])=>hash(value)!==m.trackedFiles.find(p=>p.path===path)!.beforeSha256).map(([path,content])=>({path,content}));
           if(!changed.some(f=>f.path===m.targetPath))throw Error("TRACKED_REPAIR_NO_TARGET_CHANGE");
+          const bookkeeping=updateBookkeeping(changed);if(bookkeeping!==undefined)changed.push({path:bookkeepingPath,content:bookkeeping});
           scope();attest(m.workspace);
-          for(const f of m.trackedFiles)if(hash(readBoundedRuntimeFile(join(m.workspace,f.path),131072))!==f.beforeSha256)throw Error("TRACKED_REPAIR_SOURCE_CHANGED_DURING_INFERENCE");
+          for(const f of filePins)if(hash(readBoundedRuntimeFile(join(m.workspace,f.path),fileLimit(f.path)))!==f.beforeSha256)throw Error("TRACKED_REPAIR_SOURCE_CHANGED_DURING_INFERENCE");
           writeFileSync(preparedPath(job.jobId),JSON.stringify({binding:hash(pin+"\0"+job.jobId),files:changed,responseSha256:hash(response),promptSha256:hash(prompt)}),{flag:"wx",mode:0o600});
         }
         const prepared=loadPrepared(job.jobId);
         for(const f of prepared.files){
-          const target=assertExternalRuntimePath(join(m.workspace,f.path),[]),current=hash(readBoundedRuntimeFile(target,131072));
-          if(current!==m.trackedFiles.find(p=>p.path===f.path)!.beforeSha256&&current!==hash(f.content))throw Error("TRACKED_REPAIR_PREPARED_SOURCE_CONFLICT");
+          const target=assertExternalRuntimePath(join(m.workspace,f.path),[]),current=hash(readBoundedRuntimeFile(target,fileLimit(f.path)));
+          if(current!==filePins.find(p=>p.path===f.path)!.beforeSha256&&current!==hash(f.content))throw Error("TRACKED_REPAIR_PREPARED_SOURCE_CONFLICT");
         }
-        for(const f of prepared.files){const target=join(m.workspace,f.path);if(hash(readBoundedRuntimeFile(target,131072))!==hash(f.content))writeFileSync(target,f.content);}
+        for(const f of prepared.files){const target=join(m.workspace,f.path);if(hash(readBoundedRuntimeFile(target,fileLimit(f.path)))!==hash(f.content))writeFileSync(target,f.content);}
         scope();const c=candidate(job.jobId);
         return createDevelopmentChangeSet({changeSetId:job.jobId+":tracked-candidate",jobId:job.jobId,workItemId,deviceId:builderId,baseRevision:base,
           changedPaths:[...prepared.files.map(f=>f.path),m.probe.targetPath],affectedSymbols:[],patchDigest:c.identity.patchDigest,candidateRevision:c.identity.candidateRevision,
@@ -202,7 +231,7 @@ export function createTrackedRepairResidentRuntime(input:{env:Record<string,stri
       },
       async verifyRed({job}){
         scope();ensureProbe(m.baselineWorkspace);attest(m.baselineWorkspace);
-        for(const f of m.trackedFiles)if(hash(readBoundedRuntimeFile(join(m.baselineWorkspace,f.path),131072))!==f.beforeSha256)throw Error("TRACKED_REPAIR_RED_BASELINE_CHANGED");
+        for(const f of filePins)if(hash(readBoundedRuntimeFile(join(m.baselineWorkspace,f.path),fileLimit(f.path)))!==f.beforeSha256)throw Error("TRACKED_REPAIR_RED_BASELINE_CHANGED");
         const existing=redPath(job.jobId);
         if(existsSync(existing)){
           const bytes=readBoundedRuntimeFile(existing,8192),record=JSON.parse(bytes.toString("utf8"));
