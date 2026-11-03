@@ -72,10 +72,12 @@ test('practical metadata rejects reparse paths before reading ACL or ciphertext'
  assert.deepEqual(r,{state:'rejected',reasonCode:'REPARSE_PATH'});
 }));
 const aclFixture=`function Get-Acl { param([string]$LiteralPath) $owner=[pscustomobject]@{Value=$script:fixtureOwner}; $acl=[pscustomobject]@{Access=@()}; $acl | Add-Member ScriptMethod GetOwner { param($type) [pscustomobject]@{Value=$script:fixtureOwner} }; if($script:fixtureWriter) { $principal=[pscustomobject]@{}; $principal | Add-Member ScriptMethod Translate { param($type) [pscustomobject]@{Value=$script:fixtureWriter} }; $acl.Access=@([pscustomobject]@{AccessControlType=[Security.AccessControl.AccessControlType]::Allow;FileSystemRights=[Security.AccessControl.FileSystemRights]::Write;IdentityReference=$principal}) }; return $acl };`;
-test('practical metadata separates unrelated write grants and wrong owner with closed codes',()=>fixture(dir=>{
+test('practical metadata separates unrelated write grants and wrong owner with closed codes',t=>fixture(dir=>{
  for(const [owner,writer,expected] of [['fixture-owner','','PATH_PROTECTION_MATCHED'],['fixture-other','','PUBLIC_PATH_OWNER_UNSUITABLE'],['fixture-owner','fixture-other','PUBLIC_DIRECTORY_PROTECTION_UNSUITABLE']]){
-  const v=ps(`$script:fixtureOwner=${quote(owner)};$script:fixtureWriter=${quote(writer)};${aclFixture} ${diagnostic('Get-1218OwnerPathProtection',`-Path ${quote(dir)} -OwnerProfile ${quote(dir)} -OwnerSid 'fixture-owner'`)}`);
-  assert.deepEqual(v,{state:expected==='PATH_PROTECTION_MATCHED'?'ready':'rejected',reasonCode:expected});
+  const v=ps(`. ${quote(resolve('scripts/install-owner-code-windows.ps1'))}; $fixtureInput=${quote(dir)}; $fixtureProfile=Get-OwnerCodeInstallPath $fixtureInput; $script:fixtureOwner=${quote(owner)};$script:fixtureWriter=${quote(writer)};${aclFixture} $observationJson=${diagnostic('Get-1218OwnerPathProtection',`-Path $fixtureInput -OwnerProfile $fixtureProfile -OwnerSid 'fixture-owner'`)}; $observation=$observationJson | ConvertFrom-Json; @{fixtureCanonicalizationDiffered=($fixtureProfile -cne $fixtureInput);observation=$observation} | ConvertTo-Json -Depth 6 -Compress`);
+  assert.equal(typeof v.fixtureCanonicalizationDiffered,'boolean');
+  if(expected==='PATH_PROTECTION_MATCHED')t.diagnostic('fixtureCanonicalizationDiffered='+v.fixtureCanonicalizationDiffered);
+  assert.deepEqual(v.observation,{state:expected==='PATH_PROTECTION_MATCHED'?'ready':'rejected',reasonCode:expected});
   assert.equal(JSON.stringify(v).includes(dir),false);assert.equal(JSON.stringify(v).includes('fixture-other'),false);
  }
 }));
