@@ -8,6 +8,17 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $env:PSModulePath = Join-Path $PSHOME 'Modules'
 
+$assertRotationAuthority = {
+  param($receipt, $ownerIdentity, [string]$configurationPath)
+  if ($receipt.scopeId -ne 'issue:1218' -or
+      $receipt.ownerSid -ne $ownerIdentity.User.Value -or
+      $receipt.credentialRotationApproval -ne $true -or
+      [datetimeoffset]::Parse($receipt.expiresAt) -le [datetimeoffset]::Now -or
+      $receipt.configSha256 -notmatch '^[a-fA-F0-9]{64}$') { throw 'authorization expired or mismatched' }
+  $observedConfigHash = (Get-FileHash -LiteralPath $configurationPath -Algorithm SHA256).Hash
+  if ($observedConfigHash -ine $receipt.configSha256) { throw 'configuration changed since approval' }
+}
+
 if (-not $Apply) {
   Write-Output 'PLAN ONLY: Owner-local credential rotation requires a separate, unexpired issue:1218 approval receipt. No credential or task was changed.'
   exit 0
@@ -49,9 +60,11 @@ try {
     [System.Windows.Forms.MessageBoxDefaultButton]::Button2
   )
   if ($choice -ne [System.Windows.Forms.DialogResult]::Yes) { Write-Output 'Rotation cancelled; no credential changed.'; exit 0 }
+  & $assertRotationAuthority $authorization $identity $configPath
 
   $consumeConfiguration = {
     param($configuration)
+    & $assertRotationAuthority $authorization $identity $configPath
     $originalCode = [string]$configuration.environment.JARVIS_OWNER_SECRET
     if ($originalCode.Length -lt 24 -or $originalCode -match "[\r\n\0]") { throw 'invalid owner credential' }
     $releaseRoot = [string]$configuration.releaseRoot
@@ -82,9 +95,11 @@ try {
     }
     try {
       $encrypted = $candidateJson | ConvertTo-SecureString -AsPlainText -Force | ConvertFrom-SecureString
+      & $assertRotationAuthority $authorization $identity $configPath
       Set-Content -LiteralPath $candidatePath -Value $encrypted -Encoding ASCII -NoNewline
       Set-Acl -LiteralPath $candidatePath -AclObject (Get-Acl -LiteralPath $configPath)
       # File.Replace keeps the old encrypted config in the protected backup path.
+      & $assertRotationAuthority $authorization $identity $configPath
       [IO.File]::Replace($candidatePath, $configPath, $backupPath, $true)
       $replaced = $true
       Stop-ScheduledTask -TaskName $taskName -ErrorAction Stop
