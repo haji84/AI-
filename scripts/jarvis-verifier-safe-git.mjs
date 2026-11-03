@@ -23,6 +23,7 @@ const configOverrides = [
   "-c", "core.untrackedCache=false",
   "-c", `core.attributesFile=${nullFile}`,
   "-c", "submodule.recurse=false",
+  ...(process.platform === "win32" ? [] : ["-c", "core.filemode=true"]),
 ];
 
 function environment() {
@@ -97,10 +98,7 @@ export function safeGit(cwd, args) {
     }
   }
   const query = args[0] === "status" ? [...args, "--ignore-submodules=all"] : args;
-  // POSIX mode changes remain observable even when repository config disables
-  // filemode detection. Windows does not expose equivalent executable bits.
-  const fileMode = args[0] === "status" && process.platform !== "win32" ? ["-c", "core.filemode=true"] : [];
-  const output = invoke([...configOverrides, ...fileMode, ...query], blobQuery ? null : "utf8");
+  const output = invoke([...configOverrides, ...query], blobQuery ? null : "utf8");
   if (blobQuery) return output; // exact raw blob bytes, including final newlines
   if (args[0] === "status") return output.trimEnd(); // preserve index/worktree columns
   // NUL-delimited inventories contain literal paths, including whitespace.

@@ -6438,7 +6438,7 @@
     },
     {
       "path": "scripts/jarvis-verifier-safe-git.mjs",
-      "sha256": "2e7464e32e065a823956f59e5d7ecf49a71e961868c3e3dd0601bf1b86a752c2",
+      "sha256": "fb319bd6cdb15c65a26395415b83f071b0b7f18b5ef1696e6de194d5f7339a24",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "CORE-010",
@@ -6647,7 +6647,7 @@
     },
     {
       "path": "scripts/jarvis-tracked-repair-actions.mjs",
-      "sha256": "7dba0d605e7a049d698679b260cb72b1757cadce2058e6856b60c7d42904d7b5",
+      "sha256": "dfc236325609e183866b69f7c99b1f9d8f985a4c7f96fca2c46c09bbea1e68de",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
