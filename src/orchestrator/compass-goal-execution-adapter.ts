@@ -145,13 +145,18 @@ export class CompassGoalExecutionAdapter implements GoalExecutionAdapter {
   private readonly cognitiveOptions: CognitiveRuntimeOptions;
   private readonly developmentOptions?: DevelopmentRuntimeOptions;
   private readonly completionSource?: CompletionSource;
+  private readonly inspectionOnly: boolean;
   constructor(
     dbPath = process.env.COMPASS_DB_PATH?.trim() || resolve(process.cwd(), ".compass", "compass.db"),
     goalLoopOptions: GoalLoopOptions = {},
     cognitiveOptions: CognitiveRuntimeOptions = {},
     developmentOptions?: DevelopmentRuntimeOptions,
     completionSource?: CompletionSource,
+    restrictions: { inspectionOnly?: boolean } = {},
   ) {
+    if (Object.keys(restrictions).some(key => key !== "inspectionOnly") || restrictions.inspectionOnly !== undefined && typeof restrictions.inspectionOnly !== "boolean") throw Error("INSPECTION_RESTRICTION_INVALID");
+    this.inspectionOnly = restrictions.inspectionOnly === true;
+    if (this.inspectionOnly && (cognitiveOptions.useCore === true || developmentOptions || completionSource)) throw Error("INSPECTION_REQUIRES_EXCLUSIVE_CONTROLLER");
     this.dbPath = dbPath;
     this.goalLoopOptions = goalLoopOptions;
     if (cognitiveOptions.useCore !== undefined && typeof cognitiveOptions.useCore !== "boolean") throw Error("Invalid Cognitive Core mode");
@@ -219,16 +224,15 @@ export class CompassGoalExecutionAdapter implements GoalExecutionAdapter {
         return progress ? await projectResidentProgress(compass, authoritativeGoalId, goal, report, progress) : report;
       }
       if (compass.getState().status === "PAUSED") return { cycles: [], stopReason: "paused" };
-      const registry = new CapabilityRegistry()
-        .register(createContextInspectCapability())
-        .register(createCodeBuilderCapability(createRuntimeBuilderRouter()));
+      const registry = new CapabilityRegistry().register(createContextInspectCapability());
+      if (!this.inspectionOnly) registry.register(createCodeBuilderCapability(createRuntimeBuilderRouter()));
       // Preserve the pre-Cognitive runtime contract for existing callers, including
       // the Builder recovery smoke. Only the owner Cognitive service opts in below.
       if (this.cognitiveOptions.useCore !== true) {
         const workStateStore = new CompassWorkStateStoreAdapter(compass);
         const loop = createWorkStateIntegratedGoalLoop({
           goal,
-          planner: new RuntimeDevelopmentPlanner(new BaselinePlanner()),
+          planner: this.inspectionOnly ? new BaselinePlanner() : new RuntimeDevelopmentPlanner(new BaselinePlanner()),
           contextSources: [contextSource, new EntryContextSource(input.context ?? [])],
           executor: registry,
           verifier: createRuntimeDevelopmentVerifier(),

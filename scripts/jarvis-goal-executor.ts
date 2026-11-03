@@ -1,3 +1,4 @@
+import { approvedNextRuntimeReady } from "../src/orchestrator/approved-next-work.ts";
 import { CompassStore } from "../src/compass/store.ts";
 import { compassGoalToLoopGoal } from "../src/orchestrator/compass-state-store.ts";
 import { createHash } from "node:crypto";
@@ -323,6 +324,10 @@ async function main(): Promise<void> {
   const decision = executorDecision(goalId);
   try {
     assertTrackedRepairProfileExclusive(process.env);
+    const inspectionFlag = process.env.JARVIS_GOAL_EXECUTION_INSPECTION_ONLY?.trim();
+    if (inspectionFlag && inspectionFlag !== "1") throw Error("INSPECTION_RESTRICTION_INVALID");
+    const inspectionOnly = inspectionFlag === "1";
+    if (inspectionOnly && !approvedNextRuntimeReady(process.env)) throw Error("INSPECTION_CONFLICTS_WITH_BOUND_RUNTIME");
     const compass = new CompassStore(compassPath);
     try {
       const current = await new CompassWorkRunStore(compass).getByGoal(goalId);
@@ -347,12 +352,12 @@ async function main(): Promise<void> {
     })();
     // Validate an explicit host handoff before inspecting text for development
     // intent. Invalid handoffs must never fall back to another model/controller.
-    const developmentRuntime = completionSource ? undefined : configuredDevelopmentRuntime(compassPath, context);
+    const developmentRuntime = completionSource || inspectionOnly ? undefined : configuredDevelopmentRuntime(compassPath, context);
     const adapter = completionSource
       ? new CompassGoalExecutionAdapter(compassPath, {}, {}, undefined, completionSource)
       : developmentRuntime
         ? new CompassGoalExecutionAdapter(compassPath, {}, {}, developmentRuntime)
-        : new CompassGoalExecutionAdapter(compassPath);
+        : new CompassGoalExecutionAdapter(compassPath, {}, {}, undefined, undefined, { inspectionOnly });
     const bridge = new GoalControllerExecutionBridge(adapter);
     const result = await bridge.executeUntilGoalTerminal(decision, { maxRuns: 12, context });
     const report = result.report;

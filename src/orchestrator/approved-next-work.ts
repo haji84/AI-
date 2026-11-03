@@ -14,7 +14,7 @@ const seed=(request:NormalizedIntake)=>({title:request.text.slice(0,120),descrip
  successCriteria:request.goalContract!.successCriteria,constraints:request.goalContract!.constraints??[]});
 const seedId=(input:ReturnType<typeof seed>)=>goalWorkStateId(input);
 export interface ApprovedNextWorkInput {afterGoalId:string;taskScopeId:string;text:string;goalContract:GoalContractSeed;idempotencyKey?:string;expiresAt:string;}
-export interface ApprovedNextWorkRecord {id:string;afterGoalId:string;targetGoalId:string;taskScopeId:string;expiresAt:string;createdAt:string;request:NormalizedIntake;requestDigest:string;status:"QUEUED"|"PROMOTED"|"STARTED";}
+export interface ApprovedNextWorkRecord {id:string;afterGoalId:string;targetGoalId:string;taskScopeId:string;expiresAt:string;createdAt:string;request:NormalizedIntake;requestDigest:string;status:"QUEUED"|"PROMOTED"|"STARTED"|"HELD";holdReason?:"OWNER_INTAKE_REQUIRES_CLARIFICATION"|"INTAKE_RECONCILIATION_REQUIRED";}
 interface Envelope {kind:typeof KIND;version:typeof VERSION;records:ApprovedNextWorkRecord[];}
 function binding(row:ApprovedNextWorkRecord){return hash({afterGoalId:row.afterGoalId,targetGoalId:row.targetGoalId,taskScopeId:row.taskScopeId,expiresAt:row.expiresAt,request:row.request});}
 function envelope(active:unknown[]):Envelope {
@@ -27,7 +27,7 @@ function envelope(active:unknown[]):Envelope {
  for(const row of value.records){
   if(!row||!/^[a-f0-9]{64}$/.test(row.id)||seen.has(row.id)||!idValid(row.afterGoalId)||!idValid(row.targetGoalId)
    ||!/^issue:[1-9]\d{0,9}$/.test(row.taskScopeId)||!Number.isFinite(Date.parse(row.expiresAt))
-   ||!["QUEUED","PROMOTED","STARTED"].includes(row.status)||row.requestDigest!==binding(row)
+   ||!["QUEUED","PROMOTED","STARTED","HELD"].includes(row.status)||row.requestDigest!==binding(row)
    ||!row.request?.goalContract||seedId(seed(row.request))!==row.targetGoalId
    ||row.request.idempotencyKey!=="next-work:"+row.id)throw Error("NEXT_WORK_STATE_INVALID");
   seen.add(row.id);
@@ -36,17 +36,31 @@ function envelope(active:unknown[]):Envelope {
 }
 function replace(active:unknown[],value:Envelope){return [...active.filter(v=>!(object(v)&&v.kind===KIND)),value];}
 function currentId(goal:GoalRecord|null){return goal?goalWorkStateId(compassGoalToLoopGoal(goal)):null;}
+function targetMatches(goal:GoalRecord|null,row:ApprovedNextWorkRecord){
+ const next=seed(row.request);return !!goal&&currentId(goal)===row.targetGoalId&&goal.title===next.title&&goal.description===next.description
+  &&JSON.stringify(goal.successCriteria)===JSON.stringify(next.successCriteria)&&JSON.stringify(goal.constraints)===JSON.stringify(next.constraints);
+}
+/** A handoff cannot silently reuse a predecessor-specific capability or grant. */
+export function approvedNextRuntimeReady(env:Record<string,string|undefined>):boolean {
+ return !["GORIQ_TRACKED_REPAIR_MANIFEST_FILE","GORIQ_TRACKED_REPAIR_MANIFEST_SHA256",
+  "GORIQ_SELF_DEVELOPMENT_SEQUENCE_FILE","GORIQ_SELF_DEVELOPMENT_SEQUENCE_SHA256",
+  "GORIQ_COMPLETION_HANDOFF_PATH","GORIQ_COMPLETION_HANDOFF_SHA256","GORIQ_COMPLETION_DATA_ROOT",
+  "GORIQ_LOCAL_OLLAMA_BUILDER_ENABLED","GORIQ_LOCAL_OLLAMA_BUILDER_WORKSPACE","GORIQ_LOCAL_OLLAMA_ALLOWED_FILES",
+  "GORIQ_LOCAL_VERIFIER_RECEIPT_FILE","GORIQ_LOCAL_VERIFIER_PUBLIC_KEY_FILE","GORIQ_LOCAL_VERIFIER_PUBLIC_KEY_SHA256",
+  "GORIQ_SELF_DEVELOPMENT_TASK_AUTHORIZATION_JSON","GORIQ_SELF_DEVELOPMENT_TASK_SCOPE_ID","GORIQ_SELF_DEVELOPMENT_TARGET_FILES",
+  "GORIQ_SELF_DEVELOPMENT_RELEASE_URL","GORIQ_SELF_DEVELOPMENT_RELEASE_TOKEN"].some(key=>Boolean(env[key]?.trim()));
+}
 function stopped(state:StateRecord,id:string):boolean {
- return state.status!==null&&!["COMPLETED","IN_PROGRESS","RUNNING","ACTIVE","VERIFYING"].includes(state.status)
+ return state.status!==null&&!["COMPLETED","IN_PROGRESS","RUNNING","ACTIVE","VERIFYING","goal_complete"].includes(state.status)
   ||state.blockers.length>0||canonicalRequirementBlockers(state.active,id).length>0;
 }
 function completed(goal:GoalRecord,state:StateRecord,id:string):boolean {
  if(currentId(goal)!==id||stopped(state,id))return false;
  const work=state.active.filter(v=>object(v)&&v.kind==="gai-work-state"&&v.goalId===id);
  const runs=state.active.filter(v=>object(v)&&v.kind==="jarvis-work-runs");
- if(work.length!==1||runs.length!==1)return false;
+ if(work.length!==1||runs.length!==1||(work[0] as {version?:unknown}).version!==1||(runs[0] as {version?:unknown}).version!==1)return false;
  const ws=(work[0] as {state?:WorkState}).state,rr=(runs[0] as {runs?:Array<{goalId:string;phase:string}>}).runs?.filter(r=>r.goalId===id);
- if(!ws||ws.goalId!==id||ws.status!=="COMPLETED"||!rr||rr.length!==1||rr[0]!.phase!=="COMPLETED"
+ if(!ws||ws.goalId!==id||ws.objective!==(goal.description.trim()||goal.title)||JSON.stringify(ws.constraints)!==JSON.stringify(goal.constraints)||ws.status!=="COMPLETED"||!rr||rr.length!==1||rr[0]!.phase!=="COMPLETED"
   ||!Array.isArray(ws.definitionOfDone)||!ws.definitionOfDone.length||!Array.isArray(ws.verificationResults)
   ||!Array.isArray(ws.blockers)||ws.blockers.length||!Array.isArray(ws.childWorkItems)||ws.childWorkItems.some(x=>x.status!=="COMPLETED"))return false;
  const criteria=goal.successCriteria;
@@ -61,7 +75,7 @@ export class CompassApprovedNextWork {
  private readonly compass:CompassStore;private readonly now:()=>Date;
  constructor(compass:CompassStore,now:()=>Date=()=>new Date()){this.compass=compass;this.now=now;}
  list(){return envelope(this.compass.getState().active).records;}
- pending(){const now=this.now().getTime();return this.list().filter(r=>r.status==="PROMOTED"||r.status==="QUEUED"&&Date.parse(r.expiresAt)>now);}
+ pending(){const now=this.now().getTime(),goal=this.compass.getGoal();return this.list().filter(r=>r.status==="PROMOTED"&&targetMatches(goal,r)||r.status==="QUEUED"&&Date.parse(r.expiresAt)>now&&r.afterGoalId===currentId(goal));}
  accept(raw:unknown):ApprovedNextWorkRecord {
   if(!object(raw))throw Error("NEXT_WORK_INVALID");
   const input=raw as unknown as ApprovedNextWorkInput;
@@ -88,7 +102,7 @@ export class CompassApprovedNextWork {
  promote(id:string):ApprovedNextWorkRecord|null {
   let result:ApprovedNextWorkRecord|null=null;
   this.compass.promoteGoal((goal,state)=>{const e=envelope(state.active),row=e.records.find(r=>r.id===id);if(!goal||!row||stopped(state,currentId(goal)!))return null;
-   if(row.status!=="QUEUED"){if(currentId(goal)===row.targetGoalId)result=row;return null;}
+   if(row.status!=="QUEUED"){if(targetMatches(goal,row)&&row.status!=="HELD")result=row;return null;}
    if(Date.parse(row.expiresAt)<=this.now().getTime()||!completed(goal,state,row.afterGoalId))return null;
    // Existing Goal identities cannot inherit historical verification/cached work.
    if(state.active.some(v=>object(v)&&(v.kind==="gai-work-state"&&v.goalId===row.targetGoalId
@@ -99,9 +113,15 @@ export class CompassApprovedNextWork {
    return {goal:seed(row.request),active};
   });return result;
  }
+ held(id:string,targetGoalId:string,reason:NonNullable<ApprovedNextWorkRecord["holdReason"]>):void {
+  this.compass.updateActive(active=>{const e=envelope(active),row=e.records.find(r=>r.id===id);
+   if(!row||row.status!=="PROMOTED"||row.targetGoalId!==targetGoalId||!targetMatches(this.compass.getGoal(),row))throw Error("NEXT_WORK_HOLD_BINDING_INVALID");
+   return replace(active,{...e,records:e.records.map(r=>r.id===id?{...r,status:"HELD",holdReason:reason}:r)});
+  });
+ }
  started(id:string,targetGoalId:string):void {
   this.compass.updateActive(active=>{const e=envelope(active),row=e.records.find(r=>r.id===id);
-   if(!row||row.status==="QUEUED"||row.targetGoalId!==targetGoalId||currentId(this.compass.getGoal())!==targetGoalId)throw Error("NEXT_WORK_START_BINDING_INVALID");
+   if(!row||row.status==="QUEUED"||row.targetGoalId!==targetGoalId||!targetMatches(this.compass.getGoal(),row))throw Error("NEXT_WORK_START_BINDING_INVALID");
    return replace(active,{...e,records:e.records.map(r=>r.id===id?{...r,status:"STARTED"}:r)});
   });
  }

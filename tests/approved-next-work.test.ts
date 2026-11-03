@@ -99,3 +99,15 @@ test("a historical target WorkRun cannot be inherited even when its WorkState is
 test("blocked, Human-required and unknown global control states never promote",async()=>{
  for(const status of ["BLOCKED","HUMAN_REQUIRED","unknown-control-state"]){const f=await fixture();try{const a=f.next.accept(f.request);f.compass.updateState({status});assert.equal(f.next.promote(a.id),null,status);}finally{f.compass.close();}}
 });
+
+test("new predecessor constraints and unknown evidence envelope versions stay unverified",async()=>{
+ for(const change of ["constraints","work-version","run-version"]){const f=await fixture();try{const a=f.next.accept(f.request);
+  if(change==="constraints")f.compass.setGoal({...f.predecessor,constraints:[...f.predecessor.constraints,"new owner condition"]});
+  else f.compass.updateActive(active=>active.map(v=>v&&typeof v==="object"&&(v as {kind?:string}).kind===(change==="work-version"?"gai-work-state":"jarvis-work-runs")?{...v,version:2}:v));
+  assert.equal(f.next.promote(a.id),null,change);
+ }finally{f.compass.close();}}
+});
+
+test("the normal GoalLoop goal_complete write-back permits an already verified successor",async()=>{
+ const f=await fixture();try{f.compass.writeBack({status:"goal_complete",summary:"Normal GoalLoop terminal record"});const a=f.next.accept(f.request);assert.ok(f.next.promote(a.id));}finally{f.compass.close();}
+});

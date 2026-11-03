@@ -42,6 +42,7 @@ import { CompassWorkStateStoreAdapter } from "../src/orchestrator/compass-work-s
 import { GoalControllerRuntime, type GoalControllerDecision } from "../src/orchestrator/goal-controller-runtime.ts";
 import { CompassGoalRegistryAdapter, CompassGoalDecisionStoreAdapter } from "../src/orchestrator/compass-goal-controller.ts";
 import { CompassWorkRunStore } from "../src/orchestrator/compass-work-run-store.ts";
+import { CompassApprovedNextWork, approvedNextRuntimeReady } from "../src/orchestrator/approved-next-work.ts";
 import { CompassGoalBridgeEventStore } from "../src/orchestrator/compass-goal-bridge-event-store.ts";
 import { CompassGoalExecutionContextStore } from "../src/orchestrator/compass-goal-execution-context-store.ts";
 import { workRunProgress } from "../src/orchestrator/work-run-state.ts";
@@ -116,6 +117,63 @@ const deviceDevelopmentIntake = new DeviceDevelopmentIntake({
   },
 });
 const activeGoalExecutions = new Map<string, ReturnType<typeof spawn>>();
+const approvedNextWork = new CompassApprovedNextWork(compass);
+const nextInspectionFlag = process.env.GORIQ_APPROVED_NEXT_WORK_INSPECTION_ONLY?.trim();
+if (nextInspectionFlag && nextInspectionFlag !== "1") throw Error("Invalid host next-work inspection restriction");
+let nextWorkDraining = false;
+let nextWorkTimer: ReturnType<typeof setTimeout> | undefined;
+let shuttingDown = false;
+function requestApprovedNextWorkDrain(): void {
+  if (shuttingDown || nextWorkDraining) return;
+  if (nextWorkTimer) clearTimeout(nextWorkTimer);
+  nextWorkTimer = undefined;
+  void drainApprovedNextWork().catch(error => console.error("[goriq-goal] next_work_held", error instanceof Error ? error.name : "unknown"));
+}
+async function drainApprovedNextWork(): Promise<void> {
+  if (shuttingDown || nextWorkDraining) return;
+  nextWorkDraining = true;
+  try {
+    if (!approvedNextRuntimeReady(process.env)) return; // never clear/rebind predecessor pins
+    const address = server.address();
+    if (!address || typeof address === "string" || !["127.0.0.1", "0.0.0.0", "::1", "::"].includes(address.address)) return;
+    // Recovery may observe accepted work after a response/parent-process loss.
+    for (const record of approvedNextWork.list().filter(r => r.status === "PROMOTED" || r.status === "HELD")) {
+      if (await workRuns.getByGoal(record.targetGoalId)) {
+        try { approvedNextWork.started(record.id, record.targetGoalId); } catch { /* changed owner contract stays held */ }
+      }
+    }
+    if (activeGoalExecutions.size || shuttingDown) return;
+    for (const pending of approvedNextWork.pending()) {
+      const promoted = approvedNextWork.promote(pending.id);
+      if (!promoted || shuttingDown) continue;
+      const localHost = address.family === "IPv6" ? "[::1]" : "127.0.0.1";
+      try {
+        // Re-enter the existing authenticated Owner intake. Requirement capture,
+        // normal Goal/State/Gate checks and scheduling are never bypassed.
+        const response = await fetch(`http://${localHost}:${address.port}/api/jarvis/admin/work`, {
+          method: "POST", headers: { Authorization: `Bearer ${ownerToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ text: promoted.request.text, goalHint: promoted.targetGoalId,
+            goalContract: promoted.request.goalContract, idempotencyKey: promoted.request.idempotencyKey }),
+          signal: AbortSignal.timeout(5000),
+        });
+        const accepted = await response.json() as { accepted?: boolean; goalId?: string };
+        if (response.status === 202 && accepted.accepted === true && accepted.goalId === promoted.targetGoalId && await workRuns.getByGoal(promoted.targetGoalId)) {
+          approvedNextWork.started(promoted.id, promoted.targetGoalId);
+        } else approvedNextWork.held(promoted.id, promoted.targetGoalId, "OWNER_INTAKE_REQUIRES_CLARIFICATION");
+      } catch {
+        if (await workRuns.getByGoal(promoted.targetGoalId)) approvedNextWork.started(promoted.id, promoted.targetGoalId);
+        else approvedNextWork.held(promoted.id, promoted.targetGoalId, "INTAKE_RECONCILIATION_REQUIRED");
+      }
+      break; // one authoritative next Goal; remaining bindings await their predecessor
+    }
+  } finally {
+    nextWorkDraining = false;
+    if (!shuttingDown && approvedNextRuntimeReady(process.env) && approvedNextWork.pending().length) {
+      nextWorkTimer = setTimeout(requestApprovedNextWorkDrain, 5000);
+      nextWorkTimer.unref();
+    }
+  }
+}
 const resourceWaitScheduler = new ResourceWaitScheduler({
   async read(goalId) {
     const active = await new CompassGoalRegistryAdapter(compass).listActive();
@@ -141,6 +199,7 @@ function encodeGoalExecutionContext(context: unknown[]): string {
 }
 
 function scheduleGoalExecution(decision: GoalControllerDecision, context: unknown[] = []): boolean {
+  if (shuttingDown || compass.getState().status === "PAUSED") return false;
   if (decision.goalId && context.length) goalExecutionContexts.put(decision.goalId, context);
   if (decision.action !== "CONTINUE_GOAL" || !decision.goalId) return false;
   if (activeGoalExecutions.has(decision.goalId)) return true;
@@ -154,6 +213,8 @@ function scheduleGoalExecution(decision: GoalControllerDecision, context: unknow
     stdio: ["ignore", "ignore", "pipe"],
     env: {
       ...process.env,
+      ...(nextInspectionFlag === "1" && approvedNextWork.list().some(row => row.targetGoalId === goalId && row.status !== "QUEUED")
+        ? { JARVIS_GOAL_EXECUTION_INSPECTION_ONLY: "1" } : {}),
       JARVIS_GOAL_EXECUTION_GOAL_ID: goalId,
       JARVIS_GOAL_EXECUTION_CONTEXT_B64: encodeGoalExecutionContext(context),
       JARVIS_GOAL_EXECUTION_COMPASS_PATH: compassPath,
@@ -171,7 +232,10 @@ function scheduleGoalExecution(decision: GoalControllerDecision, context: unknow
     if (code !== 0) {
       console.error("[goriq-goal]", goalId, `executor_exit=${code ?? "null"} signal=${signal ?? "none"} ${stderr.trim()}`.trim());
     }
-    if (code === 0) void resourceWaitScheduler.arm(goalId).catch(error => console.error("[goriq-goal] resource_resume_failed", error));
+    if (code === 0) {
+      void resourceWaitScheduler.arm(goalId).catch(error => console.error("[goriq-goal] resource_resume_failed", error));
+      requestApprovedNextWorkDrain();
+    }
   });
   activeGoalExecutions.set(goalId, child);
   return true;
@@ -587,6 +651,10 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
       await goalBridgeEvents.markDelivered(payload.eventId);
       return json(response, 200, { ok: true });
     }
+    if (method === "GET" && path === "/api/jarvis/admin/work-successors") {
+      try { return json(response, 200, { successors: approvedNextWork.list() }); }
+      catch { return json(response, 409, { message: "承認済み次案件の保存状態を確認してください。" }); }
+    }
     if (method === "GET" && path.startsWith("/api/jarvis/admin/work/")) {
       const goalId = decodeURIComponent(path.slice("/api/jarvis/admin/work/".length));
       const run = await workRuns.getByGoal(goalId);
@@ -606,6 +674,15 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
     if (method === "POST" && path === "/api/jarvis/admin/work") {
       try {
         if (body.length > 64_000) return json(response, 413, { message: "work input too large" });
+        if (Object.hasOwn(payload, "afterGoalId")) {
+          if (typeof payload.text !== "string" || parseDailyDriverDeviceCommand(payload.text).kind !== "not-device") {
+            return json(response, 409, { accepted: false, message: "次案件はGoalとして受け付けます。端末操作は既存の個別Gateを使用してください。" });
+          }
+          const next = approvedNextWork.accept(payload);
+          setImmediate(requestApprovedNextWorkDrain);
+          return json(response, 202, { accepted: true, action: "QUEUED_SUCCESSOR", successorId: next.id,
+            targetGoalId: next.targetGoalId, afterGoalId: next.afterGoalId, executionScheduled: false, status: next.status });
+        }
         const text = typeof payload.text === "string" ? payload.text.trim() : "";
         if (!text) return json(response, 400, { message: "仕事の内容を入力してください" });
         const idempotencyKey = typeof payload.idempotencyKey === "string" ? payload.idempotencyKey.trim() : undefined;
@@ -1005,6 +1082,7 @@ const verifierReceiptWakes = createResidentReceiptWakes(process.env, process.cwd
 let verifierReceiptTimer: NodeJS.Timeout | undefined;
 
 server.listen(port, host, () => {
+  requestApprovedNextWorkDrain();
   console.log(`[jarvis-broker] listening on http://${host}:${port}`);
   console.log(`[jarvis-broker] nodes=${plane.snapshot().stats.registered} tasks=${plane.snapshot().tasks.length} workerApk=${workerApkInfo() ? "ready" : "missing"}`);
   // A signer is a separate OS/VM principal. New receipt bytes wake an already
@@ -1055,6 +1133,8 @@ server.listen(port, host, () => {
   })().catch((error) => console.error("[goriq-goal] startup_resume_failed", error));
 });
 function shutdown(): void {
+  shuttingDown = true;
+  if (nextWorkTimer) clearTimeout(nextWorkTimer);
   if (verifierReceiptTimer) clearInterval(verifierReceiptTimer);
   resourceWaitScheduler.close();
   for (const child of activeGoalExecutions.values()) {
