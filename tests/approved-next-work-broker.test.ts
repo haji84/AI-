@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
-import { spawn, type ChildProcess } from "node:child_process";
-import { mkdtempSync, mkdirSync, rmSync } from "node:fs";
+import { execFileSync, spawn, type ChildProcess } from "node:child_process";
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -21,6 +21,15 @@ const evidenceMarker="explicit-predecessor-fixture-only-not-real-product-evidenc
 const records=(active:unknown[],kind:string)=>active.filter((x):x is Record<string,unknown>=>!!x&&typeof x==="object"&&(x as {kind?:unknown}).kind===kind);
 async function fixture(t:TestContext){
   const root=mkdtempSync(join(tmpdir(),"approved-next-http-")),compassPath=join(root,"compass.sqlite");mkdirSync(join(root,"state"));
+  // Restricted verifier source snapshots intentionally have no .git. The
+  // disposable Broker owns a real tiny repository instead of borrowing the
+  // implementation checkout's metadata. Assertions below are unchanged.
+  const executionRoot=join(root,"repository");mkdirSync(join(executionRoot,"src"),{recursive:true});
+  writeFileSync(join(executionRoot,"src/owner-context.ts"),"export const fixture = true;\n");
+  const git=(args:string[])=>execFileSync("git",args,{cwd:executionRoot,stdio:["ignore","pipe","pipe"],
+    env:{PATH:process.env.PATH,SystemRoot:process.env.SystemRoot,NODE_ENV:"test",GIT_CONFIG_NOSYSTEM:"1",GIT_CONFIG_GLOBAL:process.platform==="win32"?"NUL":"/dev/null",GIT_TERMINAL_PROMPT:"0"}});
+  git(["init","-q"]);git(["add","src/owner-context.ts"]);
+  git(["-c","user.name=Next work fixture","-c","user.email=fixture@example.invalid","-c",`core.hooksPath=${process.platform==="win32"?"NUL":"/dev/null"}`,"commit","-qm","Controlled fixture baseline"]);
   const db=new CompassStore(compassPath);
   const predecessor=db.setGoal({title:"Issue1219 bounded prior fixture",description:"Issue1219 bounded prior fixture",successCriteria:["Explicit fixture criterion"],constraints:["No real credentials or product acceptance"]});
   const predecessorId=goalWorkStateId(compassGoalToLoopGoal(predecessor));
@@ -44,7 +53,7 @@ async function fixture(t:TestContext){
   const stop=async()=>{if(child&&child.exitCode===null&&child.signalCode===null){const done=once(child,"exit");child.kill();await Promise.race([done,delay(3000)]);if(child.exitCode===null)child.kill("SIGKILL");}child=undefined;};
   t.after(async()=>{await stop();rmSync(root,{recursive:true,force:true});});
   const wait=async(label:string,check:()=>Promise<boolean>,timeout=15000)=>{const until=Date.now()+timeout;while(Date.now()<until){if(child?.exitCode!==null&&child?.exitCode!==undefined)assert.fail(label+": "+diagnostics);if(await check())return;await delay(50);}assert.fail(label+": "+diagnostics);};
-  const start=async()=>{child=spawn(process.execPath,[join(repositoryRoot,"scripts/jarvis-broker.ts")],{cwd:repositoryRoot,env,stdio:["ignore","ignore","pipe"]});child.stderr?.on("data",c=>{diagnostics=(diagnostics+String(c)).slice(-12000);});
+  const start=async()=>{child=spawn(process.execPath,[join(repositoryRoot,"scripts/jarvis-broker.ts")],{cwd:executionRoot,env,stdio:["ignore","ignore","pipe"]});child.stderr?.on("data",c=>{diagnostics=(diagnostics+String(c)).slice(-12000);});
     await wait("Broker readiness",async()=>{try{return(await fetch(url+"/bridge/events",{headers,signal:AbortSignal.timeout(500)})).ok;}catch{return false;}});};
   const request=(overrides:Record<string,unknown>={})=>({afterGoalId:predecessorId,taskScopeId:"issue:1218",text:"Issue1218: inspect the owner-local login utility source and current acceptance gaps",goalContract:{successCriteria:["Inspect authorized local context for the existing owner utility"],constraints:["Read-only source context; no credential or production mutation"]},idempotencyKey:"fixture-owner-approved-next",expiresAt:new Date(Date.now()+60000).toISOString(),...overrides});
   const post=(body:unknown,authenticated=true)=>fetch(url+"/work",{method:"POST",headers:authenticated?headers:{"content-type":"application/json"},body:JSON.stringify(body),signal:AbortSignal.timeout(5000)});
