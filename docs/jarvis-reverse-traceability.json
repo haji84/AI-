@@ -4986,7 +4986,7 @@
     },
     {
       "path": "src/orchestrator/compass-goal-execution-adapter.ts",
-      "sha256": "a87e8ffe592f3f3102d66777a8e38b78a3306d5f5055449231dc8be9d844bec6",
+      "sha256": "e8ea1346373cd59910ae593f391655e18cab98ef9d226401119a5fd09b6f8cdd",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
@@ -5042,7 +5042,7 @@
     },
     {
       "path": "src/orchestrator/compass-work-state-store.ts",
-      "sha256": "e58d63c33298d1102a7b36d3b908e12af8830a645c1c154dbc38f608a4110c59",
+      "sha256": "0ddd7b1390e71ed3f2c794969070340783b8bab7c3c9435b2e193128a1ae9c08",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",

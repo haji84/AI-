@@ -115,7 +115,25 @@ async function projectResidentProgress(compass: CompassStore, goalId: string, go
     status: blockers.length ? "BLOCKED" : achieved ? "COMPLETED" : "VERIFYING", verificationResults: incoming, blockers,
     nextAction: achieved ? null : report.goalEvaluation?.remainingGaps[0] ?? "Continue the next approved development Job",
     updatedAt: new Date().toISOString() };
-  await store.put(next);
+  const interrupted = new Error("RESIDENT_PROGRESS_STOPPED");
+  let stoppedReport: BoundedRunReport | undefined;
+  try {
+    await store.put(next, () => {
+      const current = compass.getState();
+      const paused = current.status === "PAUSED";
+      const stoppedBy = current.blockers.filter((item): item is string => typeof item === "string");
+      if (!paused && !stoppedBy.length) return;
+      const stoppedBlockers = [...new Set([...blockers, ...stoppedBy])];
+      stoppedReport = { ...report, stopReason: paused ? "paused" : "blocked",
+        goalEvaluation: { ...evaluateGoalFromWorkState(next), achieved: false, blockers: stoppedBlockers,
+          remainingGaps: [...new Set([...(paused ? ["project_paused"] : []), ...stoppedBlockers,
+            ...(report.goalEvaluation?.remainingGaps ?? [])])] } };
+      throw interrupted;
+    });
+  } catch (error) {
+    if (error !== interrupted) throw error;
+    return stoppedReport!;
+  }
   const evaluation = evaluateGoalFromWorkState(next);
   return { ...report, stopReason: blockers.length && report.stopReason !== "approval_required" ? "blocked" : report.stopReason,
     goalEvaluation: { ...evaluation, achieved, remainingGaps: [...new Set([...(report.goalEvaluation?.remainingGaps ?? []), ...evaluation.remainingGaps])] } };
