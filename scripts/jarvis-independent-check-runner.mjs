@@ -7,7 +7,8 @@ import { Buffer } from "node:buffer";
  * The private key must not be readable by the Broker, Builder or model.
  * Does not listen on a port, install packages, fetch models, commit or publish.
  */
-import { createHash, createPrivateKey, sign } from "node:crypto";
+import { createHash, createPrivateKey, createPublicKey, sign, verify } from "node:crypto";
+import { clearTimeout, setTimeout } from "node:timers";
 import { chmodSync, closeSync, constants, copyFileSync, existsSync, fstatSync, lstatSync, mkdirSync, openSync, readFileSync, readSync, realpathSync, writeFileSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { attestLocalCandidate, validateTrackedEditsManifest } from "./jarvis-independent-artifact-attestation.mjs";
@@ -116,12 +117,12 @@ function exactGitRoot(input) {
     ||!lstatSync(join(root,".git")).isFile()||git(root,"branch","--show-current")!=="")throw Error("VERIFIER_WORKSPACE_NOT_ISOLATED");
   return root;
 }
-export function validateVerifierRunRequest(req) {
+export function validateVerifierRunRequest(req, { externalSigner = false } = {}) {
   let edits;
   try { edits=validateTrackedEditsManifest(req?.trackedEdits); }
   catch { throw Error("VERIFIER_REQUEST_NOT_BOUNDED"); }
   const paths=[...(Array.isArray(req?.allowedUntracked)?req.allowedUntracked:[]),...edits.map(edit=>edit.path)];
-  if(!req||typeof req!=="object"||Array.isArray(req)||
+  if(typeof externalSigner!=="boolean"||!req||typeof req!=="object"||Array.isArray(req)||Object.hasOwn(req,"signerTransport")||
     !["goalId","jobId","changeSetId","builderId","verifierId"].every(x=>typeof req[x]==="string"&&req[x].length>0&&req[x].length<=128)||
     req.verifierId===req.builderId||
     !/^[a-f0-9]{40}$/.test(req.baseRevision??"")||
@@ -133,10 +134,11 @@ export function validateVerifierRunRequest(req) {
     new Set(paths).size!==paths.length||!paths.includes(req.targetPath)||
     !Array.isArray(req.requiredChecks)||req.requiredChecks.length<1||req.requiredChecks.length>6||
     req.requiredChecks.some(x=>!names.includes(x))||new Set(req.requiredChecks).size!==req.requiredChecks.length||
-    !["candidateWorkspace","verifierWorkspace","privateKeyFile","receiptFile"].every(x=>typeof req[x]==="string"&&isAbsolute(req[x]))) {
+    !["candidateWorkspace","verifierWorkspace","receiptFile",...(externalSigner?[]:["privateKeyFile"])].every(x=>typeof req[x]==="string"&&isAbsolute(req[x]))||
+    (externalSigner&&Object.hasOwn(req,"privateKeyFile"))) {
     throw Error("VERIFIER_REQUEST_NOT_BOUNDED");
   }
-  if(edits.length&&JSON.stringify(req.requiredChecks)!==JSON.stringify(names))throw Error("VERIFIER_REQUEST_NOT_BOUNDED");
+  if((edits.length||externalSigner)&&JSON.stringify(req.requiredChecks)!==JSON.stringify(names))throw Error("VERIFIER_REQUEST_NOT_BOUNDED");
   if(req.expiresAt!==undefined){
     const deadline=typeof req.expiresAt==="string"?Date.parse(req.expiresAt):NaN;
     if(!Number.isFinite(deadline)||new Date(deadline).toISOString()!==req.expiresAt)
@@ -145,6 +147,36 @@ export function validateVerifierRunRequest(req) {
   }
   // This profile cannot attest visual/mobile/device checks; those remain pending.
   return req;
+}
+
+/** Trusted host dependency, never deserialized from a request, Goal or env.
+ * A callback is not principal evidence. Its owner must independently establish
+ * key custody, isolation and bounded cleanup of the actual signing process. */
+export function createTrustedVerifierSigner(transport) {
+  if(!transport||typeof transport!=="object"||Array.isArray(transport)
+    ||Object.keys(transport).some(key=>!["publicKeyPem","sign","timeoutMs"].includes(key))
+    ||typeof transport.publicKeyPem!=="string"||!transport.publicKeyPem||Buffer.byteLength(transport.publicKeyPem)>8192
+    ||!/^-----BEGIN PUBLIC KEY-----\r?\n[A-Za-z0-9+/=\r\n]+-----END PUBLIC KEY-----\r?\n?$/.test(transport.publicKeyPem)
+    ||typeof transport.sign!=="function"||(transport.timeoutMs!==undefined
+      &&(!Number.isInteger(transport.timeoutMs)||transport.timeoutMs<1||transport.timeoutMs>15000)))
+    throw Error("VERIFIER_SIGNER_TRANSPORT_INVALID");
+  let key;
+  try {key=createPublicKey(transport.publicKeyPem); if(key.asymmetricKeyType!=="ed25519")throw Error();}
+  catch {throw Error("VERIFIER_SIGNER_TRANSPORT_INVALID");}
+  const signPayload=transport.sign,timeoutMs=transport.timeoutMs??15000;
+  return async bytes=>{
+    if(!Buffer.isBuffer(bytes)||!bytes.length||bytes.length>24576)throw Error("VERIFIER_SIGNER_PAYLOAD_INVALID");
+    const bound=Buffer.from(bytes); let timer,signature;
+    try {
+      signature=await Promise.race([
+        Promise.resolve().then(()=>signPayload(Buffer.from(bound))).catch(()=>{throw Error("VERIFIER_SIGNER_TRANSPORT_FAILED");}),
+        new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error("VERIFIER_SIGNER_TRANSPORT_TIMEOUT")),timeoutMs);}),
+      ]);
+    } finally {clearTimeout(timer);}
+    if(typeof signature!=="string"||signature.length!==88||!/^[A-Za-z0-9+/]{86}==$/.test(signature)
+      ||!verify(null,bound,key,Buffer.from(signature,"base64")))throw Error("VERIFIER_SIGNER_SIGNATURE_INVALID");
+    return signature;
+  };
 }
 
 /** Byte staging only, not an isolation, executable-check, signature or release
@@ -188,8 +220,12 @@ export function stageIndependentCandidate(req) {
   return staged;
 }
 
-export async function runIndependentVerifier(req) {
-  validateVerifierRunRequest(req);
+export async function runIndependentVerifier(req, options = {}) {
+  if(!options||typeof options!=="object"||Array.isArray(options)||Object.keys(options).some(key=>key!=="signerTransport"))
+    throw Error("VERIFIER_SIGNER_TRANSPORT_INVALID");
+  const transport=Object.hasOwn(options,"signerTransport")?createTrustedVerifierSigner(options.signerTransport):null;
+  const mode={externalSigner:transport!==null};
+  validateVerifierRunRequest(req,mode);
   if(process.env.GORIQ_VERIFIER_OPERATOR_ISOLATED!=="1")throw Error("VERIFIER_SEPARATE_PRINCIPAL_NOT_ACKNOWLEDGED");
   if(!/^[a-z0-9][a-z0-9._/:@-]*@sha256:[0-9a-f]{64}$/.test(process.env.GORIQ_VERIFIER_CONTAINER_IMAGE??""))
     throw Error("VERIFIER_TRUSTED_CONTAINER_IMAGE_REQUIRED");
@@ -201,15 +237,15 @@ export async function runIndependentVerifier(req) {
     targetPath:req.targetPath,allowedUntracked:req.allowedUntracked,trackedEdits:req.trackedEdits});
   if(before.artifactDigest!==req.artifactDigest||before.candidateRevision!==req.sourceRevision)
     throw Error("VERIFIER_CANDIDATE_BINDING_MISMATCH");
-  const keyFile=externalPath(candidate,runner,req.privateKeyFile);
+  const keyFile=transport?null:externalPath(candidate,runner,req.privateKeyFile);
   const receiptFile=externalPath(candidate,runner,req.receiptFile);
   if(existsSync(receiptFile))throw Error("VERIFIER_RECEIPT_MUST_BE_NEW");
-  if(!existsSync(keyFile)||lstatSync(keyFile).isSymbolicLink()||!lstatSync(keyFile).isFile())
+  if(!transport&&(!existsSync(keyFile)||lstatSync(keyFile).isSymbolicLink()||!lstatSync(keyFile).isFile()))
     throw Error("VERIFIER_PRIVATE_KEY_UNAVAILABLE");
-  validateVerifierRunRequest(req);
-  const key=readPrivateKey(keyFile);
-  if(key.asymmetricKeyType!=="ed25519")throw Error("VERIFIER_SIGNER_NOT_ED25519");
-  validateVerifierRunRequest(req);
+  validateVerifierRunRequest(req,mode);
+  const key=transport?null:readPrivateKey(keyFile);
+  if(!transport&&key.asymmetricKeyType!=="ed25519")throw Error("VERIFIER_SIGNER_NOT_ED25519");
+  validateVerifierRunRequest(req,mode);
   if(req.trackedEdits===undefined)for(const path of req.allowedUntracked) {
     const target=resolve(runner,path),parent=dirname(target);
     if(!realpathSync(parent).startsWith(runner+sep)||existsSync(target))
@@ -228,7 +264,7 @@ export async function runIndependentVerifier(req) {
   exportSnapshot(runner,snapshot,staged.fileHashes);
   const issuedAt=new Date().toISOString(),checks=[];
   for(const name of req.requiredChecks) {
-    validateVerifierRunRequest(req);
+    validateVerifierRunRequest(req,mode);
     const [command,args]=verifierCommand(name);
     // Untrusted generated code must NEVER execute with this signer's host
     // identity or have access to the Ed25519 private key. A preinstalled,
@@ -277,14 +313,16 @@ export async function runIndependentVerifier(req) {
     targetPath:req.targetPath,allowedUntracked:req.allowedUntracked,trackedEdits:req.trackedEdits});
   if(runnerAfter.candidateRevision!==before.candidateRevision)
     throw Error("VERIFIER_RUNNER_CHANGED_DURING_EXECUTION");
-  validateVerifierRunRequest(req);
+  validateVerifierRunRequest(req,mode);
   const expiry=new Date(Math.min(Date.now()+20*60_000,
     req.expiresAt===undefined?Infinity:Date.parse(req.expiresAt))).toISOString();
   const payload={version:1,verifierId:req.verifierId,goalId:req.goalId,
     jobId:req.jobId,changeSetId:req.changeSetId,builderId:req.builderId,
     baseRevision:req.baseRevision,sourceRevision:req.sourceRevision,
     artifactDigest:req.artifactDigest,issuedAt,expiresAt:expiry,checks};
-  const signatureBase64=sign(null,Buffer.from(canonical(payload)),key).toString("base64");
+  const bytes=Buffer.from(canonical(payload));
+  const signatureBase64=transport?await transport(bytes):sign(null,bytes,key).toString("base64");
+  validateVerifierRunRequest(req,mode); // an asynchronous signer cannot extend expired scope
   const receipt={payload,signatureBase64};
   externalPath(candidate,runner,receiptFile);
   mkdirSync(dirname(receiptFile),{recursive:true});

@@ -144,3 +144,10 @@ test("staging rejects wrong candidate identity without overwriting the pristine 
     sourceRevision:"0".repeat(64),artifactDigest:identity.artifactDigest}),/CANDIDATE_BINDING_MISMATCH/);
   assert.equal(readFileSync(join(f.verifier,"src/a.ts"),"utf8"),"export const answer = 0;\n");
 });
+
+test("v2 refuses undeclared chmod even when repository filemode detection is disabled", {skip:process.platform==="win32"}, t => {
+  const f=fixture(t); writeFileSync(join(f.candidate,"src/b.ts"),"export const guard = false;\n");
+  f.scope.trackedEdits.files=[f.changes[0]];
+  git(f.candidate,"config","core.filemode","false"); chmodSync(join(f.candidate,"src/b.ts"),0o755);
+  assert.throws(()=>attestLocalCandidate(f.scope),/STATUS_MISMATCH/);
+});
