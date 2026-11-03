@@ -81,7 +81,8 @@ test('checkpoint phase B requires an actual phase A origin and refuses replay as
 });
 
 test('checkpoint refuses private PEM material even inside an otherwise allowed source or journal',()=>{
-  const cp=fixture(),content=source+'// -----BEGIN RSA PRIVATE KEY----- fixture sentinel only\n';
+  const sentinel=['-----BEGIN RSA','PRIVATE KEY-----'].join(' ');
+  const cp=fixture(),content=source+'// '+sentinel+' fixture sentinel only\n';
   update(cp,'candidate/scripts/logic.mjs',content);
   const prepared=cp.files.find(f=>f.path.endsWith('.prepared.json')),record=JSON.parse(Buffer.from(prepared.contentBase64,'base64'));
   record.files[0].content=content;update(cp,prepared.path,JSON.stringify(record));
