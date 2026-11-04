@@ -172,6 +172,17 @@ function Get-1218RotationMetadata {
   elseif ($env:SystemRoot -and $env:LOCALAPPDATA -and $execute -ieq (Join-Path (Join-Path (Join-Path (Join-Path $env:SystemRoot 'System32') 'WindowsPowerShell') 'v1.0') 'powershell.exe') -and
           [string]$action.Arguments -ceq ('-NoProfile -NonInteractive -ExecutionPolicy RemoteSigned -File "'+(Join-Path (Join-Path (Join-Path $env:LOCALAPPDATA 'JARVIS') 'production') 'launch-current.ps1')+'"')) { $result.actionKind='compatibility-launcher';$result.directNodeGuardShapeMatches=$false }
   else { return $result }
+  # Task Scheduler may return the current local account without its machine
+  # prefix. Resolve only that known local spelling, then require the same SID.
+  if (-not $result.currentOwnerPrincipalMatch -and $OwnerSid -cmatch '^S-1-5-21-\d+-\d+-\d+-\d+$' -and -not [string]::IsNullOrWhiteSpace($OwnerName)) {
+   $ownerParts=@($OwnerName.Split([char]92))
+   if ($ownerParts.Length -eq 2 -and $ownerParts[0] -ieq [Environment]::MachineName -and $principal -ieq $ownerParts[1]) {
+    try {
+     $resolvedPrincipalSid=([Security.Principal.NTAccount]::new([Environment]::MachineName,$principal)).Translate([Security.Principal.SecurityIdentifier]).Value
+     $result.currentOwnerPrincipalMatch=$resolvedPrincipalSid -ceq $OwnerSid
+    } catch { $result.currentOwnerPrincipalMatch=$false }
+   }
+  }
   if (-not $result.currentOwnerPrincipalMatch) { return $result }
   # This import only defines functions. Its Apply/AuthorizationPath parameters
   # stay in this function scope; its executable entry guard excludes dot-source.
