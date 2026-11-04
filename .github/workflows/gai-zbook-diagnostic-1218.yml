@@ -79,7 +79,7 @@ jobs:
       - name: Inspect separately approved fixed launcher bindings as data only
         if: ${{ inputs.launcher_binding_only == true }}
         working-directory: owner-native-${{ github.run_id }}-${{ github.run_attempt }}
-        shell: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command "& ([scriptblock]::Create([System.IO.File]::ReadAllText('{0}')))"
+        shell: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$env:PSModulePath=[System.IO.Path]::Combine($PSHOME,'Modules'); & ([scriptblock]::Create([System.IO.File]::ReadAllText('{0}')))"
         env:
           GORIQ_OWNER_LAUNCHER_BINDING_GRANT_BASE64: ${{ inputs.launcher_binding_grant_base64 }}
         run: |
