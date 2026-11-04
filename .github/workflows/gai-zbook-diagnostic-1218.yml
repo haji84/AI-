@@ -79,13 +79,13 @@ jobs:
       - name: Inspect separately approved fixed launcher bindings as data only
         if: ${{ inputs.launcher_binding_only == true }}
         working-directory: owner-native-${{ github.run_id }}-${{ github.run_attempt }}
-        shell: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -File {0}
+        shell: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command "& ([scriptblock]::Create([System.IO.File]::ReadAllText('{0}')))"
         env:
           GORIQ_OWNER_LAUNCHER_BINDING_GRANT_BASE64: ${{ inputs.launcher_binding_grant_base64 }}
         run: |
           $ErrorActionPreference = 'Stop'
           New-Item -ItemType Directory -Force -Path .gai-results | Out-Null
-          & .\scripts\owner-code-launcher-binding-inspection-1218.ps1 -Inspect | Tee-Object -FilePath .gai-results/owner-code-launcher-bindings-1218.json
+          & 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe' -NoLogo -NoProfile -NonInteractive -File .\scripts\owner-code-launcher-binding-inspection-1218.ps1 -Inspect | Tee-Object -FilePath .gai-results/owner-code-launcher-bindings-1218.json
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Inspect Owner artifact identity and encrypted-file metadata; execute no-argument PLAN ONLY
         if: ${{ inputs.warning_only != true && inputs.rotation_only != true && inputs.launcher_binding_only != true }}
