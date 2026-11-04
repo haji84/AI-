@@ -4,6 +4,7 @@ import {existsSync,readFileSync,mkdtempSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {resolve,join} from 'node:path';
 import {spawn,spawnSync,execFileSync} from 'node:child_process';
+import {pathToFileURL} from 'node:url';
 import {createHash} from 'node:crypto';
 
 const entry=resolve('scripts/owner-code-warning-1218.mjs'),worker=resolve('scripts/owner-code-warning-1218.ps1');
@@ -12,7 +13,7 @@ const sourceFiles=['scripts/owner-code-warning-1218.mjs','scripts/owner-code-war
 const now=Date.parse('2026-11-04T11:00:00.000Z');
 const context={GITHUB_ACTOR:'haji84',GITHUB_REPOSITORY:'haji84/AI-',GITHUB_REF:'refs/heads/main',GITHUB_SHA:'a'.repeat(40),GITHUB_RUN_ID:'12345678',GITHUB_RUN_ATTEMPT:'1'};
 function scope(){return {schemaVersion:1,scopeId:'issue:1218:owner-warning-only',authorityType:'TASK_SCOPED_ORDINARY_COMPLETION_DELEGATION',issuedBy:'task-delegated-operator',issue:1218,goalId:'goal-fcc81c97e09153f7',operation:'warning-render-and-cancel-only',ownerSid:'S-1-5-21-1-2-3-1004',sourceRevision:context.GITHUB_SHA,sourceHashes:Object.fromEntries(sourceFiles.map(name=>[name,'b'.repeat(64)])),workflowRunId:context.GITHUB_RUN_ID,workflowRunAttempt:1,issuedAt:new Date(now-1000).toISOString(),expiresAt:new Date(now+600000).toISOString(),maxAttempts:1,maxDurationSeconds:30,allowedUiAction:'OwnerRotationCancel',controlled:false};}
-async function api(){return existsSync(entry)?import(entry):{};}
+async function api(){return existsSync(entry)?import(pathToFileURL(entry).href):{};}
 const evidenceBools=['sourceHashesVerified','actualWindowsOwnerContextVerified','originalFormShown','originalWarningVisible','warningBeforeAnyConfirmation','originalCancelControlObserved','defaultCancelObserved','cancelInvoked','cancelledWithoutConfirmation','formDisposed','deadlineRespected','childCleanupVerified'];
 function success(){return {schemaVersion:1,issue:1218,operation:'warning-render-and-cancel-only',complete:true,failureCode:null,runtimeScopeSha256:'c'.repeat(64),sourceRevision:context.GITHUB_SHA,...Object.fromEntries(evidenceBools.map(key=>[key,true])),confirmEventObserved:false};}
 
