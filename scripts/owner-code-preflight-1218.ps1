@@ -45,7 +45,7 @@ function Get-1218ReviewedArtifacts {
   'owner-code-windows.ps1'='e8f0fe68f5ca8c6d8f5056299c1e805e05663d6782e744a69692ee5512262f43'
   'read-jarvis-production-config.ps1'='252f057b933ddd16c8eec85507fd43b084cf9f0cdba1ded93746ad5e199cccb5'
   'install-owner-code-windows.ps1'='160b03d5660831717cdf8b3ca2501cda56d474d5fd2b0c72f750320971ef1ad6'
-  'rotate-jarvis-owner-code-windows.ps1'='3f14b370340c5e3fc4876cfd1001b21f6cf96f4ab5433e500b7bce4ef7781466'
+  'rotate-jarvis-owner-code-windows.ps1'='588cae41ffdc4aac330629877e4757844e489fb737564bd0465f7a1f5cfa00f3'
  }
  $artifacts=@()
  foreach ($name in $pins.Keys) {

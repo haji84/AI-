@@ -66,6 +66,24 @@ export async function runBoundedWarningChild(factory,{durationMs=30000,runtimeSc
  });
 }
 
+// Preparation copies only the approved public sources into a newly protected
+// current-Owner directory. It never opens UI and has its own finite resource bound.
+export async function runBoundedWarningPreparation(factory,{durationMs=30000,clock=Date.now}={}){
+ if(!Number.isInteger(durationMs)||durationMs<=0||durationMs>30000)fail('WARNING_SCOPE_REQUIRED');
+ return await new Promise(done=>{
+  const started=clock();let child,output='',bytes=0,problem=null,settled=false;const failed=code=>({schemaVersion:1,complete:false,failureCode:code,profileMatchesEnvironment:false});
+  const finish=record=>{if(settled)return;settled=true;clearTimeout(kill);clearTimeout(hard);done(record.complete&&clock()-started>durationMs?failed('WARNING_TIMEOUT'):record);};const stop=code=>{problem??=code;try{child?.kill();}catch{}};
+  const kill=setTimeout(()=>stop('WARNING_TIMEOUT'),Math.max(1,durationMs-500)),hard=setTimeout(()=>{stop('WARNING_TIMEOUT');finish(failed(problem));},durationMs);
+  try{
+   child=factory();child.stdout.setEncoding('utf8');child.stdout.on('data',chunk=>{bytes+=Buffer.byteLength(chunk);if(bytes>1024){stop('WARNING_PROTOCOL_FAILED');return;}output+=chunk;});child.stderr.on('data',()=>stop('WARNING_PROTOCOL_FAILED'));child.on('error',()=>{stop('WARNING_CHILD_UNAVAILABLE');finish(failed(problem));});
+   child.on('close',exit=>{
+    if(problem){finish(failed(problem));return;}
+    try{const r=JSON.parse(output.trim());if(output.trim().includes('\n')||!exact(r,['schemaVersion','complete','failureCode','profileMatchesEnvironment'])||r.schemaVersion!==1||typeof r.complete!=='boolean'||typeof r.profileMatchesEnvironment!=='boolean'||exit!==(r.complete?0:1)||r.complete&&(r.failureCode!==null||!r.profileMatchesEnvironment)||!r.complete&&!codes.includes(r.failureCode))fail('WARNING_PROTOCOL_FAILED');finish(r);}catch{finish(failed('WARNING_PROTOCOL_FAILED'));}
+   });
+  }catch{stop('WARNING_CHILD_UNAVAILABLE');finish(failed(problem));}
+ });
+}
+
 function regular(path,limit){const m=lstatSync(path);if(!m.isFile()||m.isSymbolicLink()||m.size>limit||realpathSync.native(path).toLowerCase()!==resolve(path).toLowerCase())fail('WARNING_SOURCE_REJECTED');return readFileSync(path);}
 async function run(){
  let scope,scopeHash;
@@ -77,8 +95,13 @@ async function run(){
   for(const file of WARNING_SOURCE_FILES)if(hash(regular(join(root,file),262144))!==scope.sourceHashes[file])fail('WARNING_SOURCE_REJECTED');
   const serialized=serializeWarningScope(scope);scopeHash=hash(serialized);
   reserveWarningAttempt(root,scopeHash,scope.sourceRevision,scope.workflowRunId);
+  const executable=win32.join(process.env.SystemRoot,'System32','WindowsPowerShell','v1.0','powershell.exe'),boundScope=Buffer.from(serialized).toString('base64');
+  const prepared=await runBoundedWarningPreparation(()=>spawn(executable,['-NoLogo','-NoProfile','-NonInteractive','-File',join(root,'scripts','owner-code-warning-1218.ps1'),'-Prepare'],{windowsHide:true,stdio:['ignore','pipe','pipe'],cwd:root,env:buildWarningChildEnvironment(process.env,boundScope,'')}));
+  if(!prepared.complete)fail(prepared.failureCode);
+  const stage=win32.join(process.env.USERPROFILE,`.goriq-owner-warning-1218-${scope.workflowRunId}-${scope.workflowRunAttempt}-${scopeHash}`);
+  for(const file of WARNING_SOURCE_FILES)if(hash(regular(win32.join(stage,file),262144))!==scope.sourceHashes[file])fail('WARNING_SOURCE_REJECTED');
   const deadline=Date.now()+30000;
-  return await runBoundedWarningChild(()=>spawn(win32.join(process.env.SystemRoot,'System32','WindowsPowerShell','v1.0','powershell.exe'),['-NoLogo','-NoProfile','-STA','-NonInteractive','-File',join(root,'scripts','owner-code-warning-1218.ps1'),'-Run'],{windowsHide:false,stdio:['ignore','pipe','pipe'],env:buildWarningChildEnvironment(process.env,Buffer.from(serialized).toString('base64'),new Date(deadline).toISOString())}),{durationMs:30000,runtimeScopeSha256:scopeHash,sourceRevision:scope.sourceRevision});
+  return await runBoundedWarningChild(()=>spawn(executable,['-NoLogo','-NoProfile','-STA','-NonInteractive','-File',win32.join(stage,'scripts','owner-code-warning-1218.ps1'),'-Run'],{windowsHide:false,stdio:['ignore','pipe','pipe'],cwd:stage,env:buildWarningChildEnvironment(process.env,boundScope,new Date(deadline).toISOString())}),{durationMs:30000,runtimeScopeSha256:scopeHash,sourceRevision:scope.sourceRevision});
  }catch(error){const r=result(codes.includes(error.message)?error.message:'WARNING_SCOPE_REQUIRED');r.runtimeScopeSha256=scopeHash??null;r.sourceRevision=scope?.sourceRevision??null;return r;}
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){

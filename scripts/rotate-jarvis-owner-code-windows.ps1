@@ -5,10 +5,26 @@ param([switch]$Apply,[string]$AuthorizationPath)
 function Get-OwnerRotationNow { [datetimeoffset]::UtcNow }
 function Get-OwnerRotationHash([string]$Path) { (Get-FileHash -LiteralPath $Path -Algorithm SHA256 -ErrorAction Stop).Hash.ToLowerInvariant() }
 function Get-OwnerRotationIdentity { [Security.Principal.WindowsIdentity]::GetCurrent() }
-function Get-OwnerRotationSafePath([string]$Path) {
+function Get-OwnerRotationNativeItem([string]$Path) {
+ try { $attributes=[IO.File]::GetAttributes($Path) } catch [IO.FileNotFoundException] { return $null } catch [IO.DirectoryNotFoundException] { return $null }
+ $item=if (($attributes -band [IO.FileAttributes]::Directory) -ne 0) { [IO.DirectoryInfo]::new($Path) } else { [IO.FileInfo]::new($Path) }
+ $item.Refresh();if (-not $item.Exists) { throw 'ROTATION_CONTEXT_UNAVAILABLE' };return $item
+}
+function Get-OwnerRotationSafePath([string]$Path,[switch]$NativeMetadata) {
  if ([string]::IsNullOrWhiteSpace($Path) -or $Path -match '[\r\n\0]' -or $Path -match '^[\\/]{2}' -or -not [IO.Path]::IsPathRooted($Path)) { throw 'ROTATION_CONTEXT_UNAVAILABLE' }
  $full=[IO.Path]::GetFullPath($Path);$root=[IO.Path]::GetPathRoot($full)
  if ([IO.Path]::DirectorySeparatorChar -eq [char]92 -and ($full -notmatch '^[A-Za-z]:\\[^:]*$' -or ([IO.DriveInfo]::new($root)).DriveType -ne [IO.DriveType]::Fixed)) { throw 'ROTATION_CONTEXT_UNAVAILABLE' }
+ if ($NativeMetadata) {
+  $item=Get-OwnerRotationNativeItem $root;$current=$root
+  if ($null -eq $item -or $item -isnot [IO.DirectoryInfo]) { throw 'ROTATION_CONTEXT_UNAVAILABLE' }
+  foreach ($part in $full.Substring($root.Length).Split([IO.Path]::DirectorySeparatorChar)) {
+   if (-not $part) { continue }
+   if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'ROTATION_CONTEXT_UNAVAILABLE' }
+   $current=[IO.Path]::Combine($current,$part);$item=Get-OwnerRotationNativeItem $current
+   if ($null -eq $item) { return $full }
+  }
+  if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'ROTATION_CONTEXT_UNAVAILABLE' };return $full
+ }
  $item=Get-Item -LiteralPath $root -Force -ErrorAction Stop;$current=$root
  foreach ($part in $full.Substring($root.Length).Split([IO.Path]::DirectorySeparatorChar)) {
   if (-not $part) { continue }
@@ -25,17 +41,27 @@ function Get-OwnerRotationAclHash([string]$Path) {
  $hash=[Security.Cryptography.SHA256]::Create();try { ([BitConverter]::ToString($hash.ComputeHash($bytes))).Replace('-','').ToLowerInvariant() } finally { $hash.Dispose() }
 }
 function Assert-OwnerRotationProtectedPath {
- param([string]$Path,[string]$OwnerSid,[string]$OwnerProfile)
- $current=Get-OwnerRotationSafePath $Path
- while (-not (Test-Path -LiteralPath $current)) { $current=Split-Path -Parent $current }
+ param([string]$Path,[string]$OwnerSid,[string]$OwnerProfile,[switch]$NativeMetadata)
+ if ($NativeMetadata) {
+  $current=Get-OwnerRotationSafePath -Path $Path -NativeMetadata
+  while ($null -eq (Get-OwnerRotationNativeItem $current)) { $current=[IO.Path]::GetDirectoryName($current);if (-not $current) { throw 'ROTATION_CONTEXT_UNAVAILABLE' } }
+ } else {
+  $current=Get-OwnerRotationSafePath $Path
+  while (-not (Test-Path -LiteralPath $current)) { $current=Split-Path -Parent $current }
+ }
  if ($OwnerProfile -and $current -ine $OwnerProfile -and -not $current.StartsWith($OwnerProfile+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)) { throw 'ROTATION_CONTEXT_UNAVAILABLE' }
  $trusted=@($OwnerSid,'S-1-5-18','S-1-5-32-544','S-1-3-0');$depth=0;$pathRoot=[IO.Path]::GetPathRoot($current);$fullWrite=[Security.AccessControl.FileSystemRights]'Write,Delete,DeleteSubdirectoriesAndFiles,ChangePermissions,TakeOwnership'
  while ($true) {
   $write=if($depth -le 1 -or ($OwnerProfile -and $current -ieq $OwnerProfile)){$fullWrite}else{[Security.AccessControl.FileSystemRights]'Delete,DeleteSubdirectoriesAndFiles,ChangePermissions,TakeOwnership'}
-  $acl=Get-Acl -LiteralPath $current -ErrorAction Stop
+  $acl=if ($NativeMetadata) { $nativeItem=Get-OwnerRotationNativeItem $current;if ($null -eq $nativeItem) { throw 'ROTATION_CONTEXT_UNAVAILABLE' };$nativeItem.GetAccessControl([Security.AccessControl.AccessControlSections]::Access -bor [Security.AccessControl.AccessControlSections]::Owner) } else { Get-Acl -LiteralPath $current -ErrorAction Stop }
   if ($acl.GetOwner([Security.Principal.SecurityIdentifier]).Value -notin @($OwnerSid,'S-1-5-18','S-1-5-32-544')) { throw 'ROTATION_CONTEXT_UNAVAILABLE' }
-  foreach ($rule in $acl.Access) {
-   if ($rule.AccessControlType -eq [Security.AccessControl.AccessControlType]::Allow -and ($rule.FileSystemRights -band $write) -ne 0 -and $rule.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value -notin $trusted) { throw 'ROTATION_CONTEXT_UNAVAILABLE' }
+  $rules=if ($NativeMetadata) { $acl.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier]) } else { $acl.Access }
+  foreach ($rule in $rules) {
+   if ($NativeMetadata -and $rule.IdentityReference -isnot [Security.Principal.SecurityIdentifier]) { throw 'ROTATION_CONTEXT_UNAVAILABLE' }
+   if ($rule.AccessControlType -eq [Security.AccessControl.AccessControlType]::Allow -and ($rule.FileSystemRights -band $write) -ne 0) {
+    $sid=if ($NativeMetadata) { $rule.IdentityReference.Value } else { $rule.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value }
+    if ($sid -notin $trusted) { throw 'ROTATION_CONTEXT_UNAVAILABLE' }
+   }
   }
   if (($OwnerProfile -and $current -ieq $OwnerProfile) -or $current -ieq $pathRoot) { break };$current=[IO.Path]::GetDirectoryName($current);$depth++
  }
