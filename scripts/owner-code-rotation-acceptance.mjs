@@ -8,9 +8,9 @@ import {fileURLToPath} from 'node:url';
 
 const require=createRequire(import.meta.url);
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
-export const ROTATION_SOURCE_FILES=Object.freeze(['owner-code-rotation-acceptance.mjs','owner-code-fleet-preservation.mjs','owner-code-rotation-worker.ps1','rotate-jarvis-owner-code-windows.ps1','read-jarvis-production-config.ps1','validate-jarvis-production-config.mjs','jarvis-production-config.mjs','jarvis-windows-install-paths.mjs'].map(name=>'scripts/'+name));
-const flags=['credentialRotationApproval','existingTaskRestartApproval','configPersistenceApproval','normalLoopbackCookieApproval','confirmationApproval','automationConfirmationApproval','fleetReadOnlyApproval'];
-const scopeFields=['scopeId','ownerSid','issuedAt','expiresAt','sourceRevision','sourceHashes','configSha256','taskSha256','nodeSha256','runtimeRevision','dbPath','attemptId','maxAttempts','maxDurationSeconds','recoveryReserveSeconds','cohortAuthority',...flags];
+export const ROTATION_SOURCE_FILES=Object.freeze(['owner-code-rotation-acceptance.mjs','owner-code-fleet-preservation.mjs','owner-code-pc-preservation.mjs','owner-code-rotation-worker.ps1','rotate-jarvis-owner-code-windows.ps1','read-jarvis-production-config.ps1','validate-jarvis-production-config.mjs','jarvis-production-config.mjs','jarvis-windows-install-paths.mjs'].map(name=>'scripts/'+name));
+const flags=['credentialRotationApproval','existingTaskRestartApproval','configPersistenceApproval','normalLoopbackCookieApproval','confirmationApproval','automationConfirmationApproval','fleetReadOnlyApproval','pcSidecarReadOnlyApproval'];
+const scopeFields=['scopeId','ownerSid','issuedAt','expiresAt','sourceRevision','sourceHashes','configSha256','taskSha256','nodeSha256','runtimeRevision','dbPath','attemptId','maxAttempts','maxDurationSeconds','recoveryReserveSeconds','cohortAuthority','pcSidecars',...flags];
 const bools=['complete','confirmationVerified','sessionInvalidationWarningVerified','configurationValidated','credentialGenerated','atomicReplacementVerified','protectedBackupVerified','newLoginVerified','rollbackAttempted','rollbackVerified','oldLoginVerified','cleanupFailed'];
 const digest=/^[a-f0-9]{64}$/;
 const revision=/^[a-f0-9]{40}$/;
@@ -30,6 +30,8 @@ export function validateRotationScope(scope,now=Date.now()){
   !revision.test(scope.sourceRevision)||!revision.test(scope.runtimeRevision)||![scope.configSha256,scope.taskSha256,scope.nodeSha256].every(v=>typeof v==='string'&&digest.test(v))||
   !localPath(scope.dbPath)||!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(scope.attemptId)||flags.some(key=>scope[key]!==true)||
   !exact(scope.sourceHashes,ROTATION_SOURCE_FILES)||Object.values(scope.sourceHashes).some(v=>typeof v!=='string'||!digest.test(v)))reject('ROTATION_APPROVAL_REQUIRED');
+ const pc=scope.pcSidecars;
+ if(!exact(pc,['profile','expectedTaskFile','expectedObservationFile'])||pc.profile!=='jarvis-pc-sidecars-v1'||!['present','absent'].includes(pc.expectedTaskFile)||!['present','absent'].includes(pc.expectedObservationFile))reject('ROTATION_APPROVAL_REQUIRED');
  const cohort=scope.cohortAuthority;
  if(!object(cohort)||cohort.expectedCount!==38||!(cohort.kind==='approved-active-capture'&&exact(cohort,['kind','expectedCount'])||cohort.kind==='original-cohort-digest'&&exact(cohort,['kind','expectedCount','cohortSha256'])&&digest.test(cohort.cohortSha256)))reject('ROTATION_APPROVAL_REQUIRED');
  if(optional.length&&(!/^\d+$/.test(scope.workflowRunId)||scope.workflowRunAttempt!==1))reject('ROTATION_APPROVAL_REQUIRED');
@@ -55,15 +57,19 @@ export class RotationFleetSession{
   if(!exact(message,['event'])||!['before-rotation','before-commit','after-rollback'].includes(message.event))reject('ROTATION_PROTOCOL_REJECTED');
   const next={initial:['before-rotation'],baseline:['before-commit','after-rollback'],checked:['after-rollback'],restored:[]}[this.#phase];
   if(!next.includes(message.event))reject('ROTATION_PROTOCOL_REJECTED');
-  const {captureFleetSnapshot,compareFleetSnapshots}=require('./owner-code-fleet-preservation.mjs');
+  const {captureFleetSnapshot,compareFleetSnapshots,fleetSnapshotSummary}=require('./owner-code-fleet-preservation.mjs');
   const scope=this.#scope;
-  const options={schemaProfile:'jarvis-control-plane-sqlite-v1',databaseBinding:{path:scope.dbPath,configSha256:scope.configSha256,taskSha256:scope.taskSha256,releaseRevision:scope.runtimeRevision},cohortAuthority:{...scope.cohortAuthority,approvalSha256:this.#approvalHash}};
+  const options={schemaProfile:'jarvis-control-plane-sqlite-v1',databaseBinding:{path:scope.dbPath,configSha256:scope.configSha256,taskSha256:scope.taskSha256,releaseRevision:scope.runtimeRevision},cohortAuthority:{...scope.cohortAuthority,approvalSha256:this.#approvalHash},pcSidecars:scope.pcSidecars};
   let accepted=false;
   // A failed later observation must never inherit an earlier PASS.
   if(message.event!=='before-rotation')this.#comparison=null;
   try{
    const after=captureFleetSnapshot(scope.dbPath,options);
-   if(message.event==='before-rotation'){this.#baseline=after;this.#phase='baseline';accepted=true;}
+   if(message.event==='before-rotation'){
+    const pc=fleetSnapshotSummary(after).pcSidecars;
+    if(!pc||pc.taskFilePresent!==(scope.pcSidecars.expectedTaskFile==='present')||pc.observationFilePresent!==(scope.pcSidecars.expectedObservationFile==='present'))reject('ROTATION_BASELINE_REJECTED');
+    this.#baseline=after;this.#phase='baseline';accepted=true;
+   }
    else{this.#comparison=compareFleetSnapshots(this.#baseline,after);this.#phase=message.event==='after-rollback'?'restored':'checked';accepted=this.#comparison.status==='PASS';}
   }catch{this.#phase=message.event==='before-rotation'?'restored':message.event==='after-rollback'?'restored':'checked';}
   return {event:message.event,accepted};
@@ -72,7 +78,7 @@ export class RotationFleetSession{
   validateRotationResult(result);
   if(result.complete&&(this.#phase!=='checked'||this.#comparison?.status!=='PASS'))reject('ROTATION_RESULT_REJECTED');
   if(result.rollbackVerified&&(this.#phase!=='restored'||this.#comparison?.status!=='PASS'))reject('ROTATION_RESULT_REJECTED');
-  return {schemaVersion:1,issue:1218,complete:result.complete,rotation:result,fleetSqlitePreserved:this.#comparison?.status==='PASS',fleet:this.#comparison,wholeR06Verified:false,workerPrivateKeysVerified:false,sidecarAndCompassHistoryVerified:false};
+  return {schemaVersion:1,issue:1218,complete:result.complete,rotation:result,fleetSqlitePreserved:this.#comparison?.status==='PASS',fleet:this.#comparison,pcSidecarsPreserved:this.#comparison?.pcSidecars?.status==='PASS',wholeR06Verified:false,workerPrivateKeysVerified:false,sidecarAndCompassHistoryVerified:false};
  }
 }
 

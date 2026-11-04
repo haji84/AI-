@@ -4,9 +4,9 @@ import {execFileSync,spawn,spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 
 const target=new URL('./owner-code-rotation-acceptance.mjs',import.meta.url);
-const sourceNames=['owner-code-rotation-acceptance.mjs','owner-code-fleet-preservation.mjs','owner-code-rotation-worker.ps1','rotate-jarvis-owner-code-windows.ps1','read-jarvis-production-config.ps1','validate-jarvis-production-config.mjs','jarvis-production-config.mjs','jarvis-windows-install-paths.mjs'];
+const sourceNames=['owner-code-rotation-acceptance.mjs','owner-code-fleet-preservation.mjs','owner-code-pc-preservation.mjs','owner-code-rotation-worker.ps1','rotate-jarvis-owner-code-windows.ps1','read-jarvis-production-config.ps1','validate-jarvis-production-config.mjs','jarvis-production-config.mjs','jarvis-windows-install-paths.mjs'];
 const current=Date.now();
-function approved(){return {scopeId:'issue:1218:owner-code-rotation',ownerSid:'S-1-5-21-1-2-3-1004',issuedAt:new Date(current-1000).toISOString(),expiresAt:new Date(current+3600000).toISOString(),sourceRevision:'a'.repeat(40),sourceHashes:Object.fromEntries(sourceNames.map(name=>['scripts/'+name,'b'.repeat(64)])),configSha256:'c'.repeat(64),taskSha256:'d'.repeat(64),nodeSha256:'e'.repeat(64),runtimeRevision:'f'.repeat(40),dbPath:'C:\\Users\\Owner\\JARVIS\\state\\jarvis.db',attemptId:'12345678-1234-1234-1234-123456789012',maxAttempts:1,maxDurationSeconds:900,recoveryReserveSeconds:120,credentialRotationApproval:true,existingTaskRestartApproval:true,configPersistenceApproval:true,normalLoopbackCookieApproval:true,confirmationApproval:true,automationConfirmationApproval:true,fleetReadOnlyApproval:true,cohortAuthority:{kind:'approved-active-capture',expectedCount:38}};}
+function approved(){return {scopeId:'issue:1218:owner-code-rotation',ownerSid:'S-1-5-21-1-2-3-1004',issuedAt:new Date(current-1000).toISOString(),expiresAt:new Date(current+3600000).toISOString(),sourceRevision:'a'.repeat(40),sourceHashes:Object.fromEntries(sourceNames.map(name=>['scripts/'+name,'b'.repeat(64)])),configSha256:'c'.repeat(64),taskSha256:'d'.repeat(64),nodeSha256:'e'.repeat(64),runtimeRevision:'f'.repeat(40),dbPath:'C:\\Users\\Owner\\JARVIS\\state\\jarvis.db',attemptId:'12345678-1234-1234-1234-123456789012',maxAttempts:1,maxDurationSeconds:900,recoveryReserveSeconds:120,credentialRotationApproval:true,existingTaskRestartApproval:true,configPersistenceApproval:true,normalLoopbackCookieApproval:true,confirmationApproval:true,automationConfirmationApproval:true,fleetReadOnlyApproval:true,pcSidecarReadOnlyApproval:true,pcSidecars:{profile:'jarvis-pc-sidecars-v1',expectedTaskFile:'absent',expectedObservationFile:'absent'},cohortAuthority:{kind:'approved-active-capture',expectedCount:38}};}
 
 test('rotation acceptance defaults to an inert plan without any approval file',()=>{
  const run=spawnSync(process.execPath,[fileURLToPath(target)],{encoding:'utf8',timeout:15000});
@@ -16,6 +16,7 @@ test('rotation acceptance defaults to an inert plan without any approval file',(
 test('rotation scope accepts only exact one-attempt bounded Owner authority',async()=>{
  const {validateRotationScope}=await import(target);assert.equal(validateRotationScope(approved(),current).scopeId,'issue:1218:owner-code-rotation');
  const mutations={expired:s=>s.expiresAt=new Date(current).toISOString(),future:s=>s.issuedAt=new Date(current+1).toISOString(),overlong:s=>s.expiresAt=new Date(current+3*3600000).toISOString(),wrongScope:s=>s.scopeId='issue:1218',replay:s=>s.maxAttempts=2,noReserve:s=>s.recoveryReserveSeconds=0,shortWindow:s=>s.expiresAt=new Date(current+60000).toISOString(),newPermission:s=>s.permissionGrant=true,noCohort:s=>delete s.cohortAuthority,noFleetApproval:s=>s.fleetReadOnlyApproval=false,noNativeConfirmation:s=>s.automationConfirmationApproval=false,unc:s=>s.dbPath='\\\\server\\share\\jarvis.db',ads:s=>s.dbPath+=':secret',missingPin:s=>delete s.sourceHashes['scripts/read-jarvis-production-config.ps1'],extraExecutable:s=>s.sourceHashes['scripts/extra.ps1']='b'.repeat(64),unknownCohort:s=>s.cohortAuthority.kind='count-only'};
+ mutations.noPcApproval=s=>s.pcSidecarReadOnlyApproval=false;mutations.noPcPolicy=s=>delete s.pcSidecars;mutations.unknownPcPolicy=s=>s.pcSidecars.expectedTaskFile='unknown';
  for(const [name,mutate]of Object.entries(mutations)){const scope=approved();mutate(scope);assert.throws(()=>validateRotationScope(scope,current),{message:'ROTATION_APPROVAL_REQUIRED'},name);}
 });
 
@@ -104,7 +105,7 @@ for(const scenario of ['success','new-login-failed'])test('public Node/PowerShel
  assert.doesNotMatch(messages.join(''),/PUBLIC-CONTROLLER|PUBLIC-FIXTURE|fixture-other-token|BEGIN PUBLIC KEY|fleet\.db/);
 });
 
-test('fresh Windows-style Git checkout preserves all eight rotation source pins',async t=>{
+test('fresh Windows-style Git checkout preserves all nine rotation source pins',async t=>{
  const fs=await import('node:fs'),path=await import('node:path'),os=await import('node:os'),{ROTATION_SOURCE_FILES}=await import(target);
  const directory=fs.mkdtempSync(path.join(os.tmpdir(),'rotation-byte-checkout-')),seed=path.join(directory,'seed'),checkout=path.join(directory,'fresh');
  t.after(()=>fs.rmSync(directory,{recursive:true,force:true}));fs.mkdirSync(path.join(seed,'scripts'),{recursive:true});
@@ -114,7 +115,29 @@ test('fresh Windows-style Git checkout preserves all eight rotation source pins'
  const git=(cwd,args)=>execFileSync('git',args,{cwd,env,stdio:'pipe',encoding:'utf8'});
  git(seed,['init']);git(seed,['config','user.name','Public Fixture']);git(seed,['config','user.email','fixture@example.invalid']);git(seed,['config','core.autocrlf','false']);git(seed,['add','.']);git(seed,['commit','-m','public exact-byte fixture']);
  git(directory,['clone','--shared','--no-checkout',seed,checkout]);git(checkout,['config','core.autocrlf','true']);git(checkout,['checkout','--force','HEAD']);
- assert.equal(ROTATION_SOURCE_FILES.length,8);
+ assert.equal(ROTATION_SOURCE_FILES.length,9);
  const {createHash}=await import('node:crypto'),digest=bytes=>createHash('sha256').update(bytes).digest('hex');
  for(const file of ROTATION_SOURCE_FILES)assert.equal(digest(fs.readFileSync(path.join(checkout,file))),digest(fs.readFileSync(file)),file+' must keep the approved bytes');
+});
+
+
+test('rotation refuses an unapproved existing PC sidecar before admitting its baseline',async t=>{
+ const f=await fleetFixture(t),fs=await import('node:fs'),{RotationFleetSession}=await import(target);
+ fs.writeFileSync(f.dbPath+'.pc-tasks.json',JSON.stringify({version:1,tasks:[],savedAt:'2026-11-04T09:00:00.000Z'},null,2)+'\n');
+ const session=new RotationFleetSession({...approved(),dbPath:f.dbPath},'0'.repeat(64));
+ assert.deepEqual(session.accept({event:'before-rotation'}),{event:'before-rotation',accepted:false});
+});
+
+test('rotation checks PC sidecars after actual atomic rename and refuses subsequent loss',async t=>{
+ const f=await fleetFixture(t),fs=await import('node:fs'),{RotationFleetSession}=await import(target);
+ const tasks=JSON.stringify({version:1,tasks:[],savedAt:'2026-11-04T09:00:00.000Z'},null,2)+'\n',observations=JSON.stringify({version:1,records:[],savedAt:'2026-11-04T09:00:00.000Z'},null,2)+'\n';
+ fs.writeFileSync(f.dbPath+'.pc-tasks.json',tasks);fs.writeFileSync(f.dbPath+'.pc-observations.json',observations);
+ const scope={...approved(),dbPath:f.dbPath,pcSidecars:{profile:'jarvis-pc-sidecars-v1',expectedTaskFile:'present',expectedObservationFile:'present'}};
+ const session=new RotationFleetSession(scope,'0'.repeat(64));assert.equal(session.accept({event:'before-rotation'}).accepted,true);
+ fs.writeFileSync(f.dbPath+'.pc-tasks.json.tmp',tasks);fs.renameSync(f.dbPath+'.pc-tasks.json.tmp',f.dbPath+'.pc-tasks.json');
+ assert.equal(session.accept({event:'before-commit'}).accepted,true);
+ const report=session.finish({schemaVersion:1,issue:1218,complete:true,confirmationVerified:true,sessionInvalidationWarningVerified:true,configurationValidated:true,credentialGenerated:true,atomicReplacementVerified:true,protectedBackupVerified:true,newLoginVerified:true,rollbackAttempted:false,rollbackVerified:false,oldLoginVerified:false,cleanupFailed:false,failureCode:null,failedStage:null});
+ assert.equal(report.pcSidecarsPreserved,true);assert.equal(report.wholeR06Verified,false);
+ const failed=new RotationFleetSession(scope,'0'.repeat(64));assert.equal(failed.accept({event:'before-rotation'}).accepted,true);fs.unlinkSync(f.dbPath+'.pc-tasks.json');
+ assert.equal(failed.accept({event:'before-commit'}).accepted,false);assert.equal(fs.existsSync(f.dbPath+'.pc-tasks.json'),false);
 });

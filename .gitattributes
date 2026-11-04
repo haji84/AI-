@@ -31,3 +31,8 @@ scripts/owner-code-rotation-redirect.test.mjs text eol=lf
 scripts/owner-code-rotation.test.mjs text eol=lf
 tests/owner-code-rotation-transaction.fixture.ps1 text eol=lf
 tests/owner-code-rotation-authority.fixture.ps1 text eol=lf
+
+# PC sidecar preservation and sanitized native metadata.
+scripts/owner-code-pc-preservation.mjs text eol=lf
+scripts/owner-code-pc-preservation.test.mjs text eol=lf
+scripts/owner-code-rotation-readiness.test.mjs text eol=lf
