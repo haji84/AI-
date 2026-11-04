@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {existsSync,readFileSync,mkdtempSync,rmSync} from 'node:fs';
+import {existsSync,readFileSync,mkdtempSync,rmSync,realpathSync,mkdirSync,copyFileSync,writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {resolve,join} from 'node:path';
 import {spawn,spawnSync,execFileSync} from 'node:child_process';
@@ -95,9 +95,46 @@ test('hosted Windows public worker shows/cancels only while task delegation is v
   assert.equal(run.error,undefined,'Public warning child exceeded its bounded wrapper');assert.equal(run.stderr,'');const r=JSON.parse(run.stdout);a.validateWarningResult(r);
   if(active){assert.equal(run.status,0,JSON.stringify(r));assert.equal(r.complete,true,JSON.stringify(r));assert.equal(r.runtimeScopeSha256,scopeHash);assert.equal(r.confirmEventObserved,false);assert.equal(r.defaultCancelObserved,true);assert.equal(r.formDisposed,true);assert.equal(r.childCleanupVerified,true);}
   else{console.log('PUBLIC_WARNING_FIXTURE_EXPECTS_EXPIRED_SCOPE');assert.equal(run.status,1);assert.equal(r.failureCode,'WARNING_SCOPE_REQUIRED');assert.equal(r.originalFormShown,false);assert.equal(r.cancelInvoked,false);assert.equal(existsSync(marker),false);}
- }finally{if(existsSync(marker)){const retained=JSON.parse(readFileSync(marker,'utf8'));assert.equal(retained.runtimeScopeSha256,scopeHash,'Never remove another attempt marker');rmSync(marker);}}
+ }finally{if(existsSync(marker)){const retained=JSON.parse(readFileSync(marker,'utf8'));assert.equal(retained.runtimeScopeSha256,scopeHash,'Never remove another attempt marker');assert.equal(['reserved','consumed'].includes(retained.stage),true);console.log('PUBLIC_WARNING_ATTEMPT_STAGE '+JSON.stringify({schemaVersion:1,stage:retained.stage,runtimeScopeMatched:true}));rmSync(marker);}}
 });
 test('one ordinary warning attempt is reserved only once in its public checkout result directory',async()=>{
- const a=await api();assert.equal(typeof a.reserveWarningAttempt,'function');const directory=mkdtempSync(join(tmpdir(),'warning-attempt-public-'));
+ const a=await api();assert.equal(typeof a.reserveWarningAttempt,'function');const directory=realpathSync.native(mkdtempSync(join(tmpdir(),'warning-attempt-public-')));
  try{a.reserveWarningAttempt(directory,'c'.repeat(64),context.GITHUB_SHA,context.GITHUB_RUN_ID);const marker=JSON.parse(readFileSync(join(directory,'.gai-results','owner-warning-1218.attempt'),'utf8'));assert.equal(marker.stage,'reserved');assert.equal(marker.runtimeScopeSha256,'c'.repeat(64));assert.throws(()=>a.reserveWarningAttempt(directory,'c'.repeat(64),context.GITHUB_SHA,context.GITHUB_RUN_ID),{message:'WARNING_ATTEMPT_CONSUMED'});assert.equal(JSON.parse(readFileSync(join(directory,'.gai-results','owner-warning-1218.attempt'),'utf8')).stage,'reserved');}finally{rmSync(directory,{recursive:true,force:true});}
+});
+test('hosted public diagnostic records closed real-form thread facts without changing production files',{skip:process.platform!=='win32'},async()=>{
+ const a=await api(),results=resolve('.gai-results');mkdirSync(results,{recursive:true});const directory=realpathSync.native(mkdtempSync(join(results,'public-warning-diagnostic-')));mkdirSync(join(directory,'scripts'));
+ const productionHashes=Object.fromEntries(sourceFiles.map(file=>[file,createHash('sha256').update(readFileSync(file)).digest('hex')]));
+ try{
+  for(const file of sourceFiles)copyFileSync(file,join(directory,file));
+  const target=join(directory,'scripts/owner-code-warning-1218.ps1');let body=readFileSync(target,'utf8');
+  const save=`[IO.File]::WriteAllText($publicProbePath,($publicProbe|ConvertTo-Json -Compress));`;
+  const stage=value=>`$publicProbe.stage='${value}';${save}`;
+  const start=`$publicProbePath=Join-Path (Join-Path (Split-Path -Parent $PSScriptRoot) '.gai-results') 'public-warning-probe.json';$publicProbe=@{schemaVersion=1;stage='entered';threadExceptionObserved=$false;exceptionType='None';missingClockCommand=$false};${save}`;
+  assert.equal(body.split('$encoded=$env:GORIQ_OWNER_WARNING_SCOPE_BASE64').length-1,1);body=body.replace('$encoded=$env:GORIQ_OWNER_WARNING_SCOPE_BASE64',()=>start+'$encoded=$env:GORIQ_OWNER_WARNING_SCOPE_BASE64');
+  body=body.replace('$result.actualWindowsOwnerContextVerified=$true',()=>'$result.actualWindowsOwnerContextVerified=$true;'+stage('owner-verified'));
+  body=body.replace('$result.sourceHashesVerified=$true',()=>'$result.sourceHashesVerified=$true;'+stage('sources-verified'));
+  body=body.replace("$attempt.stage='consumed'",()=>stage('attempt-consumption')+"$attempt.stage='consumed'");
+  const hook=`
+  ${stage('attempt-consumed')}
+  [Windows.Forms.Application]::SetUnhandledExceptionMode([Windows.Forms.UnhandledExceptionMode]::CatchException)
+  $publicThreadHandler=[Threading.ThreadExceptionEventHandler]{param($sender,$eventArgs)
+   $publicProbe.threadExceptionObserved=$true;$type=$eventArgs.Exception.GetType().FullName;if($type -cnotmatch '^System[.][A-Za-z0-9_.+]+$'){$type='Unknown'};$publicProbe.exceptionType=$type;$publicProbe.missingClockCommand=$eventArgs.Exception.ToString().Contains('Get-OwnerRotationNow');${stage('thread-exception')}
+   [Windows.Forms.Application]::ExitThread()
+  }.GetNewClosure()
+  [Windows.Forms.Application]::add_ThreadException($publicThreadHandler)
+  `;
+  assert.equal(body.split('Add-Type -AssemblyName System.Windows.Forms').length-1,1);body=body.replace('Add-Type -AssemblyName System.Windows.Forms',()=> 'Add-Type -AssemblyName System.Windows.Forms;'+hook);
+  body=body.replace('try { $observer.Start();',()=>stage('before-form')+'try { $observer.Start();');
+  body=body.replace('$result.cancelledWithoutConfirmation=',()=>stage('after-form')+'$result.cancelledWithoutConfirmation=');
+  writeFileSync(target,body);
+  const identity=spawnSync(shell,['-NoProfile','-NonInteractive','-Command','[Security.Principal.WindowsIdentity]::GetCurrent().User.Value'],{encoding:'utf8',timeout:10000});assert.equal(identity.status,0,'Public identity unavailable');assert.equal(/^S-1-5-21-\d+-\d+-\d+-\d+$/.test(identity.stdout.trim()),true);
+  const current=Date.now(),s={...scope(),ownerSid:identity.stdout.trim(),sourceRevision:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),sourceHashes:Object.fromEntries(sourceFiles.map(file=>[file,createHash('sha256').update(readFileSync(join(directory,file))).digest('hex')])),workflowRunId:process.env.GITHUB_RUN_ID??String(current),issuedAt:new Date(current-1000).toISOString(),expiresAt:new Date(Math.min(current+600000,Date.parse('2026-11-10T08:00:00.000Z'))).toISOString()};
+  const run=spawnSync(process.execPath,[join(directory,'scripts/owner-code-warning-1218.mjs'),'--run'],{encoding:'utf8',timeout:35000,cwd:directory,env:{...process.env,...context,GITHUB_SHA:s.sourceRevision,GITHUB_RUN_ID:s.workflowRunId,GORIQ_OWNER_WARNING_SCOPE_BASE64:Buffer.from(a.serializeWarningScope(s)).toString('base64')}});assert.equal(run.error,undefined,'Public diagnostic exceeded unchanged child bound');assert.equal(run.stderr,'');
+  const path=join(directory,'.gai-results/public-warning-probe.json');
+  if(current+30000<=Date.parse('2026-11-10T08:00:00.000Z')){
+   assert.equal(existsSync(path),true,'Public diagnostic must record its reached stage');const observation=JSON.parse(readFileSync(path,'utf8'));
+   assert.deepEqual(Object.keys(observation).sort(),['exceptionType','missingClockCommand','schemaVersion','stage','threadExceptionObserved']);assert.equal(observation.schemaVersion,1);assert.equal(['entered','owner-verified','sources-verified','attempt-consumption','attempt-consumed','before-form','after-form','thread-exception'].includes(observation.stage),true);assert.equal(typeof observation.threadExceptionObserved,'boolean');assert.equal(typeof observation.missingClockCommand,'boolean');assert.equal(/^(?:None|Unknown|System[.][A-Za-z0-9_.+]+)$/.test(observation.exceptionType),true);console.log('PUBLIC_WARNING_UI_DIAGNOSTIC '+JSON.stringify(observation));
+  }else{const r=JSON.parse(run.stdout);assert.equal(r.failureCode,'WARNING_SCOPE_REQUIRED');console.log('PUBLIC_WARNING_DIAGNOSTIC_EXPECTS_EXPIRED_SCOPE');}
+  for(const file of sourceFiles)assert.equal(createHash('sha256').update(readFileSync(file)).digest('hex'),productionHashes[file]);
+ }finally{rmSync(directory,{recursive:true,force:true});}
 });
