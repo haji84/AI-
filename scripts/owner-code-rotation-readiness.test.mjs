@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,existsSync,rmSync,symlinkSync} from 'node:fs';
+import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,existsSync,rmSync,symlinkSync,realpathSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
 import {spawnSync} from 'node:child_process';
@@ -14,7 +14,7 @@ const sid='S-1-5-21-1-2-3-1004';
 const ownerName='PUBLIC-FIXTURE\\Owner';
 const fields=['schemaVersion','readOnly','proof','actualAcceptanceConditionsPassed','readyForRotation','actionKind','taskSha256','currentOwnerPrincipalMatch','taskRunning','pathNode','taskNode','pathNodeMatchesTaskNodeBytes','pathNodeMatchesTaskNodePath','releaseManifest','directNodeGuardShapeMatches'];
 function fixture(fn){
- const directory=mkdtempSync(join(tmpdir(),'rotation-metadata-public-'));
+ const directory=realpathSync.native(mkdtempSync(join(tmpdir(),'rotation-metadata-public-')));
  const release=join(directory,'release'),node=join(directory,'node.exe'),legacy=join(directory,'legacy'),system=join(directory,'Windows');
  mkdirSync(join(release,'scripts'),{recursive:true});mkdirSync(join(legacy,'JARVIS','production'),{recursive:true});mkdirSync(join(system,'System32','WindowsPowerShell','v1.0'),{recursive:true});
  writeFileSync(node,'PUBLIC-NODE-FIXTURE-NOT-EXECUTABLE');
@@ -35,23 +35,11 @@ function inspect(f,{task=f.task,pathNode=f.node,unprotected='',extra=''}={}){
  }
  function Start-Process {throw 'NATIVE_PROCESS_MUST_NOT_START'};function Stop-ScheduledTask {throw 'NATIVE_TASK_MUST_NOT_CHANGE'};function Start-ScheduledTask {throw 'NATIVE_TASK_MUST_NOT_CHANGE'};function Invoke-WebRequest {throw 'NETWORK_MUST_NOT_RUN'};function Get-ScheduledTask {throw 'TASK_MUST_BE_SUPPLIED'};
  ${extra}
- if(Test-Path Function:Get-1218RotationMetadata){$fixtureObservation=Get-1218RotationMetadata -Task $fixtureTask -OwnerSid ${quote(sid)} -OwnerName ${quote(ownerName)}}else{$fixtureObservation=@{missingFeature=$true}}
- $fixtureProbe=[ordered]@{schemaVersion=1;publicTemporaryFixtureOnly=$true;powershellVersion=$PSVersionTable.PSVersion.ToString();clrVersion=[Environment]::Version.ToString();windowsSeparator=([IO.Path]::DirectorySeparatorChar -eq [char]92);taskPresent=($null -ne $fixtureTask);actionCount=0;taskNameMatches=$null;taskPathMatches=$null;principalMatches=$null;logonTypeAllowed=$null;runLevelAllowed=$null;rootIsRooted=$null;executeIsRooted=$null;rootInvalidCharacters=$null;executeInvalidCharacters=$null;rootNetworkPrefix=$null;executeNetworkPrefix=$null;rootDrivePattern=$null;executeDrivePattern=$null;rootHasShortNameComponent=$null;executeHasShortNameComponent=$null;rootFullPathEqualsInput=$null;executeFullPathEqualsInput=$null;nodeFileNameMatches=$null;directArgumentsMatchRawRoot=$null;directArgumentsMatchCanonicalRoot=$null;compatibilityExecuteMatches=$null;compatibilityArgumentsMatch=$null;shapeProbeThrew=$false;metadataUnsupported=($fixtureObservation.actionKind -ceq 'unsupported')}
- if($null -ne $fixtureTask){try{
-  $fixtureActions=@($fixtureTask.Actions);$fixtureProbe.actionCount=$fixtureActions.Count;$fixtureProbe.taskNameMatches=[string]$fixtureTask.TaskName -ceq 'JARVIS Remote Host';$fixtureProbe.taskPathMatches=[string]$fixtureTask.TaskPath -ceq '\\';$fixtureProbe.principalMatches=([string]$fixtureTask.Principal.UserId -ceq ${quote(sid)} -or [string]$fixtureTask.Principal.UserId -ieq ${quote(ownerName)});$fixtureProbe.logonTypeAllowed=[string]$fixtureTask.Principal.LogonType -in @('Password','S4U','Interactive','InteractiveToken','InteractiveOrPassword');$fixtureProbe.runLevelAllowed=[string]$fixtureTask.Principal.RunLevel -in @('Limited','Highest');
-  if($fixtureActions.Count -eq 1){
-   $fixtureRoot=[string]$fixtureActions[0].WorkingDirectory;$fixtureExecute=[string]$fixtureActions[0].Execute;
-   $fixtureProbe.rootIsRooted=[IO.Path]::IsPathRooted($fixtureRoot);$fixtureProbe.executeIsRooted=[IO.Path]::IsPathRooted($fixtureExecute);$fixtureProbe.rootInvalidCharacters=$fixtureRoot -match '[\\r\\n\\0"<>|]';$fixtureProbe.executeInvalidCharacters=$fixtureExecute -match '[\\r\\n\\0"<>|]';$fixtureProbe.rootNetworkPrefix=$fixtureRoot -match '^[\\\\/]{2}';$fixtureProbe.executeNetworkPrefix=$fixtureExecute -match '^[\\\\/]{2}';$fixtureProbe.rootDrivePattern=$fixtureRoot -match '^[A-Za-z]:[\\\\/][^:]*$';$fixtureProbe.executeDrivePattern=$fixtureExecute -match '^[A-Za-z]:[\\\\/][^:]*$';$fixtureProbe.rootHasShortNameComponent=$fixtureRoot -match '(?:^|[\\\\/])[^\\\\/]*~[0-9]+(?:[\\\\/]|$)';$fixtureProbe.executeHasShortNameComponent=$fixtureExecute -match '(?:^|[\\\\/])[^\\\\/]*~[0-9]+(?:[\\\\/]|$)';
-   $fixtureCanonicalRoot=[IO.Path]::GetFullPath($fixtureRoot);$fixtureProbe.rootFullPathEqualsInput=$fixtureCanonicalRoot -ieq $fixtureRoot;$fixtureProbe.executeFullPathEqualsInput=[IO.Path]::GetFullPath($fixtureExecute) -ieq $fixtureExecute;$fixtureProbe.nodeFileNameMatches=[IO.Path]::GetFileName($fixtureExecute) -ieq 'node.exe';$fixtureProbe.directArgumentsMatchRawRoot=[string]$fixtureActions[0].Arguments -ceq ('"'+(Join-Path (Join-Path $fixtureRoot 'scripts') 'jarvis-remote-host.mjs')+'"');$fixtureProbe.directArgumentsMatchCanonicalRoot=[string]$fixtureActions[0].Arguments -ceq ('"'+(Join-Path (Join-Path $fixtureCanonicalRoot 'scripts') 'jarvis-remote-host.mjs')+'"');$fixtureProbe.compatibilityExecuteMatches=$fixtureExecute -ieq (Join-Path (Join-Path (Join-Path (Join-Path $env:SystemRoot 'System32') 'WindowsPowerShell') 'v1.0') 'powershell.exe');$fixtureProbe.compatibilityArgumentsMatch=[string]$fixtureActions[0].Arguments -ceq ('-NoProfile -NonInteractive -ExecutionPolicy RemoteSigned -File "'+(Join-Path (Join-Path (Join-Path $env:LOCALAPPDATA 'JARVIS') 'production') 'launch-current.ps1')+'"');
-  }
- }catch{$fixtureProbe.shapeProbeThrew=$true}}
- @{observation=$fixtureObservation;fixtureProbe=$fixtureProbe}|ConvertTo-Json -Depth 9 -Compress
+ if(Test-Path Function:Get-1218RotationMetadata){Get-1218RotationMetadata -Task $fixtureTask -OwnerSid ${quote(sid)} -OwnerName ${quote(ownerName)}|ConvertTo-Json -Depth 8 -Compress}else{'{"missingFeature":true}'}
  `;
  const run=spawnSync(shell,['-NoProfile','-NonInteractive','-Command',code],{encoding:'utf8',timeout:25000});
  assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr);assert.equal(run.stderr,'');
- const envelope=JSON.parse(run.stdout.trim());
- console.log('PUBLIC_TEMPORARY_READINESS_PROBE '+JSON.stringify(envelope.fixtureProbe));
- return envelope.observation;
+ return JSON.parse(run.stdout.trim());
 }
 function closed(result,f){
  assert.deepEqual(Object.keys(result).sort(),[...fields].sort());
