@@ -39,3 +39,7 @@ scripts/owner-code-rotation-readiness.test.mjs text eol=lf
 scripts/owner-code-warning-1218.mjs text eol=lf
 scripts/owner-code-warning-1218.ps1 text eol=lf
 scripts/owner-code-warning-1218.test.mjs text eol=lf
+scripts/owner-code-rotation-native-1218.mjs text eol=lf
+scripts/owner-code-rotation-native-1218.ps1 text eol=lf
+scripts/owner-code-rotation-native-1218.test.mjs text eol=lf
+scripts/owner-code-rotation-native-stage.test.mjs text eol=lf
