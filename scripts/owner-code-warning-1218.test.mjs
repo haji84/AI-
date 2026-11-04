@@ -109,9 +109,28 @@ test('hosted public diagnostic records closed real-form thread facts without cha
   const target=join(directory,'scripts/owner-code-warning-1218.ps1');let body=readFileSync(target,'utf8');
   const save=`[IO.File]::WriteAllText($publicProbePath,($publicProbe|ConvertTo-Json -Compress));`;
   const stage=value=>`$publicProbe.stage='${value}';${save}`;
+  const rotationText=readFileSync('scripts/rotate-jarvis-owner-code-windows.ps1','utf8');
+  let guard=rotationText.slice(rotationText.indexOf('function Assert-OwnerRotationProtectedPath {'),rotationText.indexOf('function Get-OwnerRotationTaskHash('));
+  const wrap=(statement,label)=>{assert.equal(guard.split(statement).length-1,1);guard=guard.replace(statement,()=>stage(label+'-before')+statement+';'+stage(label+'-after'));};
+  wrap('$current=Get-OwnerRotationSafePath $Path','guard-safe-path');
+  wrap('$acl=Get-Acl -LiteralPath $current -ErrorAction Stop','guard-get-acl');
+  wrap(guard.split('\n').find(line=>line.trim().startsWith('if ($acl.GetOwner(')),'guard-owner');
+  wrap(guard.split('\n').find(line=>line.trim().startsWith('if ($rule.AccessControlType')),'guard-rule');
+  wrap('$current=[IO.Path]::GetDirectoryName($current);$depth++','guard-parent');
+  guard=guard.replace('foreach ($rule in $acl.Access) {',()=>stage('guard-access-before')+'foreach ($rule in $acl.Access) {'+stage('guard-access-entered'));
+  guard=guard.replace('  }\n  if (($OwnerProfile',()=> '  }\n'+stage('guard-access-after')+'\n  if (($OwnerProfile');
   const start=`$publicProbePath=Join-Path (Join-Path (Split-Path -Parent $PSScriptRoot) '.gai-results') 'public-warning-probe.json';$publicProbe=@{schemaVersion=1;stage='entered';threadExceptionObserved=$false;exceptionType='None';missingClockCommand=$false};${save}`;
   assert.equal(body.split('$encoded=$env:GORIQ_OWNER_WARNING_SCOPE_BASE64').length-1,1);body=body.replace('$encoded=$env:GORIQ_OWNER_WARNING_SCOPE_BASE64',()=>start+'$encoded=$env:GORIQ_OWNER_WARNING_SCOPE_BASE64');
   body=body.replace('$result.actualWindowsOwnerContextVerified=$true',()=>'$result.actualWindowsOwnerContextVerified=$true;'+stage('owner-verified'));
+  const hashStage=position=>`$publicProbe.stage='hash-'+$publicHashRole+'-${position}';${save}`;
+  body=body.replace('$path=Join-Path $root $file;',()=>"$publicHashRole=@{'scripts/owner-code-warning-1218.mjs'='node';'scripts/owner-code-warning-1218.ps1'='worker';'scripts/rotate-jarvis-owner-code-windows.ps1'='rotation'}[$file];"+hashStage('before')+'$path=Join-Path $root $file;');
+  const hashStatement=body.split('\n').find(line=>line.includes('[IO.File]::ReadAllBytes($path)'));
+  assert.equal(typeof hashStatement,'string');body=body.replace(hashStatement,()=>hashStatement+';'+hashStage('after'));
+  body=body.replace("  # Import unchanged definitions only.",()=>stage('source-hashes-after')+'\n  # Import unchanged definitions only.');
+  const importStatement=". (Join-Path $PSScriptRoot 'rotate-jarvis-owner-code-windows.ps1') -Apply:$false -AuthorizationPath ''";
+  assert.equal(body.split(importStatement).length-1,1);body=body.replace(importStatement,()=>stage('import-before')+importStatement+';'+stage('import-after')+'\n'+guard);
+  const protectionStatement='Assert-OwnerRotationProtectedPath -Path (Join-Path $root $file) -OwnerSid $scope.ownerSid';
+  assert.equal(body.split(protectionStatement).length-1,1);body=body.replace(protectionStatement,()=>stage('source-protection-before')+protectionStatement+';'+stage('source-protection-after'));
   body=body.replace('$result.sourceHashesVerified=$true',()=>'$result.sourceHashesVerified=$true;'+stage('sources-verified'));
   body=body.replace("$attempt.stage='consumed'",()=>stage('attempt-consumption')+"$attempt.stage='consumed'");
   const hook=`
@@ -133,7 +152,7 @@ test('hosted public diagnostic records closed real-form thread facts without cha
   const path=join(directory,'.gai-results/public-warning-probe.json');
   if(current+30000<=Date.parse('2026-11-10T08:00:00.000Z')){
    assert.equal(existsSync(path),true,'Public diagnostic must record its reached stage');const observation=JSON.parse(readFileSync(path,'utf8'));
-   assert.deepEqual(Object.keys(observation).sort(),['exceptionType','missingClockCommand','schemaVersion','stage','threadExceptionObserved']);assert.equal(observation.schemaVersion,1);assert.equal(['entered','owner-verified','sources-verified','attempt-consumption','attempt-consumed','before-form','after-form','thread-exception'].includes(observation.stage),true);assert.equal(typeof observation.threadExceptionObserved,'boolean');assert.equal(typeof observation.missingClockCommand,'boolean');assert.equal(/^(?:None|Unknown|System[.][A-Za-z0-9_.+]+)$/.test(observation.exceptionType),true);console.log('PUBLIC_WARNING_UI_DIAGNOSTIC '+JSON.stringify(observation));
+   assert.deepEqual(Object.keys(observation).sort(),['exceptionType','missingClockCommand','schemaVersion','stage','threadExceptionObserved']);assert.equal(observation.schemaVersion,1);assert.equal(['entered','owner-verified','sources-verified','hash-node-before','hash-node-after','hash-worker-before','hash-worker-after','hash-rotation-before','hash-rotation-after','source-hashes-after','import-before','import-after','source-protection-before','source-protection-after','guard-safe-path-before','guard-safe-path-after','guard-get-acl-before','guard-get-acl-after','guard-owner-before','guard-owner-after','guard-access-before','guard-access-entered','guard-access-after','guard-rule-before','guard-rule-after','guard-parent-before','guard-parent-after','attempt-consumption','attempt-consumed','before-form','after-form','thread-exception'].includes(observation.stage),true);assert.equal(typeof observation.threadExceptionObserved,'boolean');assert.equal(typeof observation.missingClockCommand,'boolean');assert.equal(/^(?:None|Unknown|System[.][A-Za-z0-9_.+]+)$/.test(observation.exceptionType),true);console.log('PUBLIC_WARNING_UI_DIAGNOSTIC '+JSON.stringify(observation));
   }else{const r=JSON.parse(run.stdout);assert.equal(r.failureCode,'WARNING_SCOPE_REQUIRED');console.log('PUBLIC_WARNING_DIAGNOSTIC_EXPECTS_EXPIRED_SCOPE');}
   for(const file of sourceFiles)assert.equal(createHash('sha256').update(readFileSync(file)).digest('hex'),productionHashes[file]);
  }finally{rmSync(directory,{recursive:true,force:true});}
