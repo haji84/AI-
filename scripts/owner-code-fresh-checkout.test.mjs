@@ -4,8 +4,8 @@ const source=resolve('scripts/owner-code-preflight-1218.ps1');const shell=proces
 function runPS(code,restricted=false){const r=spawnSync(shell,['-NoProfile','-NonInteractive','-Command',`$ErrorActionPreference='Stop'; ${restricted?"$ExecutionContext.SessionState.LanguageMode='ConstrainedLanguage';":''} . ${quote(source)}; ${code}`],{encoding:'utf8',timeout:25000});assert.equal(r.error,undefined);assert.equal(r.status,0,r.stderr);return JSON.parse(r.stdout.trim());}
 test('each native run attempt owns a fresh source directory, every execution and artifact is bound to it',()=>{
  const s=readFileSync('.github/workflows/gai-zbook-diagnostic-1218.yml','utf8'),fresh='owner-native-${{ github.run_id }}-${{ github.run_attempt }}';
- assert.equal(s.split('path: '+fresh+'\n').length-1,2);assert.equal(s.split('working-directory: '+fresh+'\n').length-1,7);assert.equal(s.split('path: '+fresh+'/.gai-results/').length-1,5);
- assert.notEqual(fresh.replace('${{ github.run_attempt }}','1'),fresh.replace('${{ github.run_attempt }}','2'));assert.doesNotMatch(s,/ExecutionPolicy Bypass|LanguageMode\s*=|run:\s*\$\{\{\s*inputs/);assert.match(s,/owner_local_practical:[\s\S]*default: false/);assert.match(s,/if: \$\{\{ inputs\.owner_local_practical == true && inputs\.rotation_only != true \}\}/);assert.match(s,/powershell\.exe -NoLogo -NoProfile -STA -NonInteractive -File scripts\/owner-code-practical-1218\.ps1 -Apply/);
+ assert.equal(s.split('path: '+fresh+'\n').length-1,2);assert.equal(s.split('working-directory: '+fresh+'\n').length-1,8);assert.equal(s.split('path: '+fresh+'/.gai-results/').length-1,6);
+ assert.notEqual(fresh.replace('${{ github.run_attempt }}','1'),fresh.replace('${{ github.run_attempt }}','2'));assert.doesNotMatch(s,/ExecutionPolicy Bypass|LanguageMode\s*=|run:\s*\$\{\{\s*inputs/);assert.match(s,/owner_local_practical:[\s\S]*default: false/);assert.match(s,/if: \$\{\{ inputs\.owner_local_practical == true && inputs\.rotation_only != true && inputs\.launcher_binding_only != true \}\}/);assert.match(s,/powershell\.exe -NoLogo -NoProfile -STA -NonInteractive -File scripts\/owner-code-practical-1218\.ps1 -Apply/);
 });
 
 const nativeWorkflow=()=>readFileSync('.github/workflows/gai-zbook-diagnostic-1218.yml','utf8');
@@ -31,7 +31,7 @@ test('real native pre-checkout guard rejects every multi-mode selection without 
   assert.equal(result.error,undefined);assert.equal(result.status,status,JSON.stringify({rotation,practical,warning,stderr:result.stderr}));
   if(status)assert.match(result.stderr,/OWNER_ACCEPTANCE_MODES_EXCLUSIVE/);else assert.equal(result.stderr,'');
  }
- assert.equal(bindings.length,3);
+ assert.equal(bindings.length,4);
 });
 
 test('rotation selection retains main actor CI gates and selects only the fixed rotation entry and one artifact',()=>{

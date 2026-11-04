@@ -49,3 +49,6 @@ scripts/owner-code-rotation-native-stage.test.mjs text eol=lf
 .gitattributes text eol=lf
 scripts/owner-code-protection-diagnostics.test.mjs text eol=lf
 scripts/owner-code-protection-failure-details.test.mjs text eol=lf
+scripts/owner-code-launcher-binding-inspection-1218.ps1 text eol=lf
+scripts/owner-code-launcher-binding-inspection-1218.test.mjs text eol=lf
+scripts/owner-code-launcher-binding-workflow.test.mjs text eol=lf
