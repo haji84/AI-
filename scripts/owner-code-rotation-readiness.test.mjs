@@ -24,22 +24,42 @@ function fixture(fn){
  try{return fn({directory,release,node,legacy,system,manifest,task});}finally{rmSync(directory,{recursive:true,force:true});}
 }
 function inspect(f,{task=f.task,pathNode=f.node,unprotected='',extra=''}={}){
+ const preflightSource=readFileSync(script,'utf8');
+ const originalMetadata=preflightSource.slice(preflightSource.indexOf('function Get-1218FileMetadata {'),preflightSource.indexOf('\nfunction Get-1218ReviewedArtifacts {'));
+ const capture=`$fixtureType=$_.Exception.GetType().FullName;if($fixtureType -cnotmatch '^System[.][A-Za-z0-9_.+]+$'){$fixtureType='Unknown'};$fixtureCategory=[string]$_.CategoryInfo.Category;if($fixtureCategory -cnotmatch '^[A-Za-z]+$'){$fixtureCategory='Unknown'};if($script:fixtureMetadataErrors.Count -lt 8){$script:fixtureMetadataErrors+=@{exceptionType=$fixtureType;hResult=[int]$_.Exception.HResult;scriptLineNumber=[int]$_.InvocationInfo.ScriptLineNumber;category=$fixtureCategory}};`;
+ assert.equal(originalMetadata.split('catch {').length-1,2);
+ const instrumentedMetadata=originalMetadata.replaceAll('catch {',()=> 'catch { '+capture);
  const taskText=task===null?'$null':`(${quote(JSON.stringify(task))}|ConvertFrom-Json)`;
  const code=`$ErrorActionPreference='Stop'; . ${quote(script)};
+ $script:fixtureMetadataErrors=@();$script:fixtureNonNodeLookup=$false;$fixtureOriginalSystemRoot=$env:SystemRoot;
+ ${instrumentedMetadata}
  $fixtureTask=${taskText};$fixtureNode=${quote(pathNode)};$fixtureOwner=${quote(sid)};$fixtureUnprotected=${quote(unprotected)};
  $env:LOCALAPPDATA=${quote(f.legacy)};$env:SystemRoot=${quote(f.system)};
- function Get-Command { param([string]$Name,$ErrorAction) if($Name -cne 'node.exe'){throw 'UNEXPECTED_COMMAND_LOOKUP'}; [pscustomobject]@{Source=$fixtureNode;CommandType='Application'} }
+ function Get-Command { param([string]$Name,$ErrorAction) if($Name -cne 'node.exe'){$script:fixtureNonNodeLookup=$true;throw 'UNEXPECTED_COMMAND_LOOKUP'}; [pscustomobject]@{Source=$fixtureNode;CommandType='Application'} }
  function Get-Acl { param([string]$LiteralPath,$ErrorAction)
   $acl=[pscustomobject]@{Access=@()}; $acl|Add-Member ScriptMethod GetOwner {param($type) [pscustomobject]@{Value=$fixtureOwner}};
   if($LiteralPath -ceq $fixtureUnprotected){$who=[pscustomobject]@{};$who|Add-Member ScriptMethod Translate {param($type) [pscustomobject]@{Value='S-1-5-21-9-9-9-9999'}};$acl.Access=@([pscustomobject]@{AccessControlType=[Security.AccessControl.AccessControlType]::Allow;FileSystemRights=[Security.AccessControl.FileSystemRights]::Write;IdentityReference=$who})};return $acl
  }
  function Start-Process {throw 'NATIVE_PROCESS_MUST_NOT_START'};function Stop-ScheduledTask {throw 'NATIVE_TASK_MUST_NOT_CHANGE'};function Start-ScheduledTask {throw 'NATIVE_TASK_MUST_NOT_CHANGE'};function Invoke-WebRequest {throw 'NETWORK_MUST_NOT_RUN'};function Get-ScheduledTask {throw 'TASK_MUST_BE_SUPPLIED'};
  ${extra}
- if(Test-Path Function:Get-1218RotationMetadata){Get-1218RotationMetadata -Task $fixtureTask -OwnerSid ${quote(sid)} -OwnerName ${quote(ownerName)}|ConvertTo-Json -Depth 8 -Compress}else{'{"missingFeature":true}'}
+ if(Test-Path Function:Get-1218RotationMetadata){$fixtureObservation=Get-1218RotationMetadata -Task $fixtureTask -OwnerSid ${quote(sid)} -OwnerName ${quote(ownerName)}}else{$fixtureObservation=@{missingFeature=$true}}
+ $fixtureProbe=[ordered]@{schemaVersion=2;publicTemporaryFixtureOnly=$true;powershellVersion=$PSVersionTable.PSVersion.ToString();clrVersion=[Environment]::Version.ToString();metadataErrors=@($script:fixtureMetadataErrors);nonNodeLookupDuringObservation=$script:fixtureNonNodeLookup;unqualifiedHashSucceeded=$false;qualifiedHashSucceeded=$false;sha256StreamSucceeded=$false;hashAfterSystemRootRestoreSucceeded=$false;hashCommandIsFunction=$false;hashCommandIsCmdlet=$false;hashDefinitionUsesGetCommand=$false;hashDefinitionUsesSystemRoot=$false;nonNodeLookupDuringControls=$false}
+ $script:fixtureNonNodeLookup=$false
+ try{$fixtureHash=Get-FileHash -LiteralPath $fixtureNode -Algorithm SHA256;$fixtureProbe.unqualifiedHashSucceeded=$fixtureHash.Hash -match '^[a-fA-F0-9]{64}$'}catch{}
+ try{$fixtureHash=Microsoft.PowerShell.Utility\\Get-FileHash -LiteralPath $fixtureNode -Algorithm SHA256;$fixtureProbe.qualifiedHashSucceeded=$fixtureHash.Hash -match '^[a-fA-F0-9]{64}$'}catch{}
+ $fixtureStream=$null;$fixtureSha=$null
+ try{$fixtureStream=[IO.File]::OpenRead($fixtureNode);$fixtureSha=[Security.Cryptography.SHA256]::Create();$fixtureProbe.sha256StreamSucceeded=$fixtureSha.ComputeHash($fixtureStream).Length -eq 32}catch{}finally{if($fixtureStream){$fixtureStream.Dispose()};if($fixtureSha){$fixtureSha.Dispose()}}
+ $env:SystemRoot=$fixtureOriginalSystemRoot
+ try{$fixtureHash=Get-FileHash -LiteralPath $fixtureNode -Algorithm SHA256;$fixtureProbe.hashAfterSystemRootRestoreSucceeded=$fixtureHash.Hash -match '^[a-fA-F0-9]{64}$'}catch{}
+ try{$fixtureCommand=Microsoft.PowerShell.Core\\Get-Command -Name 'Get-FileHash' -ErrorAction Stop;$fixtureProbe.hashCommandIsFunction=[string]$fixtureCommand.CommandType -ceq 'Function';$fixtureProbe.hashCommandIsCmdlet=[string]$fixtureCommand.CommandType -ceq 'Cmdlet';$fixtureProbe.hashDefinitionUsesGetCommand=[string]$fixtureCommand.Definition -match 'Get-Command';$fixtureProbe.hashDefinitionUsesSystemRoot=[string]$fixtureCommand.Definition -match 'env:SystemRoot'}catch{}
+ $fixtureProbe.nonNodeLookupDuringControls=$script:fixtureNonNodeLookup
+ @{observation=$fixtureObservation;fixtureProbe=$fixtureProbe}|ConvertTo-Json -Depth 9 -Compress
  `;
  const run=spawnSync(shell,['-NoProfile','-NonInteractive','-Command',code],{encoding:'utf8',timeout:25000});
  assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr);assert.equal(run.stderr,'');
- return JSON.parse(run.stdout.trim());
+ const envelope=JSON.parse(run.stdout.trim());
+ console.log('PUBLIC_TEMPORARY_READINESS_HASH_PROBE '+JSON.stringify(envelope.fixtureProbe));
+ return envelope.observation;
 }
 function closed(result,f){
  assert.deepEqual(Object.keys(result).sort(),[...fields].sort());
