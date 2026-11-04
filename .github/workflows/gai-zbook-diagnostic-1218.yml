@@ -13,8 +13,17 @@ on:
         required: false
         type: boolean
         default: false
+      rotation_only:
+        description: 'Rotation entry selector only; separate fresh Owner High approval remains required'
+        required: false
+        type: boolean
+        default: false
       approved_scope_base64:
         description: 'Non-secret exact-source practical or warning scope; no credential value'
+        required: false
+        type: string
+      rotation_scope_base64:
+        description: 'Separately provisioned exact-source Owner rotation descriptor; no credential value'
         required: false
         type: string
 
@@ -29,15 +38,17 @@ jobs:
   inspect:
     if: github.repository == 'haji84/AI-' && github.ref == 'refs/heads/main' && github.actor == 'haji84'
     runs-on: [self-hosted, Windows, X64]
-    timeout-minutes: 5
+    timeout-minutes: ${{ inputs.rotation_only == true && 25 || 5 }}
     steps:
       - name: Require exclusive bounded native mode
         env:
           GORIQ_WARNING_ONLY: ${{ inputs.warning_only }}
           GORIQ_LOCAL_PRACTICAL: ${{ inputs.owner_local_practical }}
+          GORIQ_ROTATION_ONLY: ${{ inputs.rotation_only }}
         shell: powershell
         run: |
-          if ($env:GORIQ_WARNING_ONLY -eq 'true' -and $env:GORIQ_LOCAL_PRACTICAL -eq 'true') {
+          $selectedModes = @($env:GORIQ_WARNING_ONLY, $env:GORIQ_LOCAL_PRACTICAL, $env:GORIQ_ROTATION_ONLY) | Where-Object { $_ -eq 'true' }
+          if (@($selectedModes).Count -gt 1) {
             throw 'OWNER_ACCEPTANCE_MODES_EXCLUSIVE'
           }
       - uses: actions/checkout@v5
@@ -54,7 +65,7 @@ jobs:
         working-directory: owner-native-${{ github.run_id }}-${{ github.run_attempt }}
         run: node scripts/goriq-pc-approved-source.mjs
       - name: Inspect Owner artifact identity and encrypted-file metadata; execute no-argument PLAN ONLY
-        if: ${{ inputs.warning_only != true }}
+        if: ${{ inputs.warning_only != true && inputs.rotation_only != true }}
         working-directory: owner-native-${{ github.run_id }}-${{ github.run_attempt }}
         shell: powershell
         run: |
@@ -62,7 +73,7 @@ jobs:
           powershell.exe -NoProfile -NonInteractive -File scripts/owner-code-preflight-1218.ps1 | Tee-Object -FilePath .gai-results/owner-code-preflight-1218.json
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Render unchanged session warning and invoke only Cancel
-        if: ${{ inputs.warning_only == true }}
+        if: ${{ inputs.warning_only == true && inputs.rotation_only != true }}
         working-directory: owner-native-${{ github.run_id }}-${{ github.run_attempt }}
         env:
           GORIQ_OWNER_WARNING_SCOPE_BASE64: ${{ inputs.approved_scope_base64 }}
@@ -72,7 +83,7 @@ jobs:
           node scripts/owner-code-warning-1218.mjs --run | Tee-Object -FilePath .gai-results/owner-code-warning-1218.json
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Separately approved existing Owner code local practical test
-        if: ${{ inputs.owner_local_practical == true }}
+        if: ${{ inputs.owner_local_practical == true && inputs.rotation_only != true }}
         working-directory: owner-native-${{ github.run_id }}-${{ github.run_attempt }}
         env:
           GORIQ_OWNER_PRACTICAL_APPROVAL_BASE64: ${{ inputs.approved_scope_base64 }}
@@ -80,8 +91,18 @@ jobs:
         run: |
           powershell.exe -NoLogo -NoProfile -STA -NonInteractive -File scripts/owner-code-practical-1218.ps1 -Apply | Tee-Object -FilePath .gai-results/owner-code-practical-1218.json
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Run separately approved bounded native rotation entry
+        if: ${{ inputs.rotation_only == true }}
+        working-directory: owner-native-${{ github.run_id }}-${{ github.run_attempt }}
+        env:
+          GORIQ_OWNER_ROTATION_SCOPE_BASE64: ${{ inputs.rotation_scope_base64 }}
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path .gai-results | Out-Null
+          node scripts/owner-code-rotation-native-1218.mjs --run | Tee-Object -FilePath .gai-results/owner-code-rotation-native-1218.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Retain sanitized practical booleans only
-        if: ${{ always() && inputs.owner_local_practical == true }}
+        if: ${{ always() && inputs.owner_local_practical == true && inputs.rotation_only != true }}
         uses: actions/upload-artifact@v4
         with:
           name: goriq-owner-1218-local-practical
@@ -89,7 +110,7 @@ jobs:
           if-no-files-found: error
           retention-days: 14
       - name: Upload allowlisted metadata only
-        if: ${{ always() && inputs.warning_only != true }}
+        if: ${{ always() && inputs.warning_only != true && inputs.rotation_only != true }}
         uses: actions/upload-artifact@v4
         with:
           name: goriq-owner-1218-readonly-windows
@@ -97,16 +118,24 @@ jobs:
           if-no-files-found: error
           retention-days: 14
       - name: Retain measured warning and Cancel booleans only
-        if: ${{ always() && inputs.warning_only == true }}
+        if: ${{ always() && inputs.warning_only == true && inputs.rotation_only != true }}
         uses: actions/upload-artifact@v4
         with:
           name: goriq-owner-1218-warning-only
           path: owner-native-${{ github.run_id }}-${{ github.run_attempt }}/.gai-results/owner-code-warning-1218.json
           if-no-files-found: error
           retention-days: 14
+      - name: Retain closed native rotation result only
+        if: ${{ always() && inputs.rotation_only == true }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: goriq-owner-1218-rotation-only
+          path: owner-native-${{ github.run_id }}-${{ github.run_attempt }}/.gai-results/owner-code-rotation-native-1218.json
+          if-no-files-found: error
+          retention-days: 14
 
   iphone-visibility:
-    if: github.repository == 'haji84/AI-' && github.ref == 'refs/heads/main' && github.actor == 'haji84' && inputs.warning_only != true
+    if: github.repository == 'haji84/AI-' && github.ref == 'refs/heads/main' && github.actor == 'haji84' && inputs.warning_only != true && inputs.rotation_only != true
     runs-on: [self-hosted, macOS, ARM64]
     timeout-minutes: 3
     steps:
