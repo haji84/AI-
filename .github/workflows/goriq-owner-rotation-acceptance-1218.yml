@@ -36,6 +36,11 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           powershell.exe -NoProfile -NonInteractive -File scripts/owner-code-launcher-binding-inspection-1218.ps1
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Diagnose public native shell boundaries without acceptance claims
+        shell: powershell
+        run: |
+          node scripts/owner-code-launcher-binding-native-shell-diagnostic.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Real temporary atomic replacement, recovery and 38-device SQLite/WAL fixtures
         shell: powershell
         run: |
