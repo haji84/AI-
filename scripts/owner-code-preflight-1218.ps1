@@ -45,7 +45,7 @@ function Get-1218ReviewedArtifacts {
   'owner-code-windows.ps1'='e8f0fe68f5ca8c6d8f5056299c1e805e05663d6782e744a69692ee5512262f43'
   'read-jarvis-production-config.ps1'='252f057b933ddd16c8eec85507fd43b084cf9f0cdba1ded93746ad5e199cccb5'
   'install-owner-code-windows.ps1'='160b03d5660831717cdf8b3ca2501cda56d474d5fd2b0c72f750320971ef1ad6'
-  'rotate-jarvis-owner-code-windows.ps1'='3bf40919875821957e5a502e793b78f1203039ec8c4ce027356dc9be4633c1ca'
+  'rotate-jarvis-owner-code-windows.ps1'='588cae41ffdc4aac330629877e4757844e489fb737564bd0465f7a1f5cfa00f3'
  }
  $artifacts=@()
  foreach ($name in $pins.Keys) {
@@ -148,11 +148,94 @@ function Get-1218PracticalReadiness {
  return [pscustomobject]$result
 }
 
+# Closed observations only. No receipt, runtime, DPAPI or database is accessed.
+# Even matching metadata cannot authorize or verify an actual rotation.
+function Get-1218RotationMetadata {
+ param($Task,[string]$OwnerSid,[string]$OwnerName)
+ $result=[ordered]@{schemaVersion=1;readOnly=$true;proof='UNVERIFIED';actualAcceptanceConditionsPassed=0;readyForRotation=$false;actionKind='missing';taskSha256=$null;currentOwnerPrincipalMatch=$null;taskRunning=$null;pathNode=@{state='unverified';sha256=$null;sizeBytes=$null;protection='unverified'};taskNode=@{state='unverified';sha256=$null;sizeBytes=$null;protection='unverified'};pathNodeMatchesTaskNodeBytes=$null;pathNodeMatchesTaskNodePath=$null;releaseManifest=@{state='unverified';sha256=$null;revision=$null;protection='unverified'};directNodeGuardShapeMatches=$null}
+ if ($null -eq $Task) { return $result }
+ try {
+  $result.actionKind='unsupported'
+  $actions=@($Task.Actions)
+  $principal=[string]$Task.Principal.UserId
+  $result.currentOwnerPrincipalMatch=($OwnerSid -cmatch '^S-1-5-21-\d+-\d+-\d+-\d+$' -and ($principal -ceq $OwnerSid -or (-not [string]::IsNullOrWhiteSpace($OwnerName) -and $principal -ieq $OwnerName)))
+  if ([string]$Task.State -in @('Unknown','Disabled','Queued','Ready','Running')) { $result.taskRunning=[string]$Task.State -ceq 'Running' }
+  if ($actions.Count -ne 1 -or [string]$Task.TaskName -cne 'JARVIS Remote Host' -or [string]$Task.TaskPath -cne '\' -or
+      [string]$Task.Principal.LogonType -notin @('Password','S4U','Interactive','InteractiveToken','InteractiveOrPassword') -or [string]$Task.Principal.RunLevel -notin @('Limited','Highest')) { return $result }
+  # Classify strings before inspecting a path or hashing potentially private args.
+  $action=$actions[0];$root=[string]$action.WorkingDirectory;$execute=[string]$action.Execute
+  foreach ($path in @($root,$execute)) {
+   if ([string]::IsNullOrWhiteSpace($path) -or $path -match '[\r\n\0"<>|]' -or $path -match '^[\\/]{2}' -or -not [IO.Path]::IsPathRooted($path) -or
+       ([IO.Path]::DirectorySeparatorChar -eq [char]92 -and $path -notmatch '^[A-Za-z]:[\\/][^:]*$') -or [IO.Path]::GetFullPath($path) -ine $path) { return $result }
+  }
+  if ([IO.Path]::GetFileName($execute) -ieq 'node.exe' -and [string]$action.Arguments -ceq ('"'+(Join-Path (Join-Path $root 'scripts') 'jarvis-remote-host.mjs')+'"')) { $result.actionKind='direct-node-host' }
+  elseif ($env:SystemRoot -and $env:LOCALAPPDATA -and $execute -ieq (Join-Path (Join-Path (Join-Path (Join-Path $env:SystemRoot 'System32') 'WindowsPowerShell') 'v1.0') 'powershell.exe') -and
+          [string]$action.Arguments -ceq ('-NoProfile -NonInteractive -ExecutionPolicy RemoteSigned -File "'+(Join-Path (Join-Path (Join-Path $env:LOCALAPPDATA 'JARVIS') 'production') 'launch-current.ps1')+'"')) { $result.actionKind='compatibility-launcher';$result.directNodeGuardShapeMatches=$false }
+  else { return $result }
+  if (-not $result.currentOwnerPrincipalMatch) { return $result }
+  # This import only defines functions. Its Apply/AuthorizationPath parameters
+  # stay in this function scope; its executable entry guard excludes dot-source.
+  . (Join-Path $PSScriptRoot 'rotate-jarvis-owner-code-windows.ps1') -Apply:$false -AuthorizationPath ''
+  $result.taskSha256=Get-OwnerRotationTaskHash $Task
+  function Get-1218RotationBinaryObservation([string]$Path) {
+   $observation=@{state='unverified';sha256=$null;sizeBytes=$null;protection='unverified'}
+   try {
+    $safe=Get-OwnerRotationSafePath $Path
+    Assert-OwnerRotationProtectedPath -Path $safe -OwnerSid $OwnerSid
+    $observation.protection='protected'
+    $metadata=Get-1218FileMetadata $safe -Limit 268435456
+    $observation.state=$metadata.state
+    if ($metadata.state -ceq 'regular') { $observation.sha256=$metadata.sha256;$observation.sizeBytes=$metadata.sizeBytes }
+   } catch { $observation.state='unavailable';$observation.protection='rejected' }
+   return $observation
+  }
+  $pathNode=$null
+  try { $command=Get-Command -Name 'node.exe' -ErrorAction Stop;if ([string]$command.CommandType -ceq 'Application') { $pathNode=[string]$command.Source;$result.pathNode=Get-1218RotationBinaryObservation $pathNode } } catch {}
+  if ($result.actionKind -ceq 'direct-node-host') {
+   $result.taskNode=Get-1218RotationBinaryObservation $execute
+   if ($result.pathNode.sha256 -and $result.taskNode.sha256) {
+    $result.pathNodeMatchesTaskNodeBytes=$result.pathNode.sha256 -ceq $result.taskNode.sha256
+    $result.pathNodeMatchesTaskNodePath=[IO.Path]::GetFullPath($pathNode) -ieq [IO.Path]::GetFullPath($execute)
+   }
+  }
+  $stream=$null
+  try {
+   $safeRoot=Get-OwnerRotationSafePath $root
+   Assert-OwnerRotationProtectedPath -Path $safeRoot -OwnerSid $OwnerSid
+   if ((Get-Item -LiteralPath $safeRoot -Force) -isnot [IO.DirectoryInfo]) { throw 'METADATA_UNAVAILABLE' }
+   $manifest=Get-OwnerRotationSafePath (Join-Path $safeRoot 'jarvis-release.json')
+   Assert-OwnerRotationProtectedPath -Path $manifest -OwnerSid $OwnerSid
+   $result.releaseManifest.protection='protected'
+   $metadata=Get-1218FileMetadata $manifest -Limit 65536
+   $result.releaseManifest.state=$metadata.state
+   if ($metadata.state -ceq 'regular') {
+    # Bounded even if the file changes between metadata inspection and open.
+    $stream=[IO.File]::Open($manifest,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
+    $bytes=New-Object byte[] 65537;$count=0
+    while ($count -lt $bytes.Length) { $read=$stream.Read($bytes,$count,$bytes.Length-$count);if ($read -eq 0) { break };$count+=$read }
+    if ($count -gt 65536) { throw 'METADATA_UNAVAILABLE' }
+    $sha=[Security.Cryptography.SHA256]::Create()
+    try { $observed=([BitConverter]::ToString($sha.ComputeHash($bytes,0,$count))).Replace('-','').ToLowerInvariant() } finally { $sha.Dispose() }
+    if ($observed -cne $metadata.sha256) { throw 'METADATA_UNAVAILABLE' }
+    $decoded=[Text.Encoding]::UTF8.GetString($bytes,0,$count).TrimStart([char]0xfeff)|ConvertFrom-Json
+    $result.releaseManifest.sha256=$observed
+    $result.releaseManifest.state='invalid-manifest'
+    if ($decoded -is [pscustomobject] -and $decoded.PSObject.Properties.Name -ccontains 'commit' -and $decoded.commit -is [string] -and $decoded.commit -cmatch '^[a-f0-9]{40}$') { $result.releaseManifest.revision=$decoded.commit;$result.releaseManifest.state='regular' }
+   }
+  } catch { $result.releaseManifest.state='unavailable';$result.releaseManifest.sha256=$null;$result.releaseManifest.revision=$null;if ($result.releaseManifest.protection -cne 'protected') { $result.releaseManifest.protection='rejected' } }
+  finally { if ($stream) { $stream.Dispose() } }
+  if ($result.actionKind -ceq 'direct-node-host' -and $null -ne $result.pathNodeMatchesTaskNodeBytes -and $result.releaseManifest.revision -and $null -ne $result.taskRunning) {
+   $result.directNodeGuardShapeMatches=$result.pathNodeMatchesTaskNodeBytes -and $result.pathNodeMatchesTaskNodePath -and $result.taskRunning
+  }
+ } catch { }
+ return $result
+}
+
 function New-1218FailureReport {
  param([string]$Stage, [string]$ReasonCode, [int]$FailureLine=0)
- if ($Stage -notin @('platform','source-artifacts','identity','configuration-metadata','installed-artifacts','prior-workspace-artifacts','plan-only')) { $Stage='unknown' }
+ if ($Stage -notin @('platform','source-artifacts','identity','configuration-metadata','installed-artifacts','rotation-metadata','prior-workspace-artifacts','plan-only')) { $Stage='unknown' }
  if ($ReasonCode -notin @('WINDOWS_REQUIRED','UNREVIEWED_SOURCE','SOURCE_PARSE_FAILED','PLAN_START_FAILED','PLAN_TIMEOUT')) { $ReasonCode='PREFLIGHT_RUNTIME_ERROR' }
- return @{schemaVersion=1;issue=1218;readOnly=$true;complete=$false;failedStage=$Stage;reasonCode=$ReasonCode;failureLine=$FailureLine;languageMode=[string]$ExecutionContext.SessionState.LanguageMode;sourceArtifact=$script:LastSourceArtifact;actualDpapiUsed=$false;secretDisplayed=$false;clipboardAccessed=$false;credentialGenerated=$false;serviceOrTaskMutation=$false;databaseOpened=$false;originalAcceptanceConditionsPassed=0}
+ return @{schemaVersion=1;issue=1218;readOnly=$true;complete=$false;failedStage=$Stage;reasonCode=$ReasonCode;failureLine=$FailureLine;languageMode=[string]$ExecutionContext.SessionState.LanguageMode;sourceArtifact=$script:LastSourceArtifact;rotationMetadata=(Get-1218RotationMetadata);actualDpapiUsed=$false;secretDisplayed=$false;clipboardAccessed=$false;credentialGenerated=$false;serviceOrTaskMutation=$false;databaseOpened=$false;originalAcceptanceConditionsPassed=0}
 }
 
 function Invoke-1218NativePreflight {
@@ -175,7 +258,7 @@ function Invoke-1218NativePreflight {
   if ($meta.state -eq 'regular') { try { $acl=Get-Acl -LiteralPath $config; $configOwner=$acl.GetOwner([Security.Principal.SecurityIdentifier]).Value } catch {} }
   $practicalReadiness=Get-1218PracticalReadiness -Origin $origin -ConfigurationPath $config -ConfigSha256 $meta.sha256 -OwnerSid $sid -IsSystem $identity.IsSystem
   $stage='installed-artifacts'
-  $installed=@(); $taskReadable=$false
+  $installed=@(); $taskReadable=$false; $task=$null
   try {
    $task=Get-ScheduledTask -TaskName 'JARVIS Remote Host' -ErrorAction Stop
    $actions=@($task.Actions)
@@ -184,6 +267,8 @@ function Invoke-1218NativePreflight {
     foreach ($source in $artifacts) { $installedMeta=Get-1218FileMetadata (Join-Path (Join-Path $root 'scripts') $source.name) -Limit 262144; $installed+=@{name=$source.name;state=$installedMeta.state;sha256=$installedMeta.sha256;matchesReviewedSource=($installedMeta.state -eq 'regular' -and $installedMeta.sha256 -ceq $source.sha256)} }
    }
   } catch {}
+  $stage='rotation-metadata'
+  $rotationMetadata=Get-1218RotationMetadata -Task $task -OwnerSid $sid -OwnerName $identity.Name
   $stage='prior-workspace-artifacts'
   $priorWorkspace=@()
   if ($env:GITHUB_WORKSPACE -and $env:GITHUB_WORKSPACE -ne $script:PreflightRoot) {
@@ -196,7 +281,7 @@ function Invoke-1218NativePreflight {
   $plan=Invoke-1218PlanOnly $script:PreflightRoot
   $revision=$env:GITHUB_SHA
   if ($revision -notmatch '^[a-f0-9]{40}$') { $revision=$null }
-  [ordered]@{schemaVersion=1;issue=1218;sourceRevision=$revision;readOnly=$true;complete=[bool]$plan.expectedOutputMatched;languageMode=[string]$ExecutionContext.SessionState.LanguageMode;priorWorkspaceArtifacts=$priorWorkspace;actualWindowsSid=$sid;isSystem=$identity.IsSystem;processSessionId=[Diagnostics.Process]::GetCurrentProcess().SessionId;environmentUserInteractive=[Environment]::UserInteractive;desktopInputControl='UNVERIFIED';sourceArtifacts=$artifacts;installedArtifacts=$installed;installedTaskReadable=$taskReadable;encryptedConfiguration=@{origin=$origin;state=$meta.state;sha256=$meta.sha256;ownerSid=$configOwner;ownerIsExecutingUser=($null -ne $configOwner -and $configOwner -ceq $sid)};practicalReadiness=$practicalReadiness;rotationPlan=$plan;actualDpapiUsed=$false;secretDisplayed=$false;clipboardAccessed=$false;credentialGenerated=$false;serviceOrTaskMutation=$false;databaseOpened=$false;originalAcceptanceConditionsPassed=0} | ConvertTo-Json -Depth 8 -Compress
+  [ordered]@{schemaVersion=1;issue=1218;sourceRevision=$revision;readOnly=$true;complete=[bool]$plan.expectedOutputMatched;languageMode=[string]$ExecutionContext.SessionState.LanguageMode;priorWorkspaceArtifacts=$priorWorkspace;actualWindowsSid=$sid;isSystem=$identity.IsSystem;processSessionId=[Diagnostics.Process]::GetCurrentProcess().SessionId;environmentUserInteractive=[Environment]::UserInteractive;desktopInputControl='UNVERIFIED';sourceArtifacts=$artifacts;installedArtifacts=$installed;installedTaskReadable=$taskReadable;encryptedConfiguration=@{origin=$origin;state=$meta.state;sha256=$meta.sha256;ownerSid=$configOwner;ownerIsExecutingUser=($null -ne $configOwner -and $configOwner -ceq $sid)};practicalReadiness=$practicalReadiness;rotationMetadata=$rotationMetadata;rotationPlan=$plan;actualDpapiUsed=$false;secretDisplayed=$false;clipboardAccessed=$false;credentialGenerated=$false;serviceOrTaskMutation=$false;databaseOpened=$false;originalAcceptanceConditionsPassed=0} | ConvertTo-Json -Depth 8 -Compress
   if (-not $plan.expectedOutputMatched) { exit 1 }
  } catch { New-1218FailureReport -Stage $stage -ReasonCode ([string]$_.Exception.Message) -FailureLine ([int]$_.InvocationInfo.ScriptLineNumber) | ConvertTo-Json -Depth 8 -Compress; exit 1 }
 }

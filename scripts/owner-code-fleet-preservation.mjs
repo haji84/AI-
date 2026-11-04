@@ -2,6 +2,7 @@ import { createHash, createPublicKey } from "node:crypto";
 import { lstatSync, realpathSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { capturePcSidecarSnapshot, comparePcSidecarSnapshots, pcSidecarSummary } from "./owner-code-pc-preservation.mjs";
 
 const PROFILE = "jarvis-control-plane-sqlite-v1";
 const snapshots = new WeakMap();
@@ -146,14 +147,15 @@ function validateSchema(db) {
 function boundOptions(path, options) {
   const code = "FLEET_OPTIONS_INVALID";
   const hex = (value, count) => typeof value === "string" && new RegExp(`^[a-f0-9]{${count}}$`).test(value);
-  requireValue(typeof path === "string" && isAbsolute(path) && keys(options, ["schemaProfile", "databaseBinding", "cohortAuthority", "timeoutMs"], ["schemaProfile", "databaseBinding", "cohortAuthority"]) && options.schemaProfile === PROFILE, code);
+  requireValue(typeof path === "string" && isAbsolute(path) && keys(options, ["schemaProfile", "databaseBinding", "cohortAuthority", "timeoutMs", "pcSidecars"], ["schemaProfile", "databaseBinding", "cohortAuthority"]) && options.schemaProfile === PROFILE, code);
   const binding = options.databaseBinding;
   requireValue(keys(binding, ["path", "configSha256", "taskSha256", "releaseRevision"], ["path", "configSha256", "taskSha256", "releaseRevision"]) && typeof binding.path === "string" && isAbsolute(binding.path) && resolve(binding.path) === resolve(path) && hex(binding.configSha256, 64) && hex(binding.taskSha256, 64) && hex(binding.releaseRevision, 40), code);
   const authority = options.cohortAuthority;
   requireValue(keys(authority, ["kind", "approvalSha256", "expectedCount", "cohortSha256"], ["kind", "approvalSha256", "expectedCount"]) && ["approved-active-capture", "original-cohort-digest"].includes(authority.kind) && hex(authority.approvalSha256, 64) && Number.isSafeInteger(authority.expectedCount) && authority.expectedCount > 0 && authority.expectedCount <= 100, code);
   requireValue(authority.kind === "original-cohort-digest" ? hex(authority.cohortSha256, 64) : !Object.hasOwn(authority, "cohortSha256"), code);
   requireValue(options.timeoutMs === undefined || Number.isSafeInteger(options.timeoutMs) && options.timeoutMs > 0 && options.timeoutMs <= 5000, code);
-  return { binding: { ...binding }, authority: { ...authority }, timeout: options.timeoutMs ?? 5000 };
+  if (options.pcSidecars !== undefined) requireValue(keys(options.pcSidecars, ["profile", "expectedTaskFile", "expectedObservationFile"], ["profile", "expectedTaskFile", "expectedObservationFile"]) && options.pcSidecars.profile === "jarvis-pc-sidecars-v1" && ["present", "absent"].includes(options.pcSidecars.expectedTaskFile) && ["present", "absent"].includes(options.pcSidecars.expectedObservationFile), code);
+  return { binding: { ...binding }, authority: { ...authority }, timeout: options.timeoutMs ?? 5000, pcSidecars: options.pcSidecars === undefined ? undefined : { ...options.pcSidecars } };
 }
 function fileBinding(path) {
   const stat = lstatSync(path, { bigint: true });
@@ -195,7 +197,10 @@ export function captureFleetSnapshot(dbPath, options) {
     db.exec("COMMIT"); transaction = false;
     requireValue(same(file, fileBinding(dbPath)), "FLEET_DATABASE_UNAVAILABLE");
     const handle = Object.freeze(Object.create(null));
-    snapshots.set(handle, { state, identities, nonces, bound, file, capturedAt: Date.now() });
+    let pc = null;
+    if (bound.pcSidecars) { try { pc = capturePcSidecarSnapshot(dbPath, bound.pcSidecars); } catch { fail("FLEET_PC_SIDECAR_UNAVAILABLE"); } }
+    requireValue(same(file, fileBinding(dbPath)), "FLEET_DATABASE_UNAVAILABLE");
+    snapshots.set(handle, { state, identities, nonces, bound, file, pc, capturedAt: Date.now() });
     return handle;
   } catch (error) {
     if (ownErrors.has(error)) throw error;
@@ -208,7 +213,7 @@ export function captureFleetSnapshot(dbPath, options) {
 
 export function fleetSnapshotSummary(handle) {
   const snapshot = data(handle);
-  return Object.freeze({ schemaProfile: PROFILE, fleetCount: snapshot.state.fleet.length, identityCount: snapshot.identities.length, revokedIdentityCount: snapshot.identities.filter((identity) => identity.payload.revokedAt).length, taskCount: snapshot.state.tasks.length, auditCount: snapshot.state.audit.length, nonceCount: snapshot.nonces.length, cohortAuthorityVerified: true, coverage: COVERAGE });
+  return Object.freeze({ schemaProfile: PROFILE, fleetCount: snapshot.state.fleet.length, identityCount: snapshot.identities.length, revokedIdentityCount: snapshot.identities.filter((identity) => identity.payload.revokedAt).length, taskCount: snapshot.state.tasks.length, auditCount: snapshot.state.audit.length, nonceCount: snapshot.nonces.length, cohortAuthorityVerified: true, pcSidecars: snapshot.pc ? pcSidecarSummary(snapshot.pc) : null, coverage: snapshot.pc ? Object.freeze({ ...COVERAGE, pcTaskSidecars: true, pcObservationSidecars: true, crossStoreAtomicity: false }) : COVERAGE });
 }
 
 function fleetStable(node) {
@@ -254,6 +259,9 @@ export function compareFleetSnapshots(beforeHandle, afterHandle) {
   const takeoversPreserved = preserved(before.state.activeTakeovers.filter((session) => after.state.activeTakeovers.some((next) => next.id === session.id)), after.state.activeTakeovers, (session) => omit(session, ["status", "lastAction", "currentUrl", "appName", "screenshotRef", "updatedAt"]));
   for (const [valid, code] of [[databaseBindingMatched, "FLEET_DATABASE_BINDING_CHANGED"], [cohortAuthorityVerified, "FLEET_COHORT_AUTHORITY_CHANGED"], [baselineCohortPreserved, "FLEET_COHORT_CHANGED"], [fleetMetadataPreserved, "FLEET_METADATA_CHANGED"], [identitiesPreserved, "FLEET_IDENTITIES_CHANGED"], [keysPreserved, "FLEET_KEYS_CHANGED"], [workerLifecycleHistoryPreserved, "FLEET_LIFECYCLE_CHANGED"], [taskPayloadsPreserved, "FLEET_TASK_PAYLOAD_CHANGED"], [nonceProtectionPreserved, "FLEET_LIVE_NONCE_LOST"], [takeoversPreserved, "FLEET_TAKEOVER_CHANGED"]]) if (!valid) reasons.push(code);
   if (!auditRetainedHistoryPreserved) reasons.push(auditRolled ? "FLEET_AUDIT_WINDOW_ROLLED" : "FLEET_AUDIT_CHANGED");
+  let pcSidecars = null;
+  if (before.pc && after.pc) { pcSidecars = comparePcSidecarSnapshots(before.pc, after.pc); if (pcSidecars.status !== "PASS") reasons.push("FLEET_PC_SIDECARS_CHANGED"); }
+  else if (before.pc || after.pc) reasons.push("FLEET_PC_POLICY_CHANGED");
   const status = reasons.length === 0 ? "PASS" : reasons.length === 1 && auditRolled ? "INCONCLUSIVE" : "FAIL";
-  return Object.freeze({ status, databaseBindingMatched, cohortAuthorityVerified, baselineCohortPreserved, fleetMetadataPreserved, identitiesPreserved, keysPreserved, workerLifecycleHistoryPreserved, auditRetainedHistoryPreserved, taskPayloadsPreserved, nonceProtectionPreserved, operationalChanges: Object.freeze({ fleet: changes(before.state.fleet, after.state.fleet), tasks: changes(before.state.tasks, after.state.tasks), nonces: before.nonces.filter((nonce) => !same(nonce, afterNonces.get(nonceKey(nonce)))).length + after.nonces.filter((nonce) => !before.nonces.some((old) => nonceKey(old) === nonceKey(nonce))).length, auditAppended: Math.max(0, newAudit.length - (auditRolled ? oldAudit.filter((event) => newAudit.some((next) => next.id === event.id)).length : oldAudit.length)), takeovers: changes(before.state.activeTakeovers, after.state.activeTakeovers) }), reasonCodes: Object.freeze(reasons), coverage: COVERAGE });
+  return Object.freeze({ status, databaseBindingMatched, cohortAuthorityVerified, baselineCohortPreserved, fleetMetadataPreserved, identitiesPreserved, keysPreserved, workerLifecycleHistoryPreserved, auditRetainedHistoryPreserved, taskPayloadsPreserved, nonceProtectionPreserved, operationalChanges: Object.freeze({ fleet: changes(before.state.fleet, after.state.fleet), tasks: changes(before.state.tasks, after.state.tasks), nonces: before.nonces.filter((nonce) => !same(nonce, afterNonces.get(nonceKey(nonce)))).length + after.nonces.filter((nonce) => !before.nonces.some((old) => nonceKey(old) === nonceKey(nonce))).length, auditAppended: Math.max(0, newAudit.length - (auditRolled ? oldAudit.filter((event) => newAudit.some((next) => next.id === event.id)).length : oldAudit.length)), takeovers: changes(before.state.activeTakeovers, after.state.activeTakeovers) }), reasonCodes: Object.freeze(reasons), pcSidecars, coverage: pcSidecars ? Object.freeze({ ...COVERAGE, pcTaskSidecars: true, pcObservationSidecars: true, crossStoreAtomicity: false }) : COVERAGE });
 }

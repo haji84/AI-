@@ -5,10 +5,26 @@ param([switch]$Apply,[string]$AuthorizationPath)
 function Get-OwnerRotationNow { [datetimeoffset]::UtcNow }
 function Get-OwnerRotationHash([string]$Path) { (Get-FileHash -LiteralPath $Path -Algorithm SHA256 -ErrorAction Stop).Hash.ToLowerInvariant() }
 function Get-OwnerRotationIdentity { [Security.Principal.WindowsIdentity]::GetCurrent() }
-function Get-OwnerRotationSafePath([string]$Path) {
+function Get-OwnerRotationNativeItem([string]$Path) {
+ try { $attributes=[IO.File]::GetAttributes($Path) } catch [IO.FileNotFoundException] { return $null } catch [IO.DirectoryNotFoundException] { return $null }
+ $item=if (($attributes -band [IO.FileAttributes]::Directory) -ne 0) { [IO.DirectoryInfo]::new($Path) } else { [IO.FileInfo]::new($Path) }
+ $item.Refresh();if (-not $item.Exists) { throw 'ROTATION_CONTEXT_UNAVAILABLE' };return $item
+}
+function Get-OwnerRotationSafePath([string]$Path,[switch]$NativeMetadata) {
  if ([string]::IsNullOrWhiteSpace($Path) -or $Path -match '[\r\n\0]' -or $Path -match '^[\\/]{2}' -or -not [IO.Path]::IsPathRooted($Path)) { throw 'ROTATION_CONTEXT_UNAVAILABLE' }
  $full=[IO.Path]::GetFullPath($Path);$root=[IO.Path]::GetPathRoot($full)
  if ([IO.Path]::DirectorySeparatorChar -eq [char]92 -and ($full -notmatch '^[A-Za-z]:\\[^:]*$' -or ([IO.DriveInfo]::new($root)).DriveType -ne [IO.DriveType]::Fixed)) { throw 'ROTATION_CONTEXT_UNAVAILABLE' }
+ if ($NativeMetadata) {
+  $item=Get-OwnerRotationNativeItem $root;$current=$root
+  if ($null -eq $item -or $item -isnot [IO.DirectoryInfo]) { throw 'ROTATION_CONTEXT_UNAVAILABLE' }
+  foreach ($part in $full.Substring($root.Length).Split([IO.Path]::DirectorySeparatorChar)) {
+   if (-not $part) { continue }
+   if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'ROTATION_CONTEXT_UNAVAILABLE' }
+   $current=[IO.Path]::Combine($current,$part);$item=Get-OwnerRotationNativeItem $current
+   if ($null -eq $item) { return $full }
+  }
+  if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'ROTATION_CONTEXT_UNAVAILABLE' };return $full
+ }
  $item=Get-Item -LiteralPath $root -Force -ErrorAction Stop;$current=$root
  foreach ($part in $full.Substring($root.Length).Split([IO.Path]::DirectorySeparatorChar)) {
   if (-not $part) { continue }
@@ -25,19 +41,29 @@ function Get-OwnerRotationAclHash([string]$Path) {
  $hash=[Security.Cryptography.SHA256]::Create();try { ([BitConverter]::ToString($hash.ComputeHash($bytes))).Replace('-','').ToLowerInvariant() } finally { $hash.Dispose() }
 }
 function Assert-OwnerRotationProtectedPath {
- param([string]$Path,[string]$OwnerSid,[string]$OwnerProfile)
- $current=Get-OwnerRotationSafePath $Path
- while (-not (Test-Path -LiteralPath $current)) { $current=Split-Path -Parent $current }
+ param([string]$Path,[string]$OwnerSid,[string]$OwnerProfile,[switch]$NativeMetadata)
+ if ($NativeMetadata) {
+  $current=Get-OwnerRotationSafePath -Path $Path -NativeMetadata
+  while ($null -eq (Get-OwnerRotationNativeItem $current)) { $current=[IO.Path]::GetDirectoryName($current);if (-not $current) { throw 'ROTATION_CONTEXT_UNAVAILABLE' } }
+ } else {
+  $current=Get-OwnerRotationSafePath $Path
+  while (-not (Test-Path -LiteralPath $current)) { $current=Split-Path -Parent $current }
+ }
  if ($OwnerProfile -and $current -ine $OwnerProfile -and -not $current.StartsWith($OwnerProfile+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)) { throw 'ROTATION_CONTEXT_UNAVAILABLE' }
  $trusted=@($OwnerSid,'S-1-5-18','S-1-5-32-544','S-1-3-0');$depth=0;$pathRoot=[IO.Path]::GetPathRoot($current);$fullWrite=[Security.AccessControl.FileSystemRights]'Write,Delete,DeleteSubdirectoriesAndFiles,ChangePermissions,TakeOwnership'
  while ($true) {
   $write=if($depth -le 1 -or ($OwnerProfile -and $current -ieq $OwnerProfile)){$fullWrite}else{[Security.AccessControl.FileSystemRights]'Delete,DeleteSubdirectoriesAndFiles,ChangePermissions,TakeOwnership'}
-  $acl=Get-Acl -LiteralPath $current -ErrorAction Stop
+  $acl=if ($NativeMetadata) { $nativeItem=Get-OwnerRotationNativeItem $current;if ($null -eq $nativeItem) { throw 'ROTATION_CONTEXT_UNAVAILABLE' };$nativeItem.GetAccessControl([Security.AccessControl.AccessControlSections]::Access -bor [Security.AccessControl.AccessControlSections]::Owner) } else { Get-Acl -LiteralPath $current -ErrorAction Stop }
   if ($acl.GetOwner([Security.Principal.SecurityIdentifier]).Value -notin @($OwnerSid,'S-1-5-18','S-1-5-32-544')) { throw 'ROTATION_CONTEXT_UNAVAILABLE' }
-  foreach ($rule in $acl.Access) {
-   if ($rule.AccessControlType -eq [Security.AccessControl.AccessControlType]::Allow -and ($rule.FileSystemRights -band $write) -ne 0 -and $rule.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value -notin $trusted) { throw 'ROTATION_CONTEXT_UNAVAILABLE' }
+  $rules=if ($NativeMetadata) { $acl.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier]) } else { $acl.Access }
+  foreach ($rule in $rules) {
+   if ($NativeMetadata -and $rule.IdentityReference -isnot [Security.Principal.SecurityIdentifier]) { throw 'ROTATION_CONTEXT_UNAVAILABLE' }
+   if ($rule.AccessControlType -eq [Security.AccessControl.AccessControlType]::Allow -and ($rule.FileSystemRights -band $write) -ne 0) {
+    $sid=if ($NativeMetadata) { $rule.IdentityReference.Value } else { $rule.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value }
+    if ($sid -notin $trusted) { throw 'ROTATION_CONTEXT_UNAVAILABLE' }
+   }
   }
-  if (($OwnerProfile -and $current -ieq $OwnerProfile) -or $current -ieq $pathRoot) { break };$current=Split-Path -Parent $current;$depth++
+  if (($OwnerProfile -and $current -ieq $OwnerProfile) -or $current -ieq $pathRoot) { break };$current=[IO.Path]::GetDirectoryName($current);$depth++
  }
 }
 function Get-OwnerRotationTaskHash($Task) {
@@ -47,7 +73,7 @@ function Get-OwnerRotationTaskHash($Task) {
 }
 function Assert-OwnerRotationSource {
  param($Authorization,$Context)
- $names=@('scripts/owner-code-rotation-acceptance.mjs','scripts/owner-code-fleet-preservation.mjs','scripts/owner-code-rotation-worker.ps1','scripts/rotate-jarvis-owner-code-windows.ps1','scripts/read-jarvis-production-config.ps1','scripts/validate-jarvis-production-config.mjs','scripts/jarvis-production-config.mjs','scripts/jarvis-windows-install-paths.mjs')
+ $names=@('scripts/owner-code-rotation-acceptance.mjs','scripts/owner-code-fleet-preservation.mjs','scripts/owner-code-pc-preservation.mjs','scripts/owner-code-rotation-worker.ps1','scripts/rotate-jarvis-owner-code-windows.ps1','scripts/read-jarvis-production-config.ps1','scripts/validate-jarvis-production-config.mjs','scripts/jarvis-production-config.mjs','scripts/jarvis-windows-install-paths.mjs')
  if (@($Authorization.sourceHashes.PSObject.Properties).Count -ne $names.Count -or $Authorization.sourceRevision -cne $Context.SourceRevision) { throw 'ROTATION_SCOPE_REQUIRED' }
  foreach ($name in $names) {
   $expected=$Authorization.sourceHashes.$name
@@ -62,13 +88,14 @@ function Assert-OwnerRotationAuthority {
  $now=Get-OwnerRotationNow;$issued=[datetimeoffset]::Parse($Authorization.issuedAt);$expires=[datetimeoffset]::Parse($Authorization.expiresAt)
  if ($Authorization.scopeId -cne 'issue:1218:owner-code-rotation' -or $Authorization.ownerSid -cne $Context.Identity.User.Value -or
      $Authorization.credentialRotationApproval -ne $true -or $Authorization.existingTaskRestartApproval -ne $true -or $Authorization.configPersistenceApproval -ne $true -or
-     $Authorization.normalLoopbackCookieApproval -ne $true -or $Authorization.confirmationApproval -ne $true -or $Authorization.fleetReadOnlyApproval -ne $true -or
+     $Authorization.normalLoopbackCookieApproval -ne $true -or $Authorization.confirmationApproval -ne $true -or $Authorization.fleetReadOnlyApproval -ne $true -or $Authorization.pcSidecarReadOnlyApproval -ne $true -or
      $issued -gt $now -or $expires -le $now -or $expires -gt $issued.AddHours(2) -or $Authorization.maxAttempts -ne 1 -or
      $Authorization.maxDurationSeconds -ne 900 -or $Authorization.recoveryReserveSeconds -ne 120 -or $Authorization.configSha256 -cnotmatch '^[a-f0-9]{64}$' -or $Authorization.taskSha256 -cnotmatch '^[a-f0-9]{64}$' -or $Authorization.nodeSha256 -cnotmatch '^[a-f0-9]{64}$' -or
      $Authorization.sourceRevision -cnotmatch '^[a-f0-9]{40}$' -or $Authorization.runtimeRevision -cnotmatch '^[a-f0-9]{40}$' -or $Authorization.attemptId -cnotmatch '^[A-Za-z0-9_-]{8,96}$') { throw 'ROTATION_SCOPE_REQUIRED' }
  if ($env:GITHUB_RUN_ID -and ([string]$Authorization.workflowRunId -cne $env:GITHUB_RUN_ID -or [string]$Authorization.workflowRunAttempt -cne $env:GITHUB_RUN_ATTEMPT)) { throw 'ROTATION_SCOPE_REQUIRED' }
  Assert-OwnerRotationProtectedPath -Path $Context.AuthorizationPath -OwnerSid $Authorization.ownerSid -OwnerProfile $Context.OwnerProfile
  if($Context.ReceiptHash -cnotmatch '^[a-f0-9]{64}$' -or (Get-OwnerRotationHash $Context.AuthorizationPath) -cne $Context.ReceiptHash){throw 'ROTATION_SCOPE_REQUIRED'}
+ if (@($Authorization.pcSidecars.PSObject.Properties).Count -ne 3 -or $Authorization.pcSidecars.profile -cne 'jarvis-pc-sidecars-v1' -or $Authorization.pcSidecars.expectedTaskFile -cnotin @('present','absent') -or $Authorization.pcSidecars.expectedObservationFile -cnotin @('present','absent')) { throw 'ROTATION_SCOPE_REQUIRED' }
  Assert-OwnerRotationSource $Authorization $Context
  Assert-OwnerRotationProtectedPath -Path $Context.ConfigPath -OwnerSid $Authorization.ownerSid -OwnerProfile $Context.OwnerProfile
  Assert-OwnerRotationProtectedPath -Path $Context.NodePath -OwnerSid $Authorization.ownerSid
@@ -183,6 +210,14 @@ function Assert-OwnerRotationDatabase {
  if(-not(Test-Path -LiteralPath $path -PathType Leaf)){throw 'ROTATION_CONTEXT_UNAVAILABLE'}
  Assert-OwnerRotationProtectedPath -Path $path -OwnerSid $Authorization.ownerSid
  Assert-OwnerRotationProtectedPath -Path (Split-Path -Parent $path) -OwnerSid $Authorization.ownerSid
+ foreach ($suffix in @('.pc-tasks.json','.pc-observations.json')) {
+  $sidecar=Get-OwnerRotationSafePath ($path+$suffix)
+  if(Test-Path -LiteralPath $sidecar){
+   $item=Get-Item -LiteralPath $sidecar -Force -ErrorAction Stop
+   if($item -isnot [IO.FileInfo] -or $item.Length -gt 8388608){throw 'ROTATION_CONTEXT_UNAVAILABLE'}
+   Assert-OwnerRotationProtectedPath -Path $sidecar -OwnerSid $Authorization.ownerSid
+  }
+ }
 }
 function Test-OwnerRotationRuntime {
  param($Authorization,[datetimeoffset]$Deadline)
