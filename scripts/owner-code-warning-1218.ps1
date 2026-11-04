@@ -164,8 +164,9 @@ function Invoke-OwnerWarningOnly {
     $form=$forms[0];$warningObservation.form=$form
     $warning=@($form.Controls.Find('OwnerRotationWarning',$true));$cancel=@($form.Controls.Find('OwnerRotationCancel',$true));$confirm=@($form.Controls.Find('OwnerRotationConfirm',$true))
     if ($warning.Count -ne 1 -or $cancel.Count -ne 1 -or $confirm.Count -ne 1 -or $warning[0] -isnot [Windows.Forms.Label] -or $cancel[0] -isnot [Windows.Forms.Button] -or $confirm[0] -isnot [Windows.Forms.Button]) { throw 'WARNING_UI_UNVERIFIED' }
-    $confirm[0].Add_Click({$result.confirmEventObserved=$true}.GetNewClosure())
-    $cancel[0].Add_Click({$warningObservation.cancelClick=$true}.GetNewClosure())
+    $confirmHandlerResult=$result;$cancelHandlerObservation=$warningObservation
+    $confirm[0].Add_Click({$confirmHandlerResult.confirmEventObserved=$true}.GetNewClosure())
+    $cancel[0].Add_Click({$cancelHandlerObservation.cancelClick=$true}.GetNewClosure())
     $result.originalFormShown=$form.Visible
     $result.originalWarningVisible=$warning[0].Visible -and $warning[0].Text -ceq 'Change the Production Owner login code? Existing Owner sessions will end. Worker identities and Broker data must remain unchanged.'
     $result.originalCancelControlObserved=$cancel[0].Visible -and $cancel[0].Enabled -and $cancel[0].DialogResult -eq [Windows.Forms.DialogResult]::Cancel
