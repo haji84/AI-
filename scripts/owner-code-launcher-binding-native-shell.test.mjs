@@ -23,6 +23,7 @@ function assertPublicEntry(){
  assert.ok([
   `${trustedPowerShell} -NoLogo -NoProfile -NonInteractive -File {0}`,
   `${trustedPowerShell} -NoLogo -NoProfile -NonInteractive -Command "& ([scriptblock]::Create([System.IO.File]::ReadAllText('{0}')))"`,
+  `${trustedPowerShell} -NoLogo -NoProfile -NonInteractive -Command "$env:PSModulePath=[System.IO.Path]::Combine($PSHOME,'Modules'); & ([scriptblock]::Create([System.IO.File]::ReadAllText('{0}')))"`,
  ].includes(shell),'only the reviewed fixed interpreter/public-wrapper argument formats may execute');
  const prefix="$ErrorActionPreference = 'Stop'\nNew-Item -ItemType Directory -Force -Path .gai-results | Out-Null\n";
  const suffix=' | Tee-Object -FilePath .gai-results/owner-code-launcher-bindings-1218.json\nif ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }\n';
@@ -40,7 +41,7 @@ function executeWrapper(root,publicBody){
  // Windows parsing boundary; splitting/requoting it here could hide this bug.
  return spawnSync(executable,[argumentsFormat.replace('{0}',wrapper)],{
   cwd:root,encoding:'utf8',timeout:15000,windowsVerbatimArguments:true,shell:false,
-  env:{SystemRoot:process.env.SystemRoot,WINDIR:process.env.WINDIR??process.env.SystemRoot,TEMP:root,TMP:root,GORIQ_OWNER_LAUNCHER_BINDING_GRANT_BASE64:''},
+  env:{SystemRoot:process.env.SystemRoot,WINDIR:process.env.WINDIR??process.env.SystemRoot,TEMP:root,TMP:root,PATHEXT:'.EXE',GORIQ_OWNER_LAUNCHER_BINDING_GRANT_BASE64:''},
  });
 }
 function artifactText(path){
