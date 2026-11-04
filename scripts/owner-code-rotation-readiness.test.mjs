@@ -23,10 +23,10 @@ function fixture(fn){
  const task={TaskName:'JARVIS Remote Host',TaskPath:'\\',State:'Running',Actions:[{Execute:node,Arguments:'"'+join(release,'scripts','jarvis-remote-host.mjs')+'"',WorkingDirectory:release}],Principal:{UserId:sid,LogonType:'Password',RunLevel:'Limited'}};
  try{return fn({directory,release,node,legacy,system,manifest,task});}finally{rmSync(directory,{recursive:true,force:true});}
 }
-function inspect(f,{task=f.task,pathNode=f.node,unprotected='',extra=''}={}){
+function inspect(f,{task=f.task,pathNode=f.node,unprotected='',extra='',afterInspection='',metadataOwnerSid=sid,metadataOwnerName=ownerName}={}){
  const taskText=task===null?'$null':`(${quote(JSON.stringify(task))}|ConvertFrom-Json)`;
  const code=`$ErrorActionPreference='Stop'; . ${quote(script)};
- $fixtureTask=${taskText};$fixtureNode=${quote(pathNode)};$fixtureOwner=${quote(sid)};$fixtureUnprotected=${quote(unprotected)};
+ $fixtureTask=${taskText};$fixtureNode=${quote(pathNode)};$fixtureOwner=${quote(metadataOwnerSid)};$fixtureUnprotected=${quote(unprotected)};
  $env:LOCALAPPDATA=${quote(f.legacy)};if(-not $env:SystemRoot){$env:SystemRoot=${quote(f.system)}};
  function Get-Command { param([string]$Name,$ErrorAction) if($Name -cne 'node.exe'){throw 'UNEXPECTED_COMMAND_LOOKUP'}; [pscustomobject]@{Source=$fixtureNode;CommandType='Application'} }
  function Get-Acl { param([string]$LiteralPath,$ErrorAction)
@@ -35,7 +35,8 @@ function inspect(f,{task=f.task,pathNode=f.node,unprotected='',extra=''}={}){
  }
  function Start-Process {throw 'NATIVE_PROCESS_MUST_NOT_START'};function Stop-ScheduledTask {throw 'NATIVE_TASK_MUST_NOT_CHANGE'};function Start-ScheduledTask {throw 'NATIVE_TASK_MUST_NOT_CHANGE'};function Invoke-WebRequest {throw 'NETWORK_MUST_NOT_RUN'};function Get-ScheduledTask {throw 'TASK_MUST_BE_SUPPLIED'};
  ${extra}
- if(Test-Path Function:Get-1218RotationMetadata){Get-1218RotationMetadata -Task $fixtureTask -OwnerSid ${quote(sid)} -OwnerName ${quote(ownerName)}|ConvertTo-Json -Depth 8 -Compress}else{'{"missingFeature":true}'}
+ if(Test-Path Function:Get-1218RotationMetadata){Get-1218RotationMetadata -Task $fixtureTask -OwnerSid ${quote(metadataOwnerSid)} -OwnerName ${quote(metadataOwnerName)}|ConvertTo-Json -Depth 8 -Compress}else{'{"missingFeature":true}'}
+ ${afterInspection}
  `;
  const run=spawnSync(shell,['-NoProfile','-NonInteractive','-Command',code],{encoding:'utf8',timeout:25000});
  assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr);assert.equal(run.stderr,'');
@@ -101,4 +102,18 @@ test('oversized or malformed manifests never return a trusted revision',()=>fixt
 test('reparse Node paths are rejected without following or executing their targets',()=>fixture(f=>{
  const target=join(f.directory,'target-node.exe'),link=join(f.directory,'linked-node.exe');writeFileSync(target,'PUBLIC-UNFOLLOWED-NODE');symlinkSync(target,link,process.platform==='win32'?'file':undefined);f.task.Actions[0].Execute=link;
  const marker=join(f.directory,'must-not-exist');const result=inspect(f,{pathNode:link});closed(result,f);assert.equal(result.taskNode.sha256,null);assert.equal(result.pathNode.sha256,null);assert.equal(result.directNodeGuardShapeMatches,null);assert.equal(existsSync(marker),false);
+}));
+
+test('the current local Windows account short name matches only after its SID is verified',{skip:process.platform!=='win32'},()=>fixture(f=>{
+ const code="$ErrorActionPreference='Stop';$identity=[Security.Principal.WindowsIdentity]::GetCurrent();try{$parts=$identity.Name.Split([char]92);$local=$parts.Length -eq 2 -and $parts[0] -ieq [Environment]::MachineName;$short=$parts[-1];$resolved=([Security.Principal.NTAccount]::new([Environment]::MachineName,$short)).Translate([Security.Principal.SecurityIdentifier]).Value;[ordered]@{sid=$identity.User.Value;name=$identity.Name;short=$short;local=$local;resolvedMatchesCurrent=$resolved -ceq $identity.User.Value}|ConvertTo-Json -Compress}finally{$identity.Dispose()}";
+ const identityRun=spawnSync(shell,['-NoProfile','-NonInteractive','-Command',code],{encoding:'utf8',timeout:10000});
+ assert.equal(identityRun.error,undefined,'Public Windows identity probe must finish');assert.equal(identityRun.status,0,'Public Windows identity probe must succeed');assert.equal(identityRun.stderr,'');
+ const identity=JSON.parse(identityRun.stdout.trim());assert.equal(identity.local,true,'Public identity must be machine local');assert.equal(identity.resolvedMatchesCurrent,true,'Windows must resolve the local alias to the current SID');assert.equal(/^S-1-5-21-\d+-\d+-\d+-\d+$/.test(identity.sid),true,'Public identity must have a valid user SID');
+ const options={metadataOwnerSid:identity.sid,metadataOwnerName:identity.name};f.task.Principal.UserId=identity.sid;
+ const canonical=inspect(f,options);closed(canonical,f);assert.equal(canonical.currentOwnerPrincipalMatch,true);assert.match(canonical.taskSha256,/^[a-f0-9]{64}$/);
+ f.task.Principal.UserId=identity.short;const alias=inspect(f,options);closed(alias,f);
+ assert.equal(alias.currentOwnerPrincipalMatch,true,'The OS-verified local alias denotes the same Owner principal');assert.match(alias.taskSha256,/^[a-f0-9]{64}$/);assert.notEqual(alias.taskSha256,canonical.taskSha256,'Exact task hashes must retain their principal spelling');
+ const noReads="$script:wrongOwnerReads=0;function Get-1218FileMetadata {$script:wrongOwnerReads++;throw 'WRONG_OWNER_FILE_MUST_NOT_BE_READ'}",afterInspection="if($script:wrongOwnerReads -ne 0){throw 'WRONG_OWNER_FILE_READ_OBSERVED'}";
+ const mismatchedSid=inspect(f,{...options,metadataOwnerSid:identity.sid.replace(/-\d+$/,'-999999'),extra:noReads,afterInspection});closed(mismatchedSid,f);assert.equal(mismatchedSid.currentOwnerPrincipalMatch,false);assert.equal(mismatchedSid.taskSha256,null);
+ f.task.Principal.UserId='PUBLIC-FIXTURE\\'+identity.short;const foreign=inspect(f,{...options,extra:noReads,afterInspection});closed(foreign,f);assert.equal(foreign.currentOwnerPrincipalMatch,false);assert.equal(foreign.taskSha256,null);
 }));
