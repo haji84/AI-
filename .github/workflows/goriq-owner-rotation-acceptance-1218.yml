@@ -26,8 +26,12 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           powershell.exe -NoProfile -NonInteractive -File scripts/owner-code-rotation-worker.ps1
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/owner-code-warning-1218.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          powershell.exe -NoProfile -NonInteractive -File scripts/owner-code-warning-1218.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Real temporary atomic replacement, recovery and 38-device SQLite/WAL fixtures
         shell: powershell
         run: |
-          node --test --test-concurrency=2 scripts/owner-code-rotation.test.mjs scripts/owner-code-rotation-authority.test.mjs scripts/owner-code-rotation-redirect.test.mjs scripts/owner-code-fleet-preservation.test.mjs scripts/owner-code-rotation-acceptance.test.mjs scripts/owner-code-rotation-transaction.test.mjs scripts/owner-code-pc-preservation.test.mjs scripts/owner-code-rotation-readiness.test.mjs
+          node --test --test-concurrency=2 scripts/owner-code-rotation.test.mjs scripts/owner-code-rotation-authority.test.mjs scripts/owner-code-rotation-redirect.test.mjs scripts/owner-code-fleet-preservation.test.mjs scripts/owner-code-rotation-acceptance.test.mjs scripts/owner-code-rotation-transaction.test.mjs scripts/owner-code-pc-preservation.test.mjs scripts/owner-code-rotation-readiness.test.mjs scripts/owner-code-warning-1218.test.mjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

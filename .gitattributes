@@ -36,3 +36,6 @@ tests/owner-code-rotation-authority.fixture.ps1 text eol=lf
 scripts/owner-code-pc-preservation.mjs text eol=lf
 scripts/owner-code-pc-preservation.test.mjs text eol=lf
 scripts/owner-code-rotation-readiness.test.mjs text eol=lf
+scripts/owner-code-warning-1218.mjs text eol=lf
+scripts/owner-code-warning-1218.ps1 text eol=lf
+scripts/owner-code-warning-1218.test.mjs text eol=lf

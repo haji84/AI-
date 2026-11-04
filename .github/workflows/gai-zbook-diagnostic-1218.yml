@@ -8,8 +8,13 @@ on:
         required: false
         type: boolean
         default: false
+      warning_only:
+        description: 'Task-scoped nonsecret warning dialog and Cancel only; no credential operation'
+        required: false
+        type: boolean
+        default: false
       approved_scope_base64:
-        description: 'Non-secret exact-source scope metadata; no credential value'
+        description: 'Non-secret exact-source practical or warning scope; no credential value'
         required: false
         type: string
 
@@ -26,6 +31,15 @@ jobs:
     runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 5
     steps:
+      - name: Require exclusive bounded native mode
+        env:
+          GORIQ_WARNING_ONLY: ${{ inputs.warning_only }}
+          GORIQ_LOCAL_PRACTICAL: ${{ inputs.owner_local_practical }}
+        shell: powershell
+        run: |
+          if ($env:GORIQ_WARNING_ONLY -eq 'true' -and $env:GORIQ_LOCAL_PRACTICAL -eq 'true') {
+            throw 'OWNER_ACCEPTANCE_MODES_EXCLUSIVE'
+          }
       - uses: actions/checkout@v5
         with:
           ref: ${{ github.sha }}
@@ -40,11 +54,22 @@ jobs:
         working-directory: owner-native-${{ github.run_id }}-${{ github.run_attempt }}
         run: node scripts/goriq-pc-approved-source.mjs
       - name: Inspect Owner artifact identity and encrypted-file metadata; execute no-argument PLAN ONLY
+        if: ${{ inputs.warning_only != true }}
         working-directory: owner-native-${{ github.run_id }}-${{ github.run_attempt }}
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force -Path .gai-results | Out-Null
           powershell.exe -NoProfile -NonInteractive -File scripts/owner-code-preflight-1218.ps1 | Tee-Object -FilePath .gai-results/owner-code-preflight-1218.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Render unchanged session warning and invoke only Cancel
+        if: ${{ inputs.warning_only == true }}
+        working-directory: owner-native-${{ github.run_id }}-${{ github.run_attempt }}
+        env:
+          GORIQ_OWNER_WARNING_SCOPE_BASE64: ${{ inputs.approved_scope_base64 }}
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path .gai-results | Out-Null
+          node scripts/owner-code-warning-1218.mjs --run | Tee-Object -FilePath .gai-results/owner-code-warning-1218.json
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Separately approved existing Owner code local practical test
         if: ${{ inputs.owner_local_practical == true }}
@@ -64,16 +89,24 @@ jobs:
           if-no-files-found: error
           retention-days: 14
       - name: Upload allowlisted metadata only
-        if: always()
+        if: ${{ always() && inputs.warning_only != true }}
         uses: actions/upload-artifact@v4
         with:
           name: goriq-owner-1218-readonly-windows
           path: owner-native-${{ github.run_id }}-${{ github.run_attempt }}/.gai-results/owner-code-preflight-1218.json
           if-no-files-found: error
           retention-days: 14
+      - name: Retain measured warning and Cancel booleans only
+        if: ${{ always() && inputs.warning_only == true }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: goriq-owner-1218-warning-only
+          path: owner-native-${{ github.run_id }}-${{ github.run_attempt }}/.gai-results/owner-code-warning-1218.json
+          if-no-files-found: error
+          retention-days: 14
 
   iphone-visibility:
-    if: github.repository == 'haji84/AI-' && github.ref == 'refs/heads/main' && github.actor == 'haji84'
+    if: github.repository == 'haji84/AI-' && github.ref == 'refs/heads/main' && github.actor == 'haji84' && inputs.warning_only != true
     runs-on: [self-hosted, macOS, ARM64]
     timeout-minutes: 3
     steps:

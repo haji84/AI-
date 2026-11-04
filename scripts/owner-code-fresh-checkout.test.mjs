@@ -3,7 +3,7 @@ const source=resolve('scripts/owner-code-preflight-1218.ps1');const shell=proces
 function runPS(code,restricted=false){const r=spawnSync(shell,['-NoProfile','-NonInteractive','-Command',`$ErrorActionPreference='Stop'; ${restricted?"$ExecutionContext.SessionState.LanguageMode='ConstrainedLanguage';":''} . ${quote(source)}; ${code}`],{encoding:'utf8',timeout:25000});assert.equal(r.error,undefined);assert.equal(r.status,0,r.stderr);return JSON.parse(r.stdout.trim());}
 test('each native run attempt owns a fresh source directory, every execution and artifact is bound to it',()=>{
  const s=readFileSync('.github/workflows/gai-zbook-diagnostic-1218.yml','utf8'),fresh='owner-native-${{ github.run_id }}-${{ github.run_attempt }}';
- assert.equal(s.split('path: '+fresh+'\n').length-1,2);assert.equal(s.split('working-directory: '+fresh+'\n').length-1,5);assert.equal(s.split('path: '+fresh+'/.gai-results/').length-1,3);
+ assert.equal(s.split('path: '+fresh+'\n').length-1,2);assert.equal(s.split('working-directory: '+fresh+'\n').length-1,6);assert.equal(s.split('path: '+fresh+'/.gai-results/').length-1,4);
  assert.notEqual(fresh.replace('${{ github.run_attempt }}','1'),fresh.replace('${{ github.run_attempt }}','2'));assert.doesNotMatch(s,/ExecutionPolicy Bypass|LanguageMode\s*=|run:\s*\$\{\{\s*inputs/);assert.match(s,/owner_local_practical:[\s\S]*default: false/);assert.match(s,/if: \$\{\{ inputs\.owner_local_practical == true \}\}/);assert.match(s,/powershell\.exe -NoLogo -NoProfile -STA -NonInteractive -File scripts\/owner-code-practical-1218\.ps1 -Apply/);
 });
 test('safe failure JSON keeps a fixed stage and language mode without raw exception contents',()=>{
