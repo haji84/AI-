@@ -23,19 +23,16 @@ const pins={
 for(const [path,hash] of Object.entries(pins))assert.equal(digest(readFileSync(path)),hash,path);
 const diagnosticBytes=readFileSync(fileURLToPath(import.meta.url));
 const diagnosticHashes={rawSha256:digest(diagnosticBytes),lfNormalizedSha256:digest(diagnosticBytes.toString('utf8').replaceAll('\r\n','\n'))};
-process.stdout.write(JSON.stringify({label:'PUBLIC_DIAGNOSTIC_ONLY_NOT_ACCEPTANCE',event:'diagnostic-source',diagnosticHashes,overallBudgetMs:90000})+'\n');
+process.stdout.write(JSON.stringify({label:'PUBLIC_DIAGNOSTIC_V2_ONLY_NOT_ACCEPTANCE',event:'diagnostic-source',diagnosticHashes,overallBudgetMs:90000})+'\n');
 const entry=readFileSync(workflowPath,'utf8').split(/^ {6}- /m).find(step=>step.startsWith('name: Inspect separately approved fixed launcher bindings as data only\n'));
 const shell=entry?.match(/^ {8}shell: (.+)$/m)?.[1];
 const expectedShell=`${executable} ${flags} -Command "& ([scriptblock]::Create([System.IO.File]::ReadAllText('{0}')))"`;
 assert.equal(shell,expectedShell);
 const body=entry.match(/^ {8}run: \|\n((?: {10}.*\n)+)/m)[1].split('\n').map(line=>line.slice(10)).join('\n');
 assert.equal(body,"$ErrorActionPreference = 'Stop'\nNew-Item -ItemType Directory -Force -Path .gai-results | Out-Null\n"+`& '${executable}' ${flags} -File .\\scripts\\owner-code-launcher-binding-inspection-1218.ps1 -Inspect | Tee-Object -FilePath .gai-results/owner-code-launcher-bindings-1218.json\n`+'if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }\n');
-const essentials=['SystemDrive','PATH','PATHEXT','ComSpec','USERPROFILE','HOMEDRIVE','HOMEPATH','APPDATA','LOCALAPPDATA','ProgramFiles','ProgramFiles(x86)','ProgramData','PSModulePath'];
 const quote=value=>"'"+value.replaceAll("'","''")+"'";
-function environment(root,profile){
- const result={SystemRoot:process.env.SystemRoot,WINDIR:process.env.WINDIR??process.env.SystemRoot,TEMP:root,TMP:root,GORIQ_OWNER_LAUNCHER_BINDING_GRANT_BASE64:''};
- if(profile==='public-essentials')for(const name of essentials)if(process.env[name]!==undefined)result[name]=process.env[name];
- return result;
+function environment(root){
+ return {SystemRoot:process.env.SystemRoot,WINDIR:process.env.WINDIR??process.env.SystemRoot,TEMP:root,TMP:root,GORIQ_OWNER_LAUNCHER_BINDING_GRANT_BASE64:''};
 }
 function publicFile(path){
  if(!existsSync(path))return {exists:false};
@@ -49,27 +46,33 @@ function publicFile(path){
 function fixture(kind){
  const root=mkdtempSync(join(tmpdir(),'goriq public shell diagnosis 1218-'));mkdirSync(join(root,'scripts'));
  const worker=join(root,'scripts','owner-code-launcher-binding-inspection-1218.ps1');copyFileSync(resolve(workerPath),worker);assert.equal(digest(readFileSync(worker)),pins[workerPath]);
- const dummy=join(root,'scripts','public-dummy.ps1');writeFileSync(dummy,"[Console]::Out.WriteLine('PUBLIC_DUMMY_EXIT_1'); exit 1\n");
  const markerPath=join(root,'public-stages.txt'),artifact=join(root,'.gai-results','owner-code-launcher-bindings-1218.json');
  const mark=label=>`[System.IO.File]::AppendAllText(${quote(markerPath)},${quote(label+'\n')})`;
- let rawArguments;
- if(kind==='direct-dummy')rawArguments=`${flags} -File "${dummy}"`;
- if(kind==='direct-empty-grant-worker')rawArguments=`${flags} -File "${worker}" -Inspect`;
- if(kind==='nested-dummy-tee'||kind==='exact-wrapper-marked'){
-  const original=kind==='exact-wrapper-marked'?body:body.replace('.\\scripts\\owner-code-launcher-binding-inspection-1218.ps1 -Inspect','.\\scripts\\public-dummy.ps1');
-  const lines=original.trimEnd().split('\n');
-  const instrumented=[mark('wrapper-enter'),lines[0],mark('before-new-item'),lines[1],mark('before-child'),lines[2],mark('after-child'),`[System.IO.File]::AppendAllText(${quote(markerPath)},('last-exit-code='+[string]$LASTEXITCODE+[Environment]::NewLine))`,mark('before-exit'),lines[3],mark('wrapper-end')].join('\n')+'\n';
-  const wrapper=join(root,'actions-generated-public-body');writeFileSync(wrapper,instrumented);
-  rawArguments=shell.slice(executable.length+1).replace('{0}',wrapper);
- }
- assert.ok(rawArguments);
+ const variants={
+  'new-item-alone':[mark('before-new-item'),"New-Item -ItemType Directory -Force -Path .gai-results",mark('after-new-item')],
+  'out-null-alone':[mark('before-out-null'),"'PUBLIC_OUT_NULL' | Out-Null",mark('after-out-null')],
+  'qualified-new-item':[mark('before-qualified-new-item'),"Microsoft.PowerShell.Management\\New-Item -ItemType Directory -Force -Path .gai-results | Out-Null",mark('after-qualified-new-item')],
+  'net-directory':[mark('before-net-directory'),"[void][System.IO.Directory]::CreateDirectory('.gai-results')",mark('after-net-directory')],
+  'fixed-module-path-original-body':[
+   mark('before-module-path-clamp'),"$env:PSModulePath = [System.IO.Path]::Combine($PSHOME,'Modules')",mark('after-module-path-clamp'),
+   ...body.trimEnd().split('\n').flatMap((line,index)=>[mark('before-original-line-'+index),line,mark('after-original-line-'+index)]),
+  ],
+  'explicit-management-import':[
+   mark('before-management-import'),"Import-Module -Name ([System.IO.Path]::Combine($PSHOME,'Modules','Microsoft.PowerShell.Management','Microsoft.PowerShell.Management.psd1')) -ErrorAction Stop",mark('after-management-import'),
+   mark('before-imported-new-item'),"New-Item -ItemType Directory -Force -Path .gai-results | Out-Null",mark('after-imported-new-item'),
+  ],
+ };
+ assert.ok(Object.hasOwn(variants,kind));
+ const instrumented=[mark('wrapper-enter'),"$ErrorActionPreference = 'Stop'",...variants[kind],mark('variant-complete'),"[Console]::Out.WriteLine('PUBLIC_VARIANT_COMPLETED'); exit 0"].join('\n')+'\n';
+ const wrapper=join(root,'actions-generated-public-body');writeFileSync(wrapper,instrumented);
+ const rawArguments=shell.slice(executable.length+1).replace('{0}',wrapper);
  return {root,rawArguments,markerPath,artifact};
 }
-async function probe(kind,profile){
- const {root,rawArguments,markerPath,artifact}=fixture(kind),env=environment(root,profile),started=Date.now();
+async function probe(kind){
+ const {root,rawArguments,markerPath,artifact}=fixture(kind),env=environment(root),started=Date.now();
  const probeDeadline=Math.min(started+10000,overallDeadline),workBudgetMs=Math.min(8000,Math.max(0,probeDeadline-started-2000));
- const record={label:'PUBLIC_DIAGNOSTIC_ONLY_NOT_ACCEPTANCE',kind,profile,environmentKeyNames:Object.keys(env).sort(),emptyGrant:true,budgetMs:workBudgetMs,totalBudgetWithCleanupMs:probeDeadline-started,stdinMode:'async-pipe-ended-not-identical-to-frozen-spawnSync',events:[],timedOut:false,code:null,signal:null,closeCode:null,closeSignal:null,cleanup:null};
- process.stdout.write(JSON.stringify({label:record.label,kind,profile,event:'start'})+'\n');
+ const record={label:'PUBLIC_DIAGNOSTIC_V2_ONLY_NOT_ACCEPTANCE',kind,profile:'frozen-minimal-only',environmentKeyNames:Object.keys(env).sort(),emptyGrant:true,budgetMs:workBudgetMs,totalBudgetWithCleanupMs:probeDeadline-started,stdinMode:'async-pipe-ended-not-identical-to-frozen-spawnSync',events:[],timedOut:false,code:null,signal:null,closeCode:null,closeSignal:null,cleanup:null};
+ process.stdout.write(JSON.stringify({label:record.label,kind,event:'start'})+'\n');
  let stdout=Buffer.alloc(0),stderr=Buffer.alloc(0),stdoutTruncated=false,stderrTruncated=false;
  const append=(current,bytes)=>Buffer.concat([current,bytes]).subarray(0,65536);
  await new Promise(resolveProbe=>{
@@ -89,7 +92,7 @@ async function probe(kind,profile){
   const timer=setTimeout(()=>{
    record.timedOut=true;event('budget-expired');
    if(!exitObserved&&child.exitCode===null&&child.signalCode===null&&Number.isInteger(child.pid)&&child.pid>0&&child.pid!==process.pid){
-    const cleanup=spawnSync(taskkill,['/PID',String(child.pid),'/T','/F'],{encoding:'utf8',timeout:2000,windowsHide:true,env:environment(root,'minimal')});
+    const cleanup=spawnSync(taskkill,['/PID',String(child.pid),'/T','/F'],{encoding:'utf8',timeout:2000,windowsHide:true,env:environment(root)});
     record.cleanup={action:'fixed-taskkill-own-unexited-child-tree',ownPid:child.pid,status:cleanup.status,signal:cleanup.signal,errorCode:cleanup.error?.code??null};
    }else record.cleanup={action:'owned-pipes-only',reason:exitObserved?'parent-exited-inherited-stream-close-uncertain':'no-live-owned-child-pid'};
    child.stdin.destroy();child.stdout.destroy();child.stderr.destroy();
@@ -102,12 +105,12 @@ async function probe(kind,profile){
  return record;
 }
 
-if(process.platform!=='win32')process.stdout.write(JSON.stringify({label:'PUBLIC_DIAGNOSTIC_ONLY_NOT_ACCEPTANCE',result:'SKIPPED_REQUIRES_ACTUAL_WINDOWS_POWERSHELL_5',sourcePins:pins})+'\n');
+if(process.platform!=='win32')process.stdout.write(JSON.stringify({label:'PUBLIC_DIAGNOSTIC_V2_ONLY_NOT_ACCEPTANCE',result:'SKIPPED_REQUIRES_ACTUAL_WINDOWS_POWERSHELL_5',sourcePins:pins})+'\n');
 else{
  const results=[];
- probes:for(const profile of ['minimal','public-essentials'])for(const kind of ['direct-dummy','direct-empty-grant-worker','nested-dummy-tee','exact-wrapper-marked']){
-  if(overallDeadline-Date.now()<10000){process.stdout.write(JSON.stringify({label:'PUBLIC_DIAGNOSTIC_ONLY_NOT_ACCEPTANCE',event:'overall-budget-stopped-before-next-probe',completedStages:results.length})+'\n');break probes;}
-  results.push(await probe(kind,profile));
+ for(const kind of ['new-item-alone','out-null-alone','qualified-new-item','net-directory','fixed-module-path-original-body','explicit-management-import']){
+  if(overallDeadline-Date.now()<10000){process.stdout.write(JSON.stringify({label:'PUBLIC_DIAGNOSTIC_V2_ONLY_NOT_ACCEPTANCE',event:'overall-budget-stopped-before-next-probe',completedStages:results.length})+'\n');break;}
+  results.push(await probe(kind));
  }
- process.stdout.write(JSON.stringify({label:'PUBLIC_DIAGNOSTIC_ONLY_NOT_ACCEPTANCE',stages:results.length,timedOut:results.filter(result=>result.timedOut).length,elapsedMs:Date.now()-diagnosticStarted,overallBudgetMs:90000,diagnosticHashes,sourcePins:pins})+'\n');
+ process.stdout.write(JSON.stringify({label:'PUBLIC_DIAGNOSTIC_V2_ONLY_NOT_ACCEPTANCE',stages:results.length,timedOut:results.filter(result=>result.timedOut).length,elapsedMs:Date.now()-diagnosticStarted,overallBudgetMs:90000,diagnosticHashes,sourcePins:pins})+'\n');
 }
