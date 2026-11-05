@@ -65,3 +65,4 @@ scripts/owner-code-rotation-composed-entry.test.mjs text eol=lf
 tests/owner-code-rotation-exercise.fixture.ps1 text eol=lf
 tests/owner-code-rotation-reserve.fixture.ps1 text eol=lf
 scripts/owner-code-entry-json-bound.test.mjs text eol=lf
+scripts/owner-code-task-credential-retention-proof-1218.ps1 text eol=lf
