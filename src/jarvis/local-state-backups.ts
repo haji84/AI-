@@ -268,12 +268,12 @@ export class LocalStateBackups {
       try { const created = await open(path, "wx", 0o600); await created.close(); }
       catch (error) { if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error; }
       await this.controlFile();
-      // Same-host native pattern from pc-execution-lock.ts. Never unlink this inode:
+      // Reserve one native writer slot. Never unlink this inode:
       // the OS releases its transaction on process death, without PID/reaper races.
       lock = new DatabaseSync(path);
       // This empty, coordination-only connection needs no on-disk rollback journal.
-      // MEMORY retains SQLite's native exclusive lock without a catalog sidecar.
-      try { lock.exec("PRAGMA busy_timeout=0; PRAGMA journal_mode=MEMORY; BEGIN EXCLUSIVE"); }
+      // MEMORY avoids a catalog sidecar; IMMEDIATE permits concurrent readers.
+      try { lock.exec("PRAGMA busy_timeout=0; PRAGMA journal_mode=MEMORY; BEGIN IMMEDIATE"); }
       catch { fail("operation_busy"); }
       return await run();
     } catch (error) { throw error instanceof LocalStateBackupError ? error : new LocalStateBackupError("operation_failed"); }
