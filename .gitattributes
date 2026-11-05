@@ -53,3 +53,15 @@ scripts/owner-code-launcher-binding-inspection-1218.ps1 text eol=lf
 scripts/owner-code-launcher-binding-inspection-1218.test.mjs text eol=lf
 scripts/owner-code-launcher-binding-workflow.test.mjs text eol=lf
 scripts/owner-code-launcher-binding-native-shell.test.mjs text eol=lf
+
+# Operation-specific private rotation/restoration adapters and frozen fixtures.
+scripts/owner-code-rotation-exercise.mjs text eol=lf
+scripts/owner-code-rotation-exercise.ps1 text eol=lf
+scripts/owner-code-private-rotation-exercise.test.mjs text eol=lf
+scripts/owner-code-planned-reserve.test.mjs text eol=lf
+scripts/owner-code-rotation-exercise-protocol.test.mjs text eol=lf
+scripts/owner-code-private-scope-capture.test.mjs text eol=lf
+scripts/owner-code-rotation-composed-entry.test.mjs text eol=lf
+tests/owner-code-rotation-exercise.fixture.ps1 text eol=lf
+tests/owner-code-rotation-reserve.fixture.ps1 text eol=lf
+scripts/owner-code-entry-json-bound.test.mjs text eol=lf

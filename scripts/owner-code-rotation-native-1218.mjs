@@ -6,6 +6,7 @@ import {dirname,resolve,join,win32} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {TextDecoder} from 'node:util';
 import {ROTATION_SOURCE_FILES,validateRotationScope,validateRotationResult} from './owner-code-rotation-acceptance.mjs';
+import {validateRotationExerciseResult} from './owner-code-rotation-exercise.mjs';
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 const strings=['scopeId','ownerSid','issuedAt','expiresAt','sourceRevision','configSha256','taskSha256','nodeSha256','runtimeRevision','dbPath','attemptId'];
@@ -16,6 +17,28 @@ const object=value=>value!==null&&typeof value==='object'&&!Array.isArray(value)
 const exact=(value,keys)=>object(value)&&Object.keys(value).length===keys.length&&keys.every(key=>Object.hasOwn(value,key));
 const fail=code=>{throw new Error(code);};
 
+export const ROTATION_PUBLIC_SOURCE_FILES=Object.freeze([...ROTATION_SOURCE_FILES,'scripts/owner-code-rotation-native-1218.mjs','scripts/owner-code-rotation-native-1218.ps1','scripts/owner-code-launcher-binding-inspection-1218.ps1','scripts/owner-code-rotation-exercise.mjs','scripts/owner-code-rotation-exercise.ps1']);
+const publicFlags=['credentialRotationApproval','existingTaskRestartApproval','configPersistenceApproval','normalLoopbackCookieApproval','confirmationApproval','automationConfirmationApproval','fleetReadOnlyApproval','pcSidecarReadOnlyApproval'];
+const grantFields=['schemaVersion','kind','scopeId','issue','goalId','authorityType','issuedBy','approvalId','approvalReference','sourceRevision','sourceHashes','ciRunId','ciRunAttempt','workflowPath','ownerSidSha256','profile','operation','issuedAt','expiresAt','maxAttempts','maxDurationSeconds','recoveryReserveSeconds','cohortAuthority','pcSidecars',...publicFlags];
+export function compilePublicRotationGrant(encoded,environment=process.env,now=Date.now()){
+ const g=decodeRotationEntryDescriptor(encoded);
+ if(grantFields.filter(k=>!['schemaVersion','issue','sourceHashes','ciRunAttempt','maxAttempts','maxDurationSeconds','recoveryReserveSeconds','cohortAuthority','pcSidecars',...publicFlags].includes(k)).some(k=>typeof g[k]!=='string'))fail('ROTATION_ENTRY_SCOPE_REQUIRED');
+ const issued=Date.parse(g.issuedAt),expires=Date.parse(g.expiresAt);
+ if(!exact(g,grantFields)||g.schemaVersion!==1||g.kind!=='NONSECRET_ORIGINAL_ROTATION_GRANT'||g.scopeId!=='issue:1218:owner-code-rotation'||g.issue!==1218||g.goalId!=='goal-fcc81c97e09153f7'||g.authorityType!=='FRESH_OWNER_HIGH_ROTATION_RESTORATION_APPROVAL'||g.issuedBy!=='owner-approved-task-operator'||g.profile!=='jarvis-owner-production-v1'||g.operation!=='rotate-verify-restore-verify-original'||g.maxAttempts!==1||g.maxDurationSeconds!==900||g.recoveryReserveSeconds!==120||publicFlags.some(f=>g[f]!==true))fail('ROTATION_ENTRY_SCOPE_REQUIRED');
+ if(!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(g.approvalId)||!/^owner-approval:[a-f0-9]{64}$/.test(g.approvalReference)||!/^[a-f0-9]{40}$/.test(g.sourceRevision)||!/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(g.issuedAt)||!/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(g.expiresAt)||!Number.isFinite(issued)||!Number.isFinite(expires)||issued>now||expires-now<900000||expires-issued>7200000||expires>Date.parse('2026-11-10T08:00:00Z')||!/^owner-approval:/.test(g.approvalReference)||!/^[1-9]\d{0,19}$/.test(g.ciRunId)||g.ciRunAttempt!==1||g.workflowPath!=='.github/workflows/gai-zbook-diagnostic-1218.yml'||!/^[a-f0-9]{64}$/.test(g.ownerSidSha256))fail('ROTATION_ENTRY_SCOPE_REQUIRED');
+ if(!exact(g.sourceHashes,ROTATION_PUBLIC_SOURCE_FILES)||Object.values(g.sourceHashes).some(h=>typeof h!=='string'||!/^[a-f0-9]{64}$/.test(h))||!exact(g.cohortAuthority,['kind','expectedCount'])||g.cohortAuthority.kind!=='approved-active-capture'||g.cohortAuthority.expectedCount!==38||!exact(g.pcSidecars,['profile','expectedTaskFile','expectedObservationFile'])||g.pcSidecars.profile!=='jarvis-pc-sidecars-v1'||!['present','absent'].includes(g.pcSidecars.expectedTaskFile)||!['present','absent'].includes(g.pcSidecars.expectedObservationFile))fail('ROTATION_ENTRY_SCOPE_REQUIRED');
+ if(environment.GITHUB_ACTOR!=='haji84'||environment.GITHUB_REPOSITORY!=='haji84/AI-'||environment.GITHUB_REF!=='refs/heads/main'||environment.GITHUB_SHA!==g.sourceRevision||!/^[1-9]\d{0,19}$/.test(environment.GITHUB_RUN_ID)||environment.GITHUB_RUN_ATTEMPT!=='1'||environment.GITHUB_WORKFLOW_REF!=='haji84/AI-/'+g.workflowPath+'@refs/heads/main'||environment.JARVIS_PRODUCTION_CONFIG)fail('ROTATION_ENTRY_CONTEXT_REQUIRED');
+ return {grant:g,originalGrantSha256:hash(JSON.stringify(g))};
+}
+export async function verifyPublicRotationSource(grant,fetcher=fetch){
+ const get=async path=>{const response=await fetcher(path,{headers:{Accept:'application/vnd.github+json'},redirect:'error',signal:AbortSignal.timeout(10000)});if(!response.ok||!response.body)fail('ROTATION_ENTRY_SOURCE_REJECTED');let n=0;const chunks=[];for await(const chunk of response.body){n+=chunk.byteLength;if(n>1048576)fail('ROTATION_ENTRY_SOURCE_REJECTED');chunks.push(Buffer.from(chunk));}return Buffer.concat(chunks);};
+ try{
+  const base='https://api.github.com/repos/haji84/AI-/',main=JSON.parse((await get(base+'git/ref/heads/main')).toString()),run=JSON.parse((await get(base+'actions/runs/'+grant.ciRunId)).toString()),jobs=JSON.parse((await get(base+'actions/runs/'+grant.ciRunId+'/attempts/1/jobs?per_page=100')).toString());
+  if(main.object?.sha!==grant.sourceRevision||String(run.id)!==grant.ciRunId||run.run_attempt!==1||run.name!=='CI'||run.path!=='.github/workflows/ci.yml'||run.event!=='push'||run.head_branch!=='main'||run.head_sha!==grant.sourceRevision||run.status!=='completed'||run.conclusion!=='success'||!Array.isArray(jobs.jobs)||jobs.jobs.length!==4||['repository-guard','project-checks','independent-verifier-container','windows-runtime-byte-fixtures'].some(name=>jobs.jobs.filter(j=>j.name===name&&j.status==='completed'&&j.conclusion==='success').length!==1))fail('ROTATION_ENTRY_SOURCE_REJECTED');
+  for(const file of ROTATION_PUBLIC_SOURCE_FILES){if(hash(regular(join(root,file)))!==grant.sourceHashes[file]||hash(await get('https://raw.githubusercontent.com/haji84/AI-/'+grant.sourceRevision+'/'+file))!==grant.sourceHashes[file])fail('ROTATION_ENTRY_SOURCE_REJECTED');}
+  return true;
+ }catch{fail('ROTATION_ENTRY_SOURCE_REJECTED');}
+}
 export function bindRotationRunScope(scope,environment=process.env,now=Date.now()){
  if(!object(scope)||strings.some(key=>typeof scope[key]!=='string')||['maxAttempts','maxDurationSeconds','recoveryReserveSeconds'].some(key=>!Number.isInteger(scope[key])))fail('ROTATION_ENTRY_SCOPE_REQUIRED');
  if(scope.cohortAuthority?.kind==='original-cohort-digest'&&typeof scope.cohortAuthority.cohortSha256!=='string')fail('ROTATION_ENTRY_SCOPE_REQUIRED');
@@ -82,6 +105,9 @@ export function rotationControllerDuration(scope,now=Date.now()){
 }
 export function validateRotationJobBudget(data,scope,environment=process.env,now=Date.now()){
  bindRotationRunScope(scope,environment,now);rotationControllerDuration(scope,now);
+ return validateAllocatedRotationJob(data,scope,environment,now);
+}
+function validateAllocatedRotationJob(data,scope,environment,now){
  if(!object(data)||!Array.isArray(data.jobs)||data.jobs.length>100||data.total_count!==data.jobs.length)fail('ROTATION_ENTRY_CONTEXT_REQUIRED');
  const matches=data.jobs.filter(job=>object(job)&&job.name==='inspect');
  if(matches.length!==1)fail('ROTATION_ENTRY_CONTEXT_REQUIRED');
@@ -102,9 +128,24 @@ export async function readRotationJobBudget(scope,environment=process.env,fetche
   validateRotationJobBudget(record,scope,environment,clock());return record;
  }catch{fail('ROTATION_ENTRY_CONTEXT_REQUIRED');}
 }
+async function readPublicRotationJobBudget(grant,environment=process.env){
+ try{
+  const response=await fetch(`https://api.github.com/repos/haji84/AI-/actions/runs/${environment.GITHUB_RUN_ID}/attempts/1/jobs?per_page=100`,{headers:{Accept:'application/vnd.github+json'},redirect:'error',signal:AbortSignal.timeout(15000)});
+  if(!response.ok||!response.body)fail('ROTATION_ENTRY_CONTEXT_REQUIRED');let n=0;const chunks=[];for await(const chunk of response.body){n+=chunk.byteLength;if(n>65536)fail('ROTATION_ENTRY_CONTEXT_REQUIRED');chunks.push(Buffer.from(chunk));}
+  const record=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(Buffer.concat(chunks)));validateAllocatedRotationJob(record,grant,environment,Date.now());return record;
+ }catch{fail('ROTATION_ENTRY_CONTEXT_REQUIRED');}
+}
+function projectExerciseController(value){
+ if(!exact(value,['schemaVersion','issue','complete','exercise','fleetSqlitePreserved','fleet','pcSidecarsPreserved','wholeR06Verified','workerPrivateKeysVerified','sidecarAndCompassHistoryVerified'])||value.schemaVersion!==2||value.issue!==1218||value.wholeR06Verified!==false||value.workerPrivateKeysVerified!==false||value.sidecarAndCompassHistoryVerified!==false||typeof value.fleetSqlitePreserved!=='boolean'||typeof value.pcSidecarsPreserved!=='boolean')fail('ROTATION_ENTRY_PROTOCOL_FAILED');
+ validateRotationExerciseResult(value.exercise);
+ let fleetChecks=null;
+ if(value.fleet!==null){if(!object(value.fleet)||!['PASS','FAIL','INCONCLUSIVE'].includes(value.fleet.status)||fleetBooleans.some(k=>typeof value.fleet[k]!=='boolean'))fail('ROTATION_ENTRY_PROTOCOL_FAILED');fleetChecks=Object.fromEntries(['status',...fleetBooleans].map(k=>[k,value.fleet[k]]));}
+ if(value.complete!==value.exercise.complete||value.fleetSqlitePreserved!==(fleetChecks?.status==='PASS')||fleetChecks?.status==='PASS'&&fleetBooleans.some(k=>!fleetChecks[k])||(value.complete||value.exercise.restoration.recoveryVerified||value.exercise.rotation.rollbackVerified)&&(!value.fleetSqlitePreserved||!value.pcSidecarsPreserved))fail('ROTATION_ENTRY_PROTOCOL_FAILED');
+ return {complete:value.complete,exercise:value.exercise,fleetChecks,fleetSqlitePreserved:value.fleetSqlitePreserved,pcSidecarsPreserved:value.pcSidecarsPreserved};
+}
 // Never truncate the unchanged controller's recovery window for startup delay,
 // stderr or bad output. A live invocation must bind its unchanged receipt here.
-export async function runBoundedRotationController(factory,{scope,durationMs=905000,clock=Date.now}={}){
+export async function runBoundedRotationController(factory,{scope,durationMs=905000,clock=Date.now,exercise=false}={}){
  const started=clock();if(scope)durationMs=rotationControllerDuration(scope,started);
  if(!Number.isInteger(durationMs)||durationMs<=0||durationMs>1440000)fail('ROTATION_ENTRY_SCOPE_REQUIRED');
  return await new Promise(done=>{
@@ -121,7 +162,7 @@ export async function runBoundedRotationController(factory,{scope,durationMs=905
     if(problem){finish({...result(problem),childCleanupVerified:true});return;}
     try{
      const wire=output.trim(),value=JSON.parse(wire);if(JSON.stringify(value)!==wire||exit!==(value.complete?0:1))fail('ROTATION_ENTRY_PROTOCOL_FAILED');
-     finish({...projectController(value),childCleanupVerified:true});
+     finish({...(exercise?projectExerciseController(value):projectController(value)),childCleanupVerified:true});
     }catch{finish({...result('ROTATION_ENTRY_PROTOCOL_FAILED'),childCleanupVerified:true});}
    });
   }catch{finish(result('ROTATION_ENTRY_CHILD_UNAVAILABLE'));}
@@ -130,29 +171,37 @@ export async function runBoundedRotationController(factory,{scope,durationMs=905
 
 function regular(path,limit=1048576){const metadata=lstatSync(path);if(!metadata.isFile()||metadata.isSymbolicLink()||metadata.size>limit||realpathSync.native(path).toLowerCase()!==resolve(path).toLowerCase())fail('ROTATION_ENTRY_SOURCE_REJECTED');return readFileSync(path);}
 function result(code){return {schemaVersion:1,issue:1218,operation:'authorized-rotation-acceptance',complete:false,failureCode:code,sourceRevision:null,originalDescriptorSha256:null,runtimeScopeSha256:null,childCleanupVerified:false,rotation:null,fleetChecks:null,wholeR06Verified:false};}
+function publicResult(code){return {schemaVersion:2,issue:1218,operation:'rotation-restoration-exercise',complete:false,failureCode:code,sourceRevision:null,originalGrantSha256:null,workflowRunId:null,workflowRunAttempt:null,publicSourceVerified:false,localScopeBound:false,claimConsumed:false,actualWindowsOwnerContextVerified:false,childCleanupVerified:false,exercise:null,fleetChecks:null,fleetSqlitePreserved:false,pcSidecarsPreserved:false,wholeR06Verified:false};}
 async function run(){
- let compiled;
+ let compiled;const answer=publicResult('ROTATION_ENTRY_SCOPE_REQUIRED');
  try{
+  compiled=compilePublicRotationGrant(process.env.GORIQ_OWNER_ROTATION_SCOPE_BASE64??'');const {grant}=compiled;
+  answer.sourceRevision=grant.sourceRevision;answer.originalGrantSha256=compiled.originalGrantSha256;answer.workflowRunId=process.env.GITHUB_RUN_ID;answer.workflowRunAttempt=1;
   if(process.platform!=='win32'||resolve(process.cwd()).toLowerCase()!==root.toLowerCase())fail('ROTATION_ENTRY_CONTEXT_REQUIRED');
-  compiled=compileRotationEntryDescriptor(process.env.GORIQ_OWNER_ROTATION_SCOPE_BASE64??'');const {scope}=compiled;
-  rotationControllerDuration(scope);
-  for(const file of ROTATION_SOURCE_FILES)if(hash(regular(join(root,file)))!==scope.sourceHashes[file])fail('ROTATION_ENTRY_SOURCE_REJECTED');
-  if(hash(regular(process.execPath,268435456))!==scope.nodeSha256)fail('ROTATION_ENTRY_NODE_REJECTED');
-  const jobBudget=await readRotationJobBudget(scope);
-  const env=buildRotationEntryEnvironment(process.env,compiled.scopeBase64,compiled.originalDescriptorSha256),shell=win32.join(process.env.SystemRoot,'System32','WindowsPowerShell','v1.0','powershell.exe');
-  const preparation=await runBoundedRotationPreparation(()=>spawn(shell,['-NoLogo','-NoProfile','-NonInteractive','-File',join(root,'scripts','owner-code-rotation-native-1218.ps1'),'-Prepare'],{cwd:root,windowsHide:true,stdio:['ignore','pipe','pipe'],env}));
+  rotationControllerDuration(grant);await verifyPublicRotationSource(grant);answer.publicSourceVerified=true;
+  const jobBudget=await readPublicRotationJobBudget(grant);
+  const env=buildRotationEntryEnvironment(process.env,process.env.GORIQ_OWNER_ROTATION_SCOPE_BASE64,compiled.originalGrantSha256);env.GITHUB_WORKFLOW_REF=process.env.GITHUB_WORKFLOW_REF;
+  const shell=win32.join(process.env.SystemRoot,'System32','WindowsPowerShell','v1.0','powershell.exe');
+  const preparation=await runBoundedRotationPreparation(()=>spawn(shell,['-NoLogo','-NoProfile','-NonInteractive','-File',join(root,'scripts','owner-code-rotation-native-1218.ps1'),'-PreparePublic'],{cwd:root,windowsHide:true,stdio:['ignore','pipe','pipe'],env}));
   if(!preparation.complete)fail(preparation.failureCode);
-  const stage=win32.join(process.env.USERPROFILE,`.goriq-owner-rotation-1218-${scope.attemptId}`),receipt=win32.join(stage,'.gai-results','owner-code-rotation-scope.json');
-  for(const file of ROTATION_SOURCE_FILES)if(hash(regular(win32.join(stage,file)))!==scope.sourceHashes[file])fail('ROTATION_ENTRY_SOURCE_REJECTED');
-  if(hash(regular(receipt,65536))!==compiled.runtimeScopeSha256)fail('ROTATION_ENTRY_SOURCE_REJECTED');
-  const claim=JSON.parse(regular(stage+'.claim',4096).toString('utf8'));if(!exact(claim,['schemaVersion','attemptId','originalDescriptorSha256','runtimeScopeSha256','sourceRevision','workflowRunId','workflowRunAttempt'])||claim.schemaVersion!==1||claim.attemptId!==scope.attemptId||claim.originalDescriptorSha256!==compiled.originalDescriptorSha256||claim.runtimeScopeSha256!==compiled.runtimeScopeSha256||claim.sourceRevision!==scope.sourceRevision||claim.workflowRunId!==scope.workflowRunId||claim.workflowRunAttempt!==1)fail('ROTATION_ENTRY_ATTEMPT_CONSUMED');
-  bindRotationRunScope(scope,process.env);if(hash(regular(process.execPath,268435456))!==scope.nodeSha256)fail('ROTATION_ENTRY_NODE_REJECTED');
+  const stage=win32.join(process.env.USERPROFILE,`.goriq-owner-rotation-1218-${grant.approvalId}`),receipt=win32.join(stage,'.gai-results','owner-code-rotation-scope.json'),scopeBytes=regular(receipt,65536),scope=bindRotationRunScope(JSON.parse(scopeBytes.toString('utf8')),process.env);
+  const retainedGrant=regular(win32.join(stage,'.gai-results','original-grant.json'),65536);
+  if(hash(retainedGrant)!==compiled.originalGrantSha256||scope.attemptId!==grant.approvalId||scope.issuedAt!==grant.issuedAt||scope.expiresAt!==grant.expiresAt||scope.sourceRevision!==grant.sourceRevision||hash(scope.ownerSid)!==grant.ownerSidSha256)fail('ROTATION_ENTRY_SOURCE_REJECTED');
+  for(const file of ROTATION_PUBLIC_SOURCE_FILES)if(hash(regular(win32.join(stage,file)))!==grant.sourceHashes[file])fail('ROTATION_ENTRY_SOURCE_REJECTED');
+  for(const file of ROTATION_SOURCE_FILES)if(scope.sourceHashes[file]!==grant.sourceHashes[file])fail('ROTATION_ENTRY_SOURCE_REJECTED');
+  const claim=JSON.parse(regular(stage+'.claim',4096).toString('utf8'));
+  if(!exact(claim,['schemaVersion','attemptId','originalDescriptorSha256','runtimeScopeSha256','sourceRevision','workflowRunId','workflowRunAttempt'])||claim.schemaVersion!==1||claim.attemptId!==grant.approvalId||claim.originalDescriptorSha256!==compiled.originalGrantSha256||claim.runtimeScopeSha256!==hash(scopeBytes)||claim.sourceRevision!==scope.sourceRevision||claim.workflowRunId!==scope.workflowRunId||claim.workflowRunAttempt!==1)fail('ROTATION_ENTRY_ATTEMPT_CONSUMED');
+  if(hash(regular(process.execPath,268435456))!==scope.nodeSha256)fail('ROTATION_ENTRY_NODE_REJECTED');
+  answer.localScopeBound=true;answer.claimConsumed=true;answer.actualWindowsOwnerContextVerified=true;
   validateRotationJobBudget(jobBudget,scope);
-  const controller=await runBoundedRotationController(()=>spawn(process.execPath,['--disable-warning=ExperimentalWarning',win32.join(stage,'scripts','owner-code-rotation-acceptance.mjs'),'--apply','--authorization',receipt],{cwd:stage,windowsHide:false,stdio:['ignore','pipe','pipe'],env}),{scope});
-  return {...controller,sourceRevision:scope.sourceRevision,originalDescriptorSha256:compiled.originalDescriptorSha256,runtimeScopeSha256:compiled.runtimeScopeSha256};
- }catch(error){return {...result(codes.includes(error.message)?error.message:'ROTATION_ENTRY_SCOPE_REQUIRED'),sourceRevision:compiled?.scope.sourceRevision??null,originalDescriptorSha256:compiled?.originalDescriptorSha256??null,runtimeScopeSha256:compiled?.runtimeScopeSha256??null};}
+  const controller=await runBoundedRotationController(()=>spawn(process.execPath,['--disable-warning=ExperimentalWarning',win32.join(stage,'scripts','owner-code-rotation-exercise.mjs'),'--apply','--authorization',receipt],{cwd:stage,windowsHide:false,stdio:['ignore','pipe','pipe'],env}),{scope,exercise:true});
+  for(const key of ['complete','childCleanupVerified','exercise','fleetChecks','fleetSqlitePreserved','pcSidecarsPreserved'])if(Object.hasOwn(controller,key))answer[key]=controller[key];
+  answer.failureCode=answer.complete?null:codes.includes(controller.failureCode)?controller.failureCode:'ROTATION_ENTRY_CONTROLLER_FAILED';return answer;
+ }catch(error){answer.failureCode=codes.includes(error.message)?error.message:'ROTATION_ENTRY_SCOPE_REQUIRED';return answer;}
 }
+
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  if(process.argv.length===2)console.log('PLAN ONLY: live rotation requires fresh separate High approval and an exact real-run-bound protected receipt.');
+ else if(process.argv.length===3&&process.argv[2]==='--verify-public-grant'){try{const {grant}=compilePublicRotationGrant(process.env.GORIQ_OWNER_ROTATION_SCOPE_BASE64??'');await verifyPublicRotationSource(grant);console.log('PUBLIC_ROTATION_GRANT_VERIFIED');}catch{console.log('PUBLIC_ROTATION_GRANT_REFUSED');process.exitCode=1;}}
  else{const value=process.argv.length===3&&process.argv[2]==='--run'?await run():result('ROTATION_ENTRY_CONTEXT_REQUIRED');console.log(JSON.stringify(value));if(!value.complete)process.exitCode=1;}
 }
