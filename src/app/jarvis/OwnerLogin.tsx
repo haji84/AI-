@@ -67,6 +67,7 @@ export default function OwnerLogin({ next = "/jarvis", initialError = false }: {
         <input
           id="jarvis-owner-pin"
           name="pin"
+          type="password"
           inputMode="numeric"
           pattern="[0-9]{4}"
           maxLength={4}
