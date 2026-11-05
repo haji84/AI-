@@ -1949,7 +1949,7 @@
     },
     {
       "path": "src/app/jarvis/OwnerLogin.tsx",
-      "sha256": "cab92cd38137e2e68c6061c0f49b18abde817f53b0a091bfb1c754a7bbf5c0a6",
+      "sha256": "3ab7107ddb569f03673809720a28cbc695e9bbd83f633446e31f105c7ea8464a",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "SEC-001",
@@ -2656,7 +2656,7 @@
     },
     {
       "path": "src/app/jarvis/settings/TrustedDeviceSettings.tsx",
-      "sha256": "aa9daa19a2be3791a406be7ea3e91abc646ab5f20e89d90a517fdab7e7283b3e",
+      "sha256": "a0a1596cc07c5667ad021578f9cc3f8bd78ec1a087771007819631223f13da07",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "SEC-001",
@@ -4347,7 +4347,7 @@
     },
     {
       "path": "src/jarvis/recovery-dashboard.ts",
-      "sha256": "de2c5ce3f56e4d721617bf081dd79863822e7a252549c74619d897db12348e10",
+      "sha256": "e65130bcb04c60cd4f1a30a1c96d858f749d329d54971dd705b4f1335c31d702",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OPS-009"
