@@ -3499,7 +3499,7 @@
     },
     {
       "path": "src/gai/production-autonomy-runtime.ts",
-      "sha256": "c676bc34968d56ec68b346f13b6273edd9471bbda31e11fa89a1ad2794433f64",
+      "sha256": "3c0f5153ad0860fab1972ca4d86d65d543226ebdcf39b310f9c2caedc9cdb376",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-001",
