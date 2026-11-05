@@ -126,9 +126,23 @@ function Invoke-R05ProtectedApi {
  if($failure){throw $failure}
  return $value
 }
+function New-R05NativeBudgetCheck {
+ param([R05ProofBudget]$Budget,[ValidateSet('Forward','Cleanup')][string]$Phase)
+ # GetNewClosure captures this function's local parameters. A closure created
+ # inside the forward/cleanup closure cannot capture its inherited $budget.
+ if($null -eq $Budget){throw 'PROOF_JOB_BUDGET_REQUIRED'}
+ return [Action]({Assert-R05ProofBudget $Budget $Phase}.GetNewClosure())
+}
 function Get-R05FailureCode($ErrorRecord) {
- $code=[string]$ErrorRecord.Exception.Message
- if($code -in @('PROOF_MODE_REQUIRED','PROOF_APPROVAL_REQUIRED','PROOF_CONTEXT_REQUIRED','PROOF_HOSTED_WINDOWS_REQUIRED','PROOF_HOSTED_ADMIN_REQUIRED','PROOF_OWN_OBJECT_COLLISION','PROOF_ACCOUNT_BOUNDARY_CHANGED','PROOF_BATCH_LOGON_REFUSED','PROOF_TASK_BOUNDARY_CHANGED','PROOF_EXECUTION_FAILED','PROOF_ACCOUNT_EXECUTION_MISMATCH','PROOF_JOB_BUDGET_REQUIRED','PROOF_CLOCK_INVALID','PROOF_HARD_DEADLINE','PROOF_FORWARD_DEADLINE','PROOF_FORWARD_RESERVE','PROOF_CLEANUP_DEADLINE','PROOF_CLEANUP_NOT_STARTED','PROOF_CLEANUP_FAILED')){return $code}
+ $allowed=@('PROOF_MODE_REQUIRED','PROOF_APPROVAL_REQUIRED','PROOF_CONTEXT_REQUIRED','PROOF_HOSTED_WINDOWS_REQUIRED','PROOF_HOSTED_ADMIN_REQUIRED','PROOF_OWN_OBJECT_COLLISION','PROOF_ACCOUNT_BOUNDARY_CHANGED','PROOF_BATCH_LOGON_REFUSED','PROOF_TASK_BOUNDARY_CHANGED','PROOF_EXECUTION_FAILED','PROOF_ACCOUNT_EXECUTION_MISMATCH','PROOF_JOB_BUDGET_REQUIRED','PROOF_CLOCK_INVALID','PROOF_HARD_DEADLINE','PROOF_FORWARD_DEADLINE','PROOF_FORWARD_RESERVE','PROOF_CLEANUP_DEADLINE','PROOF_CLEANUP_NOT_STARTED','PROOF_CLEANUP_FAILED')
+ # PowerShell wraps exceptions thrown through a C# Action. Preserve only closed
+ # allowlisted codes from that chain; never emit an exception or native detail.
+ $exception=$ErrorRecord.Exception
+ while($exception){
+  $code=[string]$exception.Message
+  if($code -in $allowed){return $code}
+  $exception=$exception.InnerException
+ }
  return 'PROOF_OPERATION_FAILED'
 }
 function Invoke-R05BudgetedRun {
@@ -165,6 +179,7 @@ public static class R05FixtureNative {
  [DllImport("advapi32.dll")] static extern uint LsaRemoveAccountRights(IntPtr h,IntPtr s,bool all,U[] r,uint c);
  [DllImport("advapi32.dll")] static extern uint LsaFreeMemory(IntPtr h);
  [DllImport("advapi32.dll")] static extern uint LsaClose(IntPtr h);
+ public static void Check(Action check) {check();}
  public static int BatchLogon(string u,string p,Action check) {IntPtr h=IntPtr.Zero;try{check();bool ok=LogonUser(u,".",p,4,0,out h);int result=ok?0:Marshal.GetLastWin32Error();check();return result;}finally{if(h!=IntPtr.Zero)CloseHandle(h);}}
  public static bool BatchRight(string sid,int operation,Action check) {
   IntPtr h=IntPtr.Zero,s=IntPtr.Zero,r=IntPtr.Zero,b=IntPtr.Zero;
@@ -275,6 +290,9 @@ function Invoke-R05CredentialProof {
    if(-not $admin){throw 'PROOF_HOSTED_ADMIN_REQUIRED'}
    $result.windowsBuild=[Environment]::OSVersion.Version.ToString()
    $null=Invoke-R05ProtectedApi $budget Forward {Initialize-R05Native}
+   $owned.stage='native-callback'
+   $nativeCheck=New-R05NativeBudgetCheck $budget Forward
+   $null=Invoke-R05ProtectedApi $budget Forward {[R05FixtureNative]::Check($nativeCheck)}
    $exists=Invoke-R05ProtectedApi $budget Forward {Test-Path -LiteralPath $owned.root}
    $collisionUser=Invoke-R05ProtectedApi $budget Forward {Get-LocalUser -Name $owned.userName -ErrorAction SilentlyContinue}
    $collisionTask=Invoke-R05ProtectedApi $budget Forward {Get-ScheduledTask -TaskName $owned.taskName -ErrorAction SilentlyContinue}
@@ -292,7 +310,6 @@ function Invoke-R05CredentialProof {
     $owned.user=$created;$owned.sid=$created.SID.Value;$result.accountCreated=$true
    }
    $owned.stage='batch-right'
-   $nativeCheck=[Action]({Assert-R05ProofBudget $budget Forward}.GetNewClosure())
    $logon=Invoke-R05ProtectedApi $budget Forward {[R05FixtureNative]::BatchLogon($owned.userName,$owned.password,$nativeCheck)}
    if($logon -eq 1385){
     $null=Invoke-R05ProtectedApi $budget Forward {$null=[R05FixtureNative]::BatchRight($owned.sid,1,$nativeCheck);$result.conditionalBatchRightAdded=$true}
@@ -388,10 +405,18 @@ try{
      $live=Invoke-R05ProtectedApi $budget Cleanup {Get-LocalUser -Name $owned.userName}
      if($live.SID.Value -cne $owned.sid){throw 'PROOF_CLEANUP_FAILED'}
      $null=Invoke-R05ProtectedApi $budget Cleanup {Disable-LocalUser -InputObject $live}
-     $cleanupCheck=[Action]({Assert-R05ProofBudget $budget Cleanup}.GetNewClosure())
+    }catch{if($budget.HardExpired -or $budget.CleanupExpired){throw}}
+    try{
+     $live=Invoke-R05ProtectedApi $budget Cleanup {Get-LocalUser -Name $owned.userName}
+     if($live.SID.Value -cne $owned.sid){throw 'PROOF_CLEANUP_FAILED'}
+     $cleanupCheck=New-R05NativeBudgetCheck $budget Cleanup
      $null=Invoke-R05ProtectedApi $budget Cleanup {$null=[R05FixtureNative]::BatchRight($owned.sid,2,$cleanupCheck)}
      $remainingRight=Invoke-R05ProtectedApi $budget Cleanup {[R05FixtureNative]::BatchRight($owned.sid,0,$cleanupCheck)}
      $result.ownBatchRightRemovedOrAbsent= -not $remainingRight
+    }catch{if($budget.HardExpired -or $budget.CleanupExpired){throw}}
+    try{
+     $live=Invoke-R05ProtectedApi $budget Cleanup {Get-LocalUser -Name $owned.userName}
+     if($live.SID.Value -cne $owned.sid){throw 'PROOF_CLEANUP_FAILED'}
      $profiles=@(Invoke-R05ProtectedApi $budget Cleanup {Get-CimInstance -ClassName Win32_UserProfile -Filter ('SID="'+$owned.sid+'"')})
      foreach($profile in $profiles){
       if($profile.SID -cne $owned.sid -or $profile.Special -or $profile.Loaded){throw 'PROOF_CLEANUP_FAILED'}
@@ -399,6 +424,10 @@ try{
      }
      $remainingProfiles=@(Invoke-R05ProtectedApi $budget Cleanup {Get-CimInstance -ClassName Win32_UserProfile -Filter ('SID="'+$owned.sid+'"')})
      $result.ownProfileRemovedOrAbsent=$remainingProfiles.Count -eq 0
+    }catch{if($budget.HardExpired -or $budget.CleanupExpired){throw}}
+    try{
+     $live=Invoke-R05ProtectedApi $budget Cleanup {Get-LocalUser -Name $owned.userName}
+     if($live.SID.Value -cne $owned.sid){throw 'PROOF_CLEANUP_FAILED'}
      $null=Invoke-R05ProtectedApi $budget Cleanup {Remove-LocalUser -InputObject $live}
      $remainingUser=Invoke-R05ProtectedApi $budget Cleanup {Get-LocalUser -Name $owned.userName -ErrorAction SilentlyContinue}
      $result.accountRemoved= -not [bool]$remainingUser
