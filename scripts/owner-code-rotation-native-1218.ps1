@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([switch]$Prepare)
+param([switch]$Prepare,[switch]$PreparePublic)
 
 # This entry defines only preparation capabilities. Default invocation is inert.
 $script:ownerRotationEntryCodec=$null
@@ -125,6 +125,7 @@ function New-OwnerRotationEntryClaim($Admission) {
  if ([IO.File]::Exists($stage) -or [IO.Directory]::Exists($stage)) { throw 'ROTATION_ENTRY_ATTEMPT_CONSUMED' }
  $record=[ordered]@{schemaVersion=1;attemptId=$scope.attemptId;originalDescriptorSha256=$Admission.descriptorHash;runtimeScopeSha256=$Admission.scopeHash;sourceRevision=$scope.sourceRevision;workflowRunId=$scope.workflowRunId;workflowRunAttempt=$scope.workflowRunAttempt}
  $bytes=[Text.Encoding]::UTF8.GetBytes((ConvertTo-OwnerRotationEntryJson $record));$stream=$null
+ if($Admission.protectedClaim){try{New-OwnerLauncherProtectedFile -Path $claimPath -Bytes $bytes -OwnerSid $scope.ownerSid}catch{throw 'ROTATION_ENTRY_ATTEMPT_CONSUMED'};return $claimPath}
  try {
   try { $stream=[IO.File]::Open($claimPath,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None) } catch [IO.IOException] { throw 'ROTATION_ENTRY_ATTEMPT_CONSUMED' }
   $stream.Write($bytes,0,$bytes.Length);$stream.Flush()
@@ -135,13 +136,142 @@ function Write-OwnerRotationEntryNewFile([string]$Path,[byte[]]$Bytes) {
  $stream=[IO.File]::Open($Path,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
  try { $stream.Write($Bytes,0,$Bytes.Length);$stream.Flush() } finally { $stream.Dispose() }
 }
+function Get-OwnerRotationPublicResource([string]$Uri) {
+ if($Uri -cnotmatch '^https://(?:api\.github\.com/repos/haji84/AI-/|raw\.githubusercontent\.com/haji84/AI-/)[A-Za-z0-9?=._/-]+$'){throw 'ROTATION_ENTRY_SOURCE_REJECTED'}
+ [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12
+ $request=[Net.HttpWebRequest]::Create($Uri);$request.Method='GET';$request.AllowAutoRedirect=$false;$request.Timeout=10000;$request.ReadWriteTimeout=10000;$request.UserAgent='GORIQ-1218-public-rotation-grant';$request.Accept='application/vnd.github+json'
+ $response=$null;$stream=$null;$memory=[IO.MemoryStream]::new()
+ try{$response=$request.GetResponse();if([int]$response.StatusCode -ne 200){throw 'ROTATION_ENTRY_SOURCE_REJECTED'};$stream=$response.GetResponseStream();$buffer=New-Object byte[] 8192;while(($count=$stream.Read($buffer,0,$buffer.Length)) -gt 0){if($memory.Length+$count -gt 1048576){throw 'ROTATION_ENTRY_SOURCE_REJECTED'};$memory.Write($buffer,0,$count)};return ,$memory.ToArray()}finally{if($stream){$stream.Dispose()};if($response){$response.Dispose()};$memory.Dispose()}
+}
+function Assert-OwnerRotationPublicSource($Grant,[string]$Root) {
+ $files=@((Get-OwnerRotationEntrySources))+@('scripts/owner-code-rotation-native-1218.mjs','scripts/owner-code-rotation-native-1218.ps1','scripts/owner-code-launcher-binding-inspection-1218.ps1','scripts/owner-code-rotation-exercise.mjs','scripts/owner-code-rotation-exercise.ps1')
+ Assert-OwnerRotationEntryShape $Grant.sourceHashes $files
+ if($Grant.sourceRevision -cnotmatch '^[a-f0-9]{40}$' -or $Grant.ciRunId -cnotmatch '^[1-9][0-9]{0,19}$' -or $Grant.ciRunAttempt -ne 1){throw 'ROTATION_ENTRY_SOURCE_REJECTED'}
+ $base='https://api.github.com/repos/haji84/AI-/'
+ $main=ConvertFrom-OwnerRotationEntryJson ([Text.Encoding]::UTF8.GetString((Get-OwnerRotationPublicResource ($base+'git/ref/heads/main'))))
+ $run=ConvertFrom-OwnerRotationEntryJson ([Text.Encoding]::UTF8.GetString((Get-OwnerRotationPublicResource ($base+'actions/runs/'+$Grant.ciRunId))))
+ $jobs=ConvertFrom-OwnerRotationEntryJson ([Text.Encoding]::UTF8.GetString((Get-OwnerRotationPublicResource ($base+'actions/runs/'+$Grant.ciRunId+'/attempts/1/jobs?per_page=100'))))
+ if($main.object.sha -cne $Grant.sourceRevision -or [string]$run.id -cne $Grant.ciRunId -or $run.run_attempt -ne 1 -or $run.name -cne 'CI' -or $run.path -cne '.github/workflows/ci.yml' -or $run.event -cne 'push' -or $run.head_branch -cne 'main' -or $run.head_sha -cne $Grant.sourceRevision -or $run.status -cne 'completed' -or $run.conclusion -cne 'success' -or @($jobs.jobs).Count -ne 4){throw 'ROTATION_ENTRY_SOURCE_REJECTED'}
+ foreach($name in @('repository-guard','project-checks','independent-verifier-container','windows-runtime-byte-fixtures')){if(@($jobs.jobs|Where-Object{$_.name -ceq $name -and $_.status -ceq 'completed' -and $_.conclusion -ceq 'success'}).Count -ne 1){throw 'ROTATION_ENTRY_SOURCE_REJECTED'}}
+ foreach($file in $files){
+  if($Grant.sourceHashes.$file -isnot [string] -or $Grant.sourceHashes.$file -cnotmatch '^[a-f0-9]{64}$'){throw 'ROTATION_ENTRY_SOURCE_REJECTED'}
+  $path=Get-OwnerRotationEntrySafePath ([IO.Path]::Combine($Root,$file));$item=[IO.FileInfo]::new($path);if($item.Length -gt 1048576){throw 'ROTATION_ENTRY_SOURCE_REJECTED'}
+  $remote=Get-OwnerRotationPublicResource ('https://raw.githubusercontent.com/haji84/AI-/'+$Grant.sourceRevision+'/'+$file)
+  if((Get-OwnerRotationEntryDigest ([IO.File]::ReadAllBytes($path))) -cne $Grant.sourceHashes.$file -or (Get-OwnerRotationEntryDigest $remote) -cne $Grant.sourceHashes.$file){throw 'ROTATION_ENTRY_SOURCE_REJECTED'}
+ }
+}
+
+# The public boundary never accepts the private scope. Paths and runtime hashes
+# below are acquired only from this same host, then retained in protected objects.
+function Assert-OwnerRotationEntrySingleLink([string]$Path,[long]$Limit=1048576) {
+ $safe=Get-OwnerRotationEntrySafePath $Path;$stream=$null;$other=$null
+ try {
+  $stream=[IO.File]::Open($safe,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
+  if($stream.Length -gt $Limit){throw 'ROTATION_ENTRY_SOURCE_REJECTED'}
+  $first=Get-OwnerLauncherHandleIdentity -Stream $stream -Path $safe
+  $other=[IO.File]::Open((Get-OwnerRotationEntrySafePath $safe),[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
+  $after=Get-OwnerLauncherHandleIdentity -Stream $other -Path $safe
+  if($first.links -ne 1 -or $after.links -ne 1 -or $first.finalPath -ine $safe -or $after.finalPath -ine $safe -or $first.key -cne $after.key -or $stream.Length -ne $other.Length){throw 'ROTATION_ENTRY_SOURCE_REJECTED'}
+ } finally {if($other){$other.Dispose()};if($stream){$stream.Dispose()}}
+}
+function Get-OwnerRotationPublicAdmission {
+ $encoded=$env:GORIQ_OWNER_ROTATION_SCOPE_BASE64
+ if(-not $encoded -or $encoded.Length -gt 87384 -or $encoded -cnotmatch '^[A-Za-z0-9+/]+={0,2}$' -or $env:JARVIS_PRODUCTION_CONFIG){throw 'ROTATION_ENTRY_SCOPE_REQUIRED'}
+ try{$bytes=[Convert]::FromBase64String($encoded);if([Convert]::ToBase64String($bytes) -cne $encoded -or $bytes.Length -gt 65536){throw 'ROTATION_ENTRY_SCOPE_REQUIRED'};$grant=ConvertFrom-OwnerRotationEntryJson ([Text.UTF8Encoding]::new($false,$true).GetString($bytes))}catch{throw 'ROTATION_ENTRY_SCOPE_REQUIRED'}
+ if($grant.kind -cne 'NONSECRET_ORIGINAL_ROTATION_GRANT' -or $grant.profile -cne 'jarvis-owner-production-v1' -or $grant.operation -cne 'rotate-verify-restore-verify-original'){throw 'ROTATION_ENTRY_SCOPE_REQUIRED'}
+ $root=[IO.Path]::GetDirectoryName($PSScriptRoot)
+ # Authenticate public source against official current-main CI before importing code.
+ Assert-OwnerRotationPublicSource -Grant $grant -Root $root
+ $snapshot=Get-OwnerRotationEntrySourceSnapshot -Root $root -Scope $grant
+ . ([scriptblock]::Create([Text.UTF8Encoding]::new($false,$true).GetString($snapshot['scripts/rotate-jarvis-owner-code-windows.ps1']))) -Apply:$false -AuthorizationPath ''
+ $launcher=[IO.Path]::Combine($root,'scripts','owner-code-launcher-binding-inspection-1218.ps1')
+ $safe=Get-OwnerRotationEntrySafePath $launcher;$helperBytes=[IO.File]::ReadAllBytes($safe)
+ if($helperBytes.Length -gt 262144 -or (Get-OwnerRotationEntryDigest $helperBytes) -cne $grant.sourceHashes.'scripts/owner-code-launcher-binding-inspection-1218.ps1'){throw 'ROTATION_ENTRY_SOURCE_REJECTED'}
+ . ([scriptblock]::Create([Text.UTF8Encoding]::new($false,$true).GetString($helperBytes))) -Inspect:$false -AuthorizationPath ''
+ $kernel=Get-OwnerLauncherKernelContext
+ if($kernel.isSystem -or $kernel.sessionId -le 0 -or -not $kernel.interactive -or $kernel.ownerSid -cnotmatch '^S-1-5-21-\d+-\d+-\d+-\d+$' -or (Get-OwnerRotationEntryDigest ([Text.Encoding]::UTF8.GetBytes($kernel.ownerSid))) -cne $grant.ownerSidSha256 -or $kernel.profile -ine $kernel.environmentProfile){throw 'ROTATION_ENTRY_OWNER_CONTEXT_REQUIRED'}
+ $profile=Get-OwnerRotationEntrySafePath $kernel.profile
+ foreach($candidate in @([IO.Path]::Combine($profile,('.goriq-owner-rotation-1218-'+$grant.approvalId)),([IO.Path]::Combine($profile,('.goriq-owner-rotation-1218-'+$grant.approvalId))+'.claim'))){try{$null=[IO.File]::GetAttributes($candidate);throw 'ROTATION_ENTRY_ATTEMPT_CONSUMED'}catch [IO.FileNotFoundException]{}catch [IO.DirectoryNotFoundException]{}}
+ Assert-OwnerRotationEntryProtectedPath -Path $profile -OwnerSid $kernel.ownerSid
+ foreach($file in @((Get-OwnerRotationEntrySources))+@('scripts/owner-code-rotation-native-1218.mjs','scripts/owner-code-rotation-native-1218.ps1','scripts/owner-code-launcher-binding-inspection-1218.ps1','scripts/owner-code-rotation-exercise.mjs','scripts/owner-code-rotation-exercise.ps1')){Assert-OwnerRotationEntryProtectedPath -Path ([IO.Path]::Combine($root,$file)) -OwnerSid $kernel.ownerSid}
+ # No alternate executable is selected. The PATH interpreter must be the actual
+ # parent Node executable, independently protected before any configuration read.
+ $command=@(Get-Command node.exe -CommandType Application -ErrorAction Stop)
+ if($command.Count -ne 1 -or [string]$command[0].CommandType -cne 'Application'){throw 'ROTATION_ENTRY_NODE_REJECTED'}
+ $node=Get-OwnerRotationEntrySafePath $command[0].Source
+ Assert-OwnerRotationEntryProtectedPath -Path $node -OwnerSid $kernel.ownerSid
+ $nodeItem=[IO.FileInfo]::new($node);if($nodeItem.Length -gt 268435456){throw 'ROTATION_ENTRY_NODE_REJECTED'}
+ Assert-OwnerRotationEntrySingleLink -Path $node -Limit 268435456
+ $nodeHash=Get-OwnerRotationEntryDigest ([IO.File]::ReadAllBytes($node))
+ $self=CimCmdlets\Get-CimInstance Win32_Process -Filter ('ProcessId='+$PID) -ErrorAction Stop
+ $parent=CimCmdlets\Get-CimInstance Win32_Process -Filter ('ProcessId='+$self.ParentProcessId) -ErrorAction Stop
+ if(-not $parent.ExecutablePath -or [IO.Path]::GetFullPath([string]$parent.ExecutablePath) -ine $node){throw 'ROTATION_ENTRY_NODE_REJECTED'}
+ # Execute only already protected exact public source. This independently checks
+ # closed/canonical grant, actual workflow context and official current-main CI.
+ $env:GORIQ_OWNER_ROTATION_DESCRIPTOR_SHA256=Get-OwnerRotationEntryDigest $bytes
+ $entry=[IO.Path]::Combine($root,'scripts','owner-code-rotation-native-1218.mjs')
+ $entryBytes=[IO.File]::ReadAllBytes((Get-OwnerRotationEntrySafePath $entry))
+ if((Get-OwnerRotationEntryDigest $entryBytes) -cne $grant.sourceHashes.'scripts/owner-code-rotation-native-1218.mjs'){throw 'ROTATION_ENTRY_SOURCE_REJECTED'}
+ $proof=@(& $node $entry --verify-public-grant 2>$null)
+ if($LASTEXITCODE -ne 0 -or $proof.Count -ne 1 -or $proof[0] -cne 'PUBLIC_ROTATION_GRANT_VERIFIED'){throw 'ROTATION_ENTRY_SOURCE_REJECTED'}
+ foreach($file in @((Get-OwnerRotationEntrySources))+@('scripts/owner-code-rotation-native-1218.mjs','scripts/owner-code-rotation-native-1218.ps1','scripts/owner-code-launcher-binding-inspection-1218.ps1','scripts/owner-code-rotation-exercise.mjs','scripts/owner-code-rotation-exercise.ps1')){Assert-OwnerRotationEntrySingleLink -Path ([IO.Path]::Combine($root,$file))}
+ Assert-OwnerRotationEntrySingleLink -Path ([IO.Path]::Combine($profile,'JARVIS','production','config.dpapi'))
+ $admission=New-OwnerRotationLocalScope -Grant $grant -GrantBytes $bytes -Root $root -Kernel $kernel -Profile $profile -Node $node -NodeHash $nodeHash
+ $environment=[pscustomobject]@{GITHUB_ACTOR=$env:GITHUB_ACTOR;GITHUB_REPOSITORY=$env:GITHUB_REPOSITORY;GITHUB_REF=$env:GITHUB_REF;GITHUB_SHA=$env:GITHUB_SHA;GITHUB_RUN_ID=$env:GITHUB_RUN_ID;GITHUB_RUN_ATTEMPT=$env:GITHUB_RUN_ATTEMPT}
+ Assert-OwnerRotationEntryScope -Scope $admission.scope -Environment $environment
+ Assert-OwnerRotationEntrySingleLink -Path $admission.scope.dbPath -Limit 268435456
+ foreach($suffix in @('.pc-tasks.json','.pc-observations.json')){if([IO.File]::Exists($admission.scope.dbPath+$suffix)){Assert-OwnerRotationEntrySingleLink -Path ($admission.scope.dbPath+$suffix) -Limit 8388608}}
+ $admission.helperBytes=$helperBytes
+ return $admission
+}
+function Get-OwnerRotationHostTask { ScheduledTasks\Get-ScheduledTask -TaskName 'JARVIS Remote Host' -ErrorAction Stop }
+function Read-OwnerRotationHostConfiguration([string]$Path,[scriptblock]$Consumer) { & ([IO.Path]::Combine([IO.Path]::GetDirectoryName($PSScriptRoot),'scripts','read-jarvis-production-config.ps1')) -Path $Path -ConfigurationConsumer $Consumer|Out-Null }
+function New-OwnerRotationLocalScope {
+ param($Grant,[byte[]]$GrantBytes,[string]$Root,$Kernel,[string]$Profile,[string]$Node,[string]$NodeHash)
+ $config=Get-OwnerRotationEntrySafePath ([IO.Path]::Combine($profile,'JARVIS','production','config.dpapi'))
+ Assert-OwnerRotationEntryProtectedPath -Path $config -OwnerSid $kernel.ownerSid
+ if((Get-Acl -LiteralPath $config -ErrorAction Stop).GetOwner([Security.Principal.SecurityIdentifier]).Value -cne $kernel.ownerSid){throw 'ROTATION_ENTRY_OWNER_CONTEXT_REQUIRED'}
+ $configItem=[IO.FileInfo]::new($config);if($configItem.Length -gt 1048576){throw 'ROTATION_ENTRY_SCOPE_REQUIRED'}
+ $configHash=Get-OwnerRotationHash $config;$task=Get-OwnerRotationHostTask
+ if($task.State -cne 'Running'){throw 'ROTATION_ENTRY_CONTEXT_REQUIRED'}
+ $taskHash=Get-OwnerRotationTaskHash $task
+ $capture=@{value=$null};$consumer={param($configuration)$capture.value=$configuration}.GetNewClosure()
+ try {
+  Read-OwnerRotationHostConfiguration -Path $config -Consumer $consumer|Out-Null
+  if(-not $capture.value -or $capture.value.commit -cnotmatch '^[a-f0-9]{40}$'){throw 'ROTATION_ENTRY_CONTEXT_REQUIRED'}
+  $configuration=$capture.value;$db=Get-OwnerRotationSafePath ([string]$configuration.environment.JARVIS_DB_PATH)
+  $scope=[ordered]@{scopeId='issue:1218:owner-code-rotation';ownerSid=$kernel.ownerSid;issuedAt=$grant.issuedAt;expiresAt=$grant.expiresAt;sourceRevision=$grant.sourceRevision;sourceHashes=[ordered]@{};configSha256=$configHash;taskSha256=$taskHash;nodeSha256=$nodeHash;runtimeRevision=$configuration.commit;dbPath=$db;attemptId=$grant.approvalId;maxAttempts=1;maxDurationSeconds=900;recoveryReserveSeconds=120;cohortAuthority=$grant.cohortAuthority;pcSidecars=$grant.pcSidecars;workflowRunId=$env:GITHUB_RUN_ID;workflowRunAttempt=1}
+  foreach($file in (Get-OwnerRotationEntrySources)){$scope.sourceHashes[$file]=$grant.sourceHashes.$file}
+  foreach($flag in @('credentialRotationApproval','existingTaskRestartApproval','configPersistenceApproval','normalLoopbackCookieApproval','confirmationApproval','automationConfirmationApproval','fleetReadOnlyApproval','pcSidecarReadOnlyApproval')){$scope[$flag]=$grant.$flag}
+  $scope=ConvertFrom-OwnerRotationEntryJson (ConvertTo-OwnerRotationEntryJson $scope)
+  $context=[pscustomobject]@{Task=$task;NodePath=$node}
+  Assert-OwnerRotationRuntimeConfiguration -Authorization $scope -Context $context -Configuration $configuration
+  Assert-OwnerRotationDatabase -Authorization $scope -Context $context
+  $release=Get-OwnerRotationEntrySafePath ([string]$configuration.releaseRoot);Assert-OwnerRotationEntryProtectedPath -Path $release -OwnerSid $kernel.ownerSid
+  # Capture must not silently bind a mixed context across decryption or task I/O.
+  if((Get-OwnerRotationHash $config) -cne $configHash -or (Get-OwnerRotationTaskHash (Get-OwnerRotationHostTask)) -cne $taskHash -or (Get-OwnerRotationHash $node) -cne $nodeHash){throw 'ROTATION_ENTRY_CONTEXT_REQUIRED'}
+  foreach($pair in @(@('.pc-tasks.json','expectedTaskFile'),@('.pc-observations.json','expectedObservationFile'))){$exists=[IO.File]::Exists($db+$pair[0]);if($exists -ne ($scope.pcSidecars.($pair[1]) -ceq 'present')){throw 'ROTATION_ENTRY_CONTEXT_REQUIRED'}}
+  $environment=[pscustomobject]@{GITHUB_ACTOR=$env:GITHUB_ACTOR;GITHUB_REPOSITORY=$env:GITHUB_REPOSITORY;GITHUB_REF=$env:GITHUB_REF;GITHUB_SHA=$env:GITHUB_SHA;GITHUB_RUN_ID=$env:GITHUB_RUN_ID;GITHUB_RUN_ATTEMPT=$env:GITHUB_RUN_ATTEMPT}
+  $scopeBytes=[Text.Encoding]::UTF8.GetBytes((ConvertTo-OwnerRotationEntryJson $scope))
+  return @{scope=$scope;scopeBytes=$scopeBytes;scopeHash=(Get-OwnerRotationEntryDigest $scopeBytes);descriptorHash=(Get-OwnerRotationEntryDigest $GrantBytes);root=$root;profile=$profile;protectedClaim=$true;publicGrantBytes=$GrantBytes;publicGrant=$grant}
+ } finally {$capture.value=$null;$configuration=$null}
+}
+
 function Initialize-OwnerRotationEntryStage {
+ param($PublicAdmission)
  $ErrorActionPreference='Stop';$answer=[ordered]@{schemaVersion=1;complete=$false;failureCode='ROTATION_ENTRY_PREPARATION_FAILED';profileMatchesEnvironment=$false}
  try {
-  $admission=Get-OwnerRotationEntryAdmission;$answer.profileMatchesEnvironment=$true;$scope=$admission.scope
+  $admission=if($null -ne $PublicAdmission){$PublicAdmission}else{Get-OwnerRotationEntryAdmission};$answer.profileMatchesEnvironment=$true;$scope=$admission.scope
   $snapshot=Get-OwnerRotationEntrySourceSnapshot -Root $admission.root -Scope $scope
-  # Import the exact verified bytes, avoiding a second unbound read before import.
   . ([scriptblock]::Create([Text.UTF8Encoding]::new($false,$true).GetString($snapshot['scripts/rotate-jarvis-owner-code-windows.ps1']))) -Apply:$false -AuthorizationPath ''
+  if($admission.protectedClaim){
+   . ([scriptblock]::Create([Text.UTF8Encoding]::new($false,$true).GetString($admission.helperBytes))) -Inspect:$false -AuthorizationPath ''
+   foreach($extra in @('scripts/owner-code-rotation-native-1218.mjs','scripts/owner-code-rotation-native-1218.ps1','scripts/owner-code-launcher-binding-inspection-1218.ps1','scripts/owner-code-rotation-exercise.mjs','scripts/owner-code-rotation-exercise.ps1')){
+    $source=Get-OwnerRotationEntrySafePath ([IO.Path]::Combine($admission.root,$extra));Assert-OwnerRotationEntryProtectedPath -Path $source -OwnerSid $scope.ownerSid
+    $data=[IO.File]::ReadAllBytes($source);if($data.Length -gt 1048576 -or (Get-OwnerRotationEntryDigest $data) -cne $admission.publicGrant.sourceHashes.$extra){throw 'ROTATION_ENTRY_SOURCE_REJECTED'};$snapshot[$extra]=$data
+   }
+  }
+  # Import the exact verified bytes, avoiding a second unbound read before import.
   $ownerProfile=Get-OwnerRotationEntrySafePath $admission.profile
   Assert-OwnerRotationEntryProtectedPath -Path $ownerProfile -OwnerSid $scope.ownerSid
   foreach ($file in (Get-OwnerRotationEntrySources)) { Assert-OwnerRotationEntryProtectedPath -Path ([IO.Path]::Combine($admission.root,$file)) -OwnerSid $scope.ownerSid }
@@ -156,11 +286,12 @@ function Initialize-OwnerRotationEntryStage {
   ([IO.DirectoryInfo]::new($stage)).Create($security)
   Assert-OwnerRotationEntryProtectedPath -Path $stage -OwnerSid $scope.ownerSid
   $null=[IO.Directory]::CreateDirectory([IO.Path]::Combine($stage,'scripts'));$null=[IO.Directory]::CreateDirectory([IO.Path]::Combine($stage,'.gai-results'))
-  foreach ($file in (Get-OwnerRotationEntrySources)) {
+  foreach ($file in $snapshot.Keys) {
    $target=[IO.Path]::Combine($stage,$file);Write-OwnerRotationEntryNewFile -Path $target -Bytes $snapshot[$file]
    Assert-OwnerRotationEntryProtectedPath -Path $target -OwnerSid $scope.ownerSid
-   if ((Get-OwnerRotationEntryDigest ([IO.File]::ReadAllBytes((Get-OwnerRotationEntrySafePath $target)))) -cne $scope.sourceHashes.$file) { throw 'ROTATION_ENTRY_SOURCE_REJECTED' }
+   if ((Get-OwnerRotationEntryDigest ([IO.File]::ReadAllBytes((Get-OwnerRotationEntrySafePath $target)))) -cne $(if($admission.protectedClaim){$admission.publicGrant.sourceHashes.$file}else{$scope.sourceHashes.$file})) { throw 'ROTATION_ENTRY_SOURCE_REJECTED' }
   }
+  if($admission.protectedClaim){New-OwnerLauncherProtectedFile -Path ([IO.Path]::Combine($stage,'.gai-results','original-grant.json')) -Bytes $admission.publicGrantBytes -OwnerSid $scope.ownerSid}
   $receipt=[IO.Path]::Combine([IO.Path]::Combine($stage,'.gai-results'),'owner-code-rotation-scope.json')
   Write-OwnerRotationEntryNewFile -Path $receipt -Bytes $admission.scopeBytes
   Assert-OwnerRotationEntryProtectedPath -Path $receipt -OwnerSid $scope.ownerSid
@@ -173,9 +304,9 @@ function Initialize-OwnerRotationEntryStage {
  return $answer
 }
 if ($MyInvocation.InvocationName -ne '.') {
- if (-not $Prepare) { [Console]::Out.WriteLine('PLAN ONLY: native rotation preparation requires fresh exact-source authority; no Owner state is accessed.');exit 0 }
+ if (-not $Prepare -and -not $PreparePublic) { [Console]::Out.WriteLine('PLAN ONLY: native rotation preparation requires fresh exact-source authority; no Owner state is accessed.');exit 0 }
  if ([IO.Path]::DirectorySeparatorChar -eq [char]92) { $env:PSModulePath=[IO.Path]::Combine($PSHOME,'Modules') }
- $result=Initialize-OwnerRotationEntryStage
+ $result=if($PreparePublic){try{$public=Get-OwnerRotationPublicAdmission;Initialize-OwnerRotationEntryStage -PublicAdmission $public}catch{$code=[string]$_.Exception.Message;if($code -cnotin @('ROTATION_ENTRY_SCOPE_REQUIRED','ROTATION_ENTRY_CONTEXT_REQUIRED','ROTATION_ENTRY_OWNER_CONTEXT_REQUIRED','ROTATION_ENTRY_SOURCE_REJECTED','ROTATION_ENTRY_ATTEMPT_CONSUMED','ROTATION_ENTRY_NODE_REJECTED')){$code='ROTATION_ENTRY_PREPARATION_FAILED'};@{schemaVersion=1;complete=$false;failureCode=$code;profileMatchesEnvironment=$false}}}else{Initialize-OwnerRotationEntryStage}
  # Fixed protocol emission must also work if the trusted scope codec is unavailable.
  $failureJson=if ($null -eq $result.failureCode) { 'null' } else { '"'+$result.failureCode+'"' }
  [Console]::Out.WriteLine('{"schemaVersion":1,"complete":'+([bool]$result.complete).ToString().ToLowerInvariant()+',"failureCode":'+$failureJson+',"profileMatchesEnvironment":'+([bool]$result.profileMatchesEnvironment).ToString().ToLowerInvariant()+'}')

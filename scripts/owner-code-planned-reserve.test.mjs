@@ -1,0 +1,10 @@
+import {existsSync} from 'node:fs';
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import {spawnSync} from 'node:child_process';
+import {resolve,join} from 'node:path';
+const shell=process.platform==='win32'?join(process.env.SystemRoot,'System32/WindowsPowerShell/v1.0/powershell.exe'):'pwsh';
+function run(scenario){assert.equal(existsSync('scripts/owner-code-rotation-exercise.ps1'),true,'planned restoration adapter is missing');const r=spawnSync(shell,['-NoProfile','-NonInteractive','-File',resolve('tests/owner-code-rotation-reserve.fixture.ps1'),'-SourcePath',resolve('scripts/owner-code-rotation-exercise.ps1'),'-Case',scenario],{encoding:'utf8',timeout:30000});assert.equal(r.error,undefined);assert.equal(r.status,0,r.stderr);assert.equal(r.stderr,'');assert.doesNotMatch(r.stdout,/PRIVATE_|fixture-encrypted|fixture-original-owner-code|config\.dpapi/);return JSON.parse(r.stdout);}
+// Merely reporting failure after the forward window would strand a recoverable candidate.
+for(const scenario of ['planned-expiry','planned-restart-failed'])test('planned restoration uses existing recovery reserve without claiming planned PASS: '+scenario,()=>{const r=run(scenario);assert.equal(r.value.complete,false);assert.equal(r.value.rotation.complete,true);assert.equal(r.value.rotation.rollbackAttempted,false);assert.equal(r.originalRestored,true,'recoverable original configuration must be restored');assert.equal(r.value.restoration.recoveryAttempted,true);assert.equal(r.value.restoration.recoveryVerified,true);assert.equal(r.value.restoration.finalOriginalConfigurationVerified,true);assert.equal(r.candidateRetained,true);assert.equal(r.rngCount,1);});
+test('actual hard expiry refuses recovery effects and never extends the grant',()=>{const r=run('planned-hard-expiry');assert.equal(r.value.complete,false);assert.equal(r.originalRestored,false);assert.equal(r.value.restoration.recoveryVerified,false);assert.equal(r.stopCount,1);assert.equal(r.startCount,1);assert.equal(r.rngCount,1);});
