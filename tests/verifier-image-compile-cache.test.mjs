@@ -3,6 +3,8 @@ import test from "node:test";
 import fs from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, relative, sep } from "node:path";
+import process from "node:process";
+import { URL } from "node:url";
 import { runInNewContext } from "node:vm";
 
 const home = "/tmp/goriq-verifier-home";
@@ -16,7 +18,7 @@ function imageInitializer() {
   const end = dockerfile.indexOf("    > /opt/goriq-verifier/prepare-home.cjs", start);
   assert.ok(start >= 0 && end > start, "the test must execute the image-generated initializer");
   return dockerfile.slice(start, end).split("\n").slice(1).filter(Boolean).map(line => {
-    const literal = /^    '([^']*)' \\$/.exec(line);
+    const literal = /^ {4}'([^']*)' \\$/.exec(line);
     assert.ok(literal, "initializer printf entries must remain literal JavaScript");
     return literal[1];
   }).join("\n") + "\n";
