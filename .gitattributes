@@ -64,6 +64,3 @@ scripts/owner-code-private-scope-capture.test.mjs text eol=lf
 scripts/owner-code-rotation-composed-entry.test.mjs text eol=lf
 tests/owner-code-rotation-exercise.fixture.ps1 text eol=lf
 tests/owner-code-rotation-reserve.fixture.ps1 text eol=lf
-
-# Temporary owned-public WinPS fixture diagnosis; remove with its CI steps.
-scripts/owner-code-private-scope-windows-diagnostic.mjs text eol=lf
