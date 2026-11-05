@@ -15,9 +15,9 @@ const replaceOnce=(text,from,to)=>{
   if(text.split(from).length!==2)throw new Error('DERIVATION_REFUSED');
   return text.replace(from,to);
 };
-const shape={edition:['Desktop','Core','UNKNOWN'],exceptionKind:['NONE','OTHER','System.Management.Automation.RuntimeException','System.Management.Automation.MethodInvocationException','System.Management.Automation.ParameterBindingException','System.InvalidOperationException','System.ArgumentException'],innerKind:['NONE','OTHER','System.InvalidOperationException','System.ArgumentException','System.NotSupportedException','System.PlatformNotSupportedException'],role:['NONE','OTHER_PUBLIC_CODE','NATIVE_ENTRY_SOURCE','IMMUTABLE_TRANSACTION_SOURCE','OWNED_PUBLIC_FIXTURE'],phase:['INITIAL','SCOPE_ENCODING','SCOPE_ENCODED','SCOPE_DECODING','SCOPE_DECODED']};
-const counts=['line','psMajor','psMinor','configurationReads','taskReads','aclReads','aclShimCalls','scopeEncodeCalls','scopeDecodeCalls'];
-const booleans=['rejected','bound','nativeFileMethodDeclared','nativeDirectoryMethodDeclared','fileShimRegistered','directoryShimRegistered'];
+const shape={exceptionKind:['NONE','OTHER','System.Management.Automation.RuntimeException','System.Management.Automation.MethodInvocationException','System.Management.Automation.ParameterBindingException','System.InvalidOperationException','System.ArgumentException'],innerKind:['NONE','OTHER','System.InvalidOperationException','System.ArgumentException','System.NotSupportedException','System.PlatformNotSupportedException'],role:['NONE','OTHER_PUBLIC_CODE','NATIVE_ENTRY_SOURCE','IMMUTABLE_TRANSACTION_SOURCE','OWNED_PUBLIC_FIXTURE']};
+const counts=['line','configurationReads','taskReads'];
+const booleans=['rejected','bound'];
 function closed(value){
   const names=[...Object.keys(shape),...counts,...booleans];
   if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).length!==names.length||names.some(k=>!Object.hasOwn(value,k)))throw new Error('DIAGNOSTIC_PROTOCOL_REFUSED');
@@ -25,24 +25,17 @@ function closed(value){
   return value;
 }
 function derive(text){
-  text=replaceOnce(text,'$script:reads=0;',`$script:reads=0;$script:diagAclReads=0;$script:diagShimCalls=0;$script:diagEncodeCalls=0;$script:diagDecodeCalls=0;$script:diagPhase='INITIAL';
-$script:diagOriginalEncode=\\\${function:ConvertTo-OwnerRotationEntryJson};$script:diagOriginalDecode=\\\${function:ConvertFrom-OwnerRotationEntryJson};
-function ConvertTo-OwnerRotationEntryJson {param($Value)$script:diagEncodeCalls++;$script:diagPhase='SCOPE_ENCODING';$answer=& $script:diagOriginalEncode $Value;$script:diagPhase='SCOPE_ENCODED';return $answer}
-function ConvertFrom-OwnerRotationEntryJson {param([string]$Text)$script:diagDecodeCalls++;$script:diagPhase='SCOPE_DECODING';$answer=& $script:diagOriginalDecode $Text;$script:diagPhase='SCOPE_DECODED';return $answer}
-`);
-  text=replaceOnce(text,'function Get-Acl {param($LiteralPath,$ErrorAction) ','function Get-Acl {param($LiteralPath,$ErrorAction) $script:diagAclReads++;');
-  text=replaceOnce(text,'-Value {param($x)Get-Acl -LiteralPath $this.FullName}','-Value {param($x)$script:diagShimCalls++;Get-Acl -LiteralPath $this.FullName}');
-  text=replaceOnce(text,'$rejected=$false;$bound=$false',"$rejected=$false;$bound=$false;$diagKind='NONE';$diagInner='NONE';$diagRole='NONE';$diagLine=0");
   text=replaceOnce(text,'catch{$rejected=$true};@{missingFeature=',`catch{
-$rejected=$true;$diagKind=$_.Exception.GetType().FullName
+$rejected=$true;$diagKind=$_.Exception.GetType().FullName;$diagInner='NONE';$diagRole='OTHER_PUBLIC_CODE';$diagLine=0
 if($diagKind -cnotin @('System.Management.Automation.RuntimeException','System.Management.Automation.MethodInvocationException','System.Management.Automation.ParameterBindingException','System.InvalidOperationException','System.ArgumentException')){$diagKind='OTHER'}
 if($_.Exception.InnerException){$diagInner=$_.Exception.InnerException.GetType().FullName;if($diagInner -cnotin @('System.InvalidOperationException','System.ArgumentException','System.NotSupportedException','System.PlatformNotSupportedException')){$diagInner='OTHER'}}
-$publicRole=[IO.Path]::GetFileName([string]$_.InvocationInfo.ScriptName);$diagLine=[int]$_.InvocationInfo.ScriptLineNumber
-$diagRole=switch -CaseSensitive ($publicRole){'owner-code-rotation-native-1218.ps1'{'NATIVE_ENTRY_SOURCE'};'rotate-jarvis-owner-code-windows.ps1'{'IMMUTABLE_TRANSACTION_SOURCE'};'fixture.ps1'{'OWNED_PUBLIC_FIXTURE'};default{'OTHER_PUBLIC_CODE'}}
+if($_.InvocationInfo){$publicRole=[IO.Path]::GetFileName([string]$_.InvocationInfo.ScriptName);$diagLine=[int]$_.InvocationInfo.ScriptLineNumber
+$diagRole=switch -CaseSensitive ($publicRole){'owner-code-rotation-native-1218.ps1'{'NATIVE_ENTRY_SOURCE'};'rotate-jarvis-owner-code-windows.ps1'{'IMMUTABLE_TRANSACTION_SOURCE'};'fixture.ps1'{'OWNED_PUBLIC_FIXTURE'};default{'OTHER_PUBLIC_CODE'}}}
 };@{missingFeature=`);
-  text=replaceOnce(text,'configurationReads=$script:reads}|ConvertTo-Json -Compress',`configurationReads=$script:reads;diagnostic=@{edition=$(if($PSVersionTable.PSEdition -cin @('Desktop','Core')){$PSVersionTable.PSEdition}else{'UNKNOWN'});psMajor=[int]$PSVersionTable.PSVersion.Major;psMinor=[int]$PSVersionTable.PSVersion.Minor;exceptionKind=$diagKind;innerKind=$diagInner;role=$diagRole;line=$diagLine;phase=$script:diagPhase;configurationReads=$script:reads;taskReads=$script:calls;aclReads=$script:diagAclReads;aclShimCalls=$script:diagShimCalls;scopeEncodeCalls=$script:diagEncodeCalls;scopeDecodeCalls=$script:diagDecodeCalls;rejected=[bool]$rejected;bound=[bool]$bound;nativeFileMethodDeclared=([IO.FileInfo].GetMethods().Name -ccontains 'GetAccessControl');nativeDirectoryMethodDeclared=([IO.DirectoryInfo].GetMethods().Name -ccontains 'GetAccessControl');fileShimRegistered=[bool](Get-TypeData System.IO.FileInfo).Members['GetAccessControl'];directoryShimRegistered=[bool](Get-TypeData System.IO.DirectoryInfo).Members['GetAccessControl']}}|ConvertTo-Json -Depth 4 -Compress`);
+  text=replaceOnce(text,'configurationReads=$script:reads}|ConvertTo-Json -Compress',`configurationReads=$script:reads;diagnostic=@{exceptionKind=$(if($diagKind){$diagKind}else{'NONE'});innerKind=$(if($diagInner){$diagInner}else{'NONE'});role=$(if($diagRole){$diagRole}else{'NONE'});line=[int]$diagLine;configurationReads=$script:reads;taskReads=$script:calls;rejected=[bool]$rejected;bound=[bool]$bound}}|ConvertTo-Json -Depth 3 -Compress`);
   return replaceOnce(text,"const r=capture('success');assert.equal",`const r=capture('success');process.stdout.write(${JSON.stringify(marker)}+JSON.stringify(r.diagnostic)+'\\n');assert.equal`);
 }
+
 const answer={label:'DIAGNOSTIC_NOT_SOURCE_ACCEPTANCE',sourceAcceptance:false,diagnosticComplete:false,status:'INERT',targetWindows:false,sourceSha256:expected,derivedSha256:null,childExit:null,stdoutBytes:0,stderrBytes:0,diagnostic:null,ownedFixtureCleaned:false};
 let owned,evidence;
 try{
