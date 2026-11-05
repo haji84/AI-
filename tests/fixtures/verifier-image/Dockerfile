@@ -49,6 +49,18 @@ RUN printf '%s\n' \
     '  const info = fs.lstatSync(path);' \
     '  if (!info.isDirectory() || info.isSymbolicLink() || info.uid !== 65534 || info.gid !== 65534 || (info.mode & 0o777) !== 0o700) throw Error("VERIFIER_HOME_PATH_UNSAFE");' \
     '}' \
+    'const moduleApi = require("node:module");' \
+    'if (moduleApi.getCompileCacheDir() !== undefined) throw Error("VERIFIER_CACHE_ALREADY_ENABLED");' \
+    'const cacheBase = "/tmp/goriq-verifier-home/.cache/node-compile-cache";' \
+    'const cacheVersion = process.version + "-" + process.arch + "-" + require("node:v8").cachedDataVersionTag().toString(16).padStart(8, "0") + "-" + process.getuid();' \
+    'const cacheDirectory = cacheBase + "/" + cacheVersion;' \
+    'for (const path of [cacheBase, cacheDirectory]) {' \
+    '  try { fs.mkdirSync(path, { mode: 0o700 }); } catch (error) { if (error.code !== "EEXIST") throw error; }' \
+    '  const info = fs.lstatSync(path);' \
+    '  if (!info.isDirectory() || info.isSymbolicLink() || info.uid !== 65534 || info.gid !== 65534 || (info.mode & 0o777) !== 0o700 || fs.realpathSync(path) !== path) throw Error("VERIFIER_CACHE_PATH_UNSAFE");' \
+    '}' \
+    'const cacheResult = moduleApi.enableCompileCache({ directory: cacheBase, portable: false });' \
+    'if (cacheResult.status !== moduleApi.constants.compileCacheStatus.ENABLED || cacheResult.directory !== cacheBase || moduleApi.getCompileCacheDir() !== cacheDirectory) throw Error("VERIFIER_CACHE_ENABLE_FAILED");' \
     > /opt/goriq-verifier/prepare-home.cjs \
     && printf '%s\n' \
         '#!/bin/sh' \
