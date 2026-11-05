@@ -28,8 +28,9 @@ function ConvertFrom-OwnerRotationEntryJson([string]$Text) {
  return (ConvertFrom-OwnerRotationEntryDictionary ((Get-OwnerRotationEntryCodec).DeserializeObject($Text)))
 }
 function ConvertTo-OwnerRotationEntryJson($Value) {
- if ([IO.Path]::DirectorySeparatorChar -ne [char]92) { return ($Value|ConvertTo-Json -Depth 8 -Compress) }
- return (Get-OwnerRotationEntryCodec).Serialize($Value)
+ $wire=$Value|Microsoft.PowerShell.Utility\ConvertTo-Json -Depth 8 -Compress
+ if ([Text.Encoding]::UTF8.GetByteCount($wire) -gt 65536) { throw 'ROTATION_ENTRY_SCOPE_REQUIRED' }
+ return $wire
 }
 function Assert-OwnerRotationEntryShape($Value,[string[]]$Keys) {
  if ($null -eq $Value -or $Value -isnot [pscustomobject] -or @($Value.PSObject.Properties).Count -ne $Keys.Count) { throw 'ROTATION_ENTRY_SCOPE_REQUIRED' }
