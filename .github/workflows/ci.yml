@@ -104,9 +104,20 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           powershell.exe -NoProfile -NonInteractive -File scripts/owner-code-launcher-binding-inspection-1218.ps1
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Temporary owned public fixture diagnostic only
+        shell: powershell
+        run: node scripts/owner-code-private-scope-windows-diagnostic.mjs --run
       - name: Owner credential plan-only and temporary encrypted fixtures
         shell: powershell
         run: node --test scripts/owner-code-rotation.test.mjs scripts/owner-code-windows.test.mjs scripts/owner-code-rotation-authority.test.mjs scripts/owner-code-preflight.test.mjs scripts/owner-code-dialog.test.mjs scripts/install-owner-code-windows.test.mjs scripts/owner-code-rotation-redirect.test.mjs scripts/owner-code-practical.test.mjs scripts/owner-code-fleet-preservation.test.mjs scripts/owner-code-rotation-acceptance.test.mjs scripts/owner-code-rotation-transaction.test.mjs scripts/owner-code-pc-preservation.test.mjs scripts/owner-code-rotation-readiness.test.mjs scripts/owner-code-warning-1218.test.mjs scripts/owner-code-rotation-native-1218.test.mjs scripts/owner-code-rotation-native-stage.test.mjs scripts/owner-code-fresh-checkout.test.mjs scripts/owner-code-protection-diagnostics.test.mjs scripts/owner-code-protection-failure-details.test.mjs scripts/owner-code-launcher-binding-inspection-1218.test.mjs scripts/owner-code-launcher-binding-workflow.test.mjs scripts/owner-code-launcher-binding-native-shell.test.mjs scripts/owner-code-private-rotation-exercise.test.mjs scripts/owner-code-planned-reserve.test.mjs scripts/owner-code-rotation-exercise-protocol.test.mjs scripts/owner-code-private-scope-capture.test.mjs scripts/owner-code-rotation-composed-entry.test.mjs
+      - name: Retain temporary owned public fixture diagnostic only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: owned-public-scope-windows-diagnostic-${{ github.sha }}
+          path: .gai-results/owned-public-scope-windows-diagnostic/
+          if-no-files-found: warn
+          retention-days: 14
       - name: Windows PowerShell 5.1 atomic pointer fixtures
         shell: powershell
         run: |
