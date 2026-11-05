@@ -959,7 +959,7 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "01b5517f14958ec5038e970786b7f148d6ce3f5baf0e2204127db0da6bd0ee99",
+      "sha256": "a6529504144c5a710b18fd3fe959728a042ec494f3c228106fec3c6a596ed3bd",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-003",
@@ -978,7 +978,9 @@
         "SEC-007",
         "SEC-010",
         "UI-009",
-        "INT-001"
+        "INT-001",
+        "OPS-015",
+        "OPS-016"
       ],
       "reason": "Protected Broker now exposes bounded local-first voice discovery and synthesis while preserving existing owner authority and all prior Broker responsibilities. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim. #1858 approved host-selected completion integration and isolated verification; no live activation or physical acceptance inference. Protected Broker now exposes bounded local-first voice discovery and synthesis while preserving existing owner authority and all prior Broker responsibilities. #1219 only accepted nonterminal Goal resumed on changed verifier receipt; signature and authorizations still checked in child Executor."
     },
@@ -2666,12 +2668,14 @@
     },
     {
       "path": "src/app/jarvis/settings/page.tsx",
-      "sha256": "ee8cd6bd5b932e22247e404cd3965bf8accc3d95af5e3b7eaaeb775f37695736",
+      "sha256": "6cf61a20bd0495c2d103598f608f17bc43ebc14705d4ee039f504d6e08c8da2d",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "UI-005",
         "UI-007",
-        "UI-009"
+        "UI-009",
+        "OPS-015",
+        "OPS-016"
       ],
       "reason": "Owner settings now includes dedicated local voice configuration while retaining existing protected-setting boundaries."
     },
@@ -6667,6 +6671,42 @@
         "AUTO-026"
       ],
       "reason": "Owner-authenticated deferred next work and atomic verified-predecessor retirement; implementation linkage only, no global completion or privileged execution authority."
+    },
+    {
+      "path": "src/app/jarvis/settings/JarvisStateBackupSettings.tsx",
+      "sha256": "715a2cd47eb61049d2715690049d9eb5d4bf7c72bd8f407e2ac84b1679b7f791",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OPS-015",
+        "OPS-016",
+        "SEC-001",
+        "SEC-002"
+      ],
+      "reason": "Existing Goal681 P10 Owner Settings to authenticated Broker managed local SQLite backup and isolated restore verification; bounded cloud-fixture integration only, excludes PC JSON/sidecars, no live activation, full-system point-in-time, physical or global completion claim."
+    },
+    {
+      "path": "src/app/api/jarvis/state-backups/route.ts",
+      "sha256": "1cb79a94843a20c2226a6816d1adb9c6c413fab058d18c205387c236789c98ba",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OPS-015",
+        "OPS-016",
+        "SEC-001",
+        "SEC-002"
+      ],
+      "reason": "Existing Goal681 P10 Owner Settings to authenticated Broker managed local SQLite backup and isolated restore verification; bounded cloud-fixture integration only, excludes PC JSON/sidecars, no live activation, full-system point-in-time, physical or global completion claim."
+    },
+    {
+      "path": "src/jarvis/local-state-backups.ts",
+      "sha256": "01af08a6d1947bd4c14db2d7017b906e057fd775a79e91e8aef2a940f3335ada",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OPS-015",
+        "OPS-016",
+        "SEC-001",
+        "SEC-002"
+      ],
+      "reason": "Existing Goal681 P10 Owner Settings to authenticated Broker managed local SQLite backup and isolated restore verification; bounded cloud-fixture integration only, excludes PC JSON/sidecars, no live activation, full-system point-in-time, physical or global completion claim."
     }
   ],
   "hash_policy": "utf8-crlf-to-lf-v1;binary-raw"

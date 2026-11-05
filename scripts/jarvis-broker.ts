@@ -53,6 +53,7 @@ import { DeviceDevelopmentIntake, JsonFileDeviceDevelopmentInbox } from "../src/
 import { parseDailyDriverDeviceCommand } from "../src/jarvis/daily-driver-device-command.ts";
 import { PcEnrollmentService, validatePcEnrollmentApproval } from "../src/jarvis/pc-enrollment.ts";
 import { discoverLocalTts, synthesizeLocalTts } from "../src/jarvis/local-tts.ts";
+import { LocalStateBackups, LocalStateBackupError, parseLocalStateBackupCommand } from "../src/jarvis/local-state-backups.ts";
 
 
 const host = process.env.JARVIS_BROKER_HOST?.trim() || "127.0.0.1";
@@ -92,6 +93,7 @@ function approvedPcEnrollment(): PcEnrollmentService {
 }
 const compassPath = process.env.JARVIS_COMPASS_DB_PATH?.trim() || (process.env.JARVIS_DB_PATH?.trim() ? `${process.env.JARVIS_DB_PATH.trim()}.compass.sqlite` : resolve(".jarvis/compass.db"));
 const compass = new CompassStore(compassPath);
+const localStateBackups = new LocalStateBackups({ brokerPath: process.env.JARVIS_DB_PATH?.trim() || resolve(".jarvis", "jarvis.db"), compassPath });
 const workRuns = new CompassWorkRunStore(compass);
 const completionWorkState = new CompassWorkStateStoreAdapter(compass);
 const goalBridgeEvents = new CompassGoalBridgeEventStore(compass);
@@ -417,6 +419,31 @@ function validatedAndroidTask(type: string, payload: Record<string, unknown>): R
 async function handler(request: IncomingMessage, response: ServerResponse): Promise<void> {
   const url = new URL(request.url || "/", "http://localhost");
   const path = url.pathname; const method = request.method || "GET";
+  // This bounded route owns its input/error boundary before the generic body reader.
+  if (path === "/api/jarvis/admin/state-backups") {
+    response.setHeader("Cache-Control", "no-store");
+    response.setHeader("Referrer-Policy", "no-referrer");
+    if (!requireOwner(request)) return json(response, 401, { code: "owner_required" });
+    if (url.search) return json(response, 400, { code: "invalid_request" });
+    if (method === "GET") return json(response, 200, await localStateBackups.list());
+    if (method !== "POST") return json(response, 405, { code: "invalid_request" });
+    // Bearer authentication above remains mandatory, including for direct Broker clients.
+    if (request.headers.origin || request.headers["sec-fetch-site"] === "cross-site") return json(response, 403, { code: "same_origin_required" });
+    const mode = request.headers["x-jarvis-operation-mode"];
+    if (mode && mode !== "standard") return json(response, 403, { code: "read_only" });
+    if (!request.headers["content-type"]?.startsWith("application/json")) return json(response, 400, { code: "invalid_request" });
+    try {
+      let command;
+      try { command = parseLocalStateBackupCommand(parseJson(await readBody(request, 1024))); }
+      catch { return json(response, 400, { code: "invalid_request" }); }
+      const generation = command.operation === "create" ? await localStateBackups.create() : await localStateBackups.verify(command.generationId);
+      return json(response, command.operation === "create" ? 201 : 200, { generation });
+    } catch (error) {
+      const code = error instanceof LocalStateBackupError ? error.code : "operation_failed";
+      const status = code === "generation_not_found" ? 404 : ["private_storage_unsupported", "source_unavailable", "operation_failed"].includes(code) ? 503 : 409;
+      return json(response, status, { code });
+    }
+  }
   const body = method === "GET" || method === "HEAD" ? Buffer.alloc(0) : await readBody(request,
     [PC_OBSERVATION_EXPORT, PC_OBSERVATION_RECEIVE].includes(path) ? PC_OBSERVATION_MAX_BYTES : 1_000_000);
 
