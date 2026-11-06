@@ -68,3 +68,5 @@ scripts/owner-code-entry-json-bound.test.mjs text eol=lf
 scripts/owner-code-task-credential-retention-proof-1218.ps1 text eol=lf
 tests/owner-code-task-proof.test.mjs text eol=lf
 tests/owner-code-task-proof.test.ps1 text eol=lf
+tests/owner-code-task-proof-diagnostics.test.mjs text eol=lf
+tests/owner-code-task-proof-diagnostics.test.ps1 text eol=lf
