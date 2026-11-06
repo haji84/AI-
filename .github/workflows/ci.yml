@@ -76,8 +76,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24.19.0
+      - name: Start bounded resource observer
+        run: node scripts/jarvis-verifier-resource-observer.mjs --observe
       - name: Real restricted-container six-check verification
+        if: ${{ !cancelled() }}
         run: node scripts/jarvis-verifier-live-ci.mjs --execute-hosted-ci
+      - name: Finalize bounded resource observer
+        if: always()
+        run: node scripts/jarvis-verifier-resource-observer.mjs --stop
       - name: Retain hosted-container evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -85,6 +91,15 @@ jobs:
           name: independent-verifier-container-${{ github.sha }}
           path: ${{ runner.temp }}/goriq-verifier-live-evidence/
           if-no-files-found: error
+          retention-days: 14
+
+      - name: Retain supplemental resource observation
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: independent-verifier-resource-observer-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/goriq-verifier-resource-observer-${{ github.run_id }}-${{ github.run_attempt }}/artifact/
+          if-no-files-found: warn
           retention-days: 14
 
   windows-runtime-byte-fixtures:
