@@ -1,5 +1,18 @@
 # Roadmap
 
+## Current GORIQ critical-path override (owner decision 2026-10-17)
+
+**Delivery order, not a reduced feature specification.** The complete gate definitions, current-resource policy, requirement accounting and safety invariants are in [docs/decisions/2026-10-17-goriq-completion-first-delivery.md](docs/decisions/2026-10-17-goriq-completion-first-delivery.md), tracked by #1817 and the unchanged parent Goals #681/#1219/#882.
+
+0. Audit current main, open PRs, blockers and canonical requirement evidence; avoid more unrelated feature work.
+1. Prove one genuine single-PC autonomous development slice through protected integration and real runtime evidence.
+2. Prove unattended next-job selection, durable recovery, duplicate suppression and Human Gate behavior.
+3. Prove actual MacBook/ZBook distributed execution, failure/reconnect/reconciliation and non-permanent Coordinator.
+4. Verify the entire frozen product contract and release only when applicable acceptance and governance gates pass.
+
+Keep existing implementation phases below as **full target scope**. Work proceeds by critical-path completion gates above; none of the original phases, deferred requirements, device safety or Human Gates is discarded. A CI-only pass is not a substitute for a physical acceptance gate.
+
+
 ## Phase 0 - AI Company foundation
 Repository governance, agents, issue/PR contracts, CI, kill switch, scheduled-task prompts, human gates, and a dry-run issue.
 
