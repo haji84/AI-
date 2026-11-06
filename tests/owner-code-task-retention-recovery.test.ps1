@@ -143,16 +143,17 @@ public class R05FakeService {
  public void Connect() {}
  public object GetFolder(string path) {if(path!="\\")throw new Exception("WRONG_TASK_ROOT");return Folder;}
 }
+public delegate object R05FixtureRegisterCallback(object[] values);
 public class R05FakeFolder {
  public Func<string,object> Lookup;
- public Func<object[],object> Register;
+ public R05FixtureRegisterCallback Register;
  public object GetTask(string name) { return Lookup(name); }
  public object RegisterTaskDefinition(string name,object definition,int flags,object user,object password,int logon,object sddl) {return Register(new object[]{name,definition,flags,user,password,logon,sddl});}
 }
 '@
 $folder=[R05FakeFolder]::new()
 $folder.Lookup=[System.Func[System.String,System.Object]]{param($name)$script:state.lookups++;if($script:state.missing -or ($script:state.race -and $script:state.lookups -gt 1)){throw [Runtime.InteropServices.COMException]::new('PUBLIC_MISSING',-2147024894)};New-FakeRegistered}
-$folder.Register=[System.Func[System.Object[],System.Object]]{param($values)
+$folder.Register=[R05FixtureRegisterCallback]{param($values)
  $script:state.calls++;$script:state.args=$values
  if($script:state.throw){throw [Runtime.InteropServices.COMException]::new('PRIVATE_THROW_CANARY',-2147024891)}
  if($script:state.late){$clock.utc=$clock.utc.AddSeconds(481);$clock.mono=481}
