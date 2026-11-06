@@ -71,12 +71,49 @@ jobs:
           ref: ${{ github.sha }}
           path: owner-native-${{ github.run_id }}-${{ github.run_attempt }}
           persist-credentials: false
+      - name: Select closed rotation profile before any PATH Node
+        id: rotation_profile
+        if: ${{ inputs.rotation_only == true && inputs.launcher_binding_only != true }}
+        shell: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$env:PSModulePath=[System.IO.Path]::Combine($PSHOME,'Modules'); & ([scriptblock]::Create([System.IO.File]::ReadAllText('{0}')))"
+        env:
+          GORIQ_OWNER_ROTATION_SCOPE_BASE64: ${{ inputs.rotation_scope_base64 }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          function Get-OwnerRotationSelectorPublicResource([string]$Uri) {
+            if ($Uri -cnotmatch '^https://(?:api\.github\.com/repos/haji84/AI-/git/ref/heads/main|raw\.githubusercontent\.com/haji84/AI-/[a-f0-9]{40}/scripts/owner-code-rotation-native-1218\.ps1)$') { throw 'ROTATION_ENTRY_SOURCE_REJECTED' }
+            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+            $request = [Net.HttpWebRequest]::Create($Uri); $request.Method = 'GET'; $request.AllowAutoRedirect = $false; $request.Timeout = 10000; $request.ReadWriteTimeout = 10000; $request.UserAgent = 'GORIQ-1218-profile-bootstrap'
+            $response = $null; $stream = $null; $memory = [IO.MemoryStream]::new()
+            try { $response = $request.GetResponse(); if ([int]$response.StatusCode -ne 200) { throw 'ROTATION_ENTRY_SOURCE_REJECTED' }; $stream = $response.GetResponseStream(); $buffer = New-Object byte[] 8192; while (($count = $stream.Read($buffer,0,$buffer.Length)) -gt 0) { if ($memory.Length+$count -gt 262144) { throw 'ROTATION_ENTRY_SOURCE_REJECTED' }; $memory.Write($buffer,0,$count) }; return ,$memory.ToArray() } finally { if ($stream) { $stream.Dispose() }; if ($response) { $response.Dispose() }; $memory.Dispose() }
+          }
+          try {
+          $encoded = $env:GORIQ_OWNER_ROTATION_SCOPE_BASE64
+          if (-not $encoded -or $encoded.Length -gt 87384 -or $encoded -cnotmatch '^[A-Za-z0-9+/]+={0,2}$' -or $env:GITHUB_ACTOR -cne 'haji84' -or $env:GITHUB_REPOSITORY -cne 'haji84/AI-' -or $env:GITHUB_REF -cne 'refs/heads/main' -or $env:GITHUB_SHA -cnotmatch '^[a-f0-9]{40}$' -or $env:GITHUB_RUN_ID -cnotmatch '^[1-9][0-9]{0,19}$' -or $env:GITHUB_RUN_ATTEMPT -cne '1') { throw 'ROTATION_ENTRY_SCOPE_REQUIRED' }
+          $bytes = [Convert]::FromBase64String($encoded)
+          if ($bytes.Length -gt 65536 -or [Convert]::ToBase64String($bytes) -cne $encoded) { throw 'ROTATION_ENTRY_SCOPE_REQUIRED' }
+          $wire = [Text.UTF8Encoding]::new($false,$true).GetString($bytes)
+          if ([IO.Path]::DirectorySeparatorChar -eq [char]92) { $null = [Reflection.Assembly]::Load('System.Web.Extensions, Version=4.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35'); $codec = [Web.Script.Serialization.JavaScriptSerializer]::new(); $codec.MaxJsonLength = 65536; $codec.RecursionLimit = 12; $rawGrant = $codec.DeserializeObject($wire); if ($codec.Serialize($rawGrant) -cne $wire) { throw 'ROTATION_ENTRY_SCOPE_REQUIRED' }; $entryHash = $rawGrant['sourceHashes']['scripts/owner-code-rotation-native-1218.ps1'] } else { $rawGrant = $wire | ConvertFrom-Json -DateKind String; if (($rawGrant | ConvertTo-Json -Depth 8 -Compress) -cne $wire) { throw 'ROTATION_ENTRY_SCOPE_REQUIRED' }; $entryHash = $rawGrant.sourceHashes.'scripts/owner-code-rotation-native-1218.ps1' }
+          if ($rawGrant.sourceRevision -isnot [string] -or $rawGrant.sourceRevision -cne $env:GITHUB_SHA -or $entryHash -isnot [string] -or $entryHash -cnotmatch '^[a-f0-9]{64}$') { throw 'ROTATION_ENTRY_SOURCE_REJECTED' }
+          $main = [Text.UTF8Encoding]::new($false,$true).GetString((Get-OwnerRotationSelectorPublicResource 'https://api.github.com/repos/haji84/AI-/git/ref/heads/main')) | ConvertFrom-Json
+          if ($main.object.sha -isnot [string] -or $main.object.sha -cne $env:GITHUB_SHA) { throw 'ROTATION_ENTRY_SOURCE_REJECTED' }
+          $entryBytes = Get-OwnerRotationSelectorPublicResource ('https://raw.githubusercontent.com/haji84/AI-/'+$env:GITHUB_SHA+'/scripts/owner-code-rotation-native-1218.ps1')
+          $root = [IO.Path]::Combine($env:GITHUB_WORKSPACE,('owner-native-'+$env:GITHUB_RUN_ID+'-'+$env:GITHUB_RUN_ATTEMPT))
+          $localEntry = [IO.Path]::Combine($root,'scripts','owner-code-rotation-native-1218.ps1')
+          if (([IO.FileInfo]::new($localEntry)).Length -gt 262144) { throw 'ROTATION_ENTRY_SOURCE_REJECTED' }
+          $localBytes = [IO.File]::ReadAllBytes($localEntry); $sha = [Security.Cryptography.SHA256]::Create()
+          try { foreach ($content in @($entryBytes,$localBytes)) { $digest = ([BitConverter]::ToString($sha.ComputeHash($content))).Replace('-','').ToLowerInvariant(); if ($digest -cne $entryHash) { throw 'ROTATION_ENTRY_SOURCE_REJECTED' } } } finally { $sha.Dispose() }
+          . ([scriptblock]::Create([Text.UTF8Encoding]::new($false,$true).GetString($entryBytes)))
+          $context = [pscustomobject]@{GITHUB_ACTOR=$env:GITHUB_ACTOR;GITHUB_REPOSITORY=$env:GITHUB_REPOSITORY;GITHUB_REF=$env:GITHUB_REF;GITHUB_SHA=$env:GITHUB_SHA;GITHUB_RUN_ID=$env:GITHUB_RUN_ID;GITHUB_RUN_ATTEMPT=$env:GITHUB_RUN_ATTEMPT;GITHUB_WORKFLOW_REF=$env:GITHUB_WORKFLOW_REF;JARVIS_PRODUCTION_CONFIG=$env:JARVIS_PRODUCTION_CONFIG}
+          $selection = Get-OwnerRotationProfileSelection -Encoded $encoded -Environment $context
+          if ($selection.profile -cnotin @('OLD_V1','CUTOVER_V1') -or $selection.effectCapability -ne $false) { throw 'ROTATION_ENTRY_SCOPE_REQUIRED' }
+          [IO.File]::AppendAllText($env:GITHUB_OUTPUT,('profile='+$selection.profile+"`n"),[Text.UTF8Encoding]::new($false))
+          } catch { throw 'ROTATION_ENTRY_PROFILE_REFUSED' }
       - uses: actions/setup-node@v4
-        if: ${{ inputs.launcher_binding_only != true }}
+        if: ${{ inputs.launcher_binding_only != true && (!inputs.rotation_scope_base64 || steps.rotation_profile.outputs.profile != 'CUTOVER_V1') }}
         with:
           node-version: 24.19.0
       - name: Require exact current main with successful CI
-        if: ${{ inputs.launcher_binding_only != true }}
+        if: ${{ inputs.launcher_binding_only != true && (!inputs.rotation_scope_base64 || steps.rotation_profile.outputs.profile != 'CUTOVER_V1') }}
         env:
           GORIQ_PC_APPROVED_REVISION: ${{ github.sha }}
         working-directory: owner-native-${{ github.run_id }}-${{ github.run_attempt }}
@@ -125,10 +162,47 @@ jobs:
         working-directory: owner-native-${{ github.run_id }}-${{ github.run_attempt }}
         env:
           GORIQ_OWNER_ROTATION_SCOPE_BASE64: ${{ inputs.rotation_scope_base64 }}
-        shell: powershell
+          GORIQ_OWNER_ROTATION_PROFILE: ${{ steps.rotation_profile.outputs.profile }}
+        shell: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$env:PSModulePath=[System.IO.Path]::Combine($PSHOME,'Modules'); & ([scriptblock]::Create([System.IO.File]::ReadAllText('{0}')))"
         run: |
           New-Item -ItemType Directory -Force -Path .gai-results | Out-Null
-          node scripts/owner-code-rotation-native-1218.mjs --run | Tee-Object -FilePath .gai-results/owner-code-rotation-native-1218.json
+          if ($env:GORIQ_OWNER_ROTATION_PROFILE -ceq 'CUTOVER_V1') {
+            $ErrorActionPreference = 'Stop'
+            function Get-OwnerRotationSelectorPublicResource([string]$Uri) {
+              if ($Uri -cnotmatch '^https://(?:api\.github\.com/repos/haji84/AI-/git/ref/heads/main|raw\.githubusercontent\.com/haji84/AI-/[a-f0-9]{40}/scripts/owner-code-rotation-native-1218\.ps1)$') { throw 'ROTATION_ENTRY_SOURCE_REJECTED' }
+              [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+              $request = [Net.HttpWebRequest]::Create($Uri); $request.Method = 'GET'; $request.AllowAutoRedirect = $false; $request.Timeout = 10000; $request.ReadWriteTimeout = 10000; $request.UserAgent = 'GORIQ-1218-profile-bootstrap'
+              $response = $null; $stream = $null; $memory = [IO.MemoryStream]::new()
+              try { $response = $request.GetResponse(); if ([int]$response.StatusCode -ne 200) { throw 'ROTATION_ENTRY_SOURCE_REJECTED' }; $stream = $response.GetResponseStream(); $buffer = New-Object byte[] 8192; while (($count = $stream.Read($buffer,0,$buffer.Length)) -gt 0) { if ($memory.Length+$count -gt 262144) { throw 'ROTATION_ENTRY_SOURCE_REJECTED' }; $memory.Write($buffer,0,$count) }; return ,$memory.ToArray() } finally { if ($stream) { $stream.Dispose() }; if ($response) { $response.Dispose() }; $memory.Dispose() }
+            }
+            try {
+            $encoded = $env:GORIQ_OWNER_ROTATION_SCOPE_BASE64
+            if (-not $encoded -or $encoded.Length -gt 87384 -or $encoded -cnotmatch '^[A-Za-z0-9+/]+={0,2}$' -or $env:GITHUB_ACTOR -cne 'haji84' -or $env:GITHUB_REPOSITORY -cne 'haji84/AI-' -or $env:GITHUB_REF -cne 'refs/heads/main' -or $env:GITHUB_SHA -cnotmatch '^[a-f0-9]{40}$' -or $env:GITHUB_RUN_ID -cnotmatch '^[1-9][0-9]{0,19}$' -or $env:GITHUB_RUN_ATTEMPT -cne '1') { throw 'ROTATION_ENTRY_SCOPE_REQUIRED' }
+            $bytes = [Convert]::FromBase64String($encoded)
+            if ($bytes.Length -gt 65536 -or [Convert]::ToBase64String($bytes) -cne $encoded) { throw 'ROTATION_ENTRY_SCOPE_REQUIRED' }
+            $wire = [Text.UTF8Encoding]::new($false,$true).GetString($bytes)
+            $rawGrant = $wire | ConvertFrom-Json
+            $entryHash = $rawGrant.sourceHashes.'scripts/owner-code-rotation-native-1218.ps1'
+            if ($rawGrant.sourceRevision -isnot [string] -or $rawGrant.sourceRevision -cne $env:GITHUB_SHA -or $entryHash -isnot [string] -or $entryHash -cnotmatch '^[a-f0-9]{64}$') { throw 'ROTATION_ENTRY_SOURCE_REJECTED' }
+            $main = [Text.UTF8Encoding]::new($false,$true).GetString((Get-OwnerRotationSelectorPublicResource 'https://api.github.com/repos/haji84/AI-/git/ref/heads/main')) | ConvertFrom-Json
+            if ($main.object.sha -isnot [string] -or $main.object.sha -cne $env:GITHUB_SHA) { throw 'ROTATION_ENTRY_SOURCE_REJECTED' }
+            $entryBytes = Get-OwnerRotationSelectorPublicResource ('https://raw.githubusercontent.com/haji84/AI-/'+$env:GITHUB_SHA+'/scripts/owner-code-rotation-native-1218.ps1')
+            $root = [IO.Path]::Combine($env:GITHUB_WORKSPACE,('owner-native-'+$env:GITHUB_RUN_ID+'-'+$env:GITHUB_RUN_ATTEMPT))
+            $localEntry = [IO.Path]::Combine($root,'scripts','owner-code-rotation-native-1218.ps1')
+            if (([IO.FileInfo]::new($localEntry)).Length -gt 262144) { throw 'ROTATION_ENTRY_SOURCE_REJECTED' }
+            $localBytes = [IO.File]::ReadAllBytes($localEntry); $sha = [Security.Cryptography.SHA256]::Create()
+            try { foreach ($content in @($entryBytes,$localBytes)) { $digest = ([BitConverter]::ToString($sha.ComputeHash($content))).Replace('-','').ToLowerInvariant(); if ($digest -cne $entryHash) { throw 'ROTATION_ENTRY_SOURCE_REJECTED' } } } finally { $sha.Dispose() }
+            . ([scriptblock]::Create([Text.UTF8Encoding]::new($false,$true).GetString($entryBytes)))
+            $context = [pscustomobject]@{GITHUB_ACTOR=$env:GITHUB_ACTOR;GITHUB_REPOSITORY=$env:GITHUB_REPOSITORY;GITHUB_REF=$env:GITHUB_REF;GITHUB_SHA=$env:GITHUB_SHA;GITHUB_RUN_ID=$env:GITHUB_RUN_ID;GITHUB_RUN_ATTEMPT=$env:GITHUB_RUN_ATTEMPT;GITHUB_WORKFLOW_REF=$env:GITHUB_WORKFLOW_REF;JARVIS_PRODUCTION_CONFIG=$env:JARVIS_PRODUCTION_CONFIG}
+            $selection = Get-OwnerRotationProfileSelection -Encoded $encoded -Environment $context
+            if ($selection.profile -cne 'CUTOVER_V1' -or $selection.effectCapability -ne $false) { throw 'ROTATION_ENTRY_SCOPE_REQUIRED' }
+            $bootstrap = Invoke-OwnerCutoverBootstrap
+            ConvertTo-OwnerRotationEntryJson $bootstrap | Tee-Object -FilePath .gai-results/owner-code-rotation-native-1218.json
+            if (-not $bootstrap.complete) { exit 1 }
+            } catch { throw 'ROTATION_ENTRY_PROFILE_REFUSED' }
+          } elseif ($env:GORIQ_OWNER_ROTATION_PROFILE -ceq 'OLD_V1') {
+            node scripts/owner-code-rotation-native-1218.mjs --run | Tee-Object -FilePath .gai-results/owner-code-rotation-native-1218.json
+          } else { throw 'ROTATION_ENTRY_SCOPE_REQUIRED' }
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Retain sanitized practical booleans only
         if: ${{ always() && inputs.owner_local_practical == true && inputs.rotation_only != true && inputs.launcher_binding_only != true }}
