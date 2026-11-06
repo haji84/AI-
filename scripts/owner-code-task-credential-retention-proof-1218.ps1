@@ -374,7 +374,9 @@ function Get-R05TaskUpdateState {
  $logon=Invoke-R05ProtectedApi $Budget Forward {$principal.LogonType} -Operation $Operation
  $runLevel=Invoke-R05ProtectedApi $Budget Forward {$principal.RunLevel} -Operation $Operation
  if($actualSid -cne $Sid -or $logon -ne 1 -or $runLevel -ne 0){throw 'PROOF_TASK_BOUNDARY_CHANGED'}
- $actions=Invoke-R05ProtectedApi $Budget Forward {$definition.Actions} -Operation $Operation
+ # Keep the COM collection intact across both protected API pipeline boundaries.
+ $actionsEnvelope=Invoke-R05ProtectedApi $Budget Forward {[pscustomobject]@{collection=$definition.Actions}} -Operation $Operation
+ $actions=$actionsEnvelope.collection
  $count=Invoke-R05ProtectedApi $Budget Forward {$actions.Count} -Operation $Operation
  if($count -ne 1){throw 'PROOF_TASK_BOUNDARY_CHANGED'}
  $exec=Invoke-R05ProtectedApi $Budget Forward {$actions.Item(1)} -Operation $Operation

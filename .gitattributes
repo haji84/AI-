@@ -72,3 +72,5 @@ tests/owner-code-task-proof-diagnostics.test.mjs text eol=lf
 tests/owner-code-task-proof-diagnostics.test.ps1 text eol=lf
 tests/owner-code-task-retention-recovery.test.mjs text eol=lf
 tests/owner-code-task-retention-recovery.test.ps1 text eol=lf
+tests/owner-code-task-collection.test.mjs text eol=lf
+tests/owner-code-task-collection.test.ps1 text eol=lf
