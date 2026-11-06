@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([switch]$Inspect,[string]$AuthorizationPath)
+param([switch]$Inspect,[string]$AuthorizationPath,[switch]$IncludeRefusalReasons)
 
 # Import/default only define public capabilities. No Owner, grant or file is read.
 $script:ownerLauncherGrantKeys=@('schemaVersion','kind','scopeId','issue','goalId','authorityType','issuedBy','approvalId','approvalReference','sourceRevision','sourceHashes','ciRunId','ciRunAttempt','workflowPath','ownerSidSha256','taskSha256','roles','issuedAt','expiresAt','maxAttempts','maxFiles','maxBytesPerFile','maxDurationSeconds','highContentReadApproval','allowProtectionRefusedDataRead','newProtectedInspectionObjectsApproval')
@@ -56,7 +56,10 @@ function ConvertFrom-OwnerLauncherGrantBase64 {
  }catch{throw 'LBI_GRANT_REQUIRED'}
 }
 function New-OwnerLauncherResult {
- return [ordered]@{schemaVersion=1;issue=1218;operation='launcher-binding-inspection';complete=$false;failureCode='LBI_UNVERIFIED';sourceRevision=$null;workflowRunId=$null;workflowRunAttempt=$null;sourceHashesVerified=$false;publicCiVerified=$false;actualWindowsOwnerContextVerified=$false;taskBindingVerified=$false;claimConsumed=$false;exactlyTwoTargets=$false;compatibilityStructure='UNKNOWN';nativeStructure='UNKNOWN';fixedDelegationMatched=$false;nativeRelationCandidate=$false;protectedLocalRecordWritten=$false;noExecution=$true;authorizationGranted=$false;readyForRotation=$false;actualAcceptanceConditionsPassed=0}
+ param([switch]$IncludeRefusalReasons)
+ $result=[ordered]@{schemaVersion=1;issue=1218;operation='launcher-binding-inspection';complete=$false;failureCode='LBI_UNVERIFIED';sourceRevision=$null;workflowRunId=$null;workflowRunAttempt=$null;sourceHashesVerified=$false;publicCiVerified=$false;actualWindowsOwnerContextVerified=$false;taskBindingVerified=$false;claimConsumed=$false;exactlyTwoTargets=$false;compatibilityStructure='UNKNOWN';nativeStructure='UNKNOWN';fixedDelegationMatched=$false;nativeRelationCandidate=$false;protectedLocalRecordWritten=$false;noExecution=$true;authorizationGranted=$false;readyForRotation=$false;actualAcceptanceConditionsPassed=0}
+ if($IncludeRefusalReasons){$result.schemaVersion=2;$result.compatibilityRefusalReason='NOT_OBSERVED';$result.nativeRefusalReason='NOT_OBSERVED'}
+ return $result
 }
 function Assert-OwnerLauncherDeadline([datetimeoffset]$Deadline) {if((Get-OwnerLauncherNow) -ge $Deadline){throw 'LBI_EXPIRED'}}
 function Get-OwnerLauncherPublicResource([string]$Uri) {
@@ -213,16 +216,24 @@ function Get-OwnerLauncherLiteral($Node) {
  if($Node -is [Management.Automation.Language.StringConstantExpressionAst]){return [string]$Node.Value};throw 'LBI_AST_UNKNOWN'
 }
 function Get-OwnerLauncherStructure {
- param([byte[]]$Bytes,[ValidateSet('compatibility','native')][string]$Role,[string]$NativePath)
+ param([byte[]]$Bytes,[ValidateSet('compatibility','native')][string]$Role,[string]$NativePath,[switch]$IncludeRefusalReasons)
  $answer=@{kind='UNKNOWN';environmentLiteralsPresent=$false;nodeCandidate=$null;releaseCandidate=$null;configCandidate=$null;fixedDelegationMatched=$false}
+ # Only fixed public phase labels may leave this parser; inspected text stays local.
+ $refusalReason='UNCLASSIFIED_REFUSAL'
  try{
+  $refusalReason='BYTE_LIMIT'
   if($Bytes.Length -gt 65536){return $answer}
+  $refusalReason='TEXT_DECODE_REFUSED'
   if($Bytes.Length -ge 2 -and $Bytes[0] -eq 255 -and $Bytes[1] -eq 254){$text=[Text.UnicodeEncoding]::new($false,$true,$true).GetString($Bytes,2,$Bytes.Length-2)}
   else{$text=[Text.UTF8Encoding]::new($false,$true).GetString($Bytes).TrimStart([char]0xfeff)}
-  if($text.IndexOf([char]0) -ge 0){return $answer};$tokens=$null;$errors=$null;$ast=[Management.Automation.Language.Parser]::ParseInput($text,[ref]$tokens,[ref]$errors)
-  if(@($errors).Count -ne 0 -or $ast.ParamBlock -or $ast.BeginBlock -or $ast.ProcessBlock -or $ast.DynamicParamBlock -or $ast.EndBlock.Traps.Count -ne 0){return $answer}
+  $refusalReason='NUL_CHARACTER'
+  if($text.IndexOf([char]0) -ge 0){return $answer};$tokens=$null;$errors=$null;$refusalReason='PARSE_ERROR';$ast=[Management.Automation.Language.Parser]::ParseInput($text,[ref]$tokens,[ref]$errors)
+  if(@($errors).Count -ne 0){return $answer}
+  $refusalReason='SCRIPT_METADATA'
+  if($ast.ParamBlock -or $ast.BeginBlock -or $ast.ProcessBlock -or $ast.DynamicParamBlock -or $ast.EndBlock.Traps.Count -ne 0){return $answer}
   if($ast.UsingStatements.Count -ne 0 -or $ast.Attributes.Count -ne 0 -or $null -ne $ast.ScriptRequirements -or -not $ast.EndBlock.Unnamed){return $answer}
   if($ast.PSObject.Properties.Name -contains 'CleanBlock' -and $null -ne $ast.CleanBlock){return $answer}
+  $refusalReason='SIDE_EFFECT_SYNTAX'
   $effects=@($ast.FindAll({param($node)
    if($node -is [Management.Automation.Language.RedirectionAst]){return $true}
    if($node -is [Management.Automation.Language.PipelineAst] -and $node.PSObject.Properties.Name -contains 'Background'){return $node.Background}
@@ -230,30 +241,40 @@ function Get-OwnerLauncherStructure {
   },$true));if($effects.Count -ne 0){return $answer}
   $statements=@($ast.EndBlock.Statements)
   if($Role -ceq 'compatibility'){
+   $refusalReason='COMPATIBILITY_STATEMENT_SHAPE'
    if($statements.Count -ne 1 -or $statements[0] -isnot [Management.Automation.Language.PipelineAst] -or $statements[0].PipelineElements.Count -ne 1){return $answer};$command=$statements[0].PipelineElements[0]
+   $refusalReason='COMPATIBILITY_FIXED_TARGET_REQUIRED'
    if($command -is [Management.Automation.Language.CommandAst] -and $command.InvocationOperator -eq [Management.Automation.Language.TokenKind]::Ampersand -and $command.Redirections.Count -eq 0 -and $command.CommandElements.Count -eq 1 -and (Get-OwnerLauncherLiteral $command.CommandElements[0]) -ieq $NativePath){$answer.kind='FIXED_COMPATIBILITY_DELEGATION';$answer.fixedDelegationMatched=$true};return $answer
   }
   $location=$null;$node=$null;$hostPath=$null;$config=$null;$environment=$false;$invoked=$false;$exited=$false
   foreach($statement in $statements){
+   $refusalReason='NATIVE_STATEMENT_SHAPE'
    if($statement -is [Management.Automation.Language.AssignmentStatementAst] -and -not $invoked){
+    $refusalReason='NATIVE_ASSIGNMENT_NOT_ALLOWED'
     if($statement.Left -isnot [Management.Automation.Language.VariableExpressionAst] -or $statement.Operator -ne [Management.Automation.Language.TokenKind]::Equals){throw 'LBI_AST_UNKNOWN'}
-    $name=$statement.Left.VariablePath.UserPath;$literal=Get-OwnerLauncherLiteral $statement.Right
+    $name=$statement.Left.VariablePath.UserPath;$refusalReason='NATIVE_ASSIGNMENT_LITERAL_REQUIRED';$literal=Get-OwnerLauncherLiteral $statement.Right
+    $refusalReason='NATIVE_ASSIGNMENT_NOT_ALLOWED'
     if($name -ceq 'ErrorActionPreference'){if($literal -cne 'Stop'){throw 'LBI_AST_UNKNOWN'}}
     elseif($name -cmatch '^env:[A-Za-z_][A-Za-z0-9_]*$'){$environment=$true;if($name -ceq 'env:JARVIS_PRODUCTION_CONFIG'){if($config){throw 'LBI_AST_UNKNOWN'};$config=$literal}}
     else{throw 'LBI_AST_UNKNOWN'};continue
    }
-   if($statement -is [Management.Automation.Language.ExitStatementAst] -and $invoked -and -not $exited){if($statement.Pipeline.Extent.Text -cne '$LASTEXITCODE'){throw 'LBI_AST_UNKNOWN'};$exited=$true;continue}
+   if($statement -is [Management.Automation.Language.ExitStatementAst] -and $invoked -and -not $exited){$refusalReason='NATIVE_EXIT_SHAPE';if($statement.Pipeline.Extent.Text -cne '$LASTEXITCODE'){throw 'LBI_AST_UNKNOWN'};$exited=$true;continue}
    if($statement -isnot [Management.Automation.Language.PipelineAst] -or $statement.PipelineElements.Count -ne 1 -or $exited){throw 'LBI_AST_UNKNOWN'};$command=$statement.PipelineElements[0]
+   $refusalReason='NATIVE_COMMAND_SHAPE'
    if($command -isnot [Management.Automation.Language.CommandAst] -or $command.Redirections.Count -ne 0){throw 'LBI_AST_UNKNOWN'};$elements=@($command.CommandElements)
+   $refusalReason='NATIVE_LOCATION_LITERAL_REQUIRED'
    if(-not $invoked -and -not $location -and $command.InvocationOperator -eq [Management.Automation.Language.TokenKind]::Unknown -and $elements.Count -eq 3 -and (Get-OwnerLauncherLiteral $elements[0]) -ceq 'Set-Location' -and $elements[1] -is [Management.Automation.Language.CommandParameterAst] -and $elements[1].ParameterName -ceq 'LiteralPath'){$location=Get-OwnerLauncherLiteral $elements[2];continue}
-   if(-not $invoked -and $command.InvocationOperator -eq [Management.Automation.Language.TokenKind]::Ampersand -and $elements.Count -eq 2){$node=Get-OwnerLauncherLiteral $elements[0];$hostPath=Get-OwnerLauncherLiteral $elements[1];$invoked=$true;continue};throw 'LBI_AST_UNKNOWN'
+   $refusalReason='NATIVE_INVOCATION_LITERAL_REQUIRED'
+   if(-not $invoked -and $command.InvocationOperator -eq [Management.Automation.Language.TokenKind]::Ampersand -and $elements.Count -eq 2){$node=Get-OwnerLauncherLiteral $elements[0];$hostPath=Get-OwnerLauncherLiteral $elements[1];$invoked=$true;continue};$refusalReason='NATIVE_COMMAND_SHAPE';throw 'LBI_AST_UNKNOWN'
   }
+  $refusalReason='NATIVE_RELATION_REQUIRED'
   if(-not $invoked -or -not $location -or -not $config -or -not [IO.Path]::IsPathRooted($node) -or [IO.Path]::GetFileName($node) -ine 'node.exe' -or $hostPath -ine [IO.Path]::Combine($location,'scripts','jarvis-remote-host.mjs') -or $config -ine [IO.Path]::Combine([IO.Path]::GetDirectoryName($NativePath),'config.dpapi')){return $answer}
+  $refusalReason='NATIVE_LOCAL_PATH_REQUIRED'
   foreach($path in @($node,$location,$config)){if($path -match '[\r\n\0]' -or $path -match '^[\\/]{2}' -or -not [IO.Path]::IsPathRooted($path) -or [IO.Path]::GetFullPath($path) -ine $path){throw 'LBI_AST_UNKNOWN'}}
   $answer.kind='NATIVE_LITERAL_NODE_HOST';$answer.environmentLiteralsPresent=$environment;$answer.nodeCandidate=$node;$answer.releaseCandidate=$location;$answer.configCandidate=$config
- }catch{};return $answer
+ }catch{}finally{if($IncludeRefusalReasons){$answer.refusalReason=if($answer.kind -cne 'UNKNOWN'){'NONE'}else{$refusalReason}}};return $answer
 }
-function Invoke-OwnerLauncherLocalInspection($Prepared,[string]$AuthorizationPath) {
+function Invoke-OwnerLauncherLocalInspection($Prepared,[string]$AuthorizationPath,[switch]$IncludeRefusalReasons) {
  $a=$Prepared.admission;$g=$a.grant;$c=$a.context
  if($Prepared.used){throw 'LBI_ATTEMPT_CONSUMED'};$Prepared.used=$true
  if($AuthorizationPath -cne $Prepared.receiptPath -or $AuthorizationPath -cne [IO.Path]::Combine($c.profile,('.goriq-owner-launcher-inspection-1218-'+$g.approvalId),'runtime-receipt.json')){throw 'LBI_CONTEXT_REQUIRED'}
@@ -266,7 +287,7 @@ function Invoke-OwnerLauncherLocalInspection($Prepared,[string]$AuthorizationPat
   $current=Get-OwnerLauncherKernelContext;$task=Get-OwnerLauncherTask;$fresh=Assert-OwnerLauncherContext -Grant $g -Environment $a.environment -Context $current -Task $task
   if($fresh.context.ownerSid -cne $c.ownerSid -or $fresh.context.profile -ine $c.profile -or $fresh.targets[$role] -ine $a.targets[$role]){throw 'LBI_CONTEXT_REQUIRED'}
   $data=Read-OwnerLauncherData -Path $a.targets[$role] -OwnerSid $c.ownerSid -AllowProtectionRefusedDataRead $g.allowProtectionRefusedDataRead -Deadline $a.deadline
-  try{$structure=Get-OwnerLauncherStructure -Bytes $data.bytes -Role $role -NativePath $a.targets.native;$summaries[$role]=$structure;$records+=@{role=$role;sha256=$data.sha256;identity=$data.identity;protection=$data.protection;structure=$structure}}finally{[Array]::Clear($data.bytes,0,$data.bytes.Length)}
+  try{$structure=Get-OwnerLauncherStructure -Bytes $data.bytes -Role $role -NativePath $a.targets.native -IncludeRefusalReasons:$IncludeRefusalReasons;$summaries[$role]=$structure;$records+=@{role=$role;sha256=$data.sha256;identity=$data.identity;protection=$data.protection;structure=$structure}}finally{[Array]::Clear($data.bytes,0,$data.bytes.Length)}
  }
  Assert-OwnerLauncherDeadline $a.deadline;$record=[ordered]@{schemaVersion=1;sourceRevision=$g.sourceRevision;originalGrantSha256=$a.grantHash;workflowRunId=$a.environment.GITHUB_RUN_ID;workflowRunAttempt=1;taskSha256=$a.taskHash;files=$records;authorizationGranted=$false;readyForRotation=$false}
  New-OwnerLauncherProtectedFile -Path $Prepared.findingsPath -Bytes ([Text.Encoding]::UTF8.GetBytes(($record|Microsoft.PowerShell.Utility\ConvertTo-Json -Depth 10 -Compress))) -OwnerSid $c.ownerSid
@@ -274,8 +295,8 @@ function Invoke-OwnerLauncherLocalInspection($Prepared,[string]$AuthorizationPat
  return $summaries
 }
 function Invoke-OwnerLauncherBindingInspection {
- param([string]$RequestedAuthorizationPath)
- $result=New-OwnerLauncherResult;$ErrorActionPreference='Stop';$admission=$null
+ param([string]$RequestedAuthorizationPath,[switch]$IncludeRefusalReasons)
+ $result=New-OwnerLauncherResult -IncludeRefusalReasons:$IncludeRefusalReasons;$ErrorActionPreference='Stop';$admission=$null
  try{
   if($RequestedAuthorizationPath){throw 'LBI_GRANT_REQUIRED'}
   $env:PSModulePath=[IO.Path]::Combine($PSHOME,'Modules')
@@ -291,7 +312,10 @@ function Invoke-OwnerLauncherBindingInspection {
   $task=Get-OwnerLauncherTask;$admission=Assert-OwnerLauncherContext -Grant $grant -Environment $environment -Context $context -Task $task;$admission.deadline=$deadline
   $result.actualWindowsOwnerContextVerified=$true;$result.taskBindingVerified=$true
   $prepared=New-OwnerLauncherRuntime -Admission $admission;$result.claimConsumed=$true
-  $structures=Invoke-OwnerLauncherLocalInspection -Prepared $prepared -AuthorizationPath $prepared.receiptPath
+  $structures=Invoke-OwnerLauncherLocalInspection -Prepared $prepared -AuthorizationPath $prepared.receiptPath -IncludeRefusalReasons:$IncludeRefusalReasons
+  # Promote reasons only with the existing complete local result. NOT_OBSERVED
+  # means no result was promoted, including a failure after one role was read.
+  if($IncludeRefusalReasons){$result.compatibilityRefusalReason=$structures.compatibility.refusalReason;$result.nativeRefusalReason=$structures.native.refusalReason}
   $result.exactlyTwoTargets=$true;$result.compatibilityStructure=$structures.compatibility.kind;$result.nativeStructure=$structures.native.kind;$result.fixedDelegationMatched=$structures.compatibility.fixedDelegationMatched;$result.nativeRelationCandidate=$structures.native.kind -ceq 'NATIVE_LITERAL_NODE_HOST';$result.protectedLocalRecordWritten=$true;$result.complete=$true;$result.failureCode=$null
  }catch{$code=[string]$_.Exception.Message;if($code -in @('LBI_GRANT_REQUIRED','LBI_CONTEXT_REQUIRED','LBI_SOURCE_REJECTED','LBI_TASK_REJECTED','LBI_ATTEMPT_CONSUMED','LBI_ACQUISITION_REJECTED','LBI_EXPIRED')){$result.failureCode=$code}else{$result.failureCode='LBI_INSPECTION_REFUSED'}}
  if($null -ne $admission -and $admission.ContainsKey('claimConsumed') -and $admission.claimConsumed){$result.claimConsumed=$true}
@@ -299,6 +323,6 @@ function Invoke-OwnerLauncherBindingInspection {
 }
 if($MyInvocation.InvocationName -ne '.'){
  if(-not $Inspect){[Console]::Out.WriteLine('PLAN ONLY: fixed launcher inspection requires a fresh exact High read and new-protected-objects grant. No Owner state is accessed.');exit 0}
- $result=Invoke-OwnerLauncherBindingInspection -RequestedAuthorizationPath $AuthorizationPath
+ $result=Invoke-OwnerLauncherBindingInspection -RequestedAuthorizationPath $AuthorizationPath -IncludeRefusalReasons:($IncludeRefusalReasons -or $env:GORIQ_OWNER_LAUNCHER_REFUSAL_REASONS -ceq 'true')
  [Console]::Out.WriteLine(($result|Microsoft.PowerShell.Utility\ConvertTo-Json -Depth 6 -Compress));if(-not $result.complete){exit 1}
 }

@@ -2,6 +2,8 @@ name: CI
 
 on:
   pull_request:
+  pull_request_review:
+    types: [submitted]
   workflow_dispatch:
   push:
     branches: [main]
@@ -76,8 +78,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24.19.0
+      - name: Start bounded resource observer
+        run: node scripts/jarvis-verifier-resource-observer.mjs --observe
       - name: Real restricted-container six-check verification
+        if: ${{ !cancelled() }}
         run: node scripts/jarvis-verifier-live-ci.mjs --execute-hosted-ci
+      - name: Finalize bounded resource observer
+        if: always()
+        run: node scripts/jarvis-verifier-resource-observer.mjs --stop
       - name: Retain hosted-container evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -85,6 +93,15 @@ jobs:
           name: independent-verifier-container-${{ github.sha }}
           path: ${{ runner.temp }}/goriq-verifier-live-evidence/
           if-no-files-found: error
+          retention-days: 14
+
+      - name: Retain supplemental resource observation
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: independent-verifier-resource-observer-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/goriq-verifier-resource-observer-${{ github.run_id }}-${{ github.run_attempt }}/artifact/
+          if-no-files-found: warn
           retention-days: 14
 
   windows-runtime-byte-fixtures:
@@ -106,7 +123,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Owner credential plan-only and temporary encrypted fixtures
         shell: powershell
-        run: node --test scripts/owner-code-rotation.test.mjs scripts/owner-code-windows.test.mjs scripts/owner-code-rotation-authority.test.mjs scripts/owner-code-preflight.test.mjs scripts/owner-code-dialog.test.mjs scripts/install-owner-code-windows.test.mjs scripts/owner-code-rotation-redirect.test.mjs scripts/owner-code-practical.test.mjs scripts/owner-code-fleet-preservation.test.mjs scripts/owner-code-rotation-acceptance.test.mjs scripts/owner-code-rotation-transaction.test.mjs scripts/owner-code-pc-preservation.test.mjs scripts/owner-code-rotation-readiness.test.mjs scripts/owner-code-warning-1218.test.mjs scripts/owner-code-rotation-native-1218.test.mjs scripts/owner-code-rotation-native-stage.test.mjs scripts/owner-code-fresh-checkout.test.mjs scripts/owner-code-protection-diagnostics.test.mjs scripts/owner-code-protection-failure-details.test.mjs scripts/owner-code-launcher-binding-inspection-1218.test.mjs scripts/owner-code-launcher-binding-workflow.test.mjs scripts/owner-code-launcher-binding-native-shell.test.mjs scripts/owner-code-private-rotation-exercise.test.mjs scripts/owner-code-planned-reserve.test.mjs scripts/owner-code-rotation-exercise-protocol.test.mjs scripts/owner-code-private-scope-capture.test.mjs scripts/owner-code-rotation-composed-entry.test.mjs scripts/owner-code-entry-json-bound.test.mjs tests/owner-code-task-proof.test.mjs tests/owner-code-task-proof-diagnostics.test.mjs tests/owner-code-task-retention-recovery.test.mjs tests/owner-code-task-collection.test.mjs
+        run: node --test scripts/owner-code-rotation.test.mjs scripts/owner-code-windows.test.mjs scripts/owner-code-rotation-authority.test.mjs scripts/owner-code-preflight.test.mjs scripts/owner-code-dialog.test.mjs scripts/install-owner-code-windows.test.mjs scripts/owner-code-rotation-redirect.test.mjs scripts/owner-code-practical.test.mjs scripts/owner-code-fleet-preservation.test.mjs scripts/owner-code-rotation-acceptance.test.mjs scripts/owner-code-rotation-transaction.test.mjs scripts/owner-code-pc-preservation.test.mjs scripts/owner-code-rotation-readiness.test.mjs scripts/owner-code-warning-1218.test.mjs scripts/owner-code-rotation-native-1218.test.mjs scripts/owner-code-rotation-native-stage.test.mjs scripts/owner-code-fresh-checkout.test.mjs scripts/owner-code-protection-diagnostics.test.mjs scripts/owner-code-protection-failure-details.test.mjs scripts/owner-code-launcher-binding-inspection-1218.test.mjs scripts/owner-code-launcher-binding-workflow.test.mjs scripts/owner-code-launcher-binding-native-shell.test.mjs scripts/owner-code-launcher-refusal-reasons-1218.test.mjs scripts/owner-code-private-rotation-exercise.test.mjs scripts/owner-code-planned-reserve.test.mjs scripts/owner-code-rotation-exercise-protocol.test.mjs scripts/owner-code-private-scope-capture.test.mjs scripts/owner-code-rotation-composed-entry.test.mjs scripts/owner-code-entry-json-bound.test.mjs tests/owner-code-task-proof.test.mjs tests/owner-code-task-proof-diagnostics.test.mjs tests/owner-code-task-retention-recovery.test.mjs tests/owner-code-task-collection.test.mjs
       - name: Windows PowerShell 5.1 atomic pointer fixtures
         shell: powershell
         run: |

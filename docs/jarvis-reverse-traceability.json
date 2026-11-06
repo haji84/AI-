@@ -6441,6 +6441,17 @@
       "reason": "#1219 explicit disposable hosted-container CI assembles exact offline dependencies, executes all six production checks, audits signed log/image/source/cleanup bindings and retains public evidence only. This is CI infrastructure, not AI09 physical principal, native Ollama or Windows reboot acceptance."
     },
     {
+      "path": "scripts/jarvis-verifier-resource-observer.mjs",
+      "sha256": "d2ea1ee7e183c74956d95bf2569e74c8c3e40c4c4ffe5af90fbe8eca368cf76f",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-010",
+        "AUTO-016",
+        "GOV-004"
+      ],
+      "reason": "#1218 bounded hosted-CI numeric resource observer for the existing independent-verifier job; fixed local Unix-socket GET sampling and separate unsigned provisional diagnostics only. Supports verifier diagnosis under existing containment boundaries; no signed-check acceptance, requirement status, physical/runtime completion or new authority is conferred."
+    },
+    {
       "path": "scripts/jarvis-verifier-safe-git.mjs",
       "sha256": "fb319bd6cdb15c65a26395415b83f071b0b7f18b5ef1696e6de194d5f7339a24",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
