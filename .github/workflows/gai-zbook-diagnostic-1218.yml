@@ -23,6 +23,11 @@ on:
         required: false
         type: boolean
         default: false
+      launcher_refusal_reasons:
+        description: 'Closed refusal-phase detail for launcher inspection only; fresh approval remains required'
+        required: false
+        type: boolean
+        default: false
       approved_scope_base64:
         description: 'Non-secret exact-source practical or warning scope; no credential value'
         required: false
@@ -81,6 +86,7 @@ jobs:
         working-directory: owner-native-${{ github.run_id }}-${{ github.run_attempt }}
         shell: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoProfile -NonInteractive -Command "$env:PSModulePath=[System.IO.Path]::Combine($PSHOME,'Modules'); & ([scriptblock]::Create([System.IO.File]::ReadAllText('{0}')))"
         env:
+          GORIQ_OWNER_LAUNCHER_REFUSAL_REASONS: ${{ inputs.launcher_refusal_reasons }}
           GORIQ_OWNER_LAUNCHER_BINDING_GRANT_BASE64: ${{ inputs.launcher_binding_grant_base64 }}
         run: |
           $ErrorActionPreference = 'Stop'
