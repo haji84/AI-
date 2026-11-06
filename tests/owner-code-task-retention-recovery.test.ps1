@@ -24,19 +24,21 @@ if($Scenario -like 'profile-*'){
   if($Scenario -eq 'profile-no-progress'){$u=0;$m=0}
   if($Scenario -eq 'profile-utc-cap'){$m=0.001}
   if($Scenario -eq 'profile-mono-cap'){$u=0.001}
-  if($Scenario -eq 'profile-poll-cap'){$u=0.001;$m=0.001}
+  if($Scenario -in @('profile-poll-cap','profile-final-readback-cap')){$u=0.001;$m=0.001}
   $script:pstate.clock.utc=$script:pstate.clock.utc.AddSeconds($u);$script:pstate.clock.mono+=$m
  }
  function Get-CimInstance {
   param($ClassName,$Filter)
   Require ($ClassName -ceq 'Win32_UserProfile' -and $Filter -ceq 'SID="S-1-5-21-111-222-333-444"') 'EXACT_OWN_PROFILE_QUERY'
   $script:pstate.queries++;$q=$script:pstate.queries
+  if($script:pstate.readinessEnded){$script:pstate.readbackQueries++}else{$script:pstate.readinessQueries++}
   if($Scenario -eq 'profile-query-throw' -and $q -eq 2){throw [Runtime.InteropServices.COMException]::new('PRIVATE_PROFILE_QUERY_CANARY',-2147024891)}
   if($Scenario -eq 'profile-readback-throw' -and $q -eq 2){throw [Runtime.InteropServices.COMException]::new('PRIVATE_PROFILE_READBACK_CANARY',-2147024891)}
   if($Scenario -eq 'profile-inflight-expiry'){$script:pstate.clock.utc=$script:pstate.clock.utc.AddSeconds(121);$script:pstate.clock.mono=121}
-  if($Scenario -eq 'profile-absent' -or ($Scenario -eq 'profile-disappeared' -and $q -gt 1) -or ($Scenario -eq 'profile-ready' -and $q -gt 2)){return}
+  if($Scenario -eq 'profile-absent' -or ($Scenario -eq 'profile-disappeared' -and $q -gt 1) -or ($Scenario -eq 'profile-ready' -and $q -gt 2) -or ($Scenario -eq 'profile-final-readback-cap' -and $q -eq 62)){$script:pstate.readinessEnded=$true;return}
   $loaded=$Scenario -notin @('profile-absent','profile-readback-present','profile-readback-throw')
-  if($Scenario -eq 'profile-ready' -and $q -eq 2){$loaded=$false}
+  if(($Scenario -eq 'profile-ready' -and $q -eq 2) -or ($Scenario -eq 'profile-final-readback-cap' -and $q -eq 61)){$loaded=$false}
+  if(-not $loaded){$script:pstate.readinessEnded=$true}
   $sid=if($Scenario -eq 'profile-wrong-later' -and $q -eq 2){'S-1-5-21-111-222-333-555'}else{'S-1-5-21-111-222-333-444'}
   return [pscustomobject]@{SID=$sid;Special=($Scenario -eq 'profile-special-later' -and $q -eq 2);Loaded=$loaded}
  }
@@ -46,10 +48,13 @@ if($Scenario -like 'profile-*'){
   $budget=New-R05ProofBudget -ScopeExpiry $clock.utc.AddHours(1) -JobDeadline $clock.utc.AddSeconds(660) -UtcClock {$clock.utc}.GetNewClosure() -MonoClock {$clock.mono}.GetNewClosure()
   $owned=@{stage='fixture';registered=$false;sid='S-1-5-21-111-222-333-444';userName='PUBLIC_NOT_AN_ACCOUNT';rootCreated=$false;rootAttempted=$false}
   $result=New-R05FixtureResult;$budget.Diagnostics=$result.diagnostics;$result.accountCreated=$true
-  $script:pstate=@{clock=$clock;queries=0;sleeps=0;removes=0;disabled=0;localReads=0;accountRemoved=$false}
+  $script:pstate=@{clock=$clock;queries=0;sleeps=0;removes=0;disabled=0;localReads=0;accountRemoved=$false;readinessQueries=0;readbackQueries=0;readinessEnded=$false}
   Invoke-Expression $cleanupCode
   $outcome=Invoke-R05BudgetedRun $budget {} $cleanup
-  if($Scenario -in @('profile-ready','profile-disappeared','profile-absent')){
+  if($Scenario -eq 'profile-final-readback-cap'){
+   Require ($script:pstate.readinessQueries -eq 61 -and $script:pstate.readbackQueries -eq 1 -and $script:pstate.queries -eq 62 -and $script:pstate.sleeps -eq 60 -and $script:pstate.removes -eq 1) 'QUERY61_READY_THEN_SEPARATE_READBACK62_NO_FURTHER_QUERY'
+   Require ($result.cleanupVerified -and $outcome.cleanupCompleted -and $result.ownProfileRemovedOrAbsent -and $result.diagnostics.profileCleanupState -eq 'REMOVED_AND_ABSENT_CONFIRMED' -and $null -eq $result.diagnostics.cleanupFailure) 'FINAL_ALLOWED_READY_PATH_CONFIRMED_ABSENT'
+  }elseif($Scenario -in @('profile-ready','profile-disappeared','profile-absent')){
    Require ($result.cleanupVerified -and $outcome.cleanupCompleted -and $null -eq $outcome.failureCode -and $null -eq $result.diagnostics.cleanupFailure) 'TRANSIENT_LOADED_RECOVERS_WITHOUT_TERMINAL_FAULT'
    Require ($result.ownProfileRemovedOrAbsent -and $script:pstate.queries -eq $(if($Scenario -eq 'profile-absent'){2}else{3})) 'FINAL_EXPLICIT_ABSENCE_READBACK_REQUIRED'
    Require ($script:pstate.removes -eq $(if($Scenario -eq 'profile-ready'){1}else{0})) 'REMOVE_ONLY_MEASURED_READY_PROFILE'
@@ -76,7 +81,10 @@ if($Scenario -like 'profile-*'){
     $f=$result.diagnostics.cleanupFailure;Require ($f.exceptionKind -eq 'COM' -and $f.hresult -eq -2147024891 -and $f.origin -eq 'CALL_THROW' -and $f.callState -eq 'THREW' -and $f.operation -eq $(if($Scenario -eq 'profile-query-throw'){'PROFILE_QUERY'}else{'PROFILE_READBACK'})) 'ORIGINAL_TYPED_QUERY_CAUSE_RETAINED'
    }else{Require ($Scenario -eq 'profile-readback-present' -and $script:pstate.removes -eq 1 -and $result.diagnostics.profileCleanupState -eq 'STILL_PRESENT') 'READINESS_NOT_FINAL_ABSENCE'}
   }
-  Require ($script:pstate.queries -le 61 -and $script:pstate.sleeps -le 60) 'HARD_POLL_AND_SLEEP_CAPS'
+  if($Scenario -ne 'profile-final-readback-cap'){
+   Require ($script:pstate.queries -le 61 -and $script:pstate.sleeps -le 60) 'HARD_POLL_AND_SLEEP_CAPS'
+  }
+  Require ($script:pstate.readinessQueries -le 61 -and $script:pstate.readbackQueries -le 1 -and $script:pstate.queries -eq ($script:pstate.readinessQueries+$script:pstate.readbackQueries) -and $script:pstate.queries -le 62 -and $script:pstate.sleeps -le 60) 'SEPARATE_READINESS_AND_FINAL_READBACK_CAPS'
  }
  Invoke-ProfileFixture
  @{scenario=$Scenario;pass=$true;realTaskServiceCredentialCalls=0}|ConvertTo-Json -Compress
@@ -143,8 +151,8 @@ public class R05FakeFolder {
 }
 '@
 $folder=[R05FakeFolder]::new()
-$folder.Lookup=[Func[string,object]]{param($name)$script:state.lookups++;if($script:state.missing -or ($script:state.race -and $script:state.lookups -gt 1)){throw [Runtime.InteropServices.COMException]::new('PUBLIC_MISSING',-2147024894)};New-FakeRegistered}
-$folder.Register=[Func[object[],object]]{param($values)
+$folder.Lookup=[System.Func[System.String,System.Object]]{param($name)$script:state.lookups++;if($script:state.missing -or ($script:state.race -and $script:state.lookups -gt 1)){throw [Runtime.InteropServices.COMException]::new('PUBLIC_MISSING',-2147024894)};New-FakeRegistered}
+$folder.Register=[System.Func[System.Object[],System.Object]]{param($values)
  $script:state.calls++;$script:state.args=$values
  if($script:state.throw){throw [Runtime.InteropServices.COMException]::new('PRIVATE_THROW_CANARY',-2147024891)}
  if($script:state.late){$clock.utc=$clock.utc.AddSeconds(481);$clock.mono=481}
