@@ -173,7 +173,7 @@ function Assert-StoppedRollback {
     -not (Same-Bytes $launcherBytes ([IO.File]::ReadAllBytes($launcherPath)))){throw 'baseline-changed'}
   Assert-State-Preserved $before (Inspect-State 'inspect')
 }
-function Get-OwnedTree([string]$root,[bool]$requireHealthy=$true,[int[]]$requiredPorts=$ports) {
+function Get-OwnedTree([string]$root,[bool]$requireHealthy=$true,[int[]]$requiredPorts=@()) {
   try{$all=@(Get-CimInstance Win32_Process -OperationTimeoutSec 15 -ErrorAction Stop)}catch{throw 'process-query'}
   $hosts=@($all | Where-Object {$_.Name -eq 'node.exe' -and $_.CommandLine -and
     $_.CommandLine.Contains($root) -and $_.CommandLine.Contains('jarvis-remote-host.mjs')})
@@ -213,6 +213,30 @@ function Get-OwnedTree([string]$root,[bool]$requireHealthy=$true,[int[]]$require
   foreach($p in $tree){
     $owner=Invoke-CimMethod -OperationTimeoutSec 15 -InputObject $p -MethodName GetOwnerSid
     if($owner.ReturnValue -ne 0 -or $owner.Sid -ne $identity.User.Value){throw 'process-owner'}
+  }
+  # Preserve every observed listener's address, port and owner across the
+  # OS-private-IP check; do not authorize an owned host stop from mixed-time
+  # network facts. The recheck is bounded and fail closed, not a retry.
+  if($requireHealthy -and $requiredPorts.Count -eq 0){
+    try{$beforeState=Inspect-State 'inspect'}catch{throw 'private-address-query'}
+    if($null -eq $beforeState -or
+      $null -eq $beforeState.PSObject.Properties['privateAddressAssigned'] -or
+      $beforeState.privateAddressAssigned -isnot [bool]){throw 'private-address-query'}
+    $recheckedListeners=@(Get-LiveListeners)
+    try{$afterState=Inspect-State 'inspect'}catch{throw 'private-address-query'}
+    if($null -eq $afterState -or
+      $null -eq $afterState.PSObject.Properties['privateAddressAssigned'] -or
+      $afterState.privateAddressAssigned -isnot [bool] -or
+      $beforeState.privateAddressAssigned -ne $afterState.privateAddressAssigned){throw 'private-address-query'}
+    $first=@($listeners | ForEach-Object {
+      '{0}|{1}|{2}' -f [int]$_.LocalPort,[int]$_.OwningProcess,[string]$_.LocalAddress
+    } | Sort-Object)
+    $second=@($recheckedListeners | ForEach-Object {
+      '{0}|{1}|{2}' -f [int]$_.LocalPort,[int]$_.OwningProcess,[string]$_.LocalAddress
+    } | Sort-Object)
+    if($first.Count -ne $second.Count -or ($first -join "`n") -cne ($second -join "`n")){throw 'listeners'}
+    $listeners=$recheckedListeners
+    $requiredPorts=if($afterState.privateAddressAssigned){@($ports)}else{@(3000,8787,8790)}
   }
   $observedPorts=@($listeners | Select-Object -ExpandProperty LocalPort -Unique)
   if(($requireHealthy -and ($observedPorts.Count -ne $requiredPorts.Count -or
