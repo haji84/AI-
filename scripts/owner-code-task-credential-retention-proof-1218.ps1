@@ -318,6 +318,110 @@ function Get-R05TaskSnapshot {
  $security=[string](Invoke-R05ProtectedApi $Budget $Phase {$registeredTask.GetSecurityDescriptor(7)})
  return @{nonAction=$definitionHash;security=(Get-R05Digest ([Text.Encoding]::UTF8.GetBytes($security)));action=$actionHash;execute=[string]$task.Actions[0].Execute;arguments=[string]$task.Actions[0].Arguments;workingDirectory=[string]$task.Actions[0].WorkingDirectory}
 }
+function Initialize-R05TaskUpdateBinding {
+ if('R05TaskUpdateBinding' -as [type]){return}
+ Add-Type -TypeDefinition @'
+using System;
+using System.Globalization;
+using System.Reflection;
+public static class R05TaskUpdateBinding {
+ // Object null is VT_EMPTY, not DBNull (VT_NULL), Missing or an empty BSTR.
+ // Fixed UPDATE | DONT_ADD_PRINCIPAL_ACE | IGNORE_REGISTRATION_TRIGGERS.
+ public static object[] Arguments(string name,object definition) {
+  return new object[]{name,definition,52,(object)null,(object)null,0,(object)null};
+ }
+ static object Call(object target,string method,object[] arguments) {
+  return target.GetType().InvokeMember(method,BindingFlags.InvokeMethod,
+   null,target,arguments,null,CultureInfo.InvariantCulture,null);
+ }
+ public static void Connect(object service) {Call(service,"Connect",new object[0]);}
+ public static object Root(object service) {return Call(service,"GetFolder",new object[]{"\\"});}
+ public static object Update(object folder,string name,object definition) {
+  return Call(folder,"RegisterTaskDefinition",Arguments(name,definition));
+ }
+}
+'@
+}
+function New-R05TaskUpdateService {return New-Object -ComObject 'Schedule.Service'}
+function Get-R05TaskUpdateXmlState([string]$Xml) {
+ if([string]::IsNullOrWhiteSpace($Xml) -or $Xml.Length -gt 65536 -or $Xml -match '<!DOCTYPE'){throw 'PROOF_TASK_BOUNDARY_CHANGED'}
+ $document=[xml]::new();$document.XmlResolver=$null;$document.LoadXml($Xml)
+ $ns=[Xml.XmlNamespaceManager]::new($document.NameTable);$ns.AddNamespace('t','http://schemas.microsoft.com/windows/2004/02/mit/task')
+ $actions=@($document.SelectNodes('/t:Task/t:Actions',$ns))
+ if($actions.Count -ne 1){throw 'PROOF_TASK_BOUNDARY_CHANGED'}
+ $exec=@($actions[0].SelectNodes('*'))
+ if($exec.Count -ne 1 -or $exec[0].LocalName -cne 'Exec' -or $exec[0].NamespaceURI -cne $ns.LookupNamespace('t')){throw 'PROOF_TASK_BOUNDARY_CHANGED'}
+ $full=Get-R05Digest ([Text.Encoding]::UTF8.GetBytes($document.OuterXml))
+ # Keep the complete action envelope, including Id, Context and every other
+ # node/attribute. Only the three intended leaf text values may differ.
+ foreach($field in @('Command','Arguments','WorkingDirectory')){
+  $node=@($exec[0].SelectNodes(('t:'+$field),$ns))
+  if($node.Count -ne 1 -or $node[0].SelectNodes('*').Count -ne 0){throw 'PROOF_TASK_BOUNDARY_CHANGED'}
+  $node[0].InnerText=''
+ }
+ return @{full=$full;envelope=(Get-R05Digest ([Text.Encoding]::UTF8.GetBytes($document.OuterXml)))}
+}
+function Get-R05TaskUpdateState {
+ param($Registered,[string]$Name,[string]$Sid,[R05ProofBudget]$Budget,[string]$Operation)
+ $path=[string](Invoke-R05ProtectedApi $Budget Forward {$Registered.Path} -Operation $Operation)
+ if($path -cne ('\'+$Name)){throw 'PROOF_TASK_BOUNDARY_CHANGED'}
+ $definition=Invoke-R05ProtectedApi $Budget Forward {$Registered.Definition} -Operation $Operation
+ $principal=Invoke-R05ProtectedApi $Budget Forward {$definition.Principal} -Operation $Operation
+ $userId=[string](Invoke-R05ProtectedApi $Budget Forward {$principal.UserId} -Operation $Operation)
+ $actualSid=if($userId -cmatch '^S-1-5-21-(?:[0-9]+-){3}[0-9]+$'){$userId}else{
+  [string](Invoke-R05ProtectedApi $Budget Forward {([Security.Principal.NTAccount]::new($userId)).Translate([Security.Principal.SecurityIdentifier]).Value} -Operation $Operation)
+ }
+ $logon=Invoke-R05ProtectedApi $Budget Forward {$principal.LogonType} -Operation $Operation
+ $runLevel=Invoke-R05ProtectedApi $Budget Forward {$principal.RunLevel} -Operation $Operation
+ if($actualSid -cne $Sid -or $logon -ne 1 -or $runLevel -ne 0){throw 'PROOF_TASK_BOUNDARY_CHANGED'}
+ $actions=Invoke-R05ProtectedApi $Budget Forward {$definition.Actions} -Operation $Operation
+ $count=Invoke-R05ProtectedApi $Budget Forward {$actions.Count} -Operation $Operation
+ if($count -ne 1){throw 'PROOF_TASK_BOUNDARY_CHANGED'}
+ $exec=Invoke-R05ProtectedApi $Budget Forward {$actions.Item(1)} -Operation $Operation
+ $type=Invoke-R05ProtectedApi $Budget Forward {$exec.Type} -Operation $Operation
+ if($type -ne 0){throw 'PROOF_TASK_BOUNDARY_CHANGED'}
+ $id=[string](Invoke-R05ProtectedApi $Budget Forward {$exec.Id} -Operation $Operation)
+ $context=[string](Invoke-R05ProtectedApi $Budget Forward {$actions.Context} -Operation $Operation)
+ $execute=[string](Invoke-R05ProtectedApi $Budget Forward {$exec.Path} -Operation $Operation)
+ $arguments=[string](Invoke-R05ProtectedApi $Budget Forward {$exec.Arguments} -Operation $Operation)
+ $workingDirectory=[string](Invoke-R05ProtectedApi $Budget Forward {$exec.WorkingDirectory} -Operation $Operation)
+ $xml=[string](Invoke-R05ProtectedApi $Budget Forward {$definition.XmlText} -Operation $Operation)
+ $xmlState=Get-R05TaskUpdateXmlState $xml
+ $security=[string](Invoke-R05ProtectedApi $Budget Forward {$Registered.GetSecurityDescriptor(7)} -Operation $Operation)
+ if([string]::IsNullOrWhiteSpace($security)){throw 'PROOF_TASK_BOUNDARY_CHANGED'}
+ return @{definition=$definition;exec=$exec;xml=$xmlState;id=$id;context=$context;security=(Get-R05Digest ([Text.Encoding]::UTF8.GetBytes($security)));execute=$execute;arguments=$arguments;workingDirectory=$workingDirectory}
+}
+function Set-R05OwnedTaskAction {
+ param($Owned,$Action,[R05ProofBudget]$Budget,[ValidateSet('TASK_ACTION_UPDATE','TASK_ACTION_RESTORE')][string]$Operation)
+ Assert-R05ProofBudget $Budget Forward
+ if($Owned.nonce -cnotmatch '^[a-f0-9]{32}$' -or $Owned.taskName -cne ('Goriq-R05-CredentialRetention-'+$Owned.nonce) -or $Owned.sid -cnotmatch '^S-1-5-21-(?:[0-9]+-){3}[0-9]+$'){throw 'PROOF_TASK_BOUNDARY_CHANGED'}
+ $execute=[string]$Action.Execute;$arguments=[string]$Action.Arguments;$workingDirectory=[string]$Action.WorkingDirectory
+ foreach($value in @($execute,$arguments,$workingDirectory)){if([string]::IsNullOrWhiteSpace($value) -or $value -match '[\r\n\x00]'){throw 'PROOF_TASK_BOUNDARY_CHANGED'}}
+ $null=Invoke-R05ProtectedApi $Budget Forward {Initialize-R05TaskUpdateBinding} -Operation $Operation
+ $service=Invoke-R05ProtectedApi $Budget Forward {New-R05TaskUpdateService} -Operation $Operation
+ # No server/user/domain/password arguments: local service and existing identity.
+ $null=Invoke-R05ProtectedApi $Budget Forward {[R05TaskUpdateBinding]::Connect($service)} -Operation $Operation
+ $folder=Invoke-R05ProtectedApi $Budget Forward {[R05TaskUpdateBinding]::Root($service)} -Operation $Operation
+ $registered=Invoke-R05ProtectedApi $Budget Forward {$folder.GetTask($Owned.taskName)} -Operation $Operation
+ $before=Get-R05TaskUpdateState $registered $Owned.taskName $Owned.sid $Budget $Operation
+ $exec=$before.exec
+ $null=Invoke-R05ProtectedApi $Budget Forward {$exec.Path=$execute} -Operation $Operation
+ $null=Invoke-R05ProtectedApi $Budget Forward {$exec.Arguments=$arguments} -Operation $Operation
+ $null=Invoke-R05ProtectedApi $Budget Forward {$exec.WorkingDirectory=$workingDirectory} -Operation $Operation
+ $editedXml=[string](Invoke-R05ProtectedApi $Budget Forward {$before.definition.XmlText} -Operation $Operation)
+ $edited=Get-R05TaskUpdateXmlState $editedXml
+ if($edited.envelope -cne $before.xml.envelope){throw 'PROOF_TASK_BOUNDARY_CHANGED'}
+ # Fresh binding before UPDATE; UPDATE4 never creates a missing task. This
+ # detects observed replacement but is not an atomic compare-and-swap API.
+ $fresh=Invoke-R05ProtectedApi $Budget Forward {$folder.GetTask($Owned.taskName)} -Operation $Operation
+ $freshState=Get-R05TaskUpdateState $fresh $Owned.taskName $Owned.sid $Budget $Operation
+ if($freshState.xml.full -cne $before.xml.full -or $freshState.security -cne $before.security -or $freshState.id -cne $before.id -or $freshState.context -cne $before.context){throw 'PROOF_TASK_BOUNDARY_CHANGED'}
+ $null=Invoke-R05ProtectedApi $Budget Forward {[R05TaskUpdateBinding]::Update($folder,$Owned.taskName,$before.definition)} -Operation $Operation
+ $afterTask=Invoke-R05ProtectedApi $Budget Forward {$folder.GetTask($Owned.taskName)} -Operation $Operation
+ $after=Get-R05TaskUpdateState $afterTask $Owned.taskName $Owned.sid $Budget $Operation
+ if($after.xml.envelope -cne $before.xml.envelope -or $after.id -cne $before.id -or $after.context -cne $before.context -or $after.security -cne $before.security -or $after.execute -cne $execute -or $after.arguments -cne $arguments -or $after.workingDirectory -cne $workingDirectory){throw 'PROOF_TASK_BOUNDARY_CHANGED'}
+ Assert-R05ProofBudget $Budget Forward
+}
 function Invoke-R05TaskRun {
  param([string]$Name,[string]$Results,[string]$ExpectedSid,[string]$Marker,[R05ProofBudget]$Budget)
  $before=@(Invoke-R05ProtectedApi $Budget Forward {Get-ChildItem -LiteralPath $Results -Filter '*.json' -File | ForEach-Object {$_.Name}})
@@ -444,8 +548,8 @@ try{
    $owned.stage='baseline';$result.baselineRan=Invoke-R05TaskRun $owned.taskName $results $owned.sid 'baseline' $budget
    $owned.stage='action-update';Assert-R05ProofBudget $budget Forward -MinimumRemainingSeconds 100
    $null=Invoke-R05ProtectedApi $budget Forward {
-    # Intentionally omit User, Password, Principal, Trigger and Settings.
-    Set-ScheduledTask -TaskName $owned.taskName -TaskPath '\' -Action $changedAction | Out-Null
+    # Fixed empty credential VARIANTs; no credential values are supplied.
+    Set-R05OwnedTaskAction -Owned $owned -Action $changedAction -Budget $budget -Operation TASK_ACTION_UPDATE
     $result.updateOmittedUserAndPassword=$true
    } -Operation TASK_ACTION_UPDATE
    $changed=Get-R05TaskSnapshot $owned.taskName $owned.sid $budget
@@ -455,7 +559,7 @@ try{
    $owned.stage='changed-execution';$result.changedRan=Invoke-R05TaskRun $owned.taskName $results $owned.sid 'changed' $budget
    $owned.stage='action-restore'
    $null=Invoke-R05ProtectedApi $budget Forward {
-    Set-ScheduledTask -TaskName $owned.taskName -TaskPath '\' -Action $baseAction | Out-Null
+    Set-R05OwnedTaskAction -Owned $owned -Action $baseAction -Budget $budget -Operation TASK_ACTION_RESTORE
     $result.restoreOmittedUserAndPassword=$true
    } -Operation TASK_ACTION_RESTORE
    $restored=Get-R05TaskSnapshot $owned.taskName $owned.sid $budget
@@ -507,9 +611,41 @@ try{
     try{
      $live=Invoke-R05ProtectedApi $budget Cleanup {Get-LocalUser -Name $owned.userName}
      if($live.SID.Value -cne $owned.sid){throw 'PROOF_CLEANUP_FAILED'}
-     $profiles=@(Invoke-R05ProtectedApi $budget Cleanup {
-      try{Get-CimInstance -ClassName Win32_UserProfile -Filter ('SID="'+$owned.sid+'"')}catch{Set-R05ProfileDiagnosticState $result.diagnostics QUERY_FAILED;throw}
-     } -Operation PROFILE_QUERY)
+     $waitStart=Get-R05BudgetTime $budget
+     $waitUtc=$waitStart.utc.AddSeconds(30)
+     foreach($limit in @($budget.CleanupUtc,$budget.HardUtc,$budget.ScopeExpiry,$budget.JobDeadline)){
+      $reservedLimit=$limit.AddSeconds(-15);if($reservedLimit -lt $waitUtc){$waitUtc=$reservedLimit}
+     }
+     $waitMono=[Math]::Min($waitStart.mono+30,[Math]::Min($budget.CleanupMono,$budget.HardMono)-15)
+     $profileQueries=0;$profileSleeps=0;$observedLoaded=$false
+     while($true){
+      Assert-R05ProofBudget $budget Cleanup
+      $beforeQuery=Get-R05BudgetTime $budget
+      if($beforeQuery.utc -ge $waitUtc -or $beforeQuery.mono -ge $waitMono){
+       if($observedLoaded){Set-R05ProfileDiagnosticState $result.diagnostics LOADED_REFUSED}
+       throw 'PROOF_CLEANUP_FAILED'
+      }
+      $profiles=@(Invoke-R05ProtectedApi $budget Cleanup {
+       try{Get-CimInstance -ClassName Win32_UserProfile -Filter ('SID="'+$owned.sid+'"')}catch{Set-R05ProfileDiagnosticState $result.diagnostics QUERY_FAILED;throw}
+      } -Operation PROFILE_QUERY)
+      $profileQueries++
+      foreach($profile in $profiles){
+       if($profile.SID -cne $owned.sid){Set-R05ProfileDiagnosticState $result.diagnostics SID_MISMATCH_REFUSED;throw 'PROOF_CLEANUP_FAILED'}
+       if($profile.Special){Set-R05ProfileDiagnosticState $result.diagnostics SPECIAL_REFUSED;throw 'PROOF_CLEANUP_FAILED'}
+      }
+      if($profiles.Count -gt 1){throw 'PROOF_CLEANUP_FAILED'}
+      if($profiles.Count -eq 0 -or -not $profiles[0].Loaded){break}
+      $observedLoaded=$true
+      $beforeSleep=Get-R05BudgetTime $budget
+      if($profileQueries -ge 61 -or $profileSleeps -ge 60 -or $beforeSleep.utc.AddMilliseconds(500) -gt $waitUtc -or $beforeSleep.mono+0.5 -gt $waitMono){
+       Set-R05ProfileDiagnosticState $result.diagnostics LOADED_REFUSED;throw 'PROOF_CLEANUP_FAILED'
+      }
+      Assert-R05ProofBudget $budget Cleanup;Start-Sleep -Milliseconds 500;Assert-R05ProofBudget $budget Cleanup
+      $profileSleeps++
+      # A stalled monotonic clock is a readiness refusal, not a new global
+      # clock verdict. Independent remaining cleanup keeps its original guards.
+      if((Get-R05BudgetTime $budget).mono -le $beforeSleep.mono){Set-R05ProfileDiagnosticState $result.diagnostics LOADED_REFUSED;throw 'PROOF_CLEANUP_FAILED'}
+     }
      foreach($profile in $profiles){
       if($profile.SID -cne $owned.sid){Set-R05ProfileDiagnosticState $result.diagnostics SID_MISMATCH_REFUSED;throw 'PROOF_CLEANUP_FAILED'}
       if($profile.Special){Set-R05ProfileDiagnosticState $result.diagnostics SPECIAL_REFUSED;throw 'PROOF_CLEANUP_FAILED'}
