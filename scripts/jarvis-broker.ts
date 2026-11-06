@@ -3,7 +3,7 @@ import { PcTaskObservations, projectPcObservation, assertPcObserver, PC_OBSERVAT
 import { DurableTaskRuntime, JsonFileDurableTaskStore } from "../src/gai/durable-task-runtime.ts";
 import { MATERIAL_REQUEST_BYTES } from "../src/gai/cognitive-material-intake.ts";
 import { cognitiveHostOptions } from "../src/gai/cognitive-host-config.ts";
-import { CognitiveService } from "../src/gai/cognitive-service.ts";
+import type { CognitiveService } from "../src/gai/cognitive-service.ts";
 import {requirementWorkflow,prepareOwnerPreview} from "./jarvis-requirement-workflow.mjs";
 import { createSpecificationPublisher } from "./jarvis-spec-publisher.mjs";
 import { fileURLToPath } from "node:url";
@@ -98,7 +98,13 @@ const workRuns = new CompassWorkRunStore(compass);
 const completionWorkState = new CompassWorkStateStoreAdapter(compass);
 const goalBridgeEvents = new CompassGoalBridgeEventStore(compass);
 const goalExecutionContexts = new CompassGoalExecutionContextStore(compass);
-const cognitive = new CognitiveService(compassPath, cognitiveHostOptions(process.env));
+const cognitiveOptions = cognitiveHostOptions(process.env);
+let cognitiveInstance: Promise<CognitiveService> | undefined;
+function getCognitive(): Promise<CognitiveService> {
+  return cognitiveInstance ??= import("../src/gai/cognitive-service.ts")
+    .then(({ CognitiveService }) => new CognitiveService(compassPath, cognitiveOptions))
+    .catch(() => { throw Error("Cognitive cycle unavailable"); });
+}
 const ownerRequirements = new OwnerRequirementIntake(compass);
 const specificationPublisher = createSpecificationPublisher({root:fileURLToPath(new URL("../",import.meta.url)),intake:ownerRequirements,token:process.env.GITHUB_TOKEN});
 const goalWorkStates = new CompassWorkStateStoreAdapter(compass);
@@ -623,24 +629,24 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
     }
     if (path === "/api/jarvis/admin/cognitive/goal/proposal" && method === "POST") {
       if (body.length > 1024) return json(response, 413, { message: "Goal proposal input too large" });
-      try { return json(response, 200, await cognitive.proposeGoalCriteria(payload)); }
+      try { return json(response, 200, await (await getCognitive()).proposeGoalCriteria(payload)); }
       catch { return json(response, 409, { message: "候補を作れませんでした。Goal・既存作業・ローカルAIを確認してください。完了条件は手入力できます。" }); }
     }
     if (path === "/api/jarvis/admin/cognitive/goal" && method === "POST") {
       if (body.length > 32_000) return json(response, 413, { message: "Goal refinement input too large" });
-      try { return json(response, 200, await cognitive.refineGoal(payload)); }
+      try { return json(response, 200, await (await getCognitive()).refineGoal(payload)); }
       catch { return json(response, 409, { message: "このGoalは既に変更または実行されています。条件と履歴を保持して再確認してください。" }); }
     }
     if (path === "/api/jarvis/admin/cognitive/materials") {
       try {
         if (method === "POST") {
           if (body.length > MATERIAL_REQUEST_BYTES) return json(response, 413, { message: "Material input too large" });
-          return json(response, 200, await cognitive.prepareMaterials(payload));
+          return json(response, 200, await (await getCognitive()).prepareMaterials(payload));
         }
         if (method === "GET") {
           const params = new URL(request.url!, "http://localhost").searchParams;
           if ([...params.keys()].some(k => !["goalId", "outputId"].includes(k)) || params.getAll("goalId").length !== 1 || params.getAll("outputId").length !== 1) return json(response, 400, { message: "Invalid output request" });
-          const output = await cognitive.output(params.get("goalId")!, params.get("outputId")!);
+          const output = await (await getCognitive()).output(params.get("goalId")!, params.get("outputId")!);
           return json(response, 200, { contentBase64: output.bytes.toString("base64"), filename: output.filename, contentType: output.contentType });
         }
         return json(response, 405, { message: "Method not allowed" });
@@ -649,21 +655,21 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
     if (path === "/api/jarvis/admin/cognitive/learning" && method === "POST") {
       if (body.length > 2048 || Object.keys(payload).some(k => !["operation", "goalId", "originalId", "replacementId"].includes(k))) return json(response, 400, { message: "Invalid learning request" });
       try {
-        if (payload.operation === "import-history" && Object.keys(payload).length === 1) return json(response, 200, await cognitive.importHistory());
+        if (payload.operation === "import-history" && Object.keys(payload).length === 1) return json(response, 200, await (await getCognitive()).importHistory());
         if (payload.operation === "training-candidate" && Object.keys(payload).length === 1) {
-          const candidate = await cognitive.trainingCandidate();
+          const candidate = await (await getCognitive()).trainingCandidate();
           return json(response, 200, { digest: candidate.digest, train: candidate.train.length, validation: candidate.validation.length, heldout: candidate.heldout.length, rejected: candidate.rejected.length, training: candidate.training });
         }
-        if (payload.operation === "correct" && Object.keys(payload).length === 4 && [payload.goalId,payload.originalId,payload.replacementId].every(v => typeof v === "string")) return json(response, 200, await cognitive.correct(payload.goalId as string, payload.originalId as string, payload.replacementId as string));
+        if (payload.operation === "correct" && Object.keys(payload).length === 4 && [payload.goalId,payload.originalId,payload.replacementId].every(v => typeof v === "string")) return json(response, 200, await (await getCognitive()).correct(payload.goalId as string, payload.originalId as string, payload.replacementId as string));
         return json(response, 400, { message: "Invalid learning operation" });
       } catch { return json(response, 409, { message: "学習対象と検証結果を確認してください。未検証の内容は昇格しません。" }); }
     }
     if (path === "/api/jarvis/admin/cognitive") {
       try {
-        if (method === "GET") return json(response, 200, await cognitive.status());
+        if (method === "GET") return json(response, 200, await (await getCognitive()).status());
         if (method === "POST") {
           if (body.length > 512 || Object.keys(payload).some(k => k !== "goalId") || typeof payload.goalId !== "string") return json(response, 400, { message: "Invalid bounded cognitive request" });
-          return json(response, 200, await cognitive.continue(payload.goalId));
+          return json(response, 200, await (await getCognitive()).continue(payload.goalId));
         }
         return json(response, 405, { message: "Method not allowed" });
       } catch (error) { return json(response, 409, { message: error instanceof Error ? error.message : "Cognitive cycle unavailable" }); }
