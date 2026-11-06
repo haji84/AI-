@@ -49,3 +49,27 @@ test("multi-hunk new-line accounting excludes deleted lines",()=>{
  assert.equal(anchorAudit([f],p).complete,true);
  assert.equal(anchorAudit([{...f,line:9}],p).complete,false);
 });
+
+test("increment additions and following new-side coordinates retain exact quote anchoring",()=>{
+ const p="diff --git a/src/counter.js b/src/counter.js\n"+
+  "@@ -1,2 +1,4 @@\n let pendingCounter = 0;\n+++pendingCounter;\n+const afterIncrement = true;\n return pendingCounter;";
+ const f={path:"src/counter.js",line:2,evidence:"Added "+String.fromCharCode(96)+"++pendingCounter;"+String.fromCharCode(96)};
+ assert.equal(anchorAudit([f],p).complete,true);
+ assert.equal(anchorAudit([{...f,line:3,evidence:"Added "+String.fromCharCode(96)+"const afterIncrement = true;"+String.fromCharCode(96)}],p).complete,true);
+ const r=holdUngroundedAdvisory({...asserted,findings:[f]},p);
+ assert.equal(r.status,"CHANGES_REQUESTED");
+ assert.equal(r.mergeAuthorized,false);
+ assert.equal(r.githubApprovalSatisfied,false);
+});
+test("increment handling does not anchor context, headers, other paths or fabricated lines",()=>{
+ const p="diff --git a/src/counter.js b/src/counter.js\n--- a/src/counter.js\n+++ b/src/counter.js\n"+
+  "@@ -1 +1,2 @@\n const beforeCounter = 0;\n+++pendingCounter;";
+ const f={path:"src/counter.js",line:2,evidence:"Added "+String.fromCharCode(96)+"++pendingCounter;"+String.fromCharCode(96)};
+ for(const wrong of [{...f,line:1},{...f,line:3},{...f,path:"other.js"},
+   {...f,evidence:"Added "+String.fromCharCode(96)+"b/src/counter.js"+String.fromCharCode(96)}]){
+  assert.equal(anchorAudit([wrong],p).complete,false);
+  const r=holdUngroundedAdvisory({...asserted,findings:[wrong]},p);
+  assert.equal(r.status,"INCONCLUSIVE");
+  assert.equal(r.mergeAuthorized,false);
+ }
+});
