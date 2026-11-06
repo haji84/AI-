@@ -49,7 +49,7 @@ $helper=Join-Path (Split-Path $PSScriptRoot) 'scripts/owner-code-production-cuto
 # CLR fakes compile before this missing-feature refusal; no real TaskService exists.
 if(-not [IO.File]::Exists($helper)){throw 'PRODUCTION_HELPER_NOT_IMPLEMENTED'}
 . $helper
-if($Scenario -eq 'preloaded-type'){Add-Type 'public class OwnerProductionTaskUpdateBinding {}'|Out-Null;$refused=$false;try{Initialize-OwnerProductionTaskUpdateBinding}catch{$refused=$true};Require $refused 'UNEXPECTED_TYPE_REFUSED';@{scenario=$Scenario;pass=$true;realTaskCredentialCalls=0}|ConvertTo-Json -Compress;exit}
+if($Scenario -eq 'preloaded-type'){Add-Type 'public class OwnerProductionTaskUpdateBinding { public static int UntrustedMarker() { return 7; } }'|Out-Null;$refused=$false;try{Initialize-OwnerProductionTaskUpdateBinding}catch{$refused=$true};Require $refused 'UNEXPECTED_TYPE_REFUSED';@{scenario=$Scenario;pass=$true;realTaskCredentialCalls=0}|ConvertTo-Json -Compress;exit}
 $script:issuer=[Collections.Generic.List[object]]::new()
 $script:current=$null
 $script:token=$null

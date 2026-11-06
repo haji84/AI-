@@ -102,17 +102,42 @@ public class CutoverKernelLeafModule{public string FileName{get{return "C:\\Wind
  @{pass=$true;leafCases=@('process','folders');actualNativeCalls=0}|ConvertTo-Json -Compress;return
 }
 
+
+# PUBLIC fixture diagnostic only. No message, source line, stack, JSON input,
+# stream content, path or identifier enters these bounded facts.
+function Get-CutoverPublicTypeName($Value){if($null -eq $Value){return $null};$name=$Value.GetType().FullName;if($name -isnot [string] -or $name.Length -gt 192 -or $name -cnotmatch '^[A-Za-z0-9_.+`\[\], =-]+$'){return 'OTHER_CLR_TYPE'};return $name}
+function Get-CutoverPublicValidatorLeafFacts {
+ $rows=@();foreach($record in @($global:Error|Select-Object -First 8)){
+  $line=$null;$role='OTHER';if($record.InvocationInfo){$number=$record.InvocationInfo.ScriptLineNumber;if($number -is [int] -and $number -ge 0 -and $number -le 20000){$line=$number};$leaf=[IO.Path]::GetFileName([string]$record.InvocationInfo.ScriptName);if($leaf -ceq 'owner-code-rotation-native-1218.ps1'){$role='NATIVE'}elseif($leaf -ceq 'owner-code-cutover-private-bootstrap.fixture.ps1'){$role='PUBLIC_FIXTURE'}}
+  $rows+=[ordered]@{role=$role;scriptLineNumber=$line;exceptionType=(Get-CutoverPublicTypeName $record.Exception);innerExceptionType=(Get-CutoverPublicTypeName $record.Exception.InnerException)}
+ };return ,$rows
+}
+function Invoke-CutoverPublicDefaultInputProbe([string]$Node,[string]$Script,[string]$WorkingDirectory){
+ $facts=[ordered]@{kind='PUBLIC_DEFAULT_PROCESS_STDIN_PROBE';codePage=$null;preambleBytes=$null;writeExceptionType=$null;status='NOT_STARTED';exitCode=$null;outputMatched=$false;stderrPresent=$false;ownedNodeChildren=1}
+ $info=[Diagnostics.ProcessStartInfo]::new();$info.FileName=$Node;$info.Arguments='"'+$Script+'"';$info.WorkingDirectory=$WorkingDirectory;$info.UseShellExecute=$false;$info.CreateNoWindow=$true;$info.RedirectStandardInput=$true;$info.RedirectStandardOutput=$true;$info.RedirectStandardError=$true;$info.EnvironmentVariables.Clear();$info.EnvironmentVariables['SystemRoot']='C:\Windows';$info.EnvironmentVariables['USERPROFILE']='C:\Users\Owner';$info.EnvironmentVariables['LOCALAPPDATA']='C:\Users\Owner\AppData\Local';$info.EnvironmentVariables['PATH']=[IO.Path]::GetDirectoryName($Node)
+ $process=[Diagnostics.Process]::new();$process.StartInfo=$info;$started=$false
+ try{
+  $started=$process.Start();if(-not $started){return $facts};$facts.status='STARTED';$facts.codePage=[int]$process.StandardInput.Encoding.CodePage;$facts.preambleBytes=[int]$process.StandardInput.Encoding.GetPreamble().Length
+  $outRead=$process.StandardOutput.ReadToEndAsync();$errRead=$process.StandardError.ReadToEndAsync()
+  try{$write=$process.StandardInput.WriteAsync('{"mode":"success","canary":"PUBLIC_ONLY"}');$null=$write.GetAwaiter().GetResult()}catch{$facts.writeExceptionType=Get-CutoverPublicTypeName $_.Exception}
+  $process.StandardInput.Close()
+  if(-not $process.WaitForExit(5000)){$facts.status='TIMEOUT';return $facts}
+  $facts.status='EXITED';$facts.exitCode=[int]$process.ExitCode;$facts.outputMatched=($outRead.Result.Trim() -ceq 'Production configuration structure: PASS');$facts.stderrPresent=($errRead.Result.Length -gt 0);return $facts
+ }catch{$facts.status='EXCEPTION';if(-not $facts.writeExceptionType){$facts.writeExceptionType=Get-CutoverPublicTypeName $_.Exception};return $facts}finally{try{if($started -and -not $process.HasExited){$process.Kill();$null=$process.WaitForExit(1000)}}catch{};$process.Dispose()}
+}
+
 if($Scenario -eq 'validator-child'){
  $dir=PrivateSetup 1500;$owned=[IO.Path]::Combine([IO.Path]::GetTempPath(),('cutover-validator-'+[IO.Path]::GetRandomFileName()));$null=[IO.Directory]::CreateDirectory($owned)
  try{
   $public=Get-OwnerCutoverPublicReadiness;$private=New-OwnerCutoverPrivateBackend -PublicToken $public;$record=$null;$null=$script:ownerCutoverPrivateLifetimes.tokens.TryGetValue($private,[ref]$record);$module=$record.module;$stage=[IO.Path]::Combine($owned,'stage');$null=[IO.Directory]::CreateDirectory($stage);$scriptPath=[IO.Path]::Combine($stage,'scripts','validate-jarvis-production-config.mjs');$null=[IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($scriptPath))
   $js="let s='';process.stdin.setEncoding('utf8');process.stdin.on('data',x=>s+=x);process.stdin.on('end',()=>{const j=JSON.parse(s);if(process.env.NODE_OPTIONS||process.env.NODE_PATH||process.env.PUBLIC_PARENT_CANARY)process.exit(8);if(j.mode==='stderr')process.stderr.write('PUBLIC_CHILD_PRIVATE_CANARY');if(j.mode==='oversize')process.stdout.write('x'.repeat(5000));else if(j.mode==='exit')process.exit(7);else console.log('Production configuration structure: PASS');});"
   [IO.File]::WriteAllText($scriptPath,$js,[Text.UTF8Encoding]::new($false));$env:PUBLIC_PARENT_CANARY='PUBLIC_PARENT_ONLY'
+  $publicInputProbe=Invoke-CutoverPublicDefaultInputProbe ([string]$inputData.nodeExecutable) $scriptPath $stage
   &$module {param($stagePath,$node);$script:stagePath=$stagePath;$script:nodePath=$node;$script:ownedValidatorChildren=0;$script:realProcessFactory=(Get-Command New-OwnerCutoverConfigurationValidatorProcess).ScriptBlock;function script:New-OwnerCutoverConfigurationValidatorProcess($Info){$script:ownedValidatorChildren++;&$script:realProcessFactory $Info};function script:Get-OwnerCutoverWindowsDirectory {'C:\Windows'}} $stage ([string]$inputData.nodeExecutable)
   $cases=@('success','stderr','oversize','exit');foreach($mode in $cases){$wire=@{mode=$mode;canary='PUBLIC_SECRET_INPUT_NOT_OUTPUT'}|ConvertTo-Json -Compress
-   if($mode -ceq 'success'){&$module {param($j);Invoke-OwnerCutoverConfigurationValidator $j 'D:\Installed\release-current' 'C:\Users\Owner\JARVIS\production'} $wire}else{$code=$null;try{&$module {param($j);Invoke-OwnerCutoverConfigurationValidator $j 'D:\Installed\release-current' 'C:\Users\Owner\JARVIS\production'} $wire}catch{$code=$_.Exception.Message};Require ($code -ceq 'ROTATION_CUTOVER_PRIVATE_CONTEXT_REJECTED') 'CLOSED_OWNED_VALIDATOR_FAILURE'}
+   if($mode -ceq 'success'){try{&$module {param($j);Invoke-OwnerCutoverConfigurationValidator $j 'D:\Installed\release-current' 'C:\Users\Owner\JARVIS\production'} $wire}catch{$diagnostic=[ordered]@{scenario='validator-child';mode='success';probe=$publicInputProbe;errors=(Get-CutoverPublicValidatorLeafFacts)};[Console]::Error.WriteLine('CUTOVER_PUBLIC_VALIDATOR_DIAGNOSTIC '+($diagnostic|ConvertTo-Json -Depth 6 -Compress));throw}}else{$code=$null;try{&$module {param($j);Invoke-OwnerCutoverConfigurationValidator $j 'D:\Installed\release-current' 'C:\Users\Owner\JARVIS\production'} $wire}catch{$code=$_.Exception.Message};Require ($code -ceq 'ROTATION_CUTOVER_PRIVATE_CONTEXT_REJECTED') 'CLOSED_OWNED_VALIDATOR_FAILURE'}
   }
-  Require ((&$module {$script:ownedValidatorChildren}) -eq 4) 'REAL_OWNED_PUBLIC_CHILD_COUNT';@{pass=$true;validatorCases=$cases;ownedNodeChildren=4;actualNativeCalls=0}|ConvertTo-Json -Compress
+  Require ((&$module {$script:ownedValidatorChildren}) -eq 4) 'REAL_OWNED_PUBLIC_CHILD_COUNT';@{pass=$true;validatorCases=$cases;ownedNodeChildren=4;diagnosticOwnedNodeChildren=1;defaultInputProbe=$publicInputProbe;actualNativeCalls=0}|ConvertTo-Json -Compress
  }finally{$env:PUBLIC_PARENT_CANARY='';Close $dir;[IO.Directory]::Delete($owned,$true)};return
 }
 
