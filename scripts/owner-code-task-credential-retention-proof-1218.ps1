@@ -37,8 +37,73 @@ function Assert-R05FixtureApproval($Scope,[datetimeoffset]$Now,[string]$ScriptSh
  # Dispatcher independently seals one original approval and exactly one POST.
  return $Scope
 }
+function New-R05Diagnostics {
+ return [ordered]@{version=1;forwardFailure=$null;cleanupFailure=$null;cleanupFailedComponents=@();profileCleanupState='NOT_CHECKED'}
+}
+function Set-R05ProfileDiagnosticState($Diagnostics,[string]$State) {
+ try{
+  if($null -ne $Diagnostics -and $State -cin @('NOT_CHECKED','QUERY_FAILED','SID_MISMATCH_REFUSED','SPECIAL_REFUSED','LOADED_REFUSED','REMOVE_FAILED','READBACK_FAILED','STILL_PRESENT','ABSENT_CONFIRMED','REMOVED_AND_ABSENT_CONFIRMED')){$Diagnostics.profileCleanupState=$State}
+ }catch{}
+}
+function Convert-R05UInt32Scalar {
+ param($Value,[switch]$SignedInt32)
+ if($null -eq $Value -or $Value -is [bool] -or $Value -is [Enum]){return $null}
+ if($SignedInt32 -and $Value -is [int] -and $Value -lt 0){return [BitConverter]::ToUInt32([BitConverter]::GetBytes($Value),0)}
+ if($Value -isnot [byte] -and $Value -isnot [sbyte] -and $Value -isnot [int16] -and $Value -isnot [uint16] -and $Value -isnot [int] -and $Value -isnot [uint32] -and $Value -isnot [long] -and $Value -isnot [uint64]){return $null}
+ if($Value -lt 0 -or $Value -gt [uint32]::MaxValue){return $null}
+ return [uint32]$Value
+}
+function New-R05DiagnosticFault {
+ param($ErrorRecord,[string]$Component='NONE',[string]$Operation='OTHER',[string]$Origin='UNKNOWN',[string]$CallState='UNKNOWN')
+ $fault=[ordered]@{component='NONE';operation='OTHER';origin='UNKNOWN';callState='UNKNOWN';exceptionKind='NONE';hresult=$null;win32NativeCode=$null;cimNativeCode=$null;cimStatusCode=$null;cimProviderErrorCode=$null}
+ try{
+  if($Component -cin @('FORWARD','TASK','ACCOUNT_DISABLE','BATCH_RIGHT','PROFILE','ACCOUNT_REMOVE','FILES','NONE')){$fault.component=$Component}
+  if($Operation -cin @('TASK_ACTION_UPDATE','TASK_ACTION_RESTORE','PROFILE_QUERY','PROFILE_REMOVE','PROFILE_READBACK','OTHER')){$fault.operation=$Operation}
+  if($Origin -cin @('PRE_GUARD','CALL_THROW','POST_GUARD','SOURCE_REFUSAL','UNKNOWN')){$fault.origin=$Origin}
+  if($CallState -cin @('NOT_ENTERED','THREW','RETURNED','NOT_APPLICABLE','UNKNOWN')){$fault.callState=$CallState}
+  $exception=$null
+  if($ErrorRecord -is [Management.Automation.ErrorRecord]){$exception=$ErrorRecord.Exception}
+  elseif($ErrorRecord -is [Exception]){$exception=$ErrorRecord}
+  elseif($null -ne $ErrorRecord){$fault.exceptionKind='UNKNOWN'}
+  $selected=$exception;$cimType='Microsoft.Management.Infrastructure.CimException' -as [type]
+  if($exception){$fault.exceptionKind=if($exception -is [Management.Automation.RuntimeException]){'POWERSHELL'}else{'DOTNET'}}
+  for($depth=0;$null -ne $exception -and $depth -lt 8;$depth++){
+   if($null -ne $cimType -and $exception -is $cimType){$selected=$exception;$fault.exceptionKind='CIM';break}
+   if($exception -is [ComponentModel.Win32Exception]){$selected=$exception;$fault.exceptionKind='WIN32';break}
+   if($exception -is [Runtime.InteropServices.COMException]){$selected=$exception;$fault.exceptionKind='COM';break}
+   $exception=$exception.InnerException
+  }
+  if($selected){try{$value=$selected.HResult;if($value -is [int]){$fault.hresult=$value}}catch{}}
+  if($fault.exceptionKind -eq 'WIN32'){try{$fault.win32NativeCode=Convert-R05UInt32Scalar $selected.NativeErrorCode -SignedInt32}catch{}}
+  if($fault.exceptionKind -eq 'CIM'){
+   try{
+    $value=$selected.NativeErrorCode;$nativeType='Microsoft.Management.Infrastructure.NativeErrorCode' -as [type]
+    if($null -ne $nativeType -and $null -ne $value -and $value.GetType() -eq $nativeType){$fault.cimNativeCode=[Convert]::ToUInt32($value)}
+   }catch{}
+   try{$fault.cimStatusCode=Convert-R05UInt32Scalar $selected.StatusCode}catch{}
+   try{
+    $data=$selected.ErrorData;$instanceType='Microsoft.Management.Infrastructure.CimInstance' -as [type]
+    if($null -ne $instanceType -and $data -is $instanceType){
+     $property=$data.CimInstanceProperties['Error_Code']
+     if($null -ne $property){$fault.cimProviderErrorCode=Convert-R05UInt32Scalar $property.Value -SignedInt32}
+    }
+   }catch{}
+  }
+ }catch{} # Diagnostics may neither replace the original error nor emit private surfaces.
+ return $fault
+}
+function Save-R05DiagnosticFault {
+ param($Budget,[string]$Phase,$ErrorRecord,[string]$Component='NONE',[string]$Operation='OTHER',[string]$Origin='UNKNOWN',[string]$CallState='UNKNOWN')
+ try{
+  if($null -eq $Budget -or $null -eq $Budget.Diagnostics){return}
+  $diagnostics=$Budget.Diagnostics
+  if($Phase -eq 'Cleanup' -and $Component -cin @('TASK','ACCOUNT_DISABLE','BATCH_RIGHT','PROFILE','ACCOUNT_REMOVE','FILES') -and $diagnostics.cleanupFailedComponents -cnotcontains $Component){$diagnostics.cleanupFailedComponents+=@($Component)}
+  $field=if($Phase -eq 'Cleanup'){'cleanupFailure'}else{'forwardFailure'}
+  if($null -eq $diagnostics[$field]){$diagnostics[$field]=New-R05DiagnosticFault $ErrorRecord $Component $Operation $Origin $CallState}
+ }catch{}
+}
 function New-R05FixtureResult {
- return [ordered]@{schemaVersion=2;issue=1218;operation='ephemeral-password-task-retention-proof';complete=$false;
+ return [ordered]@{schemaVersion=3;issue=1218;operation='ephemeral-password-task-retention-proof';complete=$false;
   mode='PLAN_ONLY';failureCode=$null;failedStage=$null;cleanupFailureCode=$null;sourceRevision=$null;scriptSha256=$null;approvalSha256=$null;
   runId=$null;runAttempt=1;attemptId=$null;validationAccepted=$false;accountCreated=$false;taskCreated=$false;
   conditionalBatchRightAdded=$false;baselineRan=$false;changedRan=$false;restoredRan=$false;
@@ -48,7 +113,7 @@ function New-R05FixtureResult {
   taskRemoved=$false;accountRemoved=$false;ownProfileRemovedOrAbsent=$false;ownBatchRightRemovedOrAbsent=$false;
   ownFilesRemoved=$false;cleanupVerified=$false;existingTaskTouched=$false;productionTouched=$false;
   deadlineBudgetAdmitted=$false;forwardCompleted=$false;finalDeadlineValid=$false;forwardDeadlineExceeded=$false;cleanupDeadlineExceeded=$false;hardDeadlineExceeded=$false;
-  credentialValueEmitted=$false;rawIdentityOrPathEmitted=$false;nativeZBookAcceptanceCredit=0}
+  credentialValueEmitted=$false;rawIdentityOrPathEmitted=$false;nativeZBookAcceptanceCredit=0;diagnostics=(New-R05Diagnostics)}
 }
 
 class R05ProofBudget {
@@ -68,6 +133,8 @@ class R05ProofBudget {
  [bool]$ForwardExpired
  [bool]$CleanupExpired
  [bool]$HardExpired
+ [Collections.IDictionary]$Diagnostics
+ [string]$DiagnosticComponent='NONE'
 }
 function New-R05ProofBudget {
  param([datetimeoffset]$ScopeExpiry,[datetimeoffset]$JobDeadline,
@@ -116,13 +183,19 @@ function Start-R05ProofCleanup([R05ProofBudget]$Budget) {
  Assert-R05ProofBudget $Budget Cleanup
 }
 function Invoke-R05ProtectedApi {
- param([R05ProofBudget]$Budget,[ValidateSet('Forward','Cleanup')][string]$Phase,[scriptblock]$Action)
- Assert-R05ProofBudget $Budget $Phase
+ param([R05ProofBudget]$Budget,[ValidateSet('Forward','Cleanup')][string]$Phase,[scriptblock]$Action,[string]$Operation='OTHER',[string]$Component='NONE')
+ $componentSnapshot=if($Component -cne 'NONE'){$Component}elseif($Phase -eq 'Forward'){'FORWARD'}elseif($null -ne $Budget){$Budget.DiagnosticComponent}else{'NONE'}
+ $operationSnapshot=$Operation
+ try{Assert-R05ProofBudget $Budget $Phase}catch{Save-R05DiagnosticFault $Budget $Phase $_ $componentSnapshot $operationSnapshot 'PRE_GUARD' 'NOT_ENTERED';throw}
  $failure=$null;$value=$null
- try{$value=& $Action}catch{$failure=$_}
+ try{$value=& $Action}catch{$failure=$_;Save-R05DiagnosticFault $Budget $Phase $_ $componentSnapshot $operationSnapshot 'CALL_THROW' 'THREW'}
  # Action records returned owned handles/identities BEFORE this post-call guard.
  # A blocking OS API cannot be interrupted here; a late return cannot authorize another forward API or PASS.
- Assert-R05ProofBudget $Budget $Phase
+ try{Assert-R05ProofBudget $Budget $Phase}catch{
+  if($failure){Save-R05DiagnosticFault $Budget $Phase $failure $componentSnapshot $operationSnapshot 'CALL_THROW' 'THREW'}
+  else{Save-R05DiagnosticFault $Budget $Phase $_ $componentSnapshot $operationSnapshot 'POST_GUARD' 'RETURNED'}
+  throw
+ }
  if($failure){throw $failure}
  return $value
 }
@@ -148,15 +221,28 @@ function Get-R05FailureCode($ErrorRecord) {
 function Invoke-R05BudgetedRun {
  param([R05ProofBudget]$Budget,[scriptblock]$Forward,[scriptblock]$Cleanup,[scriptblock]$GetStage={'protected-api'})
  $out=[ordered]@{forwardCompleted=$false;cleanupCompleted=$false;finalDeadlineValid=$false;failureCode=$null;cleanupFailureCode=$null;failedStage=$null}
+ $forwardEntered=$false;$forwardReturned=$false;$cleanupEntered=$false;$cleanupReturned=$false
  try{
   Assert-R05ProofBudget $Budget Forward
+  $forwardEntered=$true
   & $Forward | Out-Null
+  $forwardReturned=$true
   Assert-R05ProofBudget $Budget Forward
   $out.forwardCompleted=$true
- }catch{$out.failureCode=Get-R05FailureCode $_;$out.failedStage=& $GetStage}
+ }catch{
+  $origin=if(-not $forwardEntered){'PRE_GUARD'}elseif($forwardReturned){'POST_GUARD'}else{'SOURCE_REFUSAL'}
+  $callState=if(-not $forwardEntered){'NOT_ENTERED'}elseif($forwardReturned){'RETURNED'}else{'NOT_APPLICABLE'}
+  Save-R05DiagnosticFault $Budget Forward $_ FORWARD OTHER $origin $callState
+  $out.failureCode=Get-R05FailureCode $_;$out.failedStage=& $GetStage
+ }
  finally{
-  try{Start-R05ProofCleanup $Budget;& $Cleanup | Out-Null;Assert-R05ProofBudget $Budget Cleanup;$out.cleanupCompleted=$true}
-  catch{$out.cleanupFailureCode=Get-R05FailureCode $_;if(-not $out.failureCode){$out.failureCode=$out.cleanupFailureCode;$out.failedStage='cleanup'}}
+  try{Start-R05ProofCleanup $Budget;$cleanupEntered=$true;& $Cleanup | Out-Null;$cleanupReturned=$true;Assert-R05ProofBudget $Budget Cleanup;$out.cleanupCompleted=$true}
+  catch{
+   $origin=if(-not $cleanupEntered){'PRE_GUARD'}elseif($cleanupReturned){'POST_GUARD'}else{'SOURCE_REFUSAL'}
+   $callState=if(-not $cleanupEntered){'NOT_ENTERED'}elseif($cleanupReturned){'RETURNED'}else{'NOT_APPLICABLE'}
+   Save-R05DiagnosticFault $Budget Cleanup $_ NONE OTHER $origin $callState
+   $out.cleanupFailureCode=Get-R05FailureCode $_;if(-not $out.failureCode){$out.failureCode=$out.cleanupFailureCode;$out.failedStage='cleanup'}
+  }
  }
  try{Assert-R05ProofBudget $Budget Final;$out.finalDeadlineValid=$true}catch{if(-not $out.failureCode){$out.failureCode=Get-R05FailureCode $_;$out.failedStage='final-deadline'}}
  return $out
@@ -280,7 +366,7 @@ function Invoke-R05CredentialProof {
   try{$processDeadline=[datetimeoffset]::Parse($env:GORIQ_PROOF_PROCESS_DEADLINE_UTC)}catch{throw 'PROOF_JOB_BUDGET_REQUIRED'}
   if(($processDeadline-[datetimeoffset]::UtcNow).TotalSeconds -gt 660){throw 'PROOF_JOB_BUDGET_REQUIRED'}
   $budget=New-R05ProofBudget -ScopeExpiry ([datetimeoffset]::Parse($scope.expiresAt)) -JobDeadline $processDeadline
-  $script:R05LastBudget=$budget;$result.deadlineBudgetAdmitted=$true;$result.mode='APPLY'
+  $budget.Diagnostics=$result.diagnostics;$script:R05LastBudget=$budget;$result.deadlineBudgetAdmitted=$true;$result.mode='APPLY'
   $owned.nonce=$scope.attemptId.Replace('-','');$owned.userName='grq25'+$owned.nonce.Substring(0,12);$owned.taskName='Goriq-R05-CredentialRetention-'+$owned.nonce
   $owned.root=[IO.Path]::GetFullPath((Join-Path $env:RUNNER_TEMP ('goriq-r05-proof-'+$owned.nonce)))
   $forward={
@@ -361,7 +447,7 @@ try{
     # Intentionally omit User, Password, Principal, Trigger and Settings.
     Set-ScheduledTask -TaskName $owned.taskName -TaskPath '\' -Action $changedAction | Out-Null
     $result.updateOmittedUserAndPassword=$true
-   }
+   } -Operation TASK_ACTION_UPDATE
    $changed=Get-R05TaskSnapshot $owned.taskName $owned.sid $budget
    if($changed.nonAction -cne $before.nonAction -or $changed.security -cne $before.security -or $changed.action -ceq $before.action){throw 'PROOF_TASK_BOUNDARY_CHANGED'}
    if($changed.execute -ceq $before.execute -or $changed.arguments -ceq $before.arguments -or $changed.workingDirectory -ceq $before.workingDirectory){throw 'PROOF_TASK_BOUNDARY_CHANGED'}
@@ -371,7 +457,7 @@ try{
    $null=Invoke-R05ProtectedApi $budget Forward {
     Set-ScheduledTask -TaskName $owned.taskName -TaskPath '\' -Action $baseAction | Out-Null
     $result.restoreOmittedUserAndPassword=$true
-   }
+   } -Operation TASK_ACTION_RESTORE
    $restored=Get-R05TaskSnapshot $owned.taskName $owned.sid $budget
    if($restored.nonAction -cne $before.nonAction -or $restored.security -cne $before.security -or $restored.action -cne $before.action){throw 'PROOF_TASK_BOUNDARY_CHANGED'}
    $result.actionRestored=$true
@@ -381,6 +467,7 @@ try{
   }.GetNewClosure()
   $cleanup={
    $owned.stage='cleanup'
+   $budget.DiagnosticComponent='TASK'
    try{
     if($owned.registered){
      $task=Invoke-R05ProtectedApi $budget Cleanup {Get-ScheduledTask -TaskName $owned.taskName -TaskPath '\' -ErrorAction SilentlyContinue}
@@ -399,13 +486,15 @@ try{
      $left=Invoke-R05ProtectedApi $budget Cleanup {Get-ScheduledTask -TaskName $owned.taskName -TaskPath '\' -ErrorAction SilentlyContinue}
      $result.taskRemoved= -not [bool]$left
     }else{$result.taskRemoved=$true}
-   }catch{if($budget.HardExpired -or $budget.CleanupExpired){throw}}
+   }catch{Save-R05DiagnosticFault $budget Cleanup $_ $budget.DiagnosticComponent OTHER SOURCE_REFUSAL NOT_APPLICABLE;if($budget.HardExpired -or $budget.CleanupExpired){throw}}finally{$budget.DiagnosticComponent='NONE'}
    if($result.accountCreated){
+    $budget.DiagnosticComponent='ACCOUNT_DISABLE'
     try{
      $live=Invoke-R05ProtectedApi $budget Cleanup {Get-LocalUser -Name $owned.userName}
      if($live.SID.Value -cne $owned.sid){throw 'PROOF_CLEANUP_FAILED'}
      $null=Invoke-R05ProtectedApi $budget Cleanup {Disable-LocalUser -InputObject $live}
-    }catch{if($budget.HardExpired -or $budget.CleanupExpired){throw}}
+    }catch{Save-R05DiagnosticFault $budget Cleanup $_ $budget.DiagnosticComponent OTHER SOURCE_REFUSAL NOT_APPLICABLE;if($budget.HardExpired -or $budget.CleanupExpired){throw}}finally{$budget.DiagnosticComponent='NONE'}
+    $budget.DiagnosticComponent='BATCH_RIGHT'
     try{
      $live=Invoke-R05ProtectedApi $budget Cleanup {Get-LocalUser -Name $owned.userName}
      if($live.SID.Value -cne $owned.sid){throw 'PROOF_CLEANUP_FAILED'}
@@ -413,25 +502,37 @@ try{
      $null=Invoke-R05ProtectedApi $budget Cleanup {$null=[R05FixtureNative]::BatchRight($owned.sid,2,$cleanupCheck)}
      $remainingRight=Invoke-R05ProtectedApi $budget Cleanup {[R05FixtureNative]::BatchRight($owned.sid,0,$cleanupCheck)}
      $result.ownBatchRightRemovedOrAbsent= -not $remainingRight
-    }catch{if($budget.HardExpired -or $budget.CleanupExpired){throw}}
+    }catch{Save-R05DiagnosticFault $budget Cleanup $_ $budget.DiagnosticComponent OTHER SOURCE_REFUSAL NOT_APPLICABLE;if($budget.HardExpired -or $budget.CleanupExpired){throw}}finally{$budget.DiagnosticComponent='NONE'}
+    $budget.DiagnosticComponent='PROFILE'
     try{
      $live=Invoke-R05ProtectedApi $budget Cleanup {Get-LocalUser -Name $owned.userName}
      if($live.SID.Value -cne $owned.sid){throw 'PROOF_CLEANUP_FAILED'}
-     $profiles=@(Invoke-R05ProtectedApi $budget Cleanup {Get-CimInstance -ClassName Win32_UserProfile -Filter ('SID="'+$owned.sid+'"')})
+     $profiles=@(Invoke-R05ProtectedApi $budget Cleanup {
+      try{Get-CimInstance -ClassName Win32_UserProfile -Filter ('SID="'+$owned.sid+'"')}catch{Set-R05ProfileDiagnosticState $result.diagnostics QUERY_FAILED;throw}
+     } -Operation PROFILE_QUERY)
      foreach($profile in $profiles){
-      if($profile.SID -cne $owned.sid -or $profile.Special -or $profile.Loaded){throw 'PROOF_CLEANUP_FAILED'}
-      $null=Invoke-R05ProtectedApi $budget Cleanup {Remove-CimInstance -InputObject $profile}
+      if($profile.SID -cne $owned.sid){Set-R05ProfileDiagnosticState $result.diagnostics SID_MISMATCH_REFUSED;throw 'PROOF_CLEANUP_FAILED'}
+      if($profile.Special){Set-R05ProfileDiagnosticState $result.diagnostics SPECIAL_REFUSED;throw 'PROOF_CLEANUP_FAILED'}
+      if($profile.Loaded){Set-R05ProfileDiagnosticState $result.diagnostics LOADED_REFUSED;throw 'PROOF_CLEANUP_FAILED'}
+      $null=Invoke-R05ProtectedApi $budget Cleanup {
+       try{Remove-CimInstance -InputObject $profile}catch{Set-R05ProfileDiagnosticState $result.diagnostics REMOVE_FAILED;throw}
+      } -Operation PROFILE_REMOVE
      }
-     $remainingProfiles=@(Invoke-R05ProtectedApi $budget Cleanup {Get-CimInstance -ClassName Win32_UserProfile -Filter ('SID="'+$owned.sid+'"')})
+     $remainingProfiles=@(Invoke-R05ProtectedApi $budget Cleanup {
+      try{Get-CimInstance -ClassName Win32_UserProfile -Filter ('SID="'+$owned.sid+'"')}catch{Set-R05ProfileDiagnosticState $result.diagnostics READBACK_FAILED;throw}
+     } -Operation PROFILE_READBACK)
      $result.ownProfileRemovedOrAbsent=$remainingProfiles.Count -eq 0
-    }catch{if($budget.HardExpired -or $budget.CleanupExpired){throw}}
+     Set-R05ProfileDiagnosticState $result.diagnostics $(if($remainingProfiles.Count -ne 0){'STILL_PRESENT'}elseif($profiles.Count -eq 0){'ABSENT_CONFIRMED'}else{'REMOVED_AND_ABSENT_CONFIRMED'})
+     if($remainingProfiles.Count -ne 0){Save-R05DiagnosticFault $budget Cleanup $null PROFILE PROFILE_READBACK SOURCE_REFUSAL NOT_APPLICABLE}
+    }catch{Save-R05DiagnosticFault $budget Cleanup $_ $budget.DiagnosticComponent OTHER SOURCE_REFUSAL NOT_APPLICABLE;if($budget.HardExpired -or $budget.CleanupExpired){throw}}finally{$budget.DiagnosticComponent='NONE'}
+    $budget.DiagnosticComponent='ACCOUNT_REMOVE'
     try{
      $live=Invoke-R05ProtectedApi $budget Cleanup {Get-LocalUser -Name $owned.userName}
      if($live.SID.Value -cne $owned.sid){throw 'PROOF_CLEANUP_FAILED'}
      $null=Invoke-R05ProtectedApi $budget Cleanup {Remove-LocalUser -InputObject $live}
      $remainingUser=Invoke-R05ProtectedApi $budget Cleanup {Get-LocalUser -Name $owned.userName -ErrorAction SilentlyContinue}
      $result.accountRemoved= -not [bool]$remainingUser
-    }catch{if($budget.HardExpired -or $budget.CleanupExpired){throw}}
+    }catch{Save-R05DiagnosticFault $budget Cleanup $_ $budget.DiagnosticComponent OTHER SOURCE_REFUSAL NOT_APPLICABLE;if($budget.HardExpired -or $budget.CleanupExpired){throw}}finally{$budget.DiagnosticComponent='NONE'}
    }else{
     if($owned.accountAttempted){
      $ambiguous=Invoke-R05ProtectedApi $budget Cleanup {Get-LocalUser -Name $owned.userName -ErrorAction SilentlyContinue}
@@ -439,6 +540,7 @@ try{
     }else{$result.accountRemoved=$true}
     $result.ownProfileRemovedOrAbsent=$true;$result.ownBatchRightRemovedOrAbsent=$true
    }
+   $budget.DiagnosticComponent='FILES'
    try{
     if($owned.rootCreated){
      $exists=Invoke-R05ProtectedApi $budget Cleanup {Test-Path -LiteralPath $owned.root}
@@ -456,7 +558,7 @@ try{
      $left=Invoke-R05ProtectedApi $budget Cleanup {Test-Path -LiteralPath $owned.root}
      $result.ownFilesRemoved= -not $left
     }else{$result.ownFilesRemoved=$true}
-   }catch{if($budget.HardExpired -or $budget.CleanupExpired){throw}}
+   }catch{Save-R05DiagnosticFault $budget Cleanup $_ $budget.DiagnosticComponent OTHER SOURCE_REFUSAL NOT_APPLICABLE;if($budget.HardExpired -or $budget.CleanupExpired){throw}}finally{$budget.DiagnosticComponent='NONE'}
    $result.cleanupVerified=$result.taskRemoved -and $result.accountRemoved -and $result.ownProfileRemovedOrAbsent -and $result.ownBatchRightRemovedOrAbsent -and $result.ownFilesRemoved
    if(-not $result.cleanupVerified){throw 'PROOF_CLEANUP_FAILED'}
   }.GetNewClosure()
