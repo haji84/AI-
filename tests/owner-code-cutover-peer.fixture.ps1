@@ -172,11 +172,16 @@ function New-PublicPeerEntryCounterfactual([string]$Source){
  $wrapper='function Get-OwnerCutoverPeerAncestryDiagnosticData {';Add-EntryInsertion $wrapper $wrapper.Length ((Get-EntryMarker 'DIAGNOSTIC_WRAPPER_ENTER'))
  $initial='$script:ownerCutoverPeerProbeState=@{stopwatch=';Add-EntryInsertion $initial 0 ((Get-EntryMarker 'PRODUCER_STATE_INIT_ENTER'))
  $stopwatch=$initial+'[Diagnostics.Stopwatch]::StartNew()';Add-EntryInsertion $stopwatch $initial.Length '$(<#PUBLIC_ENTRY_CF_STOPWATCH#>';Add-EntryInsertion $stopwatch $stopwatch.Length (';'+(Get-EntryMarker 'PRODUCER_STOPWATCH_RETURN')+')')
- $flag='([bool](Get-Variable ownerCutoverPeerProbeDiagnosticRequest -Scope Script -ValueOnly -ErrorAction SilentlyContinue))';Add-EntryInsertion $flag 0 ('$(<#PUBLIC_ENTRY_CF_FLAG#>'+(Get-EntryMarker 'DIAGNOSTIC_FLAG_READ_ENTER'));Add-EntryInsertion $flag $flag.Length (';'+(Get-EntryMarker 'DIAGNOSTIC_FLAG_READ_RETURN')+')')
+ $v1Flag='([bool](Get-Variable ownerCutoverPeerProbeDiagnosticRequest -Scope Script -ValueOnly -ErrorAction SilentlyContinue))';$v2Flag='([bool](Microsoft.PowerShell.Utility\Get-Variable ownerCutoverPeerProbeDiagnosticRequest -Scope Script -ValueOnly -ErrorAction SilentlyContinue))'
+ $v1Cleanup='Remove-Variable ownerCutoverPeerProbeDiagnosticRequest -Scope Script -ErrorAction SilentlyContinue';$v2Cleanup='Microsoft.PowerShell.Utility\'+$v1Cleanup
+ $v1Read=$Source.Contains($v1Flag);$v2Read=$Source.Contains($v2Flag);$v1Clear=$Source.Contains('}catch{}finally{'+$v1Cleanup+'}');$v2Clear=$Source.Contains('}catch{}finally{'+$v2Cleanup+'}')
+ if($v1Read -and $v1Clear -and -not $v2Read -and -not $v2Clear){$flagAccessVersion=1;$flag=$v1Flag;$cleanup=$v1Cleanup;$getCommand='Get-Variable';$removeCommand='Remove-Variable'}elseif($v2Read -and $v2Clear -and -not $v1Read -and -not $v1Clear){$flagAccessVersion=2;$flag=$v2Flag;$cleanup=$v2Cleanup;$getCommand='Microsoft.PowerShell.Utility\Get-Variable';$removeCommand='Microsoft.PowerShell.Utility\Remove-Variable'}else{throw 'PEER_FIXTURE_ENTRY_CF_EXACT_PAIRED_ACCESS_VERSION_REQUIRED'}
+ $logicalSource=$Source.Replace($v2Flag,$v1Flag).Replace($v2Cleanup,$v1Cleanup);Require (($logicalSource.Split([string[]]@($v1Flag),[StringSplitOptions]::None).Length-1) -eq 1 -and ($logicalSource.Split([string[]]@($v1Cleanup),[StringSplitOptions]::None).Length-1) -eq 1) 'ENTRY_CF_ONE_EXACT_LOGICAL_FLAG_PAIR'
+ Add-EntryInsertion $flag 0 ('$(<#PUBLIC_ENTRY_CF_FLAG#>'+(Get-EntryMarker 'DIAGNOSTIC_FLAG_READ_ENTER'));Add-EntryInsertion $flag $flag.Length (';'+(Get-EntryMarker 'DIAGNOSTIC_FLAG_READ_RETURN')+')')
  $ready="lastProgress='';progressRows=0;progressBytes=0}";Add-EntryInsertion $ready $ready.Length (';'+(Get-EntryMarker 'PRODUCER_STATE_READY'))
  $returned='$null=Get-OwnerCutoverPeerAncestryData;$completed=$true';Add-EntryInsertion $returned ('$null=Get-OwnerCutoverPeerAncestryData;'.Length) ((Get-EntryMarker 'DIAGNOSTIC_PRODUCER_RETURN'))
- $caught='}catch{}finally{Remove-Variable ownerCutoverPeerProbeDiagnosticRequest';Add-EntryInsertion $caught ('}catch{'.Length) ((Get-EntryMarker 'DIAGNOSTIC_PRODUCER_THROW'))
- $cleanup='Remove-Variable ownerCutoverPeerProbeDiagnosticRequest -Scope Script -ErrorAction SilentlyContinue';Add-EntryInsertion $cleanup 0 ((Get-EntryMarker 'DIAGNOSTIC_CLEANUP_ENTER'));Add-EntryInsertion $cleanup $cleanup.Length (';'+(Get-EntryMarker 'DIAGNOSTIC_CLEANUP_RETURN'))
+ $caught='}catch{}finally{'+$cleanup;Add-EntryInsertion $caught ('}catch{'.Length) ((Get-EntryMarker 'DIAGNOSTIC_PRODUCER_THROW'))
+ Add-EntryInsertion $cleanup 0 ((Get-EntryMarker 'DIAGNOSTIC_CLEANUP_ENTER'));Add-EntryInsertion $cleanup $cleanup.Length (';'+(Get-EntryMarker 'DIAGNOSTIC_CLEANUP_RETURN'))
  # The fixed plan has no provider, cmdlet, callback or warmup before the cold
  # original calls. Insert descending, then remove ascending at original offsets.
  $ordered=$steps.ToArray();for($i=0;$i -lt $ordered.Length;$i++){for($j=$i+1;$j -lt $ordered.Length;$j++){if($ordered[$j].offset -lt $ordered[$i].offset){$swap=$ordered[$i];$ordered[$i]=$ordered[$j];$ordered[$j]=$swap}}}
@@ -186,7 +191,7 @@ function New-PublicPeerEntryCounterfactual([string]$Source){
  foreach($step in $ordered){$restored=$restored.Remove($step.offset,$step.text.Length);$fragment+='$restoredCounterfactualSource=$restoredCounterfactualSource.Remove('+[string]$step.offset+','+[string]$step.text.Length+');'}
  Require ([string]::Equals($restored,$Source,[StringComparison]::Ordinal)) 'ENTRY_CF_EXACT_INSERTION_REMOVAL_IDENTITY'
  $fragment+='if(-not [string]::Equals($restoredCounterfactualSource,$originalCounterfactualSource,[StringComparison]::Ordinal)){throw ''PUBLIC_ENTRY_COUNTERFACTUAL_IDENTITY''};'
- return @{source=$instrumented;fragment=$fragment;insertions=$ordered.Length;markerCount=10;restored=$restored}
+ return @{source=$instrumented;fragment=$fragment;insertions=$ordered.Length;markerCount=10;restored=$restored;flagAccessVersion=$flagAccessVersion;flagExpression=$flag;getCommand=$getCommand;removeCommand=$removeCommand}
 }
 # Bounded public-only progress. Each owned fixture process has a separate
 # CreateNew file. Values contain closed phases and local elapsed time only.
@@ -581,16 +586,21 @@ if($ProbeDiagnosticTransport){
  # Get-Variable, Remove-Variable and Stopwatch remain original calls in both.
  $entryOriginal=([Text.UTF8Encoding]::new($false,$true)).GetString([IO.File]::ReadAllBytes((Join-Path $Root 'scripts/owner-code-rotation-native-1218.ps1')));$entryPlan=New-PublicPeerEntryCounterfactual $entryOriginal
  Require ($entryPlan.markerCount -eq 10 -and $entryPlan.insertions -eq 11 -and $entryPlan.restored -ceq $entryOriginal) 'ENTRY_CF_EXACT_INSERTION_REMOVAL_IDENTITY'
+ $v1Source=$entryOriginal.Replace('([bool](Microsoft.PowerShell.Utility\Get-Variable ownerCutoverPeerProbeDiagnosticRequest -Scope Script -ValueOnly -ErrorAction SilentlyContinue))','([bool](Get-Variable ownerCutoverPeerProbeDiagnosticRequest -Scope Script -ValueOnly -ErrorAction SilentlyContinue))').Replace('Microsoft.PowerShell.Utility\Remove-Variable ownerCutoverPeerProbeDiagnosticRequest -Scope Script -ErrorAction SilentlyContinue','Remove-Variable ownerCutoverPeerProbeDiagnosticRequest -Scope Script -ErrorAction SilentlyContinue')
+ $v2Source=$v1Source.Replace('([bool](Get-Variable ownerCutoverPeerProbeDiagnosticRequest -Scope Script -ValueOnly -ErrorAction SilentlyContinue))','([bool](Microsoft.PowerShell.Utility\Get-Variable ownerCutoverPeerProbeDiagnosticRequest -Scope Script -ValueOnly -ErrorAction SilentlyContinue))').Replace('Remove-Variable ownerCutoverPeerProbeDiagnosticRequest -Scope Script -ErrorAction SilentlyContinue','Microsoft.PowerShell.Utility\Remove-Variable ownerCutoverPeerProbeDiagnosticRequest -Scope Script -ErrorAction SilentlyContinue')
+ $v1Plan=New-PublicPeerEntryCounterfactual $v1Source;$v2Plan=New-PublicPeerEntryCounterfactual $v2Source;Require ($v1Plan.flagAccessVersion -eq 1 -and $v2Plan.flagAccessVersion -eq 2 -and $v1Plan.restored -ceq $v1Source -and $v2Plan.restored -ceq $v2Source) 'ENTRY_CF_BOTH_EXACT_PAIRED_VERSIONS'
+ foreach($badAccess in @($v1Source.Replace('([bool](Get-Variable ownerCutoverPeerProbeDiagnosticRequest -Scope Script -ValueOnly -ErrorAction SilentlyContinue))','([bool](Microsoft.PowerShell.Utility\Get-Variable ownerCutoverPeerProbeDiagnosticRequest -Scope Script -ValueOnly -ErrorAction SilentlyContinue))'),$v1Source.Replace('Remove-Variable ownerCutoverPeerProbeDiagnosticRequest -Scope Script -ErrorAction SilentlyContinue','Microsoft.PowerShell.Utility\Remove-Variable ownerCutoverPeerProbeDiagnosticRequest -Scope Script -ErrorAction SilentlyContinue'),$v2Source.Replace('Microsoft.PowerShell.Utility\Get-Variable ownerCutoverPeerProbeDiagnosticRequest','PUBLIC_UNKNOWN\Get-Variable ownerCutoverPeerProbeDiagnosticRequest'),($v2Source+'([bool](Microsoft.PowerShell.Utility\Get-Variable ownerCutoverPeerProbeDiagnosticRequest -Scope Script -ValueOnly -ErrorAction SilentlyContinue))'))){$closed=$false;try{$null=New-PublicPeerEntryCounterfactual $badAccess}catch{$closed=$true};Require $closed 'ENTRY_CF_MIXED_UNKNOWN_DUPLICATE_ACCESS_REFUSED'}
  $entryReplay=&{param($Fragment,$Bytes) $b=$Bytes;.([scriptblock]::Create($Fragment));return $counterfactualSource} $entryPlan.fragment ([Text.Encoding]::UTF8.GetBytes($entryOriginal));Require ($entryReplay -ceq $entryPlan.source) 'ENTRY_CF_HELPER_FRAGMENT_EXACT'
  $fragmentTokens=$null;$fragmentErrors=$null;$fragmentAst=[Management.Automation.Language.Parser]::ParseInput($entryPlan.fragment,[ref]$fragmentTokens,[ref]$fragmentErrors);Require ($fragmentErrors.Count -eq 0 -and @($fragmentAst.FindAll({param($a) $a -is [Management.Automation.Language.CommandAst]},$true)).Count -eq 0) 'ENTRY_CF_NO_CMDLET_PROVIDER_OR_WARMUP_IN_HELPER_FRAGMENT'
- foreach($badSource in @('',($entryOriginal+'Remove-Variable ownerCutoverPeerProbeDiagnosticRequest -Scope Script -ErrorAction SilentlyContinue'),$entryOriginal.Replace('([bool](Get-Variable ownerCutoverPeerProbeDiagnosticRequest -Scope Script -ValueOnly -ErrorAction SilentlyContinue))','PUBLIC_CHANGED_FLAG_ANCHOR'))){$closed=$false;try{$null=New-PublicPeerEntryCounterfactual $badSource}catch{$closed=$true};Require $closed 'ENTRY_CF_CHANGED_SOURCE_ANCHOR_REFUSED'}
+ foreach($badSource in @('',($entryOriginal+'Remove-Variable ownerCutoverPeerProbeDiagnosticRequest -Scope Script -ErrorAction SilentlyContinue'),$entryOriginal.Replace($entryPlan.flagExpression,'PUBLIC_CHANGED_FLAG_ANCHOR'))){$closed=$false;try{$null=New-PublicPeerEntryCounterfactual $badSource}catch{$closed=$true};Require $closed 'ENTRY_CF_CHANGED_SOURCE_ANCHOR_REFUSED'}
  $entryAsts=@();foreach($text in @($entryOriginal,$entryPlan.source)){$tokens=$null;$parseErrors=$null;$ast=[Management.Automation.Language.Parser]::ParseInput($text,[ref]$tokens,[ref]$parseErrors);Require ($parseErrors.Count -eq 0) 'ENTRY_CF_PARSE';$entryAsts+=,$ast}
  foreach($name in @('Get-OwnerCutoverPeerAncestryData','Get-OwnerCutoverPeerAncestryDiagnosticData')){
-  $inventories=@();foreach($ast in $entryAsts){$f=@($ast.FindAll({param($a) $a -is [Management.Automation.Language.FunctionDefinitionAst] -and $a.Name -ceq $name},$true));Require ($f.Count -eq 1) 'ENTRY_CF_ONE_ORIGINAL_FUNCTION';$inventory=@($f[0].FindAll({param($a) $a -is [Management.Automation.Language.CommandAst]},$true)|ForEach-Object {$_.GetCommandName()}|Sort-Object);$inventories+=,($inventory -join '|');if($name -ceq 'Get-OwnerCutoverPeerAncestryData'){Require (@($inventory|Where-Object {$_ -ceq 'Get-Variable'}).Count -eq 1 -and @($f[0].FindAll({param($a) $a -is [Management.Automation.Language.InvokeMemberExpressionAst] -and $a.Expression.Extent.Text -ceq '[Diagnostics.Stopwatch]' -and $a.Member.Extent.Text -ceq 'StartNew'},$true)).Count -eq 1) 'ENTRY_CF_ORIGINAL_COMMAND_CALL_COUNTS'}else{Require (@($inventory|Where-Object {$_ -ceq 'Remove-Variable'}).Count -eq 1 -and @($inventory|Where-Object {$_ -ceq 'Get-OwnerCutoverPeerAncestryData'}).Count -eq 1) 'ENTRY_CF_ORIGINAL_COMMAND_CALL_COUNTS'}}
+  $inventories=@();foreach($ast in $entryAsts){$f=@($ast.FindAll({param($a) $a -is [Management.Automation.Language.FunctionDefinitionAst] -and $a.Name -ceq $name},$true));Require ($f.Count -eq 1) 'ENTRY_CF_ONE_ORIGINAL_FUNCTION';$inventory=@($f[0].FindAll({param($a) $a -is [Management.Automation.Language.CommandAst]},$true)|ForEach-Object {$_.GetCommandName()}|Sort-Object);$inventories+=,($inventory -join '|');if($name -ceq 'Get-OwnerCutoverPeerAncestryData'){Require (@($inventory|Where-Object {$_ -ceq $entryPlan.getCommand}).Count -eq 1 -and @($f[0].FindAll({param($a) $a -is [Management.Automation.Language.InvokeMemberExpressionAst] -and $a.Expression.Extent.Text -ceq '[Diagnostics.Stopwatch]' -and $a.Member.Extent.Text -ceq 'StartNew'},$true)).Count -eq 1) 'ENTRY_CF_ORIGINAL_COMMAND_CALL_COUNTS'}else{Require (@($inventory|Where-Object {$_ -ceq $entryPlan.removeCommand}).Count -eq 1 -and @($inventory|Where-Object {$_ -ceq 'Get-OwnerCutoverPeerAncestryData'}).Count -eq 1) 'ENTRY_CF_ORIGINAL_COMMAND_CALL_COUNTS'}}
   Require ($inventories[0] -ceq $inventories[1]) 'ENTRY_CF_COMMAND_CLOSURE_EXACT'
  }
+ foreach($entryVersion in @(@{original=$v1Source;plan=$v1Plan},@{original=$v2Source;plan=$v2Plan})){
  foreach($entryCase in @('success','numeric','expiry','raw-error')){
-  $observations=@();foreach($text in @($entryOriginal,$entryPlan.source)){
+  $observations=@();foreach($text in @($entryVersion.original,$entryVersion.plan.source)){
    $script:peerCase=$entryCase;$script:peerTrace.Clear();$script:peerElapsed=0;$capture=[IO.StringWriter]::new()
    try{[Console]::SetOut($capture);$value=&{param($Source,$Adapters,$Case)
     .([scriptblock]::Create($Source));foreach($name in $Adapters.Keys){Set-Item -Path ('function:'+ $name) -Value $Adapters[$name]}
@@ -601,6 +611,7 @@ if($ProbeDiagnosticTransport){
   }
   Require ($observations[0].json -ceq $observations[1].json -and $observations[0].trace -ceq $observations[1].trace -and $observations[0].plain -ceq $observations[1].plain -and $observations[0].markers.Count -eq 0 -and $observations[1].markers.Count -eq 9) 'ENTRY_CF_DIFFERENTIAL_OBSERVATIONS'
  }
+ }
  @{pass=$true;diagnosticCases=5;nativeAuthority=$false;actualNativeCalls=0}|ConvertTo-Json -Compress;return
 }
 $cases=@('success','cycle','owner','session','node-hash','signature','image','numeric','creation','newer-parent','extra','expiry');$rows=@()
@@ -609,3 +620,45 @@ foreach($which in $cases){$script:peerCase=$which;$script:peerTrace.Clear();$scr
  $rows+=@{case=$which;expected=$(if($which -ceq 'success'){'DATA_ONLY'}else{'REFUSE'})}
 }
 [ordered]@{pass=$true;cases=$rows;actualNativeCalls=0;authority=$false}|ConvertTo-Json -Depth 4 -Compress
+
+# Frozen qualification corpus: two parameter bindings differ from private RED.
+ $qualifiedFlagControls=@'
+param([string]$NativePath,[string]$FixturePath)
+$ErrorActionPreference='Stop';Set-StrictMode -Version Latest
+$fixture=$FixturePath
+function Definition([string]$File,[string]$Name){$t=$null;$e=$null;$a=[Management.Automation.Language.Parser]::ParseFile($File,[ref]$t,[ref]$e);if($e.Count){throw 'PUBLIC_CORPUS_PARSE'};$f=@($a.FindAll({param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -ceq $Name -and $n.Parent -is [Management.Automation.Language.NamedBlockAst]},$true));if($f.Count -ne 1){throw 'PUBLIC_CORPUS_DEFINITION'};return $f[0].Extent.Text}
+$source=[IO.File]::ReadAllText($NativePath);$oldGet='([bool](Get-Variable ownerCutoverPeerProbeDiagnosticRequest -Scope Script -ValueOnly -ErrorAction SilentlyContinue))';$newGet='([bool](Microsoft.PowerShell.Utility\Get-Variable ownerCutoverPeerProbeDiagnosticRequest -Scope Script -ValueOnly -ErrorAction SilentlyContinue))';$oldRemove='Remove-Variable ownerCutoverPeerProbeDiagnosticRequest -Scope Script -ErrorAction SilentlyContinue';$newRemove='Microsoft.PowerShell.Utility\'+$oldRemove
+if($source.Contains($newGet)){$currentGet=$newGet}else{if(-not $source.Contains($oldGet)){throw 'PUBLIC_SOURCE_GET_FORM'};$currentGet=$oldGet};if($source.Contains($newRemove)){$currentRemove=$newRemove}else{if(-not $source.Contains($oldRemove)){throw 'PUBLIC_SOURCE_REMOVE_FORM'};$currentRemove=$oldRemove}
+$rows=@();foreach($kind in @('absent','null','false','true','empty-array','one-false','two-false','zero','one','private','allscope','readonly','constant')){
+ $value=switch($kind){'null'{$null}'false'{$false}'empty-array'{,@()}'one-false'{,@($false)}'two-false'{,@($false,$false)}'zero'{0}'one'{1}default{$true}}
+ foreach($cleanup in @('old','qualified')){
+  $module=New-Module -ArgumentList @($kind,$value,$oldGet,$newGet,$oldRemove,$newRemove) -ScriptBlock {param($Kind,$Value,$OldGet,$NewGet,$OldRemove,$NewRemove)
+   $ErrorActionPreference='Stop';Set-StrictMode -Version Latest
+   if($Kind -cne 'absent'){$option=switch($Kind){'private'{[Management.Automation.ScopedItemOptions]::Private}'allscope'{[Management.Automation.ScopedItemOptions]::AllScope}'readonly'{[Management.Automation.ScopedItemOptions]::ReadOnly}'constant'{[Management.Automation.ScopedItemOptions]::Constant}default{[Management.Automation.ScopedItemOptions]::None}};New-Variable -Name ownerCutoverPeerProbeDiagnosticRequest -Scope Script -Value $Value -Option $option}
+   .([scriptblock]::Create(('function Read-Old {return '+$OldGet+'};function Read-Qualified {return '+$NewGet+'};function Clear-Old {'+$OldRemove+'};function Clear-Qualified {'+$NewRemove+'}')))
+   function Read-Nested {$local:ownerCutoverPeerProbeDiagnosticRequest='PUBLIC_LOCAL_SHADOW';return @{old=(Read-Old);qualified=(Read-Qualified)}}
+  }
+  $row=&$module {param($Cleanup,$Kind)
+   $nested=Read-Nested;$old=Read-Old;$qualified=Read-Qualified;$same=$old -eq $qualified -and $nested.old -eq $old -and $nested.qualified -eq $qualified
+   $before=Microsoft.PowerShell.Utility\Get-Variable ownerCutoverPeerProbeDiagnosticRequest -Scope Script -ErrorAction SilentlyContinue
+   $prior=$Error.Count;if($Cleanup -ceq 'old'){Clear-Old}else{Clear-Qualified};$count=$Error.Count-$prior;$fqid=if($count){$Error[0].FullyQualifiedErrorId}else{'NONE'}
+   $after=Microsoft.PowerShell.Utility\Get-Variable ownerCutoverPeerProbeDiagnosticRequest -Scope Script -ErrorAction SilentlyContinue
+   return @{kind=$Kind;cleanup=$Cleanup;old=$old;qualified=$qualified;nestedSame=$same;remains=($null -ne $after);errorCount=$count;errorId=$fqid;variableIdentityPreserved=($null -eq $after -or [object]::ReferenceEquals($before,$after))}
+  } $cleanup $kind
+  $rows+=,$row
+ }
+}
+$normalPass=$true;foreach($kind in @('absent','null','false','true','empty-array','one-false','two-false','zero','one','private','allscope','readonly','constant')){$pair=@($rows|Where-Object {$_.kind -ceq $kind});if($pair.Count -ne 2 -or -not $pair[0].nestedSame -or -not $pair[1].nestedSame -or $pair[0].remains -ne $pair[1].remains -or $pair[0].errorCount -ne $pair[1].errorCount -or $pair[0].errorId -cne $pair[1].errorId -or -not $pair[0].variableIdentityPreserved -or -not $pair[1].variableIdentityPreserved){$normalPass=$false}}
+$definitions='';foreach($n in @('Assert-OwnerRotationEntryShape','Get-OwnerCutoverPeerAncestryData','Get-OwnerCutoverPeerAncestryDiagnosticData','Write-OwnerCutoverPeerProbeDiagnosticProgress','Assert-OwnerCutoverPeerProbeBudget')){$definitions+=(Definition $NativePath $n)+"`n"};foreach($n in @('Get-OwnerCutoverPeerProbePlatform','Get-OwnerCutoverPeerProbeSelfId','Get-OwnerCutoverPeerProbeElapsedMs','Read-OwnerCutoverPeerProcessData')){$definitions+=(Definition $fixture $n)+"`n"}
+# The only resolver trap is last, in its own disposable module. These fixed
+# public fakes model unavailable UNQUALIFIED resolution, never the Windows cause.
+$counter=New-Module -ArgumentList $definitions -ScriptBlock {param($Definitions)
+ .([scriptblock]::Create($Definitions));$script:peerCase='success';$script:peerTrace=[Collections.Generic.List[int]]::new();$script:peerElapsed=[long]0;$script:gets=0;$script:removes=0
+ function Get-Variable {[CmdletBinding()]param([Parameter(Position=0)][string]$Name,[string]$Scope,[switch]$ValueOnly) if($Name -cne 'ownerCutoverPeerProbeDiagnosticRequest'){throw 'PUBLIC_TRAP_SCOPE'};$script:gets++;throw 'PUBLIC_UNQUALIFIED_RESOLVER_UNAVAILABLE'}
+ function Remove-Variable {[CmdletBinding()]param([Parameter(Position=0)][string]$Name,[string]$Scope) if($Name -cne 'ownerCutoverPeerProbeDiagnosticRequest'){throw 'PUBLIC_TRAP_SCOPE'};$script:removes++;throw 'PUBLIC_UNQUALIFIED_RESOLVER_UNAVAILABLE'}
+ function Run-Counter { $capture=[IO.StringWriter]::new();$out=[Console]::Out;$value=$null;$refused=$false;try{[Console]::SetOut($capture);$value=Get-OwnerCutoverPeerAncestryDiagnosticData}catch{$refused=$true}finally{[Console]::SetOut($out);$capture.Dispose()};$flag=Microsoft.PowerShell.Utility\Get-Variable ownerCutoverPeerProbeDiagnosticRequest -Scope Script -ErrorAction SilentlyContinue;return @{returned=(-not $refused);completed=($null -ne $value -and $value.ancestryCompleted);cleaned=($null -eq $flag);getResolverTrapHits=$script:gets;removeResolverTrapHits=$script:removes;observationCount=$script:peerTrace.Count}}
+}
+$result=&$counter {Run-Counter};$counterPass=$result.returned -and $result.completed -and $result.cleaned -and $result.getResolverTrapHits -eq 0 -and $result.removeResolverTrapHits -eq 0 -and $result.observationCount -eq 3
+@{profile='goriq-public-qualified-flag-regression-v1';normalRows=$rows;normalEquivalence=$normalPass;counterfactual=$result;counterfactualPass=$counterPass;pass=($normalPass -and $counterPass);meaning='UNQUALIFIED_RESOLVER_TRAP_NOT_PROVED_WINDOWS_CAUSE';actualWindows=$false;nativeAuthority=$false;actualNativeCalls=0}|ConvertTo-Json -Depth 6 -Compress
+if(-not $normalPass -or -not $counterPass){exit 1}
+'@

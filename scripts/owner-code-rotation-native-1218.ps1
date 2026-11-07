@@ -96,7 +96,7 @@ function Read-OwnerCutoverPeerProcessData {
 }
 function Get-OwnerCutoverPeerAncestryData {
  # No external PID/server/path/command/clock is accepted by this entry.
- $script:ownerCutoverPeerProbeState=@{stopwatch=[Diagnostics.Stopwatch]::StartNew();lastElapsed=[long]0;cursor=$null;index=0;phase='PLATFORM';exceptionClass='NONE';actualExceptionHResult=$null;diagnosticProgress=([bool](Get-Variable ownerCutoverPeerProbeDiagnosticRequest -Scope Script -ValueOnly -ErrorAction SilentlyContinue));lastProgress='';progressRows=0;progressBytes=0}
+ $script:ownerCutoverPeerProbeState=@{stopwatch=[Diagnostics.Stopwatch]::StartNew();lastElapsed=[long]0;cursor=$null;index=0;phase='PLATFORM';exceptionClass='NONE';actualExceptionHResult=$null;diagnosticProgress=([bool](Microsoft.PowerShell.Utility\Get-Variable ownerCutoverPeerProbeDiagnosticRequest -Scope Script -ValueOnly -ErrorAction SilentlyContinue));lastProgress='';progressRows=0;progressBytes=0}
  try{
   Write-OwnerCutoverPeerProbeDiagnosticProgress;Assert-OwnerCutoverPeerProbeBudget;$platform=Get-OwnerCutoverPeerProbePlatform;Assert-OwnerCutoverPeerProbeBudget
   if($platform.windows -isnot [bool] -or -not $platform.windows -or $platform.major -isnot [int] -or $platform.major -ne 5 -or $platform.nativeSystem -isnot [string] -or $platform.nativeSystem -cnotmatch '^[A-Za-z]:\\[^:\r\n\0]+\\System32$'){throw 'REFUSE'}
@@ -122,7 +122,7 @@ function Get-OwnerCutoverPeerAncestryData {
 # it never returns process facts, exception text, or a native capability.
 function Get-OwnerCutoverPeerAncestryDiagnosticData {
  if($args.Count -ne 0){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}
- $completed=$false;$script:ownerCutoverPeerProbeDiagnosticRequest=$true;try{$null=Get-OwnerCutoverPeerAncestryData;$completed=$true}catch{}finally{Remove-Variable ownerCutoverPeerProbeDiagnosticRequest -Scope Script -ErrorAction SilentlyContinue}
+ $completed=$false;$script:ownerCutoverPeerProbeDiagnosticRequest=$true;try{$null=Get-OwnerCutoverPeerAncestryData;$completed=$true}catch{}finally{Microsoft.PowerShell.Utility\Remove-Variable ownerCutoverPeerProbeDiagnosticRequest -Scope Script -ErrorAction SilentlyContinue}
  $state=$script:ownerCutoverPeerProbeState
  $phases=@('PLATFORM','ROW_READ','PROCESS_QUERY','PROCESS_OPEN','OWNER_QUERY','NATIVE_COMPILE','IMAGE_OPEN','IMAGE_IDENTITY','IMAGE_READ','IMAGE_RECHECK','SIGNATURE','ROW_SHAPE','ROW_BINDING','CHAIN_BINDING','COMPLETE')
  if($state.phase -cnotin $phases -or $state.index -isnot [int] -or $state.index -lt 0 -or $state.index -gt 2 -or $state.exceptionClass -cnotin @('NONE','RUNTIME','METHOD_INVOCATION','CIM','IO','ACCESS','OTHER') -or ($null -ne $state.actualExceptionHResult -and $state.actualExceptionHResult -isnot [int]) -or ($completed -and ($state.phase -cne 'COMPLETE' -or $state.exceptionClass -cne 'NONE' -or $null -ne $state.actualExceptionHResult))){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}
