@@ -244,8 +244,15 @@ function hostedPrivateModel(config = {}) {
       callback(response);config.responseTime?.(clock,index);response.emit("data",config.oversize?Buffer.alloc(262145):Buffer.from(JSON.stringify(index===0?run:jobs)));response.emit("end");
     });return request;
   };
+  // Old models keep the new wait at abstract zero modeled time so their
+  // established arithmetic/assertions stay exact. Dedicated settle controls
+  // below advance both original clocks; ONLY this fixed timer is intercepted.
+  const modelSetTimeout=(callback,delay,...args)=>{
+    if(delay!==30000)return setTimeout(callback,delay,...args);
+    calls.push({kind:"settle",delay});globalThis.queueMicrotask(()=>{config.settle?.(clock);callback(...args);});return undefined;
+  };
   const context={Buffer,Error,URL,Date:ModelDate,process:processModel,Set,WeakMap,Object,JSON,BigInt,Number,Math,Promise,
-    setTimeout,clearTimeout,delimiter,dirname,join,relative,resolve,sep,isAbsolute,fileURLToPath,createHash,randomUUID,
+    setTimeout:modelSetTimeout,clearTimeout,delimiter,dirname,join,relative,resolve,sep,isAbsolute,fileURLToPath,createHash,randomUUID,
     failure:code=>Object.assign(Error(code),{code}),bounded:(n,max)=>Number.isInteger(n)&&n>0&&n<=max,
     statSync:()=>({isFile:()=>true,size:100}),realpathSync:path=>path,existsSync:()=>true,
     readFileSync:()=>{config.sourceRead?.(clock);return Buffer.from(sourceValue);},mkdirSync:path=>{if(ledger.has(path))throw Error("EEXIST");ledger.add(path);},
@@ -531,4 +538,33 @@ test("private combined malformed run diagnostics mark the unreachable workflow c
  const m=hostedPrivateModel({metadata:r=>{r.status="queued";r.path="PUBLIC_DIAGNOSTIC_CANARY";r.repository.private=true;r.workflow_id={valueOf:null};}});
  await assert.rejects(m.api.beginHostedCiEntry(),error=>{assert.equal(error.code,"HOSTED_CI_OFFICIAL_RUN_MISMATCH");assert.equal(error.message,runDiagnosticPrefix+Array.from({length:13},(_x,i)=>[3,6,9,11,12].includes(i)?"1":"0").join(""));return true;});
  assert.equal(m.calls.filter(x=>x.kind==="GET").length,2);assert.equal(m.calls.filter(x=>x.kind==="process").length,0);await assert.rejects(m.api.beginHostedCiEntry(),/ENTRY_REFUSED/);
+});
+
+
+test("private fixed settling wait follows original allocation source and Git and consumes original clocks without renewal",async()=>{
+ for(const [monoMs,utcMs] of [[30000,30000],[45000,45000],[30000,50000],[45000,30000]]){
+  let sourceReads=0,atSettle;const m=hostedPrivateModel({sourceRead:()=>{sourceReads++;},settle:c=>{atSettle={git:m.calls.filter(x=>x.kind==="baseGit").length,gets:m.calls.filter(x=>x.kind==="GET").length,sourceReads,claimed:m.ledger.has("/public/temp/goriq-verifier-live-evidence/entry.json")};c.mono+=BigInt(monoMs)*1000000n;c.utc+=utcMs;}});
+  const originalMono=m.clock.mono,originalUtc=m.clock.utc,entry=await m.api.beginHostedCiEntry(),budget=m.api.observeHostedCiBudget(entry.token,"SETUP");
+  assert.equal(m.calls.filter(x=>x.kind==="settle").length,1);assert.deepEqual(atSettle,{git:2,gets:0,sourceReads:6,claimed:true});
+  assert.equal(entry.context.originalModuleMono,String(originalMono));assert.equal(entry.context.originalModuleUtc,originalUtc);assert.equal(entry.context.originalAcceptanceMono,String(originalMono+1800000n*1000000n));
+  assert.equal(budget.remainingMs,1800000-Math.max(monoMs,utcMs));assert.ok(Date.parse(entry.context.expiresAt)<=originalUtc+1800000);assert.equal(m.calls.filter(x=>x.kind==="GET").length,2);assert.equal(m.calls.filter(x=>x.kind==="process").length,0);
+ }
+});
+
+test("private settle overshoot expiry rollback forward and identity drift refuse before metadata and retain anti-remint",async()=>{
+ const cases=[{name:"original equality",mono:1800000,utc:1800000,code:"ACCEPTANCE_EXPIRED"},{name:"UTC expired",mono:30000,utc:1800000,code:"ACCEPTANCE_EXPIRED"},
+  {name:"UTC rollback",mono:30000,utc:-1,code:"CLOCK_INVALID"},{name:"mono reversal",mono:-1,utc:30000,code:"MONOTONIC_INVALID"},
+  {name:"context",mono:30000,utc:30000,code:"CONTEXT_DRIFT",mutate:m=>{m.env.GITHUB_JOB="other";}},{name:"source",mono:30000,utc:30000,code:"SOURCE_DRIFT",mutate:m=>m.alterSource()}];
+ for(const item of cases){const m=hostedPrivateModel({settle:c=>{c.mono+=BigInt(item.mono)*1000000n;c.utc+=item.utc;item.mutate?.(m);}});let issued=false;
+  await assert.rejects(m.api.beginHostedCiEntry().then(value=>{issued=true;return value;}),new RegExp(item.code),item.name);assert.equal(issued,false);assert.equal(m.calls.filter(x=>x.kind==="settle").length,1);assert.equal(m.calls.filter(x=>x.kind==="GET"||x.kind==="process").length,0);assert.ok(m.ledger.has("/public/temp/goriq-verifier-live-evidence/entry.json"));
+  await assert.rejects(m.api.beginHostedCiEntry(),/ENTRY_REFUSED/);assert.equal(m.calls.filter(x=>x.kind==="settle").length,1);
+ }
+});
+
+test("private pending settle cannot replay or replace strict in-progress identity with a retry",async()=>{
+ for(const status of ["in_progress","queued","completed",null,{}]){const m=hostedPrivateModel({metadata:r=>{r.status=status;},settle:c=>{c.mono+=30000n*1000000n;c.utc+=30000;}});
+  const first=m.api.beginHostedCiEntry();assert.equal(m.calls.filter(x=>x.kind==="settle").length,1);assert.equal(m.calls.filter(x=>x.kind==="GET").length,0);const replay=m.api.beginHostedCiEntry();await assert.rejects(replay,/ENTRY_REFUSED/);
+  if(status==="in_progress"){const entry=await first;assert.ok(Object.isFrozen(entry.token));}else await assert.rejects(first,error=>{assert.equal(error.code,"HOSTED_CI_OFFICIAL_RUN_MISMATCH");assert.equal(error.message,"HOSTED_CI_OFFICIAL_RUN_MISMATCH:RUN_IDENTITY_V1:0001000000000");return true;});
+  assert.equal(m.calls.filter(x=>x.kind==="settle").length,1);assert.equal(m.calls.filter(x=>x.kind==="GET").length,2);assert.equal(m.calls.filter(x=>x.kind==="process").length,0);await assert.rejects(m.api.beginHostedCiEntry(),/ENTRY_REFUSED/);
+ }
 });

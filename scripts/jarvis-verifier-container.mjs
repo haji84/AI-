@@ -377,6 +377,10 @@ export async function beginHostedCiEntry() {
     writeFileSync(join(evidenceDirectory, "entry.json"), JSON.stringify({ originalModuleMono: hostedOriginMono.toString(), originalModuleUtc: hostedOriginUtc,
       repository: "haji84/AI-", runId: hostedCapture.env.GITHUB_RUN_ID, attempt: 1, job: "independent-verifier-container" }) + "\n", { flag: "wx", mode: 0o600 });
     state.sourcePins = hostedSourcePins(); const baseRevision = hostedReadBase(state);
+    // One fixed availability wait consumes the original entry lifetime. It
+    // cannot renew origins or substitute for either strict official response.
+    await new Promise(resolve => setTimeout(resolve, 30000));
+    hostedClock(state); hostedIdentity(state);
     const path = `/repos/haji84/AI-/actions/runs/${hostedCapture.env.GITHUB_RUN_ID}`;
     const run = await hostedOfficialGet(state, path);
     const jobs = await hostedOfficialGet(state, `${path}/attempts/1/jobs?per_page=100`);
