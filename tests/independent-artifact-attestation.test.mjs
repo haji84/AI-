@@ -89,3 +89,12 @@ test("independent verifier refuses main checkout, non-text or oversized generate
     assert.throws(() => attestLocalCandidate({...request,workspace:f.original}), /WORKTREE_INVALID/);
   } finally { f.close(); }
 });
+
+
+test("attestation threads only an own opaque hosted lifetime and preserves ordinary ignored options",()=>{
+ const f=fixture();try{const path="docs/public-hosted.txt";writeFileSync(join(f.candidate,path),"public bounded data\n");const scope={workspace:f.candidate,baseRevision:f.revision,targetPath:path,allowedUntracked:[path]},normal=attestLocalCandidate(scope);
+ assert.equal(attestLocalCandidate(scope,{unrelated:true}).artifactDigest,normal.artifactDigest);
+ assert.equal(attestLocalCandidate(scope,Object.create({hostedCiLifetime:{}})).artifactDigest,normal.artifactDigest);
+ assert.throws(()=>attestLocalCandidate(scope,{hostedCiLifetime:{}}),/HOSTED_CI_/);
+ }finally{f.close();}
+});

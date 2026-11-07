@@ -4,11 +4,12 @@
 import assert from "node:assert/strict";
 import { createHash, generateKeyPairSync, randomUUID } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, readdirSync, rmSync, statSync, writeFileSync, openSync, closeSync, fstatSync, readSync, constants } from "node:fs";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { runIndependentVerifier, verifierCommand, verifierCheckTimeoutMs } from "./jarvis-independent-check-runner.mjs";
+import { runIndependentVerifier, verifierCommand } from "./jarvis-independent-check-runner.mjs";
 import { attestLocalCandidate } from "./jarvis-independent-artifact-attestation.mjs";
+import { beginHostedCiEntry, observeHostedCiBudget } from "./jarvis-verifier-container.mjs";
 import { createDevelopmentVerificationPlan, evaluateDevelopmentVerification } from "../src/orchestrator/development-verification-plan.ts";
 import { validateSignedLocalVerifierReceipt } from "../src/orchestrator/signed-local-verifier-receipt.ts";
 
@@ -108,28 +109,74 @@ test("real verifier container keeps the Builder away from signer and host", () =
 
 /** Not called by imports or node --test. The explicit CLI and hosted guard
  * precede every filesystem mutation, image build, key fixture and Docker call. */
+function readPrivateHostedReceipt(file) {
+  const fd=openSync(file,constants.O_RDONLY|(constants.O_NOFOLLOW??0));
+  try {
+    const before=fstatSync(fd);
+    if(!before.isFile()||before.nlink!==1||before.size<1||before.size>24576)throw Error("LIVE_RECEIPT_SIZE_INVALID");
+    const bytes=Buffer.alloc(24577);let count=0,n;
+    while(count<bytes.length&&(n=readSync(fd,bytes,count,bytes.length-count,null))>0)count+=n;
+    const after=fstatSync(fd);
+    if(count!==before.size||after.size!==before.size||after.mtimeMs!==before.mtimeMs||count>24576)throw Error("LIVE_RECEIPT_CHANGED");
+    return Buffer.from(bytes.subarray(0,count));
+  } finally {closeSync(fd);}
+}
+// Promotion follows owned cleanup and original-cut observations. A later refusal
+// exits nonzero; the authentic failed-job uploader policy excludes this one file.
+// Attempted unlink is defensive: synchronous filesystem calls are not preemptible.
+function publishHostedCiReceipt(token,request,bytes,evidenceDirectory,cleanupConfirmed) {
+  if(cleanupConfirmed!==true||!request||!Buffer.isBuffer(bytes)||bytes.length<1||bytes.length>24576)
+    throw Error("LIVE_RECEIPT_PROMOTION_REFUSED");
+  observeHostedCiBudget(token,"FINAL_ACCEPT");
+  const file=join(evidenceDirectory,"receipt.json");
+  try {
+    writeFileSync(file,bytes,{flag:"wx",mode:0o600});
+    observeHostedCiBudget(token,"FINAL_CHECK");
+    return hash(bytes);
+  } catch(error) {
+    rmSync(file,{force:true});
+    throw error;
+  }
+}
 async function executeHostedCI() {
   assertHostedVerifierCI();
-  const repo = realpathSync(process.cwd()), temporary = realpathSync(process.env.RUNNER_TEMP);
-  const git = (...args) => execFileSync("git", ["-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false", ...args],
-    { cwd: repo, encoding: "utf8", timeout: 30_000, maxBuffer: 4 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"] }).trim();
-  assert.equal(realpathSync(git("rev-parse", "--show-toplevel")), repo, "LIVE_REPOSITORY_ROOT_REQUIRED");
-  assert.equal(git("status", "--porcelain", "-uall"), "", "LIVE_CLEAN_CHECKOUT_REQUIRED");
-  const baseRevision = git("rev-parse", "HEAD"), id = randomUUID();
-  const evidenceDirectory = join(temporary, "goriq-verifier-live-evidence");
-  mkdirSync(evidenceDirectory, { mode: 0o700 }); // exclusive: never overwrite an old run
-  const root = mkdtempSync(join(temporary, "goriq-verifier-live-"));
-  const candidate = join(root, "candidate"), runner = join(root, "runner"), receiptFile = join(root, "receipt.json");
-  const privateKeyFile = join(root, "ephemeral-ci-signer.pem"), registryName = "goriq-ci-registry-" + id;
-  const registryImage = "registry:2.8.3@sha256:a3d8aaa63ed8681a604f1dea0aa03f100d5895b6a58ace528858a7b332415373";
-  const dockerEnv = { PATH: process.env.PATH, HOME: join(root, "home"), DOCKER_CONFIG: join(root, "docker-config") };
-  mkdirSync(dockerEnv.HOME, { mode: 0o700 }); mkdirSync(dockerEnv.DOCKER_CONFIG, { mode: 0o700 });
-  const docker = (args, timeout = 60_000) => execFileSync("docker", args,
-    { env: dockerEnv, cwd: root, encoding: "utf8", timeout, maxBuffer: 8 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"] }).trim();
-  const writeEvidence = (name, value) => writeFileSync(join(evidenceDirectory, name), JSON.stringify(value, null, 2) + "\n", { mode: 0o600 });
-  let registryAttempted = false, image, outcome = { status: "FAILED", physicalAcceptanceVerified: false, baseRevision };
-  const savedEnv = Object.fromEntries(["GORIQ_VERIFIER_OPERATOR_ISOLATED", "GORIQ_VERIFIER_CONTAINER_IMAGE", "GORIQ_CI_PRIVATE_CANARY"].map(k => [k, process.env[k]]));
+  const {token,context:entryContext}=await beginHostedCiEntry();
+  const repo=realpathSync(process.cwd()),temporary=entryContext.temporary,evidenceDirectory=entryContext.evidenceDirectory;
+  const baseRevision=entryContext.baseRevision,id=randomUUID(),trustedOptions=Object.freeze({hostedCiLifetime:token});
+  let root,candidate,runner,receiptFile,privateKeyFile,dockerEnv,boundRequest,pendingOutcome,privateReceipt;
+  const registryName="goriq-ci-registry-"+id;
+  const registryImage="registry:2.8.3@sha256:a3d8aaa63ed8681a604f1dea0aa03f100d5895b6a58ace528858a7b332415373";
+  const guardedExec=(executable,args,ceiling,options,cleanup=false)=>{
+    const before=observeHostedCiBudget(token,cleanup?"CLEANUP":"SETUP"),timeout=Math.min(ceiling,before.remainingMs);
+    if(timeout<=0)throw Error(cleanup?"HOSTED_CI_OUTER_EXPIRED":"HOSTED_CI_ACCEPTANCE_EXPIRED");
+    let value;try {value=execFileSync(executable,args,{...options,timeout});}
+    catch(error){observeHostedCiBudget(token,cleanup?"CLEANUP":"SETUP_RETURN");throw error;}
+    observeHostedCiBudget(token,cleanup?"CLEANUP":"SETUP_RETURN");return value.trim();
+  };
+  const gitCall=(args,cleanup=false)=>guardedExec(entryContext.gitExecutable,["-c","core.hooksPath=/dev/null","-c","core.fsmonitor=false",...args],30000,
+    {cwd:repo,encoding:"utf8",maxBuffer:4*1024*1024,stdio:["ignore","pipe","pipe"]},cleanup);
+  const git=(...args)=>gitCall(args);
+  const dockerCall=(args,ceiling=60000,cleanup=false)=>guardedExec(entryContext.dockerExecutable,args,ceiling,
+    {env:dockerEnv,cwd:root,encoding:"utf8",maxBuffer:8*1024*1024,stdio:["ignore","pipe","pipe"]},cleanup);
+  const docker=(args,ceiling)=>dockerCall(args,ceiling);
+  const writeEvidence=(name,value,cleanup=false)=>{
+    observeHostedCiBudget(token,cleanup?"CLEANUP":"EVIDENCE_BEFORE");
+    writeFileSync(join(evidenceDirectory,name),JSON.stringify(value,null,2)+"\n",{mode:0o600});
+    observeHostedCiBudget(token,cleanup?"CLEANUP":"EVIDENCE_AFTER");
+  };
+  let registryAttempted=false,candidateAttempted=false,runnerAttempted=false,image,outcome={status:"FAILED",containerExecutionVerified:false,physicalAcceptanceVerified:false,baseRevision};
+  const savedEnv=Object.fromEntries(["GORIQ_VERIFIER_OPERATOR_ISOLATED","GORIQ_VERIFIER_CONTAINER_IMAGE","GORIQ_CI_PRIVATE_CANARY"].map(key=>[key,process.env[key]]));
   try {
+    observeHostedCiBudget(token,"SETUP");
+    assert.equal(realpathSync(git("rev-parse","--show-toplevel")),repo,"LIVE_REPOSITORY_ROOT_REQUIRED");
+    assert.equal(git("status","--porcelain","-uall"),"","LIVE_CLEAN_CHECKOUT_REQUIRED");
+    assert.equal(git("rev-parse","HEAD"),baseRevision,"LIVE_OFFICIAL_BASE_CHANGED");
+    root=mkdtempSync(join(temporary,"goriq-verifier-live-"));
+    candidate=join(root,"candidate");runner=join(root,"runner");receiptFile=join(root,"receipt.json");
+    privateKeyFile=join(root,"ephemeral-ci-signer.pem");
+    dockerEnv={PATH:process.env.PATH,HOME:join(root,"home"),DOCKER_CONFIG:join(root,"docker-config")};
+    mkdirSync(dockerEnv.HOME,{mode:0o700});mkdirSync(dockerEnv.DOCKER_CONFIG,{mode:0o700});
+    observeHostedCiBudget(token,"SETUP_RETURN");
     // Check the same local default endpoint used by the production runner's
     // deliberately restricted environment; never redirect it to remote Docker.
     assert.equal(docker(["context", "show"]), "default", "LIVE_LOCAL_DOCKER_REQUIRED");
@@ -140,7 +187,8 @@ async function executeHostedCI() {
       baseRevision, githubRunId: process.env.GITHUB_RUN_ID, node: process.version,
       registryImage, dockerClient: version.Client.Version, dockerServer: version.Server.Version,
       buildProfile: { id: "next-webpack-v1", command: "pnpm", args: ["build", "--webpack"] },
-      limits: { timeoutMs: 180_000, timeoutMsByCheck: Object.fromEntries(CHECKS.map(name => [name, verifierCheckTimeoutMs(name)])),
+      hostedBudget:entryContext,
+      limits: { timeoutMs: 180_000, timeoutMsByCheck: Object.fromEntries(CHECKS.map(name => [name, ["unit","integration"].includes(name)?600000:180000])),
         memoryBytes: 2147483648, pids: 128, tmpfsMiB: 1536, network: "none", uid: 65534 } });
     const context = join(root, "image-context"); mkdirSync(context, { mode: 0o700 });
     for (const file of ["package.json", "pnpm-lock.yaml"]) copyFileSync(join(repo, file), join(context, file));
@@ -168,13 +216,15 @@ async function executeHostedCI() {
       docker(["image", "inspect", tag, "--format", "{{.Id}}"]), "LIVE_IMAGE_ID_MISMATCH");
     writeEvidence("image.json", { image, buildProfile: "next-webpack-v1", buildContextHashes: Object.fromEntries(readdirSync(context).sort()
       .map(name => [name, hash(readFileSync(join(context, name)))])) });
-    git("worktree", "add", "--detach", candidate, baseRevision);
-    git("worktree", "add", "--detach", runner, baseRevision);
+    candidateAttempted=true;git("worktree", "add", "--detach", candidate, baseRevision);
+    runnerAttempted=true;git("worktree", "add", "--detach", runner, baseRevision);
     const targetPath = "docs/verifier-live-result.txt", probePath = "tests/verifier-ci-boundary-probe.test.mjs";
     const boundaryMarker = "GORIQ_REAL_BOUNDARY_PROBE_PASS:" + id;
     writeFileSync(join(candidate, targetPath), "Full repository real-container CI candidate\n", { flag: "wx" });
     writeFileSync(join(candidate, probePath), boundaryProbe(privateKeyFile, boundaryMarker), { flag: "wx" });
-    const identity = attestLocalCandidate({ workspace: candidate, baseRevision, targetPath, allowedUntracked: [targetPath, probePath] });
+    observeHostedCiBudget(token,"ATTEST_BEFORE");
+    const identity = attestLocalCandidate({ workspace: candidate, baseRevision, targetPath, allowedUntracked: [targetPath, probePath] },trustedOptions);
+    observeHostedCiBudget(token,"ATTEST_AFTER");
     const keys = generateKeyPairSync("ed25519"), publicKeyPem = keys.publicKey.export({ type: "spki", format: "pem" }).toString();
     writeFileSync(privateKeyFile, keys.privateKey.export({ type: "pkcs8", format: "pem" }), { flag: "wx", mode: 0o600 });
     writeFileSync(join(evidenceDirectory, "public-key.pem"), publicKeyPem, { flag: "wx", mode: 0o600 });
@@ -182,63 +232,90 @@ async function executeHostedCI() {
       builderId: "ci-untrusted-container", verifierId: "ci-host-signer", baseRevision,
       sourceRevision: identity.candidateRevision, artifactDigest: identity.artifactDigest,
       targetPath, allowedUntracked: [targetPath, probePath], requiredChecks: [...CHECKS],
-      candidateWorkspace: candidate, verifierWorkspace: runner, privateKeyFile, receiptFile };
+      candidateWorkspace: candidate, verifierWorkspace: runner, privateKeyFile, receiptFile, expiresAt:entryContext.expiresAt };
     // This acknowledgement is scoped to ephemeral CI keys only. It is never
     // evidence of provisioned AI09 production signer/Builder OS principals.
     process.env.GORIQ_VERIFIER_OPERATOR_ISOLATED = "1";
     process.env.GORIQ_VERIFIER_CONTAINER_IMAGE = image;
     process.env.GORIQ_CI_PRIVATE_CANARY = randomUUID();
     process.stdout.write("LIVE_STAGE:six-real-checks\n");
-    const result = await runIndependentVerifier(request);
+    boundRequest=request;
+    const result = await runIndependentVerifier(request,{hostedCiLifetime:token});
     writeEvidence("runner-result.json", result);
+    observeHostedCiBudget(token,"AUDIT_BEFORE");
     const audited = auditLiveVerifierReceipt({ request, publicKeyPem, expectedImage: image,
       expectedFileHashes: identity.fileHashes, boundaryMarker });
-    assert.equal(result.verified, true, "LIVE_RUNNER_NOT_VERIFIED");
-    outcome = { ...outcome, status: "PASSED", ...audited, image,
+    observeHostedCiBudget(token,"AUDIT_AFTER");
+    assert.equal(result.provisionalVerified, true, "LIVE_RUNNER_NOT_VERIFIED");
+    pendingOutcome = { ...outcome, ...audited, image,
       goalId: request.goalId, jobId: request.jobId, changeSetId: request.changeSetId,
       sourceRevision: identity.candidateRevision, artifactDigest: identity.artifactDigest,
       publicKeySha256: hash(publicKeyPem) };
-  } catch (error) {
-    outcome = { ...outcome, status: "FAILED", image: image ?? null,
-      error: String(error.message).slice(0, 1000) };
-    // Preserve bounded Docker build/setup diagnostics without uploading any
-    // workspace, Docker config, environment dump or ephemeral private key.
-    if (error.stderr) writeFileSync(join(evidenceDirectory, "setup-error.log"), String(error.stderr).slice(-64_000), { mode: 0o600 });
+  } catch(error) {
+    outcome={...outcome,status:"FAILED",image:image??null,error:String(error.message).slice(0,1000)};
+    if(error.stderr){try{observeHostedCiBudget(token,"CLEANUP");writeFileSync(join(evidenceDirectory,"setup-error.log"),String(error.stderr).slice(-64000),{mode:0o600});observeHostedCiBudget(token,"CLEANUP");}catch{/* Failure evidence never makes acceptance eligible. */}}
   } finally {
-    for (const [key, value] of Object.entries(savedEnv)) {
-      if (value === undefined) delete process.env[key]; else process.env[key] = value;
-    }
-    const cleanupErrors = [];
+    const cleanupErrors=[];
+    // Read the provisional receipt into a bounded PRIVATE buffer before root
+    // removal. Never copy it under any uploadable failure-artifact name.
     try {
-      if (existsSync(receiptFile)) copyFileSync(receiptFile, join(evidenceDirectory, "receipt.json"));
-      const logs = receiptFile + ".logs";
-      if (existsSync(logs)) {
-        mkdirSync(join(evidenceDirectory, "checks"), { mode: 0o700 });
-        for (const check of CHECKS) if (existsSync(join(logs, check + ".json")))
-          copyFileSync(join(logs, check + ".json"), join(evidenceDirectory, "checks", check + ".json"));
+      observeHostedCiBudget(token,"CLEANUP");
+      if(receiptFile&&existsSync(receiptFile))privateReceipt=readPrivateHostedReceipt(receiptFile);
+      const logs=receiptFile?receiptFile+".logs":null;
+      if(logs&&existsSync(logs)){
+        mkdirSync(join(evidenceDirectory,"checks"),{mode:0o700});
+        for(const check of CHECKS){const file=join(logs,check+".json");if(existsSync(file)){
+          observeHostedCiBudget(token,"CLEANUP");assert.ok(statSync(file).size<=16*1024*1024,"LIVE_LOG_SIZE_INVALID");
+          copyFileSync(file,join(evidenceDirectory,"checks",check+".json"));observeHostedCiBudget(token,"CLEANUP");
+        }}
       }
-    } catch (error) { cleanupErrors.push("retain-evidence:" + String(error.message).slice(0, 500)); }
+      observeHostedCiBudget(token,"CLEANUP");
+    }catch(error){cleanupErrors.push("retain-evidence:"+String(error.message).slice(0,500));}
     try {
-      if (registryAttempted) {
-        // --rm can already have removed the fixture. Only a successful empty
-        // daemon listing confirms absence; rm exit1 alone establishes nothing.
-        try { docker(["rm", "--force", "--volumes", registryName]); } catch { /* Confirm below. */ }
-        assert.equal(docker(["container", "ls", "--all", "--filter", "name=^/" + registryName + "$", "--format", "{{.Names}}"]),
-          "", "LIVE_REGISTRY_CLEANUP_UNCONFIRMED");
+      if(registryAttempted){
+        try{dockerCall(["rm","--force","--volumes",registryName],60000,true);}catch{/* Confirm original owned name below. */}
+        assert.equal(dockerCall(["container","ls","--all","--filter","name=^/"+registryName+"$","--format","{{.Names}}"],60000,true),"","LIVE_REGISTRY_CLEANUP_UNCONFIRMED");
       }
-    } catch (error) { cleanupErrors.push("registry:" + String(error.message).slice(0, 500)); }
+    }catch(error){cleanupErrors.push("registry:"+String(error.message).slice(0,500));}
     try {
-      assert.equal(dirname(realpathSync(root)), temporary, "LIVE_CLEANUP_ROOT_INVALID");
-      assert.ok(basename(root).startsWith("goriq-verifier-live-"), "LIVE_CLEANUP_ROOT_INVALID");
-      for (const path of [candidate, runner]) if (existsSync(path)) git("worktree", "remove", "--force", path);
-      rmSync(root, { recursive: true });
-    } catch (error) { cleanupErrors.push("filesystem:" + String(error.message).slice(0, 500)); }
-    outcome.fixtureCleanupConfirmed = cleanupErrors.length === 0;
-    if (cleanupErrors.length) outcome = { ...outcome, status: "FAILED", cleanupErrors };
-    writeEvidence("result.json", outcome);
-    process.stdout.write(JSON.stringify(outcome) + "\n");
+      if(root){
+        let safeRoot=false;
+        try{observeHostedCiBudget(token,"CLEANUP");assert.equal(dirname(realpathSync(root)),temporary,"LIVE_CLEANUP_ROOT_INVALID");
+          assert.ok(basename(root).startsWith("goriq-verifier-live-"),"LIVE_CLEANUP_ROOT_INVALID");safeRoot=true;
+        }catch(error){cleanupErrors.push("filesystem-scope:"+String(error.message).slice(0,500));}
+        if(safeRoot){
+          for(const [path,attempted] of [[candidate,candidateAttempted],[runner,runnerAttempted]]){
+            if(!attempted)continue;
+            try{gitCall(["worktree","remove","--force",path],true);}
+            catch(error){cleanupErrors.push("worktree:"+String(error.message).slice(0,500));}
+          }
+          try{observeHostedCiBudget(token,"CLEANUP");rmSync(root,{recursive:true});observeHostedCiBudget(token,"CLEANUP");
+            assert.equal(existsSync(root),false,"LIVE_ROOT_CLEANUP_UNCONFIRMED");
+          }catch(error){cleanupErrors.push("root:"+String(error.message).slice(0,500));}
+        }
+      }
+    }catch(error){cleanupErrors.push("filesystem:"+String(error.message).slice(0,500));}
+    for(const [key,value] of Object.entries(savedEnv)){if(value===undefined)delete process.env[key];else process.env[key]=value;}
+    outcome.fixtureCleanupConfirmed=cleanupErrors.length===0;
+    if(cleanupErrors.length)outcome={...outcome,status:"FAILED",cleanupErrors};
+    try {
+      if(pendingOutcome&&privateReceipt&&cleanupErrors.length===0){
+        observeHostedCiBudget(token,"GLOBAL_CLEANUP_CONFIRMED");
+        const receiptSha256=publishHostedCiReceipt(token,boundRequest,privateReceipt,evidenceDirectory,true);
+        outcome={...pendingOutcome,status:"PASSED",fixtureCleanupConfirmed:true,receiptSha256};
+        writeEvidence("result.json",outcome);
+        observeHostedCiBudget(token,"FINAL_AFTER");
+      } else {outcome={...outcome,status:"FAILED",containerExecutionVerified:false};writeEvidence("result.json",outcome,true);}
+    }catch(error){
+      outcome={...outcome,status:"FAILED",containerExecutionVerified:false,error:String(error.message).slice(0,1000)};
+      try{rmSync(join(evidenceDirectory,"receipt.json"),{force:true});}catch{outcome.receiptRemovalUnconfirmed=true;}
+      try{writeEvidence("result.json",outcome,true);}catch{/* No valid signed bytes are printed. */}
+    } finally {privateReceipt?.fill(0);}
+    // Stdout is unsigned diagnostic data. Acceptance lives in the guarded
+    // artifact plus original expiry and official CI gates, not a printed PASS.
+    process.stdout.write(JSON.stringify({status:outcome.status==="PASSED"?"COMPLETED":"FAILED",fixtureCleanupConfirmed:outcome.fixtureCleanupConfirmed,physicalAcceptanceVerified:false})+"\n");
   }
-  assert.equal(outcome.status, "PASSED", "LIVE_VERIFIER_CI_FAILED");
+  assert.equal(outcome.status,"PASSED","LIVE_VERIFIER_CI_FAILED");
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {

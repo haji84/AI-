@@ -75,3 +75,23 @@ tests/owner-code-task-retention-recovery.test.mjs text eol=lf
 tests/owner-code-task-retention-recovery.test.ps1 text eol=lf
 tests/owner-code-task-collection.test.mjs text eol=lf
 tests/owner-code-task-collection.test.ps1 text eol=lf
+
+# Source40 closed production cutover and original-clock inert fixtures.
+scripts/owner-code-production-cutover-1218.ps1 text eol=lf
+scripts/owner-code-cutover-bootstrap.test.mjs text eol=lf
+scripts/owner-code-cutover-private-bootstrap.test.mjs text eol=lf
+scripts/owner-code-cutover-profile.test.mjs text eol=lf
+scripts/owner-code-production-cutover-contract.test.mjs text eol=lf
+scripts/owner-code-production-cutover-helper.test.mjs text eol=lf
+scripts/owner-code-production-proof.test.mjs text eol=lf
+tests/fixtures/owner-code-production-proof.fixture.mjs text eol=lf
+tests/owner-code-cutover-bootstrap.fixture.ps1 text eol=lf
+tests/owner-code-cutover-private-bootstrap.fixture.ps1 text eol=lf
+tests/owner-code-cutover-profile.fixture.ps1 text eol=lf
+tests/owner-code-production-cutover.fixture.ps1 text eol=lf
+
+# Additional source40 closed clean-start fixtures.
+scripts/owner-code-cutover-clean-start.test.mjs text eol=lf
+tests/owner-code-cutover-clean-start.fixture.ps1 text eol=lf
+scripts/owner-code-cutover-peer.test.mjs text eol=lf
+tests/owner-code-cutover-peer.fixture.ps1 text eol=lf
