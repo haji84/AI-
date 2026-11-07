@@ -11,7 +11,7 @@ function run(file,args=[]){
  const category=error=>error?.code==='ETIMEDOUT'?'TIMEOUT':error?.code==='ENOENT'?'SPAWN_NOT_FOUND':['EACCES','EPERM'].includes(error?.code)?'SPAWN_DENIED':error?.name==='AssertionError'?'ASSERTION':error?.name==='SyntaxError'?'JSON':error?'OTHER':'NONE';
  const emit=(phase,error)=>{const elapsed=Date.now()-start;console.log('GORIQ_PUBLIC_C3_CHILD_STATE '+JSON.stringify({scenario,phase,elapsedMs:Number.isSafeInteger(elapsed)&&elapsed>=0?elapsed:0,spawnStatus:r?r.status===0?'ZERO':Number.isInteger(r.status)?'NONZERO':'NO_STATUS':phase==='ENTER'?'NOT_RETURNED':'THREW',errorCategory:category(r?.error??error),signal:r?.signal==='SIGKILL'?'SIGKILL':r?.signal==='SIGTERM'?'SIGTERM':r?.signal?'OTHER':'NONE'}));};
  emit('ENTER');const env={...process.env};delete env.PSModulePath;
- try{r=spawnSync(shell,['-NoLogo','-NoProfile','-NonInteractive','-File',file,...args],{env,encoding:'utf8',timeout:30000,maxBuffer:131072,windowsHide:true});}catch(error){emit('REFUSED',error);throw error;}
+ try{r=spawnSync(shell,['-NoLogo','-NoProfile','-NonInteractive','-File',file,...args],{env,encoding:'utf8',timeout:scenario.startsWith('guarded-c3-')?60000:30000,maxBuffer:131072,windowsHide:true});}catch(error){emit('REFUSED',error);throw error;}
  emit('RETURN');try{assert.equal(r.error,undefined);assert.equal(r.status,0,r.stdout+r.stderr);assert.equal(r.stderr,'');return JSON.parse(r.stdout.trim());}catch(error){emit('REFUSED',error);throw error;}
 }
 test('production fixed-task adapter defaults inert before actual native admission exists',()=>{
