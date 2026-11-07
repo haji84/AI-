@@ -723,7 +723,7 @@ if(@($rows|Where-Object {-not $_.pass}).Count){exit 1}
 param([string]$Fixture,[string]$Vector,[string]$ExpectedWire)
 $ErrorActionPreference='Stop';Set-StrictMode -Version Latest
 $t=$null;$e=$null;$ast=[Management.Automation.Language.Parser]::ParseFile($Fixture,[ref]$t,[ref]$e);$f=@($ast.FindAll({param($a)$a -is [Management.Automation.Language.FunctionDefinitionAst] -and $a.Name -ceq 'Get-PublicWindowsEofActorSource'},$true));if($f.Count -ne 1){'{"pass":false,"reason":"MISSING_WINDOWS_EOF_ACTOR","nativeAuthority":false}';exit 1};.([scriptblock]::Create($f[0].Extent.Text));$source=Get-PublicWindowsEofActorSource
-$null=Add-Type -TypeDefinition $source
+if($PSVersionTable.PSVersion.Major -eq 5){$runtime=[Runtime.InteropServices.RuntimeEnvironment]::GetRuntimeDirectory();$null=Add-Type -TypeDefinition $source -ReferencedAssemblies @([IO.Path]::Combine($runtime,'System.Runtime.Serialization.dll'),[IO.Path]::Combine($runtime,'System.Xml.dll'))}else{$null=Add-Type -TypeDefinition $source}
 $actual=[Text.Encoding]::UTF8.GetBytes([PublicWindowsEofActor]::RenderReply([IO.File]::ReadAllText($Vector)));$expected=[IO.File]::ReadAllBytes($ExpectedWire);$pass=[Convert]::ToBase64String($actual) -ceq [Convert]::ToBase64String($expected)
 @{pass=$pass;profile='goriq-public-windows-eof-actor-wire-v1';exactWireBytes=$actual.Length;sourceCompiledAsLibrary=$true;actualNativeCalls=0;actualWindowsExecuted=$false;nativeAuthority=$false}|ConvertTo-Json -Compress;if(-not $pass){exit 1}
 '@
