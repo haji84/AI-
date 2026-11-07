@@ -60,6 +60,80 @@ export function deriveCutoverCleanEnvironmentData(configuration,releaseRoot,fall
  }catch{fail('ROTATION_CUTOVER_ENVIRONMENT_REJECTED');}
 }
 
+
+const peerRowFields=['pid','parentPid','creationTicks','sessionId','imagePath','imageSha256','imageIdentityKey','ownerSidSha256','signatureStatus','publisher'];
+const peerInt=value=>Number.isSafeInteger(value)&&value>0&&value<=2147483647;
+const peerTicks=value=>typeof value==='string'&&/^[1-9][0-9]{10,18}$/.test(value)&&BigInt(value)<=3155378975999999999n;
+const peerPath=value=>typeof value==='string'&&/^[A-Za-z]:\\[^:\r\n\0]+$/.test(value)&&!value.includes('/')&&!value.substring(3).split('\\').some(part=>!part||part==='.'||part==='..'||/[. ]$/.test(part));
+export function validateCutoverPeerAncestryData(value,expected){
+ try{
+  if(!exact(value,['profile','effectCapability','helper','node','bootstrap'])||value.profile!=='goriq-owned-node-peer-ancestry-data-v1'||value.effectCapability!==false||!exact(expected,['nodePid','bootstrapPid','nodeCreationTicks','bootstrapCreationTicks','nodePath','systemPowerShellPath','ownerSidSha256','sessionId','nodeImageIdentityKey']))throw 0;
+  if(!peerInt(expected.nodePid)||!peerInt(expected.bootstrapPid)||!peerTicks(expected.nodeCreationTicks)||!peerTicks(expected.bootstrapCreationTicks)||!peerPath(expected.nodePath)||!peerPath(expected.systemPowerShellPath)||!expected.systemPowerShellPath.toLowerCase().endsWith('\\system32\\windowspowershell\\v1.0\\powershell.exe')||typeof expected.ownerSidSha256!=='string'||!/^[a-f0-9]{64}$/.test(expected.ownerSidSha256)||!Number.isSafeInteger(expected.sessionId)||expected.sessionId<0||typeof expected.nodeImageIdentityKey!=='string'||!expected.nodeImageIdentityKey)throw 0;
+  const rows=[value.helper,value.node,value.bootstrap];
+  for(const [index,row] of rows.entries()){
+   if(!exact(row,peerRowFields)||!peerInt(row.pid)||!peerInt(row.parentPid)||!peerTicks(row.creationTicks)||!Number.isSafeInteger(row.sessionId)||row.sessionId!==expected.sessionId||!peerPath(row.imagePath)||typeof row.imageSha256!=='string'||!/^[a-f0-9]{64}$/.test(row.imageSha256)||row.ownerSidSha256!==expected.ownerSidSha256||typeof row.imageIdentityKey!=='string'||!row.imageIdentityKey||row.imageIdentityKey.length>512)throw 0;
+   if(index===1){if(row.imagePath.toLowerCase()!==expected.nodePath.toLowerCase()||row.imageSha256!==cutoverNode.nodeSha256||row.signatureStatus!=='NOT_REQUIRED'||row.publisher!=='')throw 0;}
+   else if(row.imagePath.toLowerCase()!==expected.systemPowerShellPath.toLowerCase()||row.signatureStatus!=='Valid'||row.publisher!=='Microsoft Corporation')throw 0;
+   if(index>0&&BigInt(row.creationTicks)>BigInt(rows[index-1].creationTicks))throw 0;
+  }
+  if(new Set(rows.map(row=>row.pid)).size!==3||value.helper.parentPid!==value.node.pid||value.node.parentPid!==value.bootstrap.pid||value.node.pid!==expected.nodePid||value.bootstrap.pid!==expected.bootstrapPid||value.node.creationTicks!==expected.nodeCreationTicks||value.bootstrap.creationTicks!==expected.bootstrapCreationTicks||value.node.imageIdentityKey!==expected.nodeImageIdentityKey||value.helper.imageSha256!==value.bootstrap.imageSha256)throw 0;
+  return frozenTree({...value});
+ }catch{fail('ROTATION_CUTOVER_PEER_PROOF_REJECTED');}
+}
+
+const peerHelloFields=['schemaVersion','kind','sequence','sourceRevision','originalGrantSha256','attemptId','workflowRunId','officialJobId','nativeMjsSha256','nativePsSha256','bootstrapPid','bootstrapCreationTicks','ownerSidSha256','sessionId','nodePid','nodeCreationTicks','nodePath','nodeImageIdentityKey'];
+// DATA only; the original PS must still own and verify its real Process/channel.
+export function validateCutoverPeerHelloData(value,self){
+ try{
+  if(!exact(value,peerHelloFields)||!exact(self,['pid','parentPid','nodePath','nodeSha256','nativeMjsSha256','nativePsSha256'])||value.schemaVersion!==1||value.kind!=='GORIQ_OWNED_NODE_PEER_HELLO'||value.sequence!==1||!peerInt(value.nodePid)||!peerInt(value.bootstrapPid)||!peerTicks(value.nodeCreationTicks)||!peerTicks(value.bootstrapCreationTicks)||BigInt(value.bootstrapCreationTicks)>BigInt(value.nodeCreationTicks)||!Number.isSafeInteger(value.sessionId)||value.sessionId<=0||!peerPath(value.nodePath))throw 0;
+  for(const name of ['originalGrantSha256','nativeMjsSha256','nativePsSha256','ownerSidSha256'])if(typeof value[name]!=='string'||!/^[a-f0-9]{64}$/.test(value[name]))throw 0;
+  if(typeof value.sourceRevision!=='string'||!/^[a-f0-9]{40}$/.test(value.sourceRevision)||typeof value.attemptId!=='string'||!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(value.attemptId)||['workflowRunId','officialJobId'].some(name=>typeof value[name]!=='string'||!/^[1-9][0-9]{0,19}$/.test(value[name]))||typeof value.nodeImageIdentityKey!=='string'||!value.nodeImageIdentityKey||value.nodeImageIdentityKey.length>512||/[\r\n\0]/.test(value.nodeImageIdentityKey))throw 0;
+  if(value.nodePid!==self.pid||value.bootstrapPid!==self.parentPid||typeof self.nodePath!=='string'||value.nodePath.toLowerCase()!==self.nodePath.toLowerCase()||self.nodeSha256!==cutoverNode.nodeSha256||value.nativeMjsSha256!==self.nativeMjsSha256||value.nativePsSha256!==self.nativePsSha256)throw 0;
+  return frozenTree({effectCapability:false,hello:{...value}});
+ }catch{fail('ROTATION_CUTOVER_PEER_PROOF_REJECTED');}
+}
+function ownedPeerMetadataEnvironment(){
+ const env={};for(const name of cleanPlatformFields){const value=process.env[name];if(typeof value!=='string'||!value||/[\r\n\0]/.test(value))fail('ROTATION_CUTOVER_PEER_PROOF_REJECTED');env[name]=value;}env.WINDIR=env.SystemRoot;return env;
+}
+async function runOwnedCutoverPeer(){
+ let helper=null;
+ try{
+  if(process.platform!=='win32'||process.arch!=='x64'||process.versions.node!=='24.19.0')throw 0;
+  const nativePath=join(root,'scripts','owner-code-rotation-native-1218.ps1'),mjsPath=fileURLToPath(import.meta.url),env=ownedPeerMetadataEnvironment(),shell=win32.join(env.SystemRoot,'System32','WindowsPowerShell','v1.0','powershell.exe');
+  if(!peerPath(shell))throw 0;
+  const self={pid:process.pid,parentPid:process.ppid,nodePath:process.execPath,nodeSha256:hash(regular(process.execPath,134217728)),nativeMjsSha256:hash(regular(mjsPath)),nativePsSha256:hash(regular(nativePath,262144))};
+  await new Promise((resolve,reject)=>{
+   let input=Buffer.alloc(0),started=false,settled=false;
+   const stop=()=>{if(helper){try{helper.kill();}catch{}}};
+   const refuse=()=>{if(settled)return;settled=true;stop();reject(new Error('ROTATION_CUTOVER_PEER_PROOF_REJECTED'));};
+   process.stdin.on('error',refuse);process.stdin.on('end',refuse);
+   process.stdin.on('data',chunk=>{
+    if(settled)return;if(started){refuse();return;}
+    input=Buffer.concat([input,chunk]);if(input.length>32768){refuse();return;}const end=input.indexOf(10);if(end<0)return;if(end!==input.length-1){refuse();return;}
+    started=true;
+    void (async()=>{
+     let frame=input.subarray(0,end);if(frame.length&&frame.at(-1)===13)frame=frame.subarray(0,-1);if(frame.subarray(0,3).equals(Buffer.from([239,187,191])))frame=frame.subarray(3);
+     const hello=validateCutoverPeerHelloData(proofMetadata(frame),self).hello;input=Buffer.alloc(0);
+     const quote=value=>"'"+value.replaceAll("'","''")+"'";
+     // Fixed readonly leaf; retain and execute the exact authenticated bytes.
+     const capsule="$ErrorActionPreference='Stop';Set-StrictMode -Version Latest;$p="+quote(nativePath)+";$h="+quote(self.nativePsSha256)+";$s=$null;try{$s=[IO.File]::OpenRead($p);if($s.Length -lt 1 -or $s.Length -gt 262144){throw 'PEER_SOURCE'};$b=New-Object byte[] ([int]$s.Length);$n=0;while($n -lt $b.Length){$c=$s.Read($b,$n,$b.Length-$n);if($c -le 0){throw 'PEER_SOURCE'};$n+=$c};$sha=[Security.Cryptography.SHA256]::Create();try{$d=([BitConverter]::ToString($sha.ComputeHash($b))).Replace('-','').ToLowerInvariant()}finally{$sha.Dispose()};if($d -cne $h){throw 'PEER_SOURCE'};.([scriptblock]::Create(([Text.UTF8Encoding]::new($false,$true)).GetString($b)));$r=Get-OwnerCutoverPeerAncestryData;[Console]::Out.WriteLine(($r|Microsoft.PowerShell.Utility\\ConvertTo-Json -Depth 5 -Compress))}catch{exit 1}finally{if($s){$s.Dispose()}}";
+     const ancestry=await new Promise((done,failed)=>{
+      let output=Buffer.alloc(0),problem=false,ended=false;
+      const finish=(error,value)=>{if(ended)return;ended=true;clearTimeout(timer);if(error)failed(new Error('ROTATION_CUTOVER_PEER_PROOF_REJECTED'));else done(value);};
+      const timer=setTimeout(()=>{problem=true;try{helper?.kill();}catch{}finish(true);},12000);
+      try{helper=spawn(shell,['-NoLogo','-NoProfile','-NonInteractive','-EncodedCommand',Buffer.from(capsule,'utf16le').toString('base64')],{cwd:root,windowsHide:true,stdio:['ignore','pipe','pipe'],env});helper.stdout.on('data',data=>{if(output.length+data.length>32768){problem=true;try{helper.kill();}catch{}}else output=Buffer.concat([output,data]);});helper.stderr.on('data',()=>{problem=true;try{helper.kill();}catch{}});helper.on('error',()=>finish(true));helper.on('close',exit=>{if(problem||exit!==0){finish(true);return;}try{let bytes=output;if(bytes.subarray(0,3).equals(Buffer.from([239,187,191])))bytes=bytes.subarray(3);if(bytes.at(-1)===10){bytes=bytes.subarray(0,-1);if(bytes.at(-1)===13)bytes=bytes.subarray(0,-1);}const expected={nodePid:hello.nodePid,bootstrapPid:hello.bootstrapPid,nodeCreationTicks:hello.nodeCreationTicks,bootstrapCreationTicks:hello.bootstrapCreationTicks,nodePath:hello.nodePath,systemPowerShellPath:shell,ownerSidSha256:hello.ownerSidSha256,sessionId:hello.sessionId,nodeImageIdentityKey:hello.nodeImageIdentityKey};finish(false,validateCutoverPeerAncestryData(proofMetadata(bytes),expected));}catch{finish(true);}});}catch{finish(true);}
+     });
+     if(settled)throw 0;
+     const reply={schemaVersion:1,kind:'GORIQ_OWNED_NODE_PEER_OS_DATA',sequence:1,sourceRevision:hello.sourceRevision,originalGrantSha256:hello.originalGrantSha256,nativeMjsSha256:hello.nativeMjsSha256,nativePsSha256:hello.nativePsSha256,ancestry};const wire=JSON.stringify(reply)+'\n';if(Buffer.byteLength(wire)>32768)throw 0;
+     await new Promise((done,failed)=>process.stdout.write(wire,error=>error?failed(error):done()));
+     // Held, parent-owned channel. Further commands are not implemented and
+     // therefore refuse; this initial handshake creates no native authority.
+    })().catch(refuse);
+   });
+  });
+ }catch{fail('ROTATION_CUTOVER_PEER_PROOF_REJECTED');}finally{if(helper)try{helper.kill();}catch{}}
+}
+
 export const ROTATION_PUBLIC_SOURCE_FILES=Object.freeze([...ROTATION_SOURCE_FILES,'scripts/owner-code-rotation-native-1218.mjs','scripts/owner-code-rotation-native-1218.ps1','scripts/owner-code-launcher-binding-inspection-1218.ps1','scripts/owner-code-rotation-exercise.mjs','scripts/owner-code-rotation-exercise.ps1']);
 const publicFlags=['credentialRotationApproval','existingTaskRestartApproval','configPersistenceApproval','normalLoopbackCookieApproval','confirmationApproval','automationConfirmationApproval','fleetReadOnlyApproval','pcSidecarReadOnlyApproval'];
 const grantFields=['schemaVersion','kind','scopeId','issue','goalId','authorityType','issuedBy','approvalId','approvalReference','sourceRevision','sourceHashes','ciRunId','ciRunAttempt','workflowPath','ownerSidSha256','profile','operation','issuedAt','expiresAt','maxAttempts','maxDurationSeconds','recoveryReserveSeconds','cohortAuthority','pcSidecars',...publicFlags];
@@ -382,7 +456,8 @@ async function run(){
 }
 
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
- if(process.argv.length===2)console.log('PLAN ONLY: live rotation requires fresh separate High approval and an exact real-run-bound protected receipt.');
+ if(process.argv.slice(2).includes('--owned-cutover-peer')){try{if(process.argv.length!==3||process.argv[2]!=='--owned-cutover-peer')throw 0;await runOwnedCutoverPeer();}catch{console.error('GORIQ_OWNED_PEER_REFUSED');process.exitCode=1;}}
+ else if(process.argv.length===2)console.log('PLAN ONLY: live rotation requires fresh separate High approval and an exact real-run-bound protected receipt.');
  else if(process.argv.length===3&&process.argv[2]==='--verify-public-grant'){try{const {grant}=compilePublicRotationGrant(process.env.GORIQ_OWNER_ROTATION_SCOPE_BASE64??'');await verifyPublicRotationSource(grant);console.log('PUBLIC_ROTATION_GRANT_VERIFIED');}catch{console.log('PUBLIC_ROTATION_GRANT_REFUSED');process.exitCode=1;}}
  else{const value=process.argv.length===3&&process.argv[2]==='--run'?await run():result('ROTATION_ENTRY_CONTEXT_REQUIRED');console.log(JSON.stringify(value));if(!value.complete)process.exitCode=1;}
 }

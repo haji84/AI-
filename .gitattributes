@@ -93,3 +93,5 @@ tests/owner-code-production-cutover.fixture.ps1 text eol=lf
 # Additional source40 closed clean-start fixtures.
 scripts/owner-code-cutover-clean-start.test.mjs text eol=lf
 tests/owner-code-cutover-clean-start.fixture.ps1 text eol=lf
+scripts/owner-code-cutover-peer.test.mjs text eol=lf
+tests/owner-code-cutover-peer.fixture.ps1 text eol=lf
