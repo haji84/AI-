@@ -1,7 +1,58 @@
-param([string]$Root,[switch]$OwnedTransport,[switch]$ClosedChannel,[switch]$PlatformEnvironment,[ValidateSet(0,1,2)][int]$TransportGroup=0,[ValidateSet('positive','wrong-parent')][string]$HostedAncestry,[string]$NodeExecutable)
+param([string]$Root,[switch]$OwnedTransport,[switch]$ClosedChannel,[switch]$PlatformEnvironment,[switch]$AwaitResultTransport,[switch]$PipeDiagnostic,[ValidateSet(0,1,2)][int]$TransportGroup=0,[ValidateSet('positive','wrong-parent')][string]$HostedAncestry,[string]$NodeExecutable)
 $ErrorActionPreference='Stop';Set-StrictMode -Version Latest
 . (Join-Path $Root 'scripts/owner-code-rotation-native-1218.ps1')
 function Require([bool]$Value,[string]$Code){if(-not $Value){throw ('PEER_FIXTURE_'+$Code)}}
+# Bounded public-only progress. Each owned fixture process has a separate
+# CreateNew file. Values contain closed phases and local elapsed time only.
+function Write-PublicPeerProgress([string]$Phase){
+ if(-not $script:peerProgressPath){return}
+ $cases=@('SUCCESS','PID','SOURCE','SOURCE_ARRAY','DUPLICATE','STDERR','EXTRA','FOREIGN_FACTORY','JOURNAL_THROW','START_EXPIRY','NODE_BINDING_MISSING','LATE_STDERR','LATE_STDOUT_EOF','LATE_STDERR_EOF')
+ $allowed=@('GROUP_BEGIN','GROUP_DONE','SOURCE_BASE_BEGIN','SOURCE_BASE_DONE')+@(foreach($name in $cases){foreach($edge in @('BEGIN','KERNEL_DONE','SOURCE_DONE','NODE_DONE','CONFIGURATION_DONE','JOURNAL_DONE','FALLBACK_DONE','PEER_DONE','END')){'CASE_'+$name+'_'+$edge}})
+ if($allowed -cnotcontains $Phase){throw 'PUBLIC_PEER_PROGRESS_REJECTED'}
+ $elapsed=$script:peerProgressWatch.ElapsedMilliseconds;if($elapsed -lt 0 -or $elapsed -gt 15000 -or $script:peerProgressRows -ge 64){throw 'PUBLIC_PEER_PROGRESS_REJECTED'}
+ $bytes=[Text.Encoding]::UTF8.GetBytes($Phase+':'+$elapsed.ToString([Globalization.CultureInfo]::InvariantCulture)+[char]10);$stream=$null
+ try{$stream=[IO.File]::Open($script:peerProgressPath,[IO.FileMode]::Open,[IO.FileAccess]::Write,[IO.FileShare]::Read);if($stream.Length+$bytes.Length -gt 8192){throw 'PUBLIC_PEER_PROGRESS_REJECTED'};$null=$stream.Seek(0,[IO.SeekOrigin]::End);$stream.Write($bytes,0,$bytes.Length);$stream.Flush();$script:peerProgressRows++}catch{throw 'PUBLIC_PEER_PROGRESS_REJECTED'}finally{if($stream){$stream.Dispose()}}
+}
+if($AwaitResultTransport){
+ # Replay the exact actual hosted call-site statement with a benign generic
+ # struct-valued Task. WinPS5 exposes VoidTaskResult on the real WriteAsync;
+ # this portable control proves the success-stream consequence without I/O.
+ Add-Type -TypeDefinition @'
+using System;using System.Threading.Tasks;
+public struct GoriqPublicAwaitResult { public override string ToString(){return "PUBLIC_AWAIT_RESULT_CANARY";} }
+public static class GoriqPublicAwaitTask { public static Task<GoriqPublicAwaitResult> Make(){return Task.FromResult(new GoriqPublicAwaitResult());} }
+'@|Out-Null
+ $source=[IO.File]::ReadAllText($PSCommandPath)
+ $matches=[regex]::Matches($source,'(?m)^ +while\(-not \$write\.IsCompleted\)[^\r\n]+;\s*((?:\$null=)?\$write\.GetAwaiter\(\)\.GetResult\(\))\s*$')
+ Require ($matches.Count -eq 1) 'ONE_REAL_HOSTED_WRITE_AWAIT'
+ $write=[GoriqPublicAwaitTask]::Make();$leaked=@(&([scriptblock]::Create($matches[0].Groups[1].Value)))
+ Require ($leaked.Count -eq 0) 'WRITE_AWAIT_MUST_NOT_POLLUTE_JSON'
+ @{pass=$true;actualHostedStatement=$true;jsonOnly=$true;actualNativeCalls=0;nativeAuthority=$false}|ConvertTo-Json -Compress;return
+}
+# Fixed PUBLIC partial-pipe mechanism diagnosis. No Owner/private source or
+# task/account/DPAPI operation. Each process is allocated/contained by this test.
+if($PipeDiagnostic){
+ Require ([bool]$NodeExecutable -and -not $NodeExecutable.Contains('"')) 'PUBLIC_PIPE_NODE_PATH'
+ $directory=Join-Path ([IO.Path]::GetTempPath()) ('goriq-public-pipe-'+[IO.Path]::GetRandomFileName());$null=[IO.Directory]::CreateDirectory($directory);$rows=@();$index=0
+ $program="const fs=require('node:fs');process.stdin.resume();process.stdin.on('end',()=>process.exit(0));process.stdout.write('PUBLIC_PARTIAL\n',()=>fs.writeFileSync(process.argv[1],'READY',{flag:'wx'}));"
+ try{foreach($method in @('CHAR_BUFFER','BYTE_BUFFER','BYTE_ONE')){
+  $index++;$ready=Join-Path $directory ('ready-'+$index);Require (-not $ready.Contains('"')) 'PUBLIC_PIPE_READY_PATH';$process=[Diagnostics.Process]::new();$watch=[Diagnostics.Stopwatch]::StartNew()
+  try{
+   $info=[Diagnostics.ProcessStartInfo]::new();$info.FileName=$NodeExecutable;$info.Arguments='-e "'+$program+'" "'+$ready+'"';$info.UseShellExecute=$false;$info.CreateNoWindow=$true;$info.RedirectStandardInput=$true;$info.RedirectStandardOutput=$true;$info.RedirectStandardError=$true;$process.StartInfo=$info;Require ($process.Start()) 'PUBLIC_PIPE_STARTED'
+   while(-not [IO.File]::Exists($ready)){Require (-not $process.HasExited -and $watch.ElapsedMilliseconds -lt 2000) 'PUBLIC_PIPE_READY';[Threading.Thread]::Sleep(5)}
+   if($method -ceq 'CHAR_BUFFER'){$buffer=New-Object char[] 32769;$read=$process.StandardOutput.ReadAsync($buffer,0,$buffer.Length)}else{$buffer=New-Object byte[] $(if($method -ceq 'BYTE_ONE'){1}else{32769});$read=$process.StandardOutput.BaseStream.ReadAsync($buffer,0,$buffer.Length)}
+   $readWatch=[Diagnostics.Stopwatch]::StartNew();while(-not $read.IsCompleted -and $readWatch.ElapsedMilliseconds -lt 300){[Threading.Thread]::Sleep(5)}
+   $completed=$read.IsCompleted;Require (-not $read.IsFaulted -and -not $read.IsCanceled -and -not $process.HasExited) 'PUBLIC_PIPE_HELD_READER'
+   $before=if($completed){$read.GetAwaiter().GetResult()}else{$null}
+   $process.StandardInput.Close();while(-not $process.HasExited){Require ($watch.ElapsedMilliseconds -lt 4000) 'PUBLIC_PIPE_FINITE_EOF';[Threading.Thread]::Sleep(5)}
+   Require ($read.Wait(1000) -and $process.ExitCode -eq 0) 'PUBLIC_PIPE_EOF_READ';$after=$read.GetAwaiter().GetResult();$ownedStderr=$process.StandardError.ReadToEnd();Require ($ownedStderr -ceq '' -and $after -eq $(if($method -ceq 'BYTE_ONE'){1}else{15})) 'PUBLIC_PIPE_EXACT_PUBLIC_COUNTS'
+   $rows+=@{method=$method;completedBeforeEof=$completed;countBeforeEof=$before;countAfterEof=$after;heldBeforeEof=$true;ownedChildClosed=$true}
+  }finally{try{if(-not $process.HasExited){$process.Kill();$null=$process.WaitForExit(1000)}}catch{};$process.Dispose()}
+ }}finally{[IO.Directory]::Delete($directory,$true)}
+ Require ($rows.Count -eq 3 -and $rows[2].completedBeforeEof -and $rows[2].countBeforeEof -eq 1) 'PUBLIC_PIPE_SINGLE_BYTE_CONTROL'
+ @{pass=$true;diagnosticOnly=$true;windows=([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT);psMajor=[int]$PSVersionTable.PSVersion.Major;rows=$rows;actualOwnerTaskAccountDpapiCalls=0;nativeAuthority=$false}|ConvertTo-Json -Depth 4 -Compress;return
+}
+
 # Hosted-only component evidence: real source-linked processes and readonly OS
 # observations. This test never creates a native admission or an actual grant.
 if($HostedAncestry){
@@ -32,7 +83,7 @@ if($HostedAncestry){
   $stdoutBuffer=New-Object char[] 32769;$stdoutTask=$node.StandardOutput.ReadAsync($stdoutBuffer,0,$stdoutBuffer.Length)
   $wire=[Text.Encoding]::UTF8.GetBytes(($hello|Microsoft.PowerShell.Utility\ConvertTo-Json -Depth 4 -Compress)+[char]10)
   $write=$node.StandardInput.BaseStream.WriteAsync($wire,0,$wire.Length)
-  while(-not $write.IsCompleted){Require ($watch.ElapsedMilliseconds -lt 13000) 'FINITE_CHILD_WRITE';[Threading.Thread]::Sleep(5)};$write.GetAwaiter().GetResult()
+  while(-not $write.IsCompleted){Require ($watch.ElapsedMilliseconds -lt 13000) 'FINITE_CHILD_WRITE';[Threading.Thread]::Sleep(5)};$null=$write.GetAwaiter().GetResult()
   if($HostedAncestry -ceq 'wrong-parent'){
    $node.StandardInput.Close();while(-not $node.HasExited){Require ($watch.ElapsedMilliseconds -lt 13000) 'FINITE_REFUSAL';[Threading.Thread]::Sleep(5)}
    Require ($stdoutTask.Wait(1000) -and $stderrTask.Wait(1000)) 'REFUSAL_PIPE_CLOSED';$outCount=$stdoutTask.GetAwaiter().GetResult();$errCount=$stderrTask.GetAwaiter().GetResult()
@@ -40,7 +91,11 @@ if($HostedAncestry){
   }else{
    $text=[Text.StringBuilder]::new();$line=$null
    while($null -eq $line){
-    while(-not $stdoutTask.IsCompleted){Require (-not $stderrTask.IsCompleted -and -not $node.HasExited -and $watch.ElapsedMilliseconds -lt 13000) 'FINITE_REPLY';[Threading.Thread]::Sleep(5)}
+    while(-not $stdoutTask.IsCompleted){
+     $stderrDone=$stderrTask.IsCompleted;$childExited=$node.HasExited;$localBound=$watch.ElapsedMilliseconds -ge 13000
+     if($stderrDone -or $childExited -or $localBound){[Console]::Error.WriteLine('GORIQ_PUBLIC_PEER_REPLY_STATE '+(@{phase='REPLY_WAIT';stdoutCompleted=$stdoutTask.IsCompleted;stderrCompleted=$stderrDone;childExited=$childExited;localBound=$localBound;sessionPositive=($hello.sessionId -gt 0)}|ConvertTo-Json -Compress));if($stderrDone){Require $false 'REPLY_STDERR_COMPLETED'};if($childExited){Require $false 'REPLY_CHILD_EXITED'};Require $false 'REPLY_LOCAL_BOUND'}
+     [Threading.Thread]::Sleep(5)
+    }
     $n=$stdoutTask.GetAwaiter().GetResult();Require ($n -gt 0 -and $text.Length+$n -le 32768) 'BOUNDED_SINGLE_REPLY';$null=$text.Append($stdoutBuffer,0,$n);$value=$text.ToString();$end=$value.IndexOf([char]10)
     if($end -ge 0){Require ($end -eq $value.Length-1) 'NO_EXTRA_REPLY';$line=$value.Substring(0,$end).TrimEnd([char]13)}else{$stdoutTask=$node.StandardOutput.ReadAsync($stdoutBuffer,0,$stdoutBuffer.Length)}
    }
@@ -65,19 +120,28 @@ if($HostedAncestry){
  }finally{if($node){try{if(-not $node.HasExited){$node.Kill();$null=$node.WaitForExit(1000)}}catch{};$node.Dispose()};if($nodeStream){$nodeStream.Dispose()};$bootstrap.Dispose()}
 }
 if($OwnedTransport){
+ $script:peerProgressPath=$null;$script:peerProgressRows=0;$script:peerProgressWatch=[Diagnostics.Stopwatch]::StartNew()
+ if($env:GORIQ_PUBLIC_PEER_PROGRESS_DIRECTORY){$mode=if($ClosedChannel){'CLOSED'}elseif($PlatformEnvironment){'PLATFORM'}else{'OWNED'};$script:peerProgressPath=Join-Path $env:GORIQ_PUBLIC_PEER_PROGRESS_DIRECTORY ($mode+'_'+$TransportGroup+'.txt');$progressFile=[IO.File]::Open($script:peerProgressPath,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::Read);$progressFile.Dispose()}
+ Write-PublicPeerProgress 'GROUP_BEGIN';Write-PublicPeerProgress 'SOURCE_BASE_BEGIN'
  $publicInput=[Console]::In.ReadToEnd();$null=. (Join-Path $Root 'tests/owner-code-cutover-private-bootstrap.fixture.ps1') -Scenario kernel -FixtureInput $publicInput
+ Write-PublicPeerProgress 'SOURCE_BASE_DONE'
  $owned=[IO.Path]::Combine([IO.Path]::GetTempPath(),('public-owned-peer-'+[IO.Path]::GetRandomFileName()));$null=[IO.Directory]::CreateDirectory($owned);$childPath=[IO.Path]::Combine($owned,'public-peer.mjs')
  $js=@'
 import{closeSync}from'node:fs';let pending='';process.stdin.setEncoding('utf8');process.stdin.on('data',x=>{pending+=x;const end=pending.indexOf('\n');if(end<0)return;const first=pending.slice(0,end);pending='';if(first==='PUBLIC_TRIGGER_LATE_STDERR'){process.stderr.write('PUBLIC_LATE_STDERR');return;}if(first==='PUBLIC_TRIGGER_CLOSE_STDOUT'){closeSync(1);return;}if(first==='PUBLIC_TRIGGER_CLOSE_STDERR'){closeSync(2);return;}const h=JSON.parse(first);const row=(pid,parentPid,ticks,node)=>({pid,parentPid,creationTicks:ticks,sessionId:h.sessionId,imagePath:node?h.nodePath:'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe',imageSha256:node?'3602f2bb1a10f2cbab4c36886218a33c1ab3db87290e73b033c46c77147d0237':'a'.repeat(64),imageIdentityKey:node?h.nodeImageIdentityKey:'PUBLIC-SYSTEM-IMAGE',ownerSidSha256:h.ownerSidSha256,signatureStatus:node?'NOT_REQUIRED':'Valid',publisher:node?'':'Microsoft Corporation'});const ancestry={profile:'goriq-owned-node-peer-ancestry-data-v1',effectCapability:false,helper:row(h.nodePid+1000,h.nodePid,String(BigInt(h.nodeCreationTicks)+1n),false),node:row(h.nodePid,h.bootstrapPid,h.nodeCreationTicks,true),bootstrap:row(h.bootstrapPid,3000,h.bootstrapCreationTicks,false)};const reply={schemaVersion:1,kind:'GORIQ_OWNED_NODE_PEER_OS_DATA',sequence:1,sourceRevision:h.sourceRevision,originalGrantSha256:h.originalGrantSha256,nativeMjsSha256:h.nativeMjsSha256,nativePsSha256:h.nativePsSha256,ancestry};const mode=process.env.GORIQ_PUBLIC_PEER_CASE;if(mode==='pid')reply.ancestry.node.pid++;if(mode==='source')reply.nativePsSha256='e'.repeat(64);if(mode==='source-array')reply.nativePsSha256=[reply.nativePsSha256];if(mode==='stderr')process.stderr.write('PUBLIC_ONLY_UNEXPECTED_STDERR');let wire=JSON.stringify(reply);if(mode==='duplicate')wire=wire.replace('"sequence":1','"sequence":2,"sequence":1');process.stdout.write(wire+'\n'+(mode==='extra'?'PUBLIC_EXTRA_FRAME\n':''));});
 '@
  [IO.File]::WriteAllText($childPath,$js,[Text.UTF8Encoding]::new($false));$rows=@();$index=3000;$startedCount=0
- try{$groups=@(@('success','pid','source','source-array'),@('duplicate','stderr','extra','foreign-factory'),@('journal-throw','start-expiry','node-binding-missing','late-stderr'));if($ClosedChannel){$groups=@(@('late-stdout-eof'),@('late-stderr-eof'),@('success'))};if($PlatformEnvironment){$groups=@(@('success'),@('success'),@('success'))};foreach($which in $groups[$TransportGroup]){$index++;$dir=PrivateSetup $index;$module=$null;try{
+ try{$groups=@(@('success','pid','source','source-array'),@('duplicate','stderr','extra','foreign-factory'),@('journal-throw','start-expiry','node-binding-missing','late-stderr'));if($ClosedChannel){$groups=@(@('late-stdout-eof'),@('late-stderr-eof'),@('success'))};if($PlatformEnvironment){$groups=@(@('success'),@('success'),@('success'))};foreach($which in $groups[$TransportGroup]){$phaseCase='CASE_'+$which.ToUpperInvariant().Replace('-','_');Write-PublicPeerProgress ($phaseCase+'_BEGIN');$index++;$dir=PrivateSetup $index;$module=$null;try{
   $public=Get-OwnerCutoverPublicReadiness;$private=New-OwnerCutoverPrivateBackend -PublicToken $public;$privateRecord=$null;$null=$script:ownerCutoverPrivateLifetimes.tokens.TryGetValue($private,[ref]$privateRecord);$module=$privateRecord.module
+  Write-PublicPeerProgress ($phaseCase+'_KERNEL_DONE')
   InstallFixtureSource $module;InstallFixtureNode $module;InstallFixtureConfiguration $module
   $package=(Get-CutoverPublicLoaderPackage).model
   &$module {param($sources);foreach($name in $sources.Keys){$path='D:\Installed\release-current\scripts\'+$name;$script:memoryFiles[$path]=[byte[]]$sources[$name].Clone();$script:identities[$path]='public-peer-loader-'+$name};function script:Read-OwnerCutoverFallbackAttributes([string]$Path){throw [IO.FileNotFoundException]::new('PUBLIC_PEER_ABSENCE')}} $package
   &$module {param($mode);$script:transportFixtureMode=$mode;$script:transportFakeNodeFacts=(Get-Command Get-OwnerCutoverNodeImageFacts).ScriptBlock;function script:Get-OwnerCutoverNodeImageFacts([string]$Path){$value=&$script:transportFakeNodeFacts $Path;if($script:transportFixtureMode -cne 'node-binding-missing'){$script:nodeStream=[IO.MemoryStream]::new([byte[]]$script:memoryFiles[$Path],$false);$script:sourceHandles.Add($script:nodeStream);$script:nodeIdentity=Get-OwnerCutoverFileIdentity $script:nodeStream $Path};return $value}} $which
-  $null=&$module {Initialize-OwnerCutoverPrivateSource};$null=&$module {Initialize-OwnerCutoverProtectedNode};&$module {Initialize-OwnerCutoverNodeStartupPolicy};$null=&$module {Initialize-OwnerCutoverPrivateConfiguration};$null=&$module {Initialize-OwnerCutoverPrivateJournal};$null=&$module {Initialize-OwnerCutoverFallbackInputs}
+  $null=&$module {Initialize-OwnerCutoverPrivateSource};Write-PublicPeerProgress ($phaseCase+'_SOURCE_DONE')
+  $null=&$module {Initialize-OwnerCutoverProtectedNode};&$module {Initialize-OwnerCutoverNodeStartupPolicy};Write-PublicPeerProgress ($phaseCase+'_NODE_DONE')
+  $null=&$module {Initialize-OwnerCutoverPrivateConfiguration};Write-PublicPeerProgress ($phaseCase+'_CONFIGURATION_DONE')
+  $null=&$module {Initialize-OwnerCutoverPrivateJournal};Write-PublicPeerProgress ($phaseCase+'_JOURNAL_DONE')
+  $null=&$module {Initialize-OwnerCutoverFallbackInputs};Write-PublicPeerProgress ($phaseCase+'_FALLBACK_DONE')
   function ExpireOwnedTransportClock {$script:stamp+=880001}
   &$module {param($mode,$node,$child,$working,$expire,$checkEnvironment)
    $script:transportCheckEnvironment=$checkEnvironment;$script:transportCase=$mode;$script:transportNode=$node;$script:transportChild=$child;$script:transportWorking=$working;$script:transportExpire=$expire;$script:transportCreated=0;$script:transportActualFactory=(Get-Command New-OwnerCutoverOwnedPeerProcess -ErrorAction Stop).ScriptBlock;$script:transportActualObservation=(Get-Command Get-OwnerCutoverOwnedPeerProcessObservation -ErrorAction Stop).ScriptBlock;$script:transportActualWrite=(Get-Command New-OwnerCutoverPrivateFile).ScriptBlock
@@ -104,8 +168,11 @@ import{closeSync}from'node:fs';let pending='';process.stdin.setEncoding('utf8');
   }
   elseif($which -ceq 'late-stderr'){$null=&$module {Initialize-OwnerCutoverOwnedPeer};$ownedId=&$module {$script:ownedPeerLifetime.process.Id};&$module {$bytes=[Text.Encoding]::UTF8.GetBytes('PUBLIC_TRIGGER_LATE_STDERR'+[char]10);$script:ownedPeerLifetime.process.StandardInput.BaseStream.Write($bytes,0,$bytes.Length);$watch=[Diagnostics.Stopwatch]::StartNew();while(-not $script:ownedPeerLifetime.record.stderrTask.IsCompleted -and $watch.ElapsedMilliseconds -lt 2000){[Threading.Thread]::Sleep(10)}};Refused {&$module {Assert-OwnerCutoverOwnedPeer}};$stillAlive=$false;$probe=$null;try{$probe=[Diagnostics.Process]::GetProcessById($ownedId);$stillAlive=-not $probe.HasExited}catch{}finally{if($probe){$probe.Dispose()}};Require (-not $stillAlive) 'FAILED_OWNED_OBSERVER_TERMINATED'}
   else{Refused {&$module {Initialize-OwnerCutoverOwnedPeer}}}
+  Write-PublicPeerProgress ($phaseCase+'_PEER_DONE')
   $count=&$module {$script:transportCreated};$writes=&$module {$script:writes.Count};Refused {&$module {Initialize-OwnerCutoverOwnedPeer}};Require ((&$module {$script:transportCreated}) -eq $count -and (&$module {$script:writes.Count}) -eq $writes) 'NO_PROCESS_OR_WRITEAHEAD_REISSUE';Require ($count -eq $(if($which -cin @('journal-throw','node-binding-missing')){0}else{1})) 'OWNED_PROCESS_COUNT';if($which -cne 'foreign-factory'){$startedCount+=$count;}$rows+=@{case=$which;expected=$(if($which -ceq 'success'){'DATA_ONLY'}else{'REFUSE'})}
+  Write-PublicPeerProgress ($phaseCase+'_END')
  }finally{if($module){&$module {if(Get-Variable foreignFixtureProcess -Scope Script -ErrorAction SilentlyContinue){try{$script:foreignFixtureProcess.Dispose()}catch{}};if($script:ownedPeerLifetime.process){try{if(-not $script:ownedPeerLifetime.process.HasExited){$script:ownedPeerLifetime.process.Kill();$null=$script:ownedPeerLifetime.process.WaitForExit(1000)}}catch{};try{$script:ownedPeerLifetime.process.Dispose()}catch{}}}};Close $dir}}}finally{[IO.Directory]::Delete($owned,$true)}
+ Write-PublicPeerProgress 'GROUP_DONE'
  @{pass=$true;transportCases=$rows;ownedPublicChildren=$startedCount;actualNativeWindowsCalls=0;authority=$false}|ConvertTo-Json -Depth 5 -Compress;return
 }
 

@@ -10,6 +10,7 @@ import {inflateRawSync} from 'node:zlib';
 import {validateProductionConfig} from './jarvis-production-config.mjs';
 import {ROTATION_SOURCE_FILES,validateRotationScope,validateRotationResult} from './owner-code-rotation-acceptance.mjs';
 import {validateRotationExerciseResult} from './owner-code-rotation-exercise.mjs';
+import {fleetSnapshotSummary,compareFleetSnapshots} from './owner-code-fleet-preservation.mjs';
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 const strings=['scopeId','ownerSid','issuedAt','expiresAt','sourceRevision','configSha256','taskSha256','nodeSha256','runtimeRevision','dbPath','attemptId'];
@@ -60,6 +61,47 @@ export function deriveCutoverCleanEnvironmentData(configuration,releaseRoot,fall
  }catch{fail('ROTATION_CUTOVER_ENVIRONMENT_REJECTED');}
 }
 
+
+// PURE DATA observer: opaque core9 snapshots are already captured by the
+// consumer. No filesystem/SQL/process/clock/callback is performed here. Only
+// genuine private native/peer provenance can authorize a future live capture.
+const preservationObservers=new WeakMap(),preservationSnapshotOwners=new WeakMap();
+const preservationTransitions=Object.freeze({
+ initial:{'capture-before-cutover':'captured'},
+ captured:{'after-cutover':'cutover-checked','after-rollback':'restored'},
+ 'cutover-checked':{'before-rotation':'baseline','after-rollback':'restored'},
+ baseline:{'before-commit':'checked','after-rollback':'restored'},
+ checked:{'before-planned-restore':'planned','after-planned-restore':'planned-restored','after-rollback':'restored'},
+ planned:{'after-planned-restore':'planned-restored'},
+ restored:{},'planned-restored':{},terminal:{}
+});
+export function createCutoverPreservationDataObserver(){
+ if(arguments.length!==0)fail('ROTATION_CUTOVER_PRESERVATION_DATA_REJECTED');
+ const token=Object.freeze(Object.create(null));preservationObservers.set(token,{phase:'initial',baseline:null,summary:null,comparison:null});return token;
+}
+export function acceptCutoverPreservationData(token,event,snapshot){
+ let record,capture=false;
+ try{
+  if(arguments.length!==3||!object(token)||!(record=preservationObservers.get(token))||typeof event!=='string'||!Object.hasOwn(preservationTransitions[record.phase],event))throw 0;
+  if(['before-rotation','before-commit','before-planned-restore'].includes(event)&&record.comparison?.status!=='PASS')throw 0;
+  capture=event==='capture-before-cutover';record.phase=preservationTransitions[record.phase][event];record.comparison=null;
+  // An entered failed observation cannot preserve an older PASS, and a failed
+  // first capture consumes this observer. No baseline-reset API exists.
+  if(!object(snapshot)||preservationSnapshotOwners.has(snapshot))throw 0;
+  const summary=fleetSnapshotSummary(snapshot);preservationSnapshotOwners.set(snapshot,token);
+  if(capture){
+   if(record.baseline!==null||summary.fleetCount!==38||summary.schemaProfile!=='jarvis-control-plane-sqlite-v1'||summary.pcSidecars?.profile!=='jarvis-pc-sidecars-v1'||compareFleetSnapshots(snapshot,snapshot).status!=='PASS')throw 0;
+   record.baseline=snapshot;record.summary=summary;
+  }else{
+   if(record.baseline===null)throw 0;
+   record.comparison=compareFleetSnapshots(record.baseline,snapshot);
+  }
+  return frozenTree({profile:'goriq-cutover-original-fleet-data-v1',event,requiredClockPhase:['after-rollback','after-planned-restore'].includes(event)?'RECOVERY':'FORWARD',accepted:capture||record.comparison.status==='PASS',summary:record.summary,comparison:record.comparison,nativeAuthority:false,effectCapability:false});
+ }catch{
+  if(capture&&record)record.phase='terminal';
+  fail('ROTATION_CUTOVER_PRESERVATION_DATA_REJECTED');
+ }
+}
 
 const peerRowFields=['pid','parentPid','creationTicks','sessionId','imagePath','imageSha256','imageIdentityKey','ownerSidSha256','signatureStatus','publisher'];
 const peerInt=value=>Number.isSafeInteger(value)&&value>0&&value<=2147483647;
