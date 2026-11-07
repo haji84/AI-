@@ -26,16 +26,26 @@ function Close([string]$Dir){Pop-Location;[IO.Directory]::Delete($Dir,$true)}
 
 $script:owner='S-1-5-21-111-222-333-1001';$script:ownerHash=Get-OwnerRotationEntryDigest ([Text.Encoding]::UTF8.GetBytes($script:owner))
 function PrivateSetup([int]$Index){$dir=Setup $Index;$script:grant.ownerSidSha256=$script:ownerHash;$env:GORIQ_OWNER_ROTATION_SCOPE_BASE64=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes((ConvertTo-OwnerRotationEntryJson $script:grant)));return $dir}
+function Write-CutoverPublicPhase([string]$Phase){
+ if(-not $env:GORIQ_PUBLIC_CUTOVER_PROGRESS){return}
+ $allowed=@('BATCH_BEGIN','BATCH_DONE','SCENARIO_KERNEL_BEGIN','SCENARIO_KERNEL_DONE','SCENARIO_SCOPE_BEGIN','SCENARIO_SCOPE_DONE','SCENARIO_CLOCK_BEGIN','SCENARIO_CLOCK_DONE','SCENARIO_DEFAULT_BEGIN','SCENARIO_DEFAULT_DONE','SCENARIO_DENIALS_BEGIN','SCENARIO_DENIALS_DONE','SCENARIO_STAGE_BEGIN','SCENARIO_STAGE_DONE','SCENARIO_NODE_BEGIN','SCENARIO_NODE_DONE','SCENARIO_ARCHIVE_BEGIN','SCENARIO_ARCHIVE_DONE','SCENARIO_CONFIGURATION_BEGIN','SCENARIO_CONFIGURATION_DONE','SCENARIO_VALIDATOR_CHILD_BEGIN','SCENARIO_VALIDATOR_CHILD_DONE','SCENARIO_JOURNAL_BEGIN','SCENARIO_JOURNAL_DONE','SCENARIO_ENTRY_BEGIN','SCENARIO_ENTRY_DONE','SCENARIO_KERNEL_PRODUCERS_BEGIN','SCENARIO_KERNEL_PRODUCERS_DONE','STDIN_PROBE_BEGIN','STDIN_PROBE_DONE','VALIDATOR_SUCCESS_BEGIN','VALIDATOR_SUCCESS_DONE','VALIDATOR_STDERR_BEGIN','VALIDATOR_STDERR_DONE','VALIDATOR_OVERSIZE_BEGIN','VALIDATOR_OVERSIZE_DONE','VALIDATOR_EXIT_BEGIN','VALIDATOR_EXIT_DONE')
+ if($allowed -cnotcontains $Phase){throw 'PUBLIC_PROGRESS_ENUM_REQUIRED'}
+ $path=[IO.Path]::GetFullPath($env:GORIQ_PUBLIC_CUTOVER_PROGRESS);$parent=[IO.Path]::GetDirectoryName($path);$temp=[IO.Path]::GetFullPath([IO.Path]::GetTempPath());if([IO.Path]::GetFileName($path) -cne 'phase.txt' -or -not $parent.StartsWith($temp,[StringComparison]::OrdinalIgnoreCase) -or [IO.Path]::GetFileName($parent) -cnotmatch '^goriq-public-cutover-phase-[A-Za-z0-9]+$'){throw 'PUBLIC_PROGRESS_OWNED_PATH_REQUIRED'}
+ $bytes=([Text.UTF8Encoding]::new($false)).GetBytes($Phase+[char]10);$stream=$null;try{$stream=[IO.FileStream]::new($path,[IO.FileMode]::Open,[IO.FileAccess]::ReadWrite,[IO.FileShare]::Read);if($stream.Length -gt 8192 -or $stream.Length+$bytes.Length -gt 8192){throw 'PUBLIC_PROGRESS_LIMIT'};$null=$stream.Seek(0,[IO.SeekOrigin]::End);$stream.Write($bytes,0,$bytes.Length)}finally{if($stream){$stream.Dispose()}}
+}
+
 # One owned PS process runs all fixed public scenarios; assertions remain in
 # each scenario and no producer cases are skipped. Direct individual scenarios
 # remain available for focused diagnosis. This is test transport only.
 if($Scenario -ceq 'all'){
+ Write-CutoverPublicPhase 'BATCH_BEGIN'
  $rows=[ordered]@{}
  foreach($name in @('kernel','scope','clock','default','denials','stage','node','archive','configuration','validator-child','journal','entry','kernel-producers')){
+  $tag=$name.Replace('-','_').ToUpperInvariant();Write-CutoverPublicPhase ('SCENARIO_'+$tag+'_BEGIN')
   $wire=&$PSCommandPath -Scenario $name -FixtureInput $inputText
-  $rows[$name]=($wire|ConvertFrom-Json)
+  $rows[$name]=($wire|ConvertFrom-Json);Write-CutoverPublicPhase ('SCENARIO_'+$tag+'_DONE')
  }
- $rows|ConvertTo-Json -Depth 8 -Compress;return
+ $rows|ConvertTo-Json -Depth 8 -Compress;Write-CutoverPublicPhase 'BATCH_DONE';return
 }
 
 function InstallFixtureKernel($Module){
@@ -132,10 +142,11 @@ if($Scenario -eq 'validator-child'){
   $public=Get-OwnerCutoverPublicReadiness;$private=New-OwnerCutoverPrivateBackend -PublicToken $public;$record=$null;$null=$script:ownerCutoverPrivateLifetimes.tokens.TryGetValue($private,[ref]$record);$module=$record.module;$stage=[IO.Path]::Combine($owned,'stage');$null=[IO.Directory]::CreateDirectory($stage);$scriptPath=[IO.Path]::Combine($stage,'scripts','validate-jarvis-production-config.mjs');$null=[IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($scriptPath))
   $js="let s='';process.stdin.setEncoding('utf8');process.stdin.on('data',x=>s+=x);process.stdin.on('end',()=>{const j=JSON.parse(s.replace(/^\uFEFF/,''));if(process.env.NODE_OPTIONS||process.env.NODE_PATH||process.env.PUBLIC_PARENT_CANARY)process.exit(8);if(j.mode==='stderr')process.stderr.write('PUBLIC_CHILD_PRIVATE_CANARY');if(j.mode==='oversize')process.stdout.write('x'.repeat(5000));else if(j.mode==='exit')process.exit(7);else console.log('Production configuration structure: PASS');});"
   [IO.File]::WriteAllText($scriptPath,$js,[Text.UTF8Encoding]::new($false));$env:PUBLIC_PARENT_CANARY='PUBLIC_PARENT_ONLY'
-  $publicInputProbe=Invoke-CutoverPublicDefaultInputProbe ([string]$inputData.nodeExecutable) $scriptPath $stage
+  Write-CutoverPublicPhase 'STDIN_PROBE_BEGIN';$publicInputProbe=Invoke-CutoverPublicDefaultInputProbe ([string]$inputData.nodeExecutable) $scriptPath $stage;Write-CutoverPublicPhase 'STDIN_PROBE_DONE'
   &$module {param($stagePath,$node);$script:stagePath=$stagePath;$script:nodePath=$node;$script:ownedValidatorChildren=0;$script:realProcessFactory=(Get-Command New-OwnerCutoverConfigurationValidatorProcess).ScriptBlock;function script:New-OwnerCutoverConfigurationValidatorProcess($Info){$script:ownedValidatorChildren++;&$script:realProcessFactory $Info};function script:Get-OwnerCutoverWindowsDirectory {'C:\Windows'}} $stage ([string]$inputData.nodeExecutable)
-  $cases=@('success','stderr','oversize','exit');foreach($mode in $cases){$wire=@{mode=$mode;canary='PUBLIC_SECRET_INPUT_NOT_OUTPUT'}|ConvertTo-Json -Compress
+  $cases=@('success','stderr','oversize','exit');foreach($mode in $cases){Write-CutoverPublicPhase ('VALIDATOR_'+$mode.ToUpperInvariant()+'_BEGIN');$wire=@{mode=$mode;canary='PUBLIC_SECRET_INPUT_NOT_OUTPUT'}|ConvertTo-Json -Compress
    if($mode -ceq 'success'){try{&$module {param($j);Invoke-OwnerCutoverConfigurationValidator $j 'D:\Installed\release-current' 'C:\Users\Owner\JARVIS\production'} $wire}catch{$diagnostic=[ordered]@{scenario='validator-child';mode='success';probe=$publicInputProbe;errors=(Get-CutoverPublicValidatorLeafFacts)};[Console]::Error.WriteLine('CUTOVER_PUBLIC_VALIDATOR_DIAGNOSTIC '+($diagnostic|ConvertTo-Json -Depth 6 -Compress));throw}}else{$code=$null;try{&$module {param($j);Invoke-OwnerCutoverConfigurationValidator $j 'D:\Installed\release-current' 'C:\Users\Owner\JARVIS\production'} $wire}catch{$code=$_.Exception.Message};Require ($code -ceq 'ROTATION_CUTOVER_PRIVATE_CONTEXT_REJECTED') 'CLOSED_OWNED_VALIDATOR_FAILURE'}
+   Write-CutoverPublicPhase ('VALIDATOR_'+$mode.ToUpperInvariant()+'_DONE')
   }
   Require ((&$module {$script:ownedValidatorChildren}) -eq 4) 'REAL_OWNED_PUBLIC_CHILD_COUNT';@{pass=$true;validatorCases=$cases;ownedNodeChildren=4;diagnosticOwnedNodeChildren=1;defaultInputProbe=$publicInputProbe;actualNativeCalls=0}|ConvertTo-Json -Compress
  }finally{$env:PUBLIC_PARENT_CANARY='';Close $dir;[IO.Directory]::Delete($owned,$true)};return
