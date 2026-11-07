@@ -1,9 +1,26 @@
 param([ValidateSet('selector','capsule','execution-boundary','clr-public-policy','clr-public-profiler','clr-product-data','clr-product-profiler','owned-job-policy','owned-job-windows','owned-job-manager')][string]$Scenario='selector')
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
+function Get-PublicJobManagerStages {return @('ALLOCATED','SCRIPT_ENTER','COMPILE_ENTER','COMPILE_RETURN','INPUT_READ_ENTER','INPUT_READ_RETURN','INPUT_VALIDATED','NODE_START_ENTER','NODE_READY_RETURN','NODE_REPORTED','HELPER_RETURN')}
+function Assert-PublicJobManagerStageRoot([string]$Root){
+ if([string]::IsNullOrWhiteSpace($Root)){throw 'PUBLIC_JOB_STAGE_ROOT_REQUIRED'};$full=[IO.Path]::GetFullPath($Root).TrimEnd([char[]]@([char]92,[char]47));$name=[IO.Path]::GetFileName($full);$info=[IO.DirectoryInfo]::new($full)
+ if($name -cnotmatch '^public-owned-job-[a-f0-9]{32}$' -or -not $info.Exists -or ($info.Attributes -band [IO.FileAttributes]::ReparsePoint)){throw 'PUBLIC_JOB_STAGE_ROOT_REQUIRED'};return $full
+}
+function Write-PublicJobManagerStage([string]$Root,[string]$Stage){
+ $full=Assert-PublicJobManagerStageRoot $Root;$known=$false;foreach($expected in (Get-PublicJobManagerStages)){if([string]::Equals($Stage,$expected,[StringComparison]::Ordinal)){$known=$true;break}};if(-not $known){throw 'PUBLIC_JOB_STAGE_VALUE_REQUIRED'};$path=[IO.Path]::Combine($full,'public-manager-stage.txt');$info=[IO.FileInfo]::new($path);if(-not $info.Exists -or $info.Length -gt 64 -or ($info.Attributes -band ([IO.FileAttributes]::Directory -bor [IO.FileAttributes]::ReparsePoint))){throw 'PUBLIC_JOB_STAGE_FILE_REQUIRED'}
+ $stream=[IO.File]::Open($path,[IO.FileMode]::Open,[IO.FileAccess]::Write,[IO.FileShare]::Read);try{$bytes=[Text.Encoding]::ASCII.GetBytes($Stage);$stream.SetLength(0);$stream.Write($bytes,0,$bytes.Length);$stream.Flush()}finally{$stream.Dispose()}
+}
+function ConvertFrom-PublicJobManagerStageBytes([byte[]]$Bytes){
+ $d=[ordered]@{profile='goriq-public-manager-startup-stage-v1';state='UNKNOWN';stage='UNKNOWN';meaning='LAST_OBSERVED_ENTERED_AFTER_MANAGER_STOP_NOT_CAUSE';nativeAuthority=$false};if($null -eq $Bytes -or $Bytes.Length -lt 1 -or $Bytes.Length -gt 64){return $d};foreach($value in $Bytes){if($value -gt 127){return $d}};$text=[Text.Encoding]::ASCII.GetString($Bytes);foreach($expected in (Get-PublicJobManagerStages)){if([string]::Equals($text,$expected,[StringComparison]::Ordinal)){$d.state='OBSERVED';$d.stage=$text;break}};return $d
+}
+function Read-PublicJobManagerStage([string]$Root){
+ $stream=$null;try{$full=Assert-PublicJobManagerStageRoot $Root;$path=[IO.Path]::Combine($full,'public-manager-stage.txt');$info=[IO.FileInfo]::new($path);if(-not $info.Exists -or $info.Length -lt 1 -or $info.Length -gt 64 -or ($info.Attributes -band ([IO.FileAttributes]::Directory -bor [IO.FileAttributes]::ReparsePoint))){return (ConvertFrom-PublicJobManagerStageBytes ([byte[]]@()))};$stream=[IO.File]::Open($path,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read);$buffer=[byte[]]::new(65);$length=$stream.Length;$count=$stream.Read($buffer,0,65);if($length -ne $count -or $count -lt 1 -or $count -gt 64){return (ConvertFrom-PublicJobManagerStageBytes ([byte[]]@()))};$bytes=[byte[]]::new($count);[Array]::Copy($buffer,$bytes,$count);return (ConvertFrom-PublicJobManagerStageBytes $bytes)}catch{return (ConvertFrom-PublicJobManagerStageBytes ([byte[]]@()))}finally{if($stream){$stream.Dispose()}}
+}
 # PUBLIC owned-process mechanism only. These types are never product interop.
 if($Scenario -in @('owned-job-policy','owned-job-windows','owned-job-manager')){
  $jobResult=@{scope='PUBLIC_OWNED_JOB_MECHANISM_ONLY';nativeAuthority=$false;status='INCONCLUSIVE';failureCode='PUBLIC_JOB_NOT_EXECUTED';actualWindowsExecuted=$false;actualProductInteropLinked=$false;privateCWTAuthorityLinked=$false;originalAdminClockLinked=$false;nativeGrant=$false;actualPrivateOrTaskCalls=0;ownedArtifactsRemoved=$true;ownedChildrenExited=$true}
+ $script:publicManagerStageRoot=$null
+ if($Scenario -ceq 'owned-job-manager'){try{$temp=Assert-PublicJobManagerStageRoot ([IO.Path]::GetTempPath());$current=[IO.Path]::GetFullPath([Environment]::CurrentDirectory).TrimEnd([char[]]@([char]92,[char]47));if(-not [string]::Equals($temp,$current,[StringComparison]::OrdinalIgnoreCase) -or (Read-PublicJobManagerStage $temp).stage -cne 'ALLOCATED'){throw 'PUBLIC_JOB_STAGE_CONTEXT_REQUIRED'};$script:publicManagerStageRoot=$temp;Write-PublicJobManagerStage $temp 'SCRIPT_ENTER'}catch{exit 77}}
  function Job-Public-Digest([byte[]]$Bytes){$h=[Security.Cryptography.SHA256]::Create();try{return ([BitConverter]::ToString($h.ComputeHash($Bytes))).Replace('-','').ToLowerInvariant()}finally{$h.Dispose()}}
  if($Scenario -eq 'owned-job-windows' -and [Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT){$jobResult.status='NOT_RUN';$jobResult.failureCode='PUBLIC_JOB_WINDOWS_REQUIRED';$jobResult.processAllocations=0;$jobResult.jobCreateCalls=0;$jobResult|ConvertTo-Json -Depth 5 -Compress;exit}
  $jobSource=@'
@@ -42,7 +59,9 @@ public sealed class PublicOwnedJobPrototype {
  $jobResult.prototypeSourceSha256=Job-Public-Digest ([Text.Encoding]::UTF8.GetBytes($jobSource))
  try{
   if(('PublicOwnedJobPrototype' -as [type]) -or ('PublicOwnedJobPrototypeHandle' -as [type])){throw 'PUBLIC_JOB_PRELOADED_TYPE_REFUSED'}
+  if($script:publicManagerStageRoot){Write-PublicJobManagerStage $script:publicManagerStageRoot 'COMPILE_ENTER'}
   $null=Add-Type -TypeDefinition $jobSource
+  if($script:publicManagerStageRoot){Write-PublicJobManagerStage $script:publicManagerStageRoot 'COMPILE_RETURN'}
  }catch{$jobResult.failureCode='PUBLIC_JOB_PROTOTYPE_SOURCE_REFUSED';$jobResult|ConvertTo-Json -Depth 5 -Compress;exit}
  # Closed numeric messages are lookup hints only. Binding requires actual held
  # process observations; duplicate identity tuples are never new authority.
@@ -142,6 +161,39 @@ $pass=@($rows|Where-Object {-not $_.pass}).Count -eq 0;@{pass=$pass;rows=$rows;m
 '@
   $waitRethrowControlJson=&([scriptblock]::Create($waitRethrowControlRepro)) -Fixture $MyInvocation.MyCommand.Path
   $jobResult.waitRethrowControls=$waitRethrowControlJson|ConvertFrom-Json
+  $managerStageContract=@'
+param([string]$Fixture)
+$ErrorActionPreference='Stop';Set-StrictMode -Version Latest
+$t=$null;$e=$null;$ast=[Management.Automation.Language.Parser]::ParseFile($Fixture,[ref]$t,[ref]$e);foreach($name in @('Get-PublicJobManagerStages','Assert-PublicJobManagerStageRoot','Write-PublicJobManagerStage','ConvertFrom-PublicJobManagerStageBytes','Read-PublicJobManagerStage')){$f=@($ast.FindAll({param($a)$a -is [Management.Automation.Language.FunctionDefinitionAst] -and $a.Name -ceq $name},$true));if($f.Count -ne 1){'{"pass":false,"reason":"MISSING_MANAGER_STAGE_OBSERVATION","nativeAuthority":false}';exit 1};.([scriptblock]::Create($f[0].Extent.Text))}
+$root=[IO.Path]::Combine([IO.Path]::GetTempPath(),('public-owned-job-'+[Guid]::NewGuid().ToString('N')));$null=[IO.Directory]::CreateDirectory($root);$path=[IO.Path]::Combine($root,'public-manager-stage.txt');$file=[IO.File]::Open($path,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::Read);$file.Dispose();$pass=$true;$rows=@();$rejected=0
+try{foreach($stage in (Get-PublicJobManagerStages)){Write-PublicJobManagerStage $root $stage;$d=Read-PublicJobManagerStage $root;$ok=$d.state -ceq 'OBSERVED' -and $d.stage -ceq $stage -and $d.nativeAuthority -eq $false;if(-not $ok){$pass=$false};$rows+=@{stage=$stage;pass=$ok}}
+ foreach($text in @('','PRIVATE_CANARY',('SCRIPT_ENTER'+[char]10),'SCRIPT_ENTER extra','script_enter',('X'*65))){$d=ConvertFrom-PublicJobManagerStageBytes ([Text.Encoding]::ASCII.GetBytes($text));if($d.state -ceq 'UNKNOWN' -and $d.stage -ceq 'UNKNOWN'){$rejected++}else{$pass=$false}}
+ $bad=ConvertFrom-PublicJobManagerStageBytes ([byte[]]@(255,0,1));if($bad.state -ceq 'UNKNOWN'){$rejected++}else{$pass=$false};$missing=Read-PublicJobManagerStage ([IO.Path]::Combine([IO.Path]::GetTempPath(),('public-owned-job-'+[Guid]::NewGuid().ToString('N'))));if($missing.state -cne 'UNKNOWN'){$pass=$false}
+ $foreign=$false;try{Write-PublicJobManagerStage ([IO.Path]::GetTempPath()) 'SCRIPT_ENTER'}catch{$foreign=$true};if(-not $foreign -or $rejected -ne 7){$pass=$false}
+ @{pass=$pass;profile='goriq-public-manager-stage-contract-v1';rows=$rows;malformedRefused=$rejected;foreignRootRefused=$foreign;missingUnknown=($missing.state -ceq 'UNKNOWN');newProcesses=0;nativeAuthority=$false}|ConvertTo-Json -Depth 5 -Compress;if(-not $pass){exit 1}
+}finally{[IO.Directory]::Delete($root,$true)}
+'@
+  $managerStageContractJson=&([scriptblock]::Create($managerStageContract)) -Fixture $MyInvocation.MyCommand.Path
+  $jobResult.managerStageControls=$managerStageContractJson|ConvertFrom-Json
+  $ordinalStageContract=@'
+param([string]$Fixture)
+$ErrorActionPreference='Stop';Set-StrictMode -Version Latest
+$t=$null;$e=$null;$ast=[Management.Automation.Language.Parser]::ParseFile($Fixture,[ref]$t,[ref]$e);if($e.Count){throw 'PUBLIC_STAGE_SOURCE_PARSE_FAILED'}
+foreach($name in @('Get-PublicJobManagerStages','Assert-PublicJobManagerStageRoot','Write-PublicJobManagerStage','ConvertFrom-PublicJobManagerStageBytes','Read-PublicJobManagerStage')){$f=@($ast.FindAll({param($a)$a -is [Management.Automation.Language.FunctionDefinitionAst] -and $a.Name -ceq $name},$true));if($f.Count -ne 1){throw 'PUBLIC_STAGE_SOURCE_FUNCTION_REQUIRED'};.([scriptblock]::Create($f[0].Extent.Text))}
+$expected=@('ALLOCATED','SCRIPT_ENTER','COMPILE_ENTER','COMPILE_RETURN','INPUT_READ_ENTER','INPUT_READ_RETURN','INPUT_VALIDATED','NODE_START_ENTER','NODE_READY_RETURN','NODE_REPORTED','HELPER_RETURN');$actual=@(Get-PublicJobManagerStages);if($actual.Count -ne 11){throw 'PUBLIC_STAGE_ENUM_REQUIRED'};for($i=0;$i -lt 11;$i++){if(-not [string]::Equals($actual[$i],$expected[$i],[StringComparison]::Ordinal)){throw 'PUBLIC_STAGE_ENUM_REQUIRED'}}
+$bad=[Collections.Generic.List[string]]::new();$nulCount=0
+foreach($name in $expected){for($i=0;$i -le $name.Length;$i++){$bad.Add($name.Insert($i,[string][char]0));$nulCount++}}
+foreach($code in @(1..31)+@(127)){foreach($i in @(0,6,12)){$bad.Add('SCRIPT_ENTER'.Insert($i,[string][char]$code))}}
+$root=[IO.Path]::Combine([IO.Path]::GetTempPath(),('public-owned-job-'+[Guid]::NewGuid().ToString('N')));$null=[IO.Directory]::CreateDirectory($root);$path=[IO.Path]::Combine($root,'public-manager-stage.txt');$file=[IO.File]::Open($path,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::Read);$file.Dispose();$positive=0;$parsedRefused=0;$writerRefused=0;$unchangedOnRefusal=0
+try{
+ foreach($name in $expected){Write-PublicJobManagerStage $root $name;$d=Read-PublicJobManagerStage $root;if($d.state -ceq 'OBSERVED' -and [string]::Equals($d.stage,$name,[StringComparison]::Ordinal) -and $d.nativeAuthority -eq $false){$positive++}}
+ foreach($text in $bad){$d=ConvertFrom-PublicJobManagerStageBytes ([Text.Encoding]::ASCII.GetBytes($text));if($d.state -ceq 'UNKNOWN' -and $d.stage -ceq 'UNKNOWN' -and $d.nativeAuthority -eq $false){$parsedRefused++};$before=[Convert]::ToBase64String([IO.File]::ReadAllBytes($path));$rejected=$false;try{Write-PublicJobManagerStage $root $text}catch{if($_.Exception.Message -cne 'PUBLIC_JOB_STAGE_VALUE_REQUIRED'){throw};$rejected=$true;$writerRefused++};if($rejected -and [string]::Equals($before,[Convert]::ToBase64String([IO.File]::ReadAllBytes($path)),[StringComparison]::Ordinal)){$unchangedOnRefusal++}}
+ $pass=$positive -eq 11 -and $parsedRefused -eq $bad.Count -and $writerRefused -eq $bad.Count -and $unchangedOnRefusal -eq $bad.Count
+ @{pass=$pass;profile='goriq-public-manager-ordinal-stage-contract-v1';positiveStages=$positive;nulAtEveryStagePosition=$nulCount;otherAsciiControlCases=96;malformedCases=$bad.Count;parserRefused=$parsedRefused;writerRefused=$writerRefused;writerRefusalPreservedBytes=$unchangedOnRefusal;actualSourceFunctions=$true;newProcesses=0;nativeAuthority=$false}|ConvertTo-Json -Compress;if(-not $pass){exit 1}
+}finally{[IO.Directory]::Delete($root,$true)}
+'@
+  $ordinalStageContractJson=&([scriptblock]::Create($ordinalStageContract)) -Fixture $MyInvocation.MyCommand.Path
+  $jobResult.ordinalStageControls=$ordinalStageContractJson|ConvertFrom-Json
   $jobResult.status='POLICY_ONLY';$jobResult.failureCode='NONE';$jobResult.foreignAllocationRefused=$foreignRefused;$jobResult.helloBeforeAssignmentRefused=$beforeHelloRefused;$jobResult.changedStartInfoRefused=$changedInfoRefused;$jobResult.firstCloseReturned=$closed;$jobResult.duplicateCloseReturned=$duplicate;$jobResult.nativeCalls=($a.NativeCalls+$b.NativeCalls);$jobResult.processesStarted=0;$jobResult|ConvertTo-Json -Depth 5 -Compress;exit
  }catch{$jobResult.failureCode='PUBLIC_JOB_POLICY_SETUP_REFUSED';$jobResult|ConvertTo-Json -Depth 5 -Compress;exit}}
  $jobWatch=[Diagnostics.Stopwatch]::StartNew();$jobRoot=$null;$script:jobOwners=[Collections.Generic.List[object]]::new();$script:jobRecords=[Collections.Generic.List[object]]::new();$script:jobObserved=[Collections.Generic.List[object]]::new();$script:managerRecord=$null;$script:jobIdentityRows=[Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
@@ -159,17 +211,20 @@ $pass=@($rows|Where-Object {-not $_.pass}).Count -eq 0;@{pass=$pass;rows=$rows;m
   Job-BindIdentity $claim $p.Id ($p.StartTime.ToUniversalTime().ToFileTimeUtc()) $p.MainModule.FileName $Image ([int]$row.ParentProcessId) $Parent.Id $script:jobIdentityRows
   return $p
  }
- function Job-StartNode([bool]$WithJob,[ValidateSet('CONTROL','CLEAN','EARLY','MANAGER_CHILD')][string]$Stage){$owner=[PublicOwnedJobPrototype]::new();[void]$script:jobOwners.Add($owner);if($WithJob){$owner.CreateOwnedJob()};$info=Job-Info $nodePath ('"'+$nodeScript+'"') $jobRoot;$p=$owner.AllocateNode($info);$record=@{owner=$owner;process=$p;stderr=$null;hello=$false;stage=$Stage};[void]$script:jobRecords.Add($record);$owner.StartAllocated($p);$record.stderr=$p.StandardError.ReadToEndAsync();$record.birth=$p.StartTime.ToUniversalTime().ToFileTimeUtc();if((Job-Line $record $Stage 'READY') -cne 'READY'){throw 'PUBLIC_JOB_READY_REQUIRED'};return $record}
+ function Job-StartNode([bool]$WithJob,[ValidateSet('CONTROL','CLEAN','EARLY','MANAGER_CHILD')][string]$Stage){$owner=[PublicOwnedJobPrototype]::new();[void]$script:jobOwners.Add($owner);if($WithJob){$owner.CreateOwnedJob()};$info=Job-Info $nodePath ('"'+$nodeScript+'"') $jobRoot;$p=$owner.AllocateNode($info);$record=@{owner=$owner;process=$p;stderr=$null;hello=$false;stage=$Stage};[void]$script:jobRecords.Add($record);if($script:publicManagerStageRoot){Write-PublicJobManagerStage $script:publicManagerStageRoot 'NODE_START_ENTER'};$owner.StartAllocated($p);$record.stderr=$p.StandardError.ReadToEndAsync();$record.birth=$p.StartTime.ToUniversalTime().ToFileTimeUtc();if((Job-Line $record $Stage 'READY') -cne 'READY'){throw 'PUBLIC_JOB_READY_REQUIRED'};if($script:publicManagerStageRoot){Write-PublicJobManagerStage $script:publicManagerStageRoot 'NODE_READY_RETURN'};return $record}
  function Job-Hello($Record,[bool]$Assigned){if($Assigned){$Record.owner.AssertHelloAllowed($Record.process)};if($Record.hello){throw 'PUBLIC_JOB_DUPLICATE_HELLO'};$Record.process.StandardInput.WriteLine('HELLO');$Record.process.StandardInput.Flush();$Record.hello=$true;return Job-Observe (Job-Line $Record $Record.stage 'HELPER') 'HELPER' $fixedPS $Record.process}
  function Job-Wait($p,[int]$Cap){if(-not $p.WaitForExit((Job-Remaining $Cap))){throw 'PUBLIC_JOB_OWNED_EXIT_TIMEOUT'}}
  try{
   if([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT -or [IntPtr]::Size -ne 8 -or $PSVersionTable.PSVersion.Major -ne 5){throw 'PUBLIC_JOB_WINPS51_X64_REQUIRED'};$jobResult.actualWindowsExecuted=$true
   $windows=[Environment]::GetFolderPath('Windows');$fixedPS=$windows+'\System32\WindowsPowerShell\v1.0\powershell.exe';$selfPath=$MyInvocation.MyCommand.Path
+  if($script:publicManagerStageRoot){Write-PublicJobManagerStage $script:publicManagerStageRoot 'INPUT_READ_ENTER'}
   $data=if($Scenario -eq 'owned-job-manager'){[Console]::In.ReadLine()|ConvertFrom-Json}else{[Console]::In.ReadToEnd()|ConvertFrom-Json}
+  if($script:publicManagerStageRoot){Write-PublicJobManagerStage $script:publicManagerStageRoot 'INPUT_READ_RETURN'}
   $fields=if($Scenario -eq 'owned-job-manager'){@('requests','nodePath','nodeSha256','fixtureSha256','root')}else{@('requests','nodePath','nodeSha256','fixtureSha256')};$keys=@($data.PSObject.Properties.Name);if($keys.Count -ne $fields.Count -or @($fields|Where-Object {$keys -cnotcontains $_}).Count){throw 'PUBLIC_JOB_INPUT_REFUSED'}
   $nodePath=$data.nodePath;if($nodePath -isnot [string] -or $nodePath -cnotmatch '^[A-Za-z]:\\[^"\r\n\x00]+\\node\.exe$' -or $data.nodeSha256 -cnotmatch '^[a-f0-9]{64}$' -or $data.fixtureSha256 -cne (Job-Public-Digest ([IO.File]::ReadAllBytes($selfPath))) -or (Job-Public-Digest ([IO.File]::ReadAllBytes($nodePath))) -cne $data.nodeSha256 -or -not [IO.File]::Exists($fixedPS)){throw 'PUBLIC_JOB_FIXED_SOURCE_REQUIRED'}
   if($Scenario -eq 'owned-job-manager'){$jobRoot=[string]$data.root}else{$jobRoot=[IO.Path]::Combine([IO.Path]::GetTempPath(),('public-owned-job-'+[Guid]::NewGuid().ToString('N')));$null=[IO.Directory]::CreateDirectory($jobRoot)}
   if($jobRoot -cnotmatch '^[A-Za-z]:\\[^"\r\n\x00]+\\public-owned-job-[a-f0-9]{32}$'){throw 'PUBLIC_JOB_ROOT_REFUSED'};$nodeScript=[IO.Path]::Combine($jobRoot,'public-node.cjs');$helperScript=[IO.Path]::Combine($jobRoot,'public-helper.ps1')
+  if($script:publicManagerStageRoot){if(-not [string]::Equals($jobRoot,$script:publicManagerStageRoot,[StringComparison]::OrdinalIgnoreCase)){throw 'PUBLIC_JOB_STAGE_CONTEXT_REQUIRED'};Write-PublicJobManagerStage $script:publicManagerStageRoot 'INPUT_VALIDATED'}
   $helperSource='$ErrorActionPreference="Stop"; $p=[Diagnostics.Process]::GetCurrentProcess(); [Console]::Out.WriteLine(("HELPER "+$p.Id+" "+$p.StartTime.ToUniversalTime().ToFileTimeUtc())); [Console]::Out.Flush(); [Threading.Thread]::Sleep(5000); exit 73'
   $psLiteral=ConvertTo-Json -InputObject $fixedPS -Compress;$helperLiteral=ConvertTo-Json -InputObject $helperScript -Compress
   $nodeSource=@'
@@ -178,7 +233,7 @@ $pass=@($rows|Where-Object {-not $_.pass}).Count -eq 0;@{pass=$pass;rows=$rows;m
   $nodeSource=$nodeSource.Replace('__PS__',$psLiteral).Replace('__HELPER__',$helperLiteral)
   if($Scenario -eq 'owned-job-manager'){if([IO.File]::ReadAllText($nodeScript) -cne $nodeSource -or [IO.File]::ReadAllText($helperScript) -cne $helperSource){throw 'PUBLIC_JOB_CHILD_SOURCE_REFUSED'}}else{[IO.File]::WriteAllText($nodeScript,$nodeSource,[Text.UTF8Encoding]::new($false));[IO.File]::WriteAllText($helperScript,$helperSource,[Text.UTF8Encoding]::new($false))}
   if($Scenario -eq 'owned-job-manager'){
-   $record=Job-StartNode $true 'MANAGER_CHILD';$record.owner.AssignOriginal($record.process);[Console]::Out.WriteLine(('NODE '+$record.process.Id+' '+$record.birth));[Console]::Out.Flush();$heldHelper=Job-Hello $record $true;[Console]::Out.WriteLine(('HELPER '+$heldHelper.Id+' '+$heldHelper.StartTime.ToUniversalTime().ToFileTimeUtc()));[Console]::Out.Flush();[Threading.Thread]::Sleep(8000);exit 75
+   $record=Job-StartNode $true 'MANAGER_CHILD';$record.owner.AssignOriginal($record.process);[Console]::Out.WriteLine(('NODE '+$record.process.Id+' '+$record.birth));[Console]::Out.Flush();Write-PublicJobManagerStage $script:publicManagerStageRoot 'NODE_REPORTED';$heldHelper=Job-Hello $record $true;Write-PublicJobManagerStage $script:publicManagerStageRoot 'HELPER_RETURN';[Console]::Out.WriteLine(('HELPER '+$heldHelper.Id+' '+$heldHelper.StartTime.ToUniversalTime().ToFileTimeUtc()));[Console]::Out.Flush();[Threading.Thread]::Sleep(8000);exit 75
   }
   # Source-correct specificity control: retain the unassigned outside pair
   # while the tested Job closes. Pinned libuv may itself contain a non-detached
@@ -191,6 +246,7 @@ $pass=@($rows|Where-Object {-not $_.pass}).Count -eq 0;@{pass=$pass;rows=$rows;m
   # A closed-job assignment is refused before HELLO. Actual nested-job API
   # failure is not forced; if encountered above it fails closed without HELLO.
   $early=Job-StartNode $true 'EARLY';$null=$early.owner.CloseOwnedJob();$refused=$false;try{$early.owner.AssignOriginal($early.process)}catch{$refused=$true};if(-not $refused -or $early.hello){throw 'PUBLIC_JOB_PREHELLO_REFUSAL_REQUIRED'};$early.owner.StopOnlyOwnedUnassigned($early.process);Job-Wait $early.process 1000;$remaining=$early.process.StandardOutput.ReadToEndAsync();if(-not $remaining.Wait((Job-Remaining 500)) -or $remaining.Result.Length -ne 0){throw 'PUBLIC_JOB_HELPER_BEFORE_HELLO'};$jobResult.preHelloAssignment=@{closedJobRefused=$true;helloSent=$false;helperMessages=0;nodeContained=$true;forcedKernelAssignmentFailure=$false}
+  $managerStagePath=[IO.Path]::Combine($jobRoot,'public-manager-stage.txt');$stageFile=[IO.File]::Open($managerStagePath,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::Read);try{$stageBytes=[Text.Encoding]::ASCII.GetBytes('ALLOCATED');$stageFile.Write($stageBytes,0,$stageBytes.Length)}finally{$stageFile.Dispose()}
   $managerInfo=Job-Info $fixedPS ('-NoLogo -NoProfile -NonInteractive -File "'+$selfPath+'" -Scenario owned-job-manager') $jobRoot;$manager=[Diagnostics.Process]::new();$manager.StartInfo=$managerInfo;$script:managerRecord=@{process=$manager;stderr=$null};if(-not $manager.Start()){throw 'PUBLIC_JOB_MANAGER_START_FAILED'};$null=$manager.Handle;$script:managerRecord.stderr=$manager.StandardError.ReadToEndAsync();$managerInput=[ordered]@{requests=@();nodePath=$nodePath;nodeSha256=$data.nodeSha256;fixtureSha256=$data.fixtureSha256;root=$jobRoot}|ConvertTo-Json -Compress;$manager.StandardInput.WriteLine($managerInput);$manager.StandardInput.Flush();$deathNode=Job-Observe (Job-Line $script:managerRecord 'MANAGER' 'NODE') 'NODE' $nodePath $manager;$deathHelper=Job-Observe (Job-Line $script:managerRecord 'MANAGER' 'HELPER') 'HELPER' $fixedPS $deathNode
   if($manager.HasExited -or $deathNode.HasExited -or $deathHelper.HasExited){throw 'PUBLIC_JOB_MANAGER_DEATH_POSITIVE_MISSING'};$manager.Kill();Job-Wait $manager 1000;Job-Wait $deathNode 1000;Job-Wait $deathHelper 1000;if($manager.ExitCode -eq 75 -or $deathNode.ExitCode -eq 74 -or $deathHelper.ExitCode -eq 73){throw 'PUBLIC_JOB_TIMER_CANNOT_PROVE_CONTAINMENT'};$jobResult.managerDeath=@{originalManagerKilled=$true;nodeExited=$true;helperExited=$true;selfTimersWereNotExitCause=$true}
   $jobResult.status='PASS';$jobResult.failureCode='NONE';$jobResult.selfTimersAreAdminClockProof=$false;$jobResult.noPidAssignmentOrTermination=$true;$jobResult.actualOriginalClockProof=$false;$jobResult.actualImplicitSQLiteCleanupProof=$false
@@ -198,7 +254,9 @@ $pass=@($rows|Where-Object {-not $_.pass}).Count -eq 0;@{pass=$pass;rows=$rows;m
  finally{
   foreach($owner in $script:jobOwners){try{$null=$owner.CloseOwnedJob()}catch{$jobResult.ownedChildrenExited=$false}}
   foreach($record in $script:jobRecords){try{$null=$record.owner.CloseOwnedJob();if($record.owner.Started -and -not $record.process.HasExited){if(-not $record.owner.Assigned){$record.owner.StopOnlyOwnedUnassigned($record.process)};if(-not $record.process.WaitForExit(1000)){$jobResult.ownedChildrenExited=$false}}}catch{$jobResult.ownedChildrenExited=$false}}
-  if($script:managerRecord){try{if(-not $script:managerRecord.process.HasExited){$script:managerRecord.process.Kill();if(-not $script:managerRecord.process.WaitForExit(1000)){$jobResult.ownedChildrenExited=$false}}}catch{$jobResult.ownedChildrenExited=$false}}
+  $managerStoppedForStage=$false
+  if($script:managerRecord){try{if(-not $script:managerRecord.process.HasExited){$script:managerRecord.process.Kill();if(-not $script:managerRecord.process.WaitForExit(1000)){$jobResult.ownedChildrenExited=$false}else{$managerStoppedForStage=$true}}else{$managerStoppedForStage=$true}}catch{$jobResult.ownedChildrenExited=$false}}
+  if($Scenario -ceq 'owned-job-windows' -and $script:managerRecord){$jobResult.managerStartupDiagnostic=if($managerStoppedForStage){Read-PublicJobManagerStage $jobRoot}else{ConvertFrom-PublicJobManagerStageBytes ([byte[]]@())};if($jobResult.status -ceq 'PASS' -and $jobResult.managerStartupDiagnostic.state -cne 'OBSERVED'){$jobResult.status='INCONCLUSIVE';$jobResult.failureCode='PUBLIC_JOB_MANAGER_STAGE_UNKNOWN'}}
   foreach($p in $script:jobObserved){try{if(-not $p.HasExited){if(-not $p.WaitForExit(1000)){$jobResult.ownedChildrenExited=$false}}}catch{$jobResult.ownedChildrenExited=$false}finally{$p.Dispose()}}
   foreach($record in $script:jobRecords){$record.process.Dispose()};if($script:managerRecord){$script:managerRecord.process.Dispose()}
   if($Scenario -ne 'owned-job-manager' -and $jobRoot -and [IO.Directory]::Exists($jobRoot)){try{[IO.Directory]::Delete($jobRoot,$true)}catch{$jobResult.ownedArtifactsRemoved=$false}}

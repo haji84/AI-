@@ -470,3 +470,65 @@ test("private late drifted or cleanup-uncertain nonzero result remains inconclus
   assert.equal(output.error||output.status===null?"inconclusive":output.status===0?"passed":"failed","inconclusive");assert.equal(output.cleanup.attempted,true);assert.equal(m.calls.filter(x=>x.kind==="process").length,3);assert.throws(()=>m.api.observeHostedCiBudget(r.token,"SIGN_BEFORE"),/TERMINAL/);
  }
 });
+
+
+// Fixed diagnostic bits correspond one-for-one to the unchanged run-refusal
+// expression. This private VM model never exposes a production injection API.
+function runDiagnosticPrivateModel(config={},capturedId){
+ const m=hostedPrivateModel(config);if(capturedId===undefined)return m;
+ m.env.GITHUB_RUN_ID=capturedId;const context={...m.context};
+ const code=readFileSync("scripts/jarvis-verifier-container.mjs","utf8"),source=code.slice(code.indexOf("// Hosted entry lifetime.")).replaceAll("import.meta.url",'"file:///public/repo/scripts/jarvis-verifier-container.mjs"').replaceAll(/^export /gm,"");
+ runInNewContext(source+";globalThis.runDiagnosticApi={beginHostedCiEntry,bindHostedCiRequest,observeHostedCiBudget,runHostedCiContainer,identity:hostedOfficialIdentity};",context);return {...m,api:context.runDiagnosticApi};
+}
+const runDiagnosticPrefix="HOSTED_CI_OFFICIAL_RUN_MISMATCH:RUN_IDENTITY_V1:";
+test("private official run mismatch reports only the same thirteen atomic predicate bits without issuing or replaying entry",async()=>{
+ const cases=[
+  {bits:[0],capturedId:"9007199254740992",change:r=>{r.id=9007199254740992;}},
+  {bits:[1],change:r=>{r.id++;}},{bits:[2],change:r=>{r.run_attempt=2;}},{bits:[3],change:r=>{r.status="PUBLIC_DIAGNOSTIC_CANARY";}},
+  {bits:[4],change:r=>{r.head_sha="e".repeat(40);}},{bits:[5],change:r=>{r.name="PUBLIC_DIAGNOSTIC_CANARY";}},{bits:[6],change:r=>{r.path="PUBLIC_DIAGNOSTIC_CANARY";}},
+  {bits:[7],change:r=>{r.event="PUBLIC_DIAGNOSTIC_CANARY";}},{bits:[8],change:r=>{r.repository.full_name="PUBLIC_DIAGNOSTIC_CANARY";}},{bits:[9],change:r=>{r.repository.private=true;}},
+  {bits:[10],change:r=>{r.head_repository.full_name="PUBLIC_DIAGNOSTIC_CANARY";}},{bits:[11],change:r=>{r.workflow_id=7.5;}},{bits:[12],change:r=>{r.workflow_id=0;}},
+  {bits:[3,4,8,10],change:r=>{r.status="queued";r.head_sha="e".repeat(40);r.repository.full_name="PUBLIC_DIAGNOSTIC_CANARY";r.head_repository.full_name="PUBLIC_DIAGNOSTIC_CANARY";}},
+  {bits:[1,6,9,12],change:r=>{r.id++;r.path="PUBLIC_DIAGNOSTIC_CANARY";r.repository.private=true;r.workflow_id=0;}}
+ ];
+ for(const item of cases){const m=runDiagnosticPrivateModel({metadata:item.change},item.capturedId),expected=Array.from({length:13},(_x,i)=>item.bits.includes(i)?"1":"0").join("");let issued=false;
+  await assert.rejects(m.api.beginHostedCiEntry().then(value=>{issued=true;return value;}),error=>{assert.equal(error.code,"HOSTED_CI_OFFICIAL_RUN_MISMATCH");assert.equal(error.message,runDiagnosticPrefix+expected);assert.equal(error.message.includes("PUBLIC_DIAGNOSTIC_CANARY"),false);return true;});
+  assert.equal(issued,false);assert.equal(m.calls.filter(x=>x.kind==="GET").length,2);assert.equal(m.calls.filter(x=>x.kind==="process").length,0);
+  await assert.rejects(m.api.beginHostedCiEntry(),/ENTRY_REFUSED/);assert.equal(m.calls.filter(x=>x.kind==="GET").length,2);
+ }
+});
+
+test("private malformed official run inputs keep canonical refusal and fixed mask without serializing input",()=>{
+ for(const body of [null,undefined,false,3,"PUBLIC_DIAGNOSTIC_CANARY",[],{}]){const m=hostedPrivateModel();assert.throws(()=>m.api.identity({body},{body:m.jobs},m.base),error=>{
+  assert.equal(error.code,"HOSTED_CI_OFFICIAL_RUN_MISMATCH");assert.match(error.message,/^HOSTED_CI_OFFICIAL_RUN_MISMATCH:RUN_IDENTITY_V1:[01]{13}$/);assert.equal(error.message.includes("PUBLIC_DIAGNOSTIC_CANARY"),false);return true;});assert.equal(m.calls.length,0);}
+ const m=hostedPrivateModel();m.run.repository=null;assert.throws(()=>m.api.identity({body:m.run},{body:m.jobs},m.base),error=>error.code==="HOSTED_CI_OFFICIAL_RUN_MISMATCH"&&/^HOSTED_CI_OFFICIAL_RUN_MISMATCH:RUN_IDENTITY_V1:[01]{13}$/.test(error.message));
+});
+
+test("private entry refuses copied diagnostic messages and malicious properties instead of reflecting arbitrary errors",async()=>{
+ for(const message of [runDiagnosticPrefix+"1".repeat(13),runDiagnosticPrefix+"1".repeat(12),runDiagnosticPrefix+"1".repeat(14),runDiagnosticPrefix+"1".repeat(13)+"PUBLIC_DIAGNOSTIC_CANARY","PUBLIC_DIAGNOSTIC_CANARY"]){
+  const fake=Object.assign(Error(message),{code:"HOSTED_CI_OFFICIAL_RUN_MISMATCH",runPredicateMask:"1".repeat(13),hostedRunPredicateMask:"PUBLIC_DIAGNOSTIC_CANARY",diagnostic:runDiagnosticPrefix+"1".repeat(13)});
+  const m=hostedPrivateModel({sourceRead:()=>{throw fake;}});await assert.rejects(m.api.beginHostedCiEntry(),error=>{assert.equal(error.code,"HOSTED_CI_OFFICIAL_RUN_MISMATCH");assert.equal(error.message,"HOSTED_CI_OFFICIAL_RUN_MISMATCH");return true;});assert.equal(m.calls.filter(x=>x.kind==="GET"||x.kind==="process").length,0);await assert.rejects(m.api.beginHostedCiEntry(),/ENTRY_REFUSED/);
+ }
+});
+
+test("private valid official entry stays unchanged and non-run metadata failures keep their canonical codes",async()=>{
+ const m=hostedPrivateModel(),entry=await m.api.beginHostedCiEntry();assert.ok(Object.isFrozen(entry.token)&&Object.isFrozen(entry.context));assert.equal(m.calls.filter(x=>x.kind==="GET").length,2);assert.equal(m.calls.filter(x=>x.kind==="process").length,0);
+ for(const [change,code] of [[(_r,j)=>{j.total_count=101;},"HOSTED_CI_OFFICIAL_JOBS_INVALID"],[(_r,j)=>{j.jobs[0].labels=["self-hosted"];},"HOSTED_CI_OFFICIAL_JOB_INVALID"]]){
+  const n=hostedPrivateModel({metadata:change});await assert.rejects(n.api.beginHostedCiEntry(),error=>{assert.equal(error.code,code);assert.equal(error.message,code);return true;});assert.equal(n.calls.filter(x=>x.kind==="GET").length,2);assert.equal(n.calls.filter(x=>x.kind==="process").length,0);
+ }
+});
+
+test("private malformed workflow comparison cannot replace canonical run refusal with a diagnostic exception",async()=>{
+ for(const workflow of [{toString:"PUBLIC_DIAGNOSTIC_CANARY"},{valueOf:"PUBLIC_DIAGNOSTIC_CANARY",toString:"PUBLIC_DIAGNOSTIC_CANARY"},{valueOf:[]},{valueOf:null},[],[7],null]){
+  const m=hostedPrivateModel({metadata:r=>{r.workflow_id=workflow;}});await assert.rejects(m.api.beginHostedCiEntry(),error=>{
+   assert.equal(error.code,"HOSTED_CI_OFFICIAL_RUN_MISMATCH");assert.equal(error.message,runDiagnosticPrefix+"0000000000011");assert.equal(error.message.includes("PUBLIC_DIAGNOSTIC_CANARY"),false);return true;
+  });assert.equal(m.calls.filter(x=>x.kind==="GET").length,2);assert.equal(m.calls.filter(x=>x.kind==="process").length,0);await assert.rejects(m.api.beginHostedCiEntry(),/ENTRY_REFUSED/);
+ }
+});
+
+
+test("private combined malformed run diagnostics mark the unreachable workflow comparison invalid without coercion",async()=>{
+ const m=hostedPrivateModel({metadata:r=>{r.status="queued";r.path="PUBLIC_DIAGNOSTIC_CANARY";r.repository.private=true;r.workflow_id={valueOf:null};}});
+ await assert.rejects(m.api.beginHostedCiEntry(),error=>{assert.equal(error.code,"HOSTED_CI_OFFICIAL_RUN_MISMATCH");assert.equal(error.message,runDiagnosticPrefix+Array.from({length:13},(_x,i)=>[3,6,9,11,12].includes(i)?"1":"0").join(""));return true;});
+ assert.equal(m.calls.filter(x=>x.kind==="GET").length,2);assert.equal(m.calls.filter(x=>x.kind==="process").length,0);await assert.rejects(m.api.beginHostedCiEntry(),/ENTRY_REFUSED/);
+});

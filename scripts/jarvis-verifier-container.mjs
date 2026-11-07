@@ -168,6 +168,7 @@ const hostedEligible = hostedCapture.platform === "linux" && process.argv.length
   && hostedCapture.env.RUNNER_OS === "Linux" && hostedCapture.env.RUNNER_ENVIRONMENT === "github-hosted"
   && isAbsolute(hostedCapture.env.RUNNER_TEMP ?? "") && !hostedCapture.env.DOCKER_HOST && !hostedCapture.env.DOCKER_CONTEXT;
 const hostedLifetimes = new WeakMap();
+const hostedOfficialRunDiagnostics = new WeakMap();
 let hostedEntryConsumed = false;
 const hostedHash = bytes => createHash("sha256").update(bytes).digest("hex");
 const hostedMinimum = (...values) => values.reduce((a, b) => a < b ? a : b);
@@ -303,7 +304,23 @@ function hostedOfficialIdentity(runObservation, jobsObservation, baseRevision) {
     || run.head_sha !== baseRevision || run.name !== "CI" || run.path !== ".github/workflows/ci.yml"
     || run.event !== hostedCapture.env.GITHUB_EVENT_NAME || run.repository?.full_name !== "haji84/AI-" || run.repository.private !== false
     || run.head_repository?.full_name !== "haji84/AI-" || !Number.isSafeInteger(run.workflow_id) || run.workflow_id < 1)
-    throw failure("HOSTED_CI_OFFICIAL_RUN_MISMATCH");
+  {
+    // Fixed atomic predicate order matches the unchanged refusal above. Only
+    // the owned mismatch Error may carry this closed diagnostic through entry.
+    // Nonprimitive JSON is already refused by the preceding integer predicate.
+    // Its unreachable comparison bit means invalid/refused; never coerce input.
+    const workflowComparable = run?.workflow_id === null || ["undefined", "boolean", "number", "string"].includes(typeof run?.workflow_id);
+    const workflowBelowMinimum = !workflowComparable || run?.workflow_id < 1;
+    const mask = [!Number.isSafeInteger(id), run?.id !== id, run?.run_attempt !== 1, run?.status !== "in_progress",
+      run?.head_sha !== baseRevision, run?.name !== "CI", run?.path !== ".github/workflows/ci.yml",
+      run?.event !== hostedCapture.env.GITHUB_EVENT_NAME, run?.repository?.full_name !== "haji84/AI-", run?.repository?.private !== false,
+      run?.head_repository?.full_name !== "haji84/AI-", !Number.isSafeInteger(run?.workflow_id), workflowBelowMinimum]
+      .map(failed => failed ? "1" : "0").join("");
+    const error = failure("HOSTED_CI_OFFICIAL_RUN_MISMATCH");
+    hostedOfficialRunDiagnostics.set(error, mask);
+    error.message += ":RUN_IDENTITY_V1:" + mask;
+    throw error;
+  }
   if (!Number.isInteger(jobs?.total_count) || jobs.total_count < 1 || jobs.total_count > 100
     || !Array.isArray(jobs.jobs) || jobs.jobs.length !== jobs.total_count
     || jobs.jobs.some(job => !Number.isSafeInteger(job.id) || job.id < 1 || job.run_id !== id || job.run_attempt !== 1)
@@ -376,7 +393,14 @@ export async function beginHostedCiEntry() {
       metadataResponses: 2, originalOfficialOuterMono: state.outerMono.toString(), nativeAuthority: false });
     const token = Object.freeze(Object.create(null)); hostedLifetimes.set(token, state);
     return Object.freeze({ token, context: state.context });
-  } catch (error) { state.terminal = true; throw failure(error.code?.startsWith("HOSTED_CI_") ? error.code : "HOSTED_CI_ENTRY_FAILED"); }
+  } catch (error) {
+    state.terminal = true;
+    const stopped = failure(error.code?.startsWith("HOSTED_CI_") ? error.code : "HOSTED_CI_ENTRY_FAILED");
+    const mask = hostedOfficialRunDiagnostics.get(error);
+    if (stopped.code === "HOSTED_CI_OFFICIAL_RUN_MISMATCH" && typeof mask === "string" && /^[01]{13}$/.test(mask))
+      stopped.message += ":RUN_IDENTITY_V1:" + mask;
+    throw stopped;
+  }
 }
 export function bindHostedCiRequest(token, req) {
   const state = hostedState(token);
