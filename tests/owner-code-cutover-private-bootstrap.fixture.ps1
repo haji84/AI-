@@ -1,6 +1,6 @@
-param([ValidateSet('kernel','clock','scope','default','denials','stage','node','archive','configuration','validator-child','journal','entry','kernel-producers','all')][string]$Scenario='kernel',[string]$FixtureInput='')
+param([ValidateSet('kernel','clock','scope','default','denials','stage','node','archive','configuration','validator-child','journal','entry','kernel-producers','startup-policy','compiled-policy','fallback','compiled-os','all')][string]$Scenario='kernel',[string]$FixtureInput='')
 $ErrorActionPreference='Stop';Set-StrictMode -Version Latest
-$root=Split-Path $PSScriptRoot;. (Join-Path $root 'scripts/owner-code-rotation-native-1218.ps1')
+$root=Split-Path $PSScriptRoot;$script:fixtureSourceRoot=$root;. (Join-Path $root 'scripts/owner-code-rotation-native-1218.ps1')
 if(-not (Get-Command Get-OwnerCutoverPublicReadiness -ErrorAction SilentlyContinue)){throw 'CUTOVER_PUBLIC_READINESS_MISSING'}
 function Require([bool]$Value,[string]$Code){if(-not $Value){throw ('CUTOVER_BOOTSTRAP_FIXTURE_'+$Code)}}
 $inputText=if($FixtureInput){$FixtureInput}else{[Console]::In.ReadToEnd()};$inputData=$inputText|ConvertFrom-Json;$script:baseNow=[datetimeoffset]::Parse($inputData.now);$script:utc=$script:baseNow;$script:stamp=[long]10000000;$script:case='';$script:calls=[Collections.Generic.List[string]]::new();$script:stage='';$script:run=0
@@ -28,7 +28,7 @@ $script:owner='S-1-5-21-111-222-333-1001';$script:ownerHash=Get-OwnerRotationEnt
 function PrivateSetup([int]$Index){$dir=Setup $Index;$script:grant.ownerSidSha256=$script:ownerHash;$env:GORIQ_OWNER_ROTATION_SCOPE_BASE64=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes((ConvertTo-OwnerRotationEntryJson $script:grant)));return $dir}
 function Write-CutoverPublicPhase([string]$Phase){
  if(-not $env:GORIQ_PUBLIC_CUTOVER_PROGRESS){return}
- $allowed=@('BATCH_BEGIN','BATCH_DONE','SCENARIO_KERNEL_BEGIN','SCENARIO_KERNEL_DONE','SCENARIO_SCOPE_BEGIN','SCENARIO_SCOPE_DONE','SCENARIO_CLOCK_BEGIN','SCENARIO_CLOCK_DONE','SCENARIO_DEFAULT_BEGIN','SCENARIO_DEFAULT_DONE','SCENARIO_DENIALS_BEGIN','SCENARIO_DENIALS_DONE','SCENARIO_STAGE_BEGIN','SCENARIO_STAGE_DONE','SCENARIO_NODE_BEGIN','SCENARIO_NODE_DONE','SCENARIO_ARCHIVE_BEGIN','SCENARIO_ARCHIVE_DONE','SCENARIO_CONFIGURATION_BEGIN','SCENARIO_CONFIGURATION_DONE','SCENARIO_VALIDATOR_CHILD_BEGIN','SCENARIO_VALIDATOR_CHILD_DONE','SCENARIO_JOURNAL_BEGIN','SCENARIO_JOURNAL_DONE','SCENARIO_ENTRY_BEGIN','SCENARIO_ENTRY_DONE','SCENARIO_KERNEL_PRODUCERS_BEGIN','SCENARIO_KERNEL_PRODUCERS_DONE','STDIN_PROBE_BEGIN','STDIN_PROBE_DONE','VALIDATOR_SUCCESS_BEGIN','VALIDATOR_SUCCESS_DONE','VALIDATOR_STDERR_BEGIN','VALIDATOR_STDERR_DONE','VALIDATOR_OVERSIZE_BEGIN','VALIDATOR_OVERSIZE_DONE','VALIDATOR_EXIT_BEGIN','VALIDATOR_EXIT_DONE')
+ $allowed=@('BATCH_BEGIN','BATCH_DONE','SCENARIO_KERNEL_BEGIN','SCENARIO_KERNEL_DONE','SCENARIO_SCOPE_BEGIN','SCENARIO_SCOPE_DONE','SCENARIO_CLOCK_BEGIN','SCENARIO_CLOCK_DONE','SCENARIO_DEFAULT_BEGIN','SCENARIO_DEFAULT_DONE','SCENARIO_DENIALS_BEGIN','SCENARIO_DENIALS_DONE','SCENARIO_STAGE_BEGIN','SCENARIO_STAGE_DONE','SCENARIO_NODE_BEGIN','SCENARIO_NODE_DONE','SCENARIO_ARCHIVE_BEGIN','SCENARIO_ARCHIVE_DONE','SCENARIO_CONFIGURATION_BEGIN','SCENARIO_CONFIGURATION_DONE','SCENARIO_VALIDATOR_CHILD_BEGIN','SCENARIO_VALIDATOR_CHILD_DONE','SCENARIO_JOURNAL_BEGIN','SCENARIO_JOURNAL_DONE','SCENARIO_ENTRY_BEGIN','SCENARIO_ENTRY_DONE','SCENARIO_KERNEL_PRODUCERS_BEGIN','SCENARIO_KERNEL_PRODUCERS_DONE','SCENARIO_STARTUP_POLICY_BEGIN','SCENARIO_STARTUP_POLICY_DONE','SCENARIO_COMPILED_POLICY_BEGIN','SCENARIO_COMPILED_POLICY_DONE','STDIN_PROBE_BEGIN','STDIN_PROBE_DONE','VALIDATOR_SUCCESS_BEGIN','VALIDATOR_SUCCESS_DONE','VALIDATOR_STDERR_BEGIN','VALIDATOR_STDERR_DONE','VALIDATOR_OVERSIZE_BEGIN','VALIDATOR_OVERSIZE_DONE','VALIDATOR_EXIT_BEGIN','VALIDATOR_EXIT_DONE')
  if($allowed -cnotcontains $Phase){throw 'PUBLIC_PROGRESS_ENUM_REQUIRED'}
  $path=[IO.Path]::GetFullPath($env:GORIQ_PUBLIC_CUTOVER_PROGRESS);$parent=[IO.Path]::GetDirectoryName($path);$temp=[IO.Path]::GetFullPath([IO.Path]::GetTempPath());if([IO.Path]::GetFileName($path) -cne 'phase.txt' -or -not $parent.StartsWith($temp,[StringComparison]::OrdinalIgnoreCase) -or [IO.Path]::GetFileName($parent) -cnotmatch '^goriq-public-cutover-phase-[A-Za-z0-9]+$'){throw 'PUBLIC_PROGRESS_OWNED_PATH_REQUIRED'}
  $bytes=([Text.UTF8Encoding]::new($false)).GetBytes($Phase+[char]10);$stream=$null;try{$stream=[IO.FileStream]::new($path,[IO.FileMode]::Open,[IO.FileAccess]::ReadWrite,[IO.FileShare]::Read);if($stream.Length -gt 8192 -or $stream.Length+$bytes.Length -gt 8192){throw 'PUBLIC_PROGRESS_LIMIT'};$null=$stream.Seek(0,[IO.SeekOrigin]::End);$stream.Write($bytes,0,$bytes.Length)}finally{if($stream){$stream.Dispose()}}
@@ -40,7 +40,7 @@ function Write-CutoverPublicPhase([string]$Phase){
 if($Scenario -ceq 'all'){
  Write-CutoverPublicPhase 'BATCH_BEGIN'
  $rows=[ordered]@{}
- foreach($name in @('kernel','scope','clock','default','denials','stage','node','archive','configuration','validator-child','journal','entry','kernel-producers')){
+ foreach($name in @('kernel','scope','clock','default','denials','stage','node','archive','configuration','validator-child','journal','entry','kernel-producers','startup-policy','compiled-policy')){
   $tag=$name.Replace('-','_').ToUpperInvariant();Write-CutoverPublicPhase ('SCENARIO_'+$tag+'_BEGIN')
   $wire=&$PSCommandPath -Scenario $name -FixtureInput $inputText
   $rows[$name]=($wire|ConvertFrom-Json);Write-CutoverPublicPhase ('SCENARIO_'+$tag+'_DONE')
@@ -56,12 +56,16 @@ function InstallFixtureKernel($Module){
   function script:Get-OwnerCutoverKernelIdentity {[void]$script:kernelCalls.Add('identity');return @{sid=$(if($script:kernelCase -eq 'owner'){'S-1-5-21-111-222-333-1002'}else{'S-1-5-21-111-222-333-1001'});isSystem=($script:kernelCase -eq 'system')}}
   function script:Get-OwnerCutoverKernelFolders {[void]$script:kernelCalls.Add('folders');return @{profile='C:\Users\Owner';localAppData='C:\Users\Owner\AppData\Local';environmentProfile=$(if($script:kernelCase -eq 'folder'){'C:\Users\Other'}else{'C:\Users\Owner'});environmentLocalAppData='C:\Users\Owner\AppData\Local'}}
   function script:Get-OwnerCutoverKernelSignature([string]$Path){[void]$script:kernelCalls.Add('signature');return @{status=$(if($script:kernelCase -eq 'signature'){'UnknownError'}else{'Valid'});subject='CN=Microsoft Windows, O=Microsoft Corporation, C=US'}}
+  function script:Get-OwnerCutoverNodeStartupPolicyObservation {
+   return [pscustomobject][ordered]@{profile='goriq-node24-compiled-openssl-conf-absence-v1';nodeSha256='3602f2bb1a10f2cbab4c36886218a33c1ab3db87290e73b033c46c77147d0237';entrySourceSha256=$script:originalState.grant.sourceHashes.'scripts/owner-code-rotation-native-1218.ps1';compilerEvidenceSha256='cf88e5151743025a5c2800eedfb78da0efd923445f20355038f576f3d874c55a';configPath='C:\Program Files\Common Files\SSL\openssl.cnf';configDisposition='ABSENT';absenceParentIdentitySha256=('a'*64)}
+  }
+
  }
 }
 # This factory alone is a test wrapper: the product constructor receives no
 # kernel callback, flags or module object. Every OS fake remains in this file.
 $factory=(Get-Command New-OwnerCutoverPrivateModule -ErrorAction SilentlyContinue)
-if($factory){$script:realPrivateFactory=$factory.ScriptBlock;function New-OwnerCutoverPrivateModule($State){$module=&$script:realPrivateFactory $State;&$module {$script:actualKernelProcessProducer=(Get-Command Get-OwnerCutoverKernelProcess).ScriptBlock;$script:actualKernelFoldersProducer=(Get-Command Get-OwnerCutoverKernelFolders).ScriptBlock};if($Scenario -cne 'default'){InstallFixtureKernel $module;if($Scenario -cin @('stage','node','archive','configuration','journal','entry')){InstallFixtureSource $module};if($Scenario -cin @('node','configuration','journal','entry')){InstallFixtureNode $module};if($Scenario -cin @('configuration','journal','entry')){InstallFixtureConfiguration $module}};return $module}}
+if($factory){$script:realPrivateFactory=$factory.ScriptBlock;function New-OwnerCutoverPrivateModule($State){$module=&$script:realPrivateFactory $State;&$module {$script:actualKernelProcessProducer=(Get-Command Get-OwnerCutoverKernelProcess).ScriptBlock;$script:actualKernelFoldersProducer=(Get-Command Get-OwnerCutoverKernelFolders).ScriptBlock;$script:actualConfigurationValidatorProducer=(Get-Command Invoke-OwnerCutoverConfigurationValidator).ScriptBlock;$script:actualNodePolicyObserver=(Get-Command Get-OwnerCutoverNodeStartupPolicyObservation).ScriptBlock};if($Scenario -cne 'default'){InstallFixtureKernel $module;if($Scenario -cin @('stage','node','archive','configuration','journal','entry','startup-policy','fallback')){InstallFixtureSource $module};if($Scenario -cin @('node','configuration','journal','entry','startup-policy','fallback')){InstallFixtureNode $module};if($Scenario -cin @('configuration','journal','entry','startup-policy','fallback')){InstallFixtureConfiguration $module}};return $module}}
 
 function InstallFixtureSource($Module){
  &$Module {
@@ -95,7 +99,12 @@ function InstallFixtureConfiguration($Module){
   function script:ConvertFrom-OwnerCutoverProtectedConfiguration([byte[]]$Bytes){$script:decryptCalls++;if($script:configurationCase -ceq 'decrypt'){throw 'PUBLIC_DECRYPT_PRIVATE_CANARY'};if($script:configurationCase -ceq 'config-change'){$script:memoryFiles['C:\Users\Owner\JARVIS\production\config.dpapi']=[Text.Encoding]::UTF8.GetBytes('CHANGED_CIPHERTEXT')};return @{configuration=$script:configurationFake;plaintext=($script:configurationFake|ConvertTo-Json -Depth 6 -Compress)}}
   function script:Invoke-OwnerCutoverConfigurationValidator([string]$Json,[string]$ReleaseRoot,[string]$StateRoot){$script:validatorCalls++;if($ReleaseRoot -cne 'D:\Installed\release-current' -or $StateRoot -cne 'C:\Users\Owner\JARVIS\production' -or $script:configurationCase -ceq 'validator'){throw 'PUBLIC_VALIDATOR_PRIVATE_CANARY'}}
  }
+ if($Scenario -ceq 'entry'){
+  $known=@{};foreach($name in @('jarvis-remote-host.mjs','jarvis-production-config.mjs','read-jarvis-production-config.ps1','jarvis-managed-process.mjs','jarvis-remote-access-lib.mjs')){$known[$name]=[IO.File]::ReadAllBytes((Join-Path $script:fixtureSourceRoot ('scripts/'+$name)))}
+  &$Module {param($sourcePackage);foreach($name in $sourcePackage.Keys){$path='D:\Installed\release-current\scripts\'+$name;$script:memoryFiles[$path]=[byte[]]$sourcePackage[$name].Clone();$script:identities[$path]='public-entry-loader-'+$name};function script:Read-OwnerCutoverFallbackAttributes([string]$Path){throw [IO.FileNotFoundException]::new('PUBLIC_ENTRY_ABSENCE')}} $known
+ }
 }
+
 
 
 if($Scenario -eq 'kernel-producers'){
@@ -111,7 +120,6 @@ public class CutoverKernelLeafModule{public string FileName{get{return "C:\\Wind
  }finally{Close $dir}}
  @{pass=$true;leafCases=@('process','folders');actualNativeCalls=0}|ConvertTo-Json -Compress;return
 }
-
 
 # PUBLIC fixture diagnostic only. No message, source line, stack, JSON input,
 # stream content, path or identifier enters these bounded facts.
@@ -179,11 +187,130 @@ function InstallFixtureNode($Module){
 }
 
 
+
+
+
+if($Scenario -eq 'compiled-os'){
+ if([IO.Path]::DirectorySeparatorChar -ne [char]92 -or $PSVersionTable.PSVersion.Major -ne 5 -or $env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted'){throw 'PUBLIC_WINDOWS_COMPONENT_ENV_REQUIRED'}
+ $dir=PrivateSetup 2701;$owned=[IO.Path]::Combine([IO.Path]::GetTempPath(),('goriq-public-platform-'+[guid]::NewGuid().ToString('N')));$null=[IO.Directory]::CreateDirectory($owned);$held=$null;$module=$null
+ try{
+  $public=Get-OwnerCutoverPublicReadiness;$private=New-OwnerCutoverPrivateBackend -PublicToken $public;$record=$null;$null=$script:ownerCutoverPrivateLifetimes.tokens.TryGetValue($private,[ref]$record);$module=$record.module
+  $facts=&$module {
+   $attributes=Read-OwnerCutoverCompiledDefaultAttributes 'C:\';if(-not(($attributes -band [IO.FileAttributes]::Directory) -ne 0 -and -not($attributes -band [IO.FileAttributes]::ReparsePoint))){throw 'PUBLIC_FIXED_CROOT_DIRECTORY_REQUIRED'}
+   $acl=Read-OwnerCutoverCompiledDefaultSecurity 'C:\';if(-not($acl.ownerSid -is [string] -and $acl.descriptorSha256 -cmatch '^[a-f0-9]{64}$' -and $acl.aces -is [array])){throw 'PUBLIC_RAW_ACE_PROJECTION_REQUIRED'}
+   Initialize-OwnerCutoverOwnedNative
+   $outcome='REFUSED';try{$observation=&$script:actualNodePolicyObserver;if($observation.configDisposition -ceq 'ABSENT'){$outcome='ABSENT_DATA'}}catch{}
+   return @{platformObservation=$outcome;aclProjected=$true}
+  }
+  $first=[IO.Path]::Combine($owned,'first');$second=[IO.Path]::Combine($owned,'second');$junction=[IO.Path]::Combine($owned,'junction');$null=[IO.Directory]::CreateDirectory($first);$null=[IO.Directory]::CreateDirectory($second)
+  $directWrapperCalls=0;$directWrapperCalls++;$held=[GoriqLauncherInspectionNative]::HoldDirectory($first);$directWrapperCalls++;$id1=[GoriqLauncherInspectionNative]::Identity($held);$directWrapperCalls++;$id2=[GoriqLauncherInspectionNative]::Identity($held);Require ($id1[0] -ceq $id2[0] -and $id1[1] -ceq $id2[1]) 'ACTUAL_HELD_IDENTITY_STABLE'
+  $directWrapperCalls++;$other=[GoriqLauncherInspectionNative]::HoldDirectory($second);try{$directWrapperCalls++;$idOther=[GoriqLauncherInspectionNative]::Identity($other);Require ($idOther[0] -cne $id1[0]) 'ACTUAL_DISTINCT_FILE_ID'}finally{$other.Dispose()}
+  $deleteRefused=$false;try{[IO.Directory]::Delete($first,$false)}catch{$deleteRefused=$true};Require $deleteRefused 'ACTUAL_NO_DELETE_SHARING';$held.Dispose();$held=$null
+  foreach($pair in @(@([IO.Path]::Combine($owned,'missing.file'),2),@([IO.Path]::Combine($owned,'missing-parent','missing.file'),3))){$code=0;try{$null=[IO.File]::GetAttributes($pair[0])}catch{$errorObject=$_.Exception;while($errorObject -is [Management.Automation.MethodInvocationException] -and $errorObject.InnerException){$errorObject=$errorObject.InnerException};if(($errorObject.GetType() -eq [IO.FileNotFoundException] -and $pair[1] -eq 2) -or ($errorObject.GetType() -eq [IO.DirectoryNotFoundException] -and $pair[1] -eq 3)){$code=$errorObject.HResult -band 65535}};Require ($code -eq $pair[1]) 'ACTUAL_TYPED_MISSING_CODE'}
+  $null=Microsoft.PowerShell.Management\New-Item -ItemType Junction -Path $junction -Target $second -ErrorAction Stop
+  Require (([IO.File]::GetAttributes($junction) -band [IO.FileAttributes]::ReparsePoint) -ne 0) 'OWNED_JUNCTION_POSITIVE'
+  $junctionRefused=$false;try{$directWrapperCalls++;$unexpected=[GoriqLauncherInspectionNative]::HoldDirectory($junction);$unexpected.Dispose()}catch{$junctionRefused=$true};Require $junctionRefused 'ACTUAL_REPARSE_REFUSAL';[IO.Directory]::Delete($junction,$false)
+  [IO.Directory]::Delete($owned,$true)
+  @{pass=$true;actualWindowsMetadataObserved=$true;actualReadonlyNativeCalls=$true;platformObservation=$facts.platformObservation;rawAclProjected=$facts.aclProjected;typedAbsenceVerified=$true;fileIdentityStable=$true;heldDeleteRefused=$true;reparseRefused=$true;temporaryObjectsRemoved=$true;ownedTemporaryFilesystemObjects=4;directNativeWrapperCalls=$directWrapperCalls;observerAdditionalNativeReadCountKnown=$false;actualProductNativeEffects=0;taskAccountDpapiCalls=0;authority=$false}|ConvertTo-Json -Compress
+ }finally{if($held){$held.Dispose()};if($module){&$module {foreach($binding in $script:compiledDefaultBindings.Values){try{$binding.handle.Dispose()}catch{}}}};if([IO.Directory]::Exists($owned)){[IO.Directory]::Delete($owned,$true)};Close $dir};return
+}
+
+if($Scenario -eq 'fallback'){
+ Add-Type 'public class CutoverFallbackUnknownMissing : System.IO.IOException { public CutoverFallbackUnknownMissing() { HResult=unchecked((int)0x80070002); } }'|Out-Null
+ $sourceBytes=@{};foreach($name in @('jarvis-remote-host.mjs','jarvis-production-config.mjs','read-jarvis-production-config.ps1','jarvis-managed-process.mjs','jarvis-remote-access-lib.mjs')){$sourceBytes[$name]=[IO.File]::ReadAllBytes((Join-Path $script:fixtureSourceRoot ('scripts/'+$name)))}
+ $cases=@('absent','present','empty','host','loader','read-config','managed','access-lib','denied','directory','reparse','unknown-missing','oversize','drift','appears','expiry','other-role','wrong-snapshot-role','absent-root-writer','root-scalar-drift','preinit-root-drift');$rows=@();$index=2400
+ foreach($caseName in $cases){$index++;$dir=PrivateSetup $index;try{
+  $public=Get-OwnerCutoverPublicReadiness;$private=New-OwnerCutoverPrivateBackend -PublicToken $public;$record=$null;$null=$script:ownerCutoverPrivateLifetimes.tokens.TryGetValue($private,[ref]$record);$module=$record.module;function ExpireFallbackClock {$script:stamp+=880001}
+  &$module {param($sources,$which,$expire)
+   $script:fallbackCase=$which;$script:fallbackAttrs=0;$script:fallbackExpire=$expire
+   foreach($name in $sources.Keys){$path='D:\Installed\release-current\scripts\'+$name;$script:memoryFiles[$path]=[byte[]]$sources[$name].Clone();$script:identities[$path]='public-loader-'+$name}
+   $bad=switch($which){'host'{'jarvis-remote-host.mjs'}'loader'{'jarvis-production-config.mjs'}'read-config'{'read-jarvis-production-config.ps1'}'managed'{'jarvis-managed-process.mjs'}'access-lib'{'jarvis-remote-access-lib.mjs'}default{$null}};if($bad){$script:memoryFiles['D:\Installed\release-current\scripts\'+$bad]=[Text.Encoding]::UTF8.GetBytes('PUBLIC_UNKNOWN_LOADER')}
+   foreach($name in @('.env','.env.local')){$path='D:\Installed\release-current\'+$name;$script:identities[$path]='public-env-'+$name;if($which -cnotin @('absent','other-role','absent-root-writer','root-scalar-drift','preinit-root-drift')){$script:memoryFiles[$path]=[Text.Encoding]::UTF8.GetBytes('PUBLIC_BUSINESS=value')}}
+   if($which -ceq 'empty'){$script:memoryFiles['D:\Installed\release-current\.env']=[byte[]]@();$script:memoryFiles['D:\Installed\release-current\.env.local']=[byte[]]@()}
+   if($which -ceq 'oversize'){$script:memoryFiles['D:\Installed\release-current\.env']=New-Object byte[] 65537}
+   function script:Read-OwnerCutoverFallbackAttributes([string]$Path){
+    $script:fallbackAttrs++;if($script:fallbackCase -ceq 'expiry'){&$script:fallbackExpire};if($script:fallbackCase -ceq 'denied'){throw [UnauthorizedAccessException]::new('PUBLIC_DENIED')};if($script:fallbackCase -ceq 'unknown-missing'){throw [CutoverFallbackUnknownMissing]::new()};if($script:fallbackCase -ceq 'directory'){return [IO.FileAttributes]::Directory};if($script:fallbackCase -ceq 'reparse'){return [IO.FileAttributes]::ReparsePoint}
+    if($script:fallbackCase -ceq 'drift' -and $script:fallbackAttrs -gt 2){$script:memoryFiles[$Path]=[Text.Encoding]::UTF8.GetBytes('PUBLIC_CHANGED')}
+    if(($script:fallbackCase -ceq 'appears' -and $script:fallbackAttrs -le 2) -or -not $script:memoryFiles.ContainsKey($Path)){throw [IO.FileNotFoundException]::new('PUBLIC_ABSENCE')};return [IO.FileAttributes]::Normal
+   }
+  } $sourceBytes $caseName (Get-Command ExpireFallbackClock).ScriptBlock
+  $null=&$module {Initialize-OwnerCutoverPrivateSource};$null=&$module {Initialize-OwnerCutoverProtectedNode};$null=&$module {Initialize-OwnerCutoverPrivateConfiguration};$null=&$module {Initialize-OwnerCutoverPrivateJournal}
+  if($caseName -ceq 'absent-root-writer'){
+   &$module {$script:ownPriorPath=(Get-Command Get-OwnerCutoverPathObservation).ScriptBlock;function script:Get-OwnerCutoverPathObservation([string]$Path){$value=&$script:ownPriorPath $Path;if($Path -ceq $script:configurationBinding.releaseRoot){$value.aces+=@{allow=$true;sid='S-1-5-21-111-222-333-1999';rights=[long]2}};return $value}}
+   Refused {&$module {Initialize-OwnerCutoverFallbackInputs}};Require ((&$module {$script:fallbackAttrs}) -eq 0) 'NO_ABSENCE_READ_WITH_UNSAFE_ROOT'
+  }elseif($caseName -ceq 'root-scalar-drift'){
+   $null=&$module {Initialize-OwnerCutoverFallbackInputs};$counts=&$module {@{attrs=$script:fallbackAttrs;opens=$script:mutableOpens}};&$module {$script:configurationBinding.releaseRoot='D:\Unobserved\other-release'}
+   Refused {&$module {Assert-OwnerCutoverFallbackInputs}};Require ((&$module {$script:fallbackAttrs}) -eq $counts.attrs -and (&$module {$script:mutableOpens}) -eq $counts.opens) 'NO_MIXED_ROOT_READ_AFTER_SCALAR_DRIFT'
+   &$module {$script:configurationBinding.releaseRoot='D:\Installed\release-current'};Refused {&$module {Assert-OwnerCutoverFallbackInputs}}
+  }elseif($caseName -ceq 'preinit-root-drift'){
+   &$module {$script:configurationBinding.releaseRoot='D:\Unobserved\other-release';$script:configurationBinding.configuration.releaseRoot='D:\Unobserved\other-release'}
+   Refused {&$module {Initialize-OwnerCutoverFallbackInputs}};Require ((&$module {$script:fallbackAttrs}) -eq 0) 'NO_REBASE_BEFORE_FIRST_FALLBACK_INIT'
+  }elseif($caseName -cin @('absent','present','empty')){$result=&$module {Initialize-OwnerCutoverFallbackInputs};Require ($result.phase -ceq 'FALLBACK_INPUTS_BOUND' -and $result.knownLoaderSourcesVerified -eq 5 -and -not $result.effectCapability -and -not $result.targetEnvironmentVerified) 'READONLY_KNOWN_FALLBACK_DATA';$null=&$module {Assert-OwnerCutoverFallbackInputs}}
+  elseif($caseName -ceq 'wrong-snapshot-role'){$before=&$module {$script:mutableOpens};Refused {&$module {Read-OwnerCutoverMutableSnapshot $script:configurationBinding.configPath 65536 'FIXED_FALLBACK'}};Require ((&$module {$script:mutableOpens}) -eq $before) 'NO_EMPTY_ROLE_ON_CONFIG'}
+  elseif($caseName -ceq 'other-role'){Refused {&$module {Get-OwnerCutoverFallbackFileState '.env.third'}};Require ((&$module {$script:fallbackAttrs}) -eq 0) 'NO_THIRD_FALLBACK_READ'}
+  else{Refused {&$module {Initialize-OwnerCutoverFallbackInputs}};if($caseName -ceq 'expiry'){Require ((&$module {$script:fallbackAttrs}) -eq 1) 'NO_FALLBACK_READ_AFTER_EXPIRY'}}
+  $rows+=@{case=$caseName;expected=$(if($caseName -cin @('absent','present','empty')){'DATA_ONLY'}else{'REFUSE'})}
+ }finally{Close $dir}}
+ @{pass=$true;fallbackCases=$rows;actualNativeCalls=0;targetEnvironmentVerified=$false}|ConvertTo-Json -Depth 5 -Compress;return
+}
+
+if($Scenario -eq 'compiled-policy'){
+ Add-Type 'public class CutoverUnknownMissing : System.IO.IOException { public CutoverUnknownMissing() { HResult=unchecked((int)0x80070002); } }'|Out-Null
+ $cases=@('full-absent','ssl-missing','common-missing','present-file','present-directory','denied','io-error','unknown-missing','ancestor-file','ancestor-reparse','alias','owner','write-dac','write-owner','delete','delete-child','nearest-add-file','nearest-add-subdir','root-add-subdir','root-first-missing-add-subdir','root-authenticated','root-everyone','root-authenticated-deletechild','root-everyone-writedac','root-authenticated-first-missing','read-only-users','creator-inherit-only','creator-applicable','inherited-applicable','null-dacl','object-ace','callback-ace','generic-right','numeric-mask','forged-role','identity-drift','acl-drift','appears','expiry','open-expiry','other-path','copied-policy','generic-ti')
+ $passes=@('full-absent','ssl-missing','common-missing','root-add-subdir','root-authenticated','root-everyone','read-only-users','creator-inherit-only');$index=2100;$rows=@()
+ foreach($caseName in $cases){$index++;$dir=PrivateSetup $index;try{
+  $public=Get-OwnerCutoverPublicReadiness;$private=New-OwnerCutoverPrivateBackend -PublicToken $public;$record=$null;$null=$script:ownerCutoverPrivateLifetimes.tokens.TryGetValue($private,[ref]$record);$module=$record.module;function ExpireFixtureClock {$script:stamp+=880001}
+  &$module {param($caseValue,$expire)
+   $script:compiledCase=$caseValue;$script:compiledTrace=[Collections.Generic.List[string]]::new();$script:compiledAttrCounts=@{};$script:compiledAclCounts=@{};$script:compiledIdentityCounts=@{};$script:compiledExpiry=$expire;$script:compiledOpened=[Collections.Generic.List[object]]::new();$script:nodePath='C:\Users\Owner\JARVIS\tools\node-v24.19.0-win-x64\node.exe'
+   function script:Get-OwnerCutoverCompiledDefaultDriveType {return [IO.DriveType]::Fixed}
+   function script:Read-OwnerCutoverCompiledDefaultAttributes([string]$Path){
+    [void]$script:compiledTrace.Add('ATTR');if(-not $script:compiledAttrCounts.ContainsKey($Path)){$script:compiledAttrCounts[$Path]=0};$script:compiledAttrCounts[$Path]++;if($script:compiledCase -ceq 'expiry' -and $script:compiledTrace.Count -eq 2){&$script:compiledExpiry}
+    if($Path -ceq 'C:\Program Files\Common Files\SSL\openssl.cnf'){
+     if($script:compiledCase -ceq 'present-file'){return [IO.FileAttributes]::Normal};if($script:compiledCase -ceq 'present-directory'){return [IO.FileAttributes]::Directory};if($script:compiledCase -ceq 'denied'){throw [UnauthorizedAccessException]::new('PUBLIC_DENIED')};if($script:compiledCase -ceq 'io-error'){throw [IO.IOException]::new('PUBLIC_UNKNOWN_IO')};if($script:compiledCase -ceq 'unknown-missing'){throw [CutoverUnknownMissing]::new()};if($script:compiledCase -ceq 'appears' -and $script:compiledAttrCounts[$Path] -gt 1){return [IO.FileAttributes]::Normal};throw [IO.FileNotFoundException]::new('PUBLIC_EXPECTED_ABSENCE')
+    }
+    if(($script:compiledCase -ceq 'ssl-missing' -and $Path -ceq 'C:\Program Files\Common Files\SSL') -or ($script:compiledCase -ceq 'common-missing' -and $Path -ceq 'C:\Program Files\Common Files') -or ($script:compiledCase -cin @('root-first-missing-add-subdir','root-authenticated-first-missing') -and $Path -ceq 'C:\Program Files')){throw [IO.DirectoryNotFoundException]::new('PUBLIC_EXPECTED_ABSENCE')}
+    if($script:compiledCase -ceq 'ancestor-file' -and $Path -ceq 'C:\Program Files'){return [IO.FileAttributes]::Normal};if($script:compiledCase -ceq 'ancestor-reparse' -and $Path -ceq 'C:\Program Files'){return ([IO.FileAttributes]::Directory -bor [IO.FileAttributes]::ReparsePoint)};return [IO.FileAttributes]::Directory
+   }
+   function script:Read-OwnerCutoverCompiledDefaultSecurity([string]$Path){
+    [void]$script:compiledTrace.Add('ACL');if(-not $script:compiledAclCounts.ContainsKey($Path)){$script:compiledAclCounts[$Path]=0};$script:compiledAclCounts[$Path]++
+    $ti='S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464';$owner=if($script:compiledCase -ceq 'owner'){'S-1-5-21-111-222-333-1999'}else{$ti};$aces=@([pscustomobject]@{kind='COMMON';callback=$false;flags=0;qualifier='ALLOW';sid='S-1-5-18';mask=[long]2032127},[pscustomobject]@{kind='COMMON';callback=$false;flags=0;qualifier='ALLOW';sid=$ti;mask=[long]2032127})
+    $extra=[pscustomobject]@{kind='COMMON';callback=$false;flags=0;qualifier='ALLOW';sid='S-1-5-32-545';mask=[long]131241};$add=$true
+    switch($script:compiledCase){'write-dac'{$extra.mask=[long]262144}'write-owner'{$extra.mask=[long]524288}'delete'{$extra.mask=[long]65536}'delete-child'{$extra.mask=[long]64}'nearest-add-file'{$extra.mask=[long]2}'nearest-add-subdir'{$extra.mask=[long]4}'root-add-subdir'{if($Path -ceq 'C:\'){$extra.mask=[long]4}}'root-first-missing-add-subdir'{$extra.mask=[long]4}'root-authenticated'{$extra.sid='S-1-5-11';if($Path -ceq 'C:\'){$extra.mask=[long]4}}'root-everyone'{$extra.sid='S-1-1-0';if($Path -ceq 'C:\'){$extra.mask=[long](131241 -bor 4)}}'root-authenticated-deletechild'{$extra.sid='S-1-5-11';if($Path -ceq 'C:\'){$extra.mask=[long](4 -bor 64)}}'root-everyone-writedac'{$extra.sid='S-1-1-0';if($Path -ceq 'C:\'){$extra.mask=[long](4 -bor 262144)}}'root-authenticated-first-missing'{$extra.sid='S-1-5-11';$extra.mask=[long]4}'creator-inherit-only'{$extra.sid='S-1-3-0';$extra.mask=[long]2032127;$extra.flags=8}'creator-applicable'{$extra.sid='S-1-3-0';$extra.mask=[long]2032127}'inherited-applicable'{$extra.mask=[long]262144;$extra.flags=16}'object-ace'{$extra.kind='OBJECT'}'callback-ace'{$extra.callback=$true}'generic-right'{$extra.mask=[long]268435456}'numeric-mask'{$extra.mask='131241'}}
+    $aces+=,$extra;$hash=if($script:compiledCase -ceq 'acl-drift' -and $script:compiledAclCounts[$Path] -gt 1){'b'*64}else{'a'*64}
+    if($script:compiledCase -ceq 'null-dacl'){return $null};$result=[pscustomobject]@{ownerSid=$owner;aces=$aces;descriptorSha256=$hash};if($script:compiledCase -ceq 'forged-role'){$result|Add-Member -NotePropertyName platformRole -NotePropertyValue $true};return $result
+   }
+   function script:Open-OwnerCutoverCompiledDefaultDirectory([string]$Path){[void]$script:compiledTrace.Add('OPEN');$h=[IO.MemoryStream]::new();$script:compiledOpened.Add($h);if($script:compiledCase -ceq 'open-expiry'){&$script:compiledExpiry};return $h}
+   function script:Get-OwnerCutoverCompiledDefaultIdentity($Handle,[string]$Path){[void]$script:compiledTrace.Add('IDENTITY');if(-not $script:compiledIdentityCounts.ContainsKey($Path)){$script:compiledIdentityCounts[$Path]=0};$script:compiledIdentityCounts[$Path]++;return [pscustomobject]@{key=$(if($script:compiledCase -ceq 'identity-drift' -and $script:compiledIdentityCounts[$Path] -gt 1){'changed'}else{'fixed-'+$Path});finalPath=$(if($script:compiledCase -ceq 'alias'){'C:\Other'}else{$Path})}}
+   function script:Get-OwnerCutoverNodeStartupPolicyObservation {&$script:actualNodePolicyObserver}
+  } $caseName (Get-Command ExpireFixtureClock).ScriptBlock
+  if($caseName -cin $passes){$obs=&$module {&$script:actualNodePolicyObserver};Require ($obs.configDisposition -ceq 'ABSENT' -and $obs.configPath -ceq 'C:\Program Files\Common Files\SSL\openssl.cnf' -and $obs.absenceParentIdentitySha256 -cmatch '^[a-f0-9]{64}$') 'GENUINE_PRODUCER_ABSENCE_DATA'}
+  elseif($caseName -ceq 'other-path'){Refused {&$module {Get-OwnerCutoverCompiledDefaultPathState 'D:\Outside'}};Require ((&$module {$script:compiledTrace.Count}) -eq 0) 'NO_OUTSIDE_PLATFORM_OBSERVATION'}
+  elseif($caseName -ceq 'copied-policy'){$null=&$module {Initialize-OwnerCutoverNodeStartupPolicy};&$module {$script:nodeStartupPolicyLifetime.token=[pscustomobject]@{eligible=$true}};Refused {&$module {Assert-OwnerCutoverNodeStartupPolicy}}}
+  elseif($caseName -ceq 'generic-ti'){
+   &$module {function script:Get-OwnerCutoverPathObservation([string]$Path){return @{exists=$true;directory=$true;reparse=$false;fullPath=$Path;ownerSid='S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464';aces=@()}}};Refused {&$module {Assert-OwnerCutoverPrivateProtectedPath 'C:\Users\Owner'}}
+  }else{Refused {&$module {&$script:actualNodePolicyObserver}};if($caseName -ceq 'expiry'){Require ((&$module {$script:compiledTrace.Count}) -eq 2) 'NO_OBSERVATION_AFTER_COMPILED_PATH_EXPIRY'};if($caseName -ceq 'open-expiry'){Require ((&$module {$script:compiledOpened.Count -eq 1 -and -not $script:compiledOpened[0].CanRead -and $script:compiledTrace[$script:compiledTrace.Count-1] -ceq 'OPEN'})) 'RETURNED_HANDLE_CLOSED_AFTER_ORIGINAL_EXPIRY'}}
+  $rows+=@{case=$caseName;expected=$(if($caseName -cin $passes){'PASS'}else{'REFUSE'})}
+ }finally{Close $dir}}
+ @{pass=$true;compiledCases=$rows;actualNativeCalls=0}|ConvertTo-Json -Depth 5 -Compress;return
+}
+
+if($Scenario -eq 'startup-policy'){
+ $dir=PrivateSetup 1900;try{
+  $public=Get-OwnerCutoverPublicReadiness;$private=New-OwnerCutoverPrivateBackend -PublicToken $public;$record=$null;$null=$script:ownerCutoverPrivateLifetimes.tokens.TryGetValue($private,[ref]$record);$module=$record.module;$null=&$module {Initialize-OwnerCutoverPrivateSource};$null=&$module {Initialize-OwnerCutoverProtectedNode}
+  &$module {function script:Get-OwnerCutoverNodeStartupPolicyObservation {throw 'ROTATION_CUTOVER_NODE_STARTUP_POLICY_REQUIRED'};$script:validatorProcessAttempts=0;function script:New-OwnerCutoverConfigurationValidatorProcess($Info){$script:validatorProcessAttempts++;throw 'UNEXPECTED_PUBLIC_PROCESS_FACTORY'}}
+  $code=$null;try{&$module {Initialize-OwnerCutoverPrivateConfiguration}|Out-Null}catch{$code=$_.Exception.Message};Require ($code -ceq 'ROTATION_CUTOVER_NODE_STARTUP_POLICY_REQUIRED') 'UNKNOWN_NODE_POLICY_BLOCKS_CONFIG_BEFORE_DECRYPT'
+  Require ((&$module {$script:decryptCalls}) -eq 0 -and (&$module {$script:validatorCalls}) -eq 0) 'NO_DPAPI_TO_UNPROVEN_NODE_POLICY'
+  $code=$null;try{&$module {&$script:actualConfigurationValidatorProducer '{"public":"data"}' 'D:\Installed\release-current' 'C:\Users\Owner\JARVIS\production'}|Out-Null}catch{$code=$_.Exception.Message};Require ($code -ceq 'ROTATION_CUTOVER_NODE_STARTUP_POLICY_REQUIRED') 'DIRECT_VALIDATOR_POLICY_REQUIRED';Require ((&$module {$script:validatorProcessAttempts}) -eq 0) 'NO_CHILD_BEFORE_POLICY'
+  @{pass=$true;defaultPolicyBlocksBeforeDecrypt=$true;defaultPolicyBlocksBeforeChild=$true;actualNativeCalls=0}|ConvertTo-Json -Compress
+ }finally{Close $dir};return
+}
+
 if($Scenario -eq 'entry'){
  $dir=PrivateSetup 1700;try{
   $result=Invoke-OwnerCutoverBootstrap;Require (-not $result.complete -and -not $result.effectCapability -and $result.failureCode -ceq 'ROTATION_CUTOVER_BOOTSTRAP_INCOMPLETE') 'READONLY_ENTRY_NEVER_MINTS_NATIVE'
   Require ($script:ownerCutoverEntryWorkspaceContext.ContainsKey('privateReadinessIdentity')) 'REAL_ENTRY_PRIVATE_ADAPTERS_CONNECTED'
   $token=$script:ownerCutoverEntryWorkspaceContext.privateReadinessIdentity;$record=$null;Require ($script:ownerCutoverPrivateLifetimes.tokens.TryGetValue($token,[ref]$record)) 'ENTRY_PRIVATE_REFERENCE';$status=&$record.module {Assert-OwnerCutoverPrivateJournal;@{sourceCount=$script:originalState.sourceFiles.Count;journal=$script:journalLifetime.consumed;configuration=($null -ne $script:configurationBinding);node=($null -ne $script:nodePath);effect=$false}};Require ($status.sourceCount -eq 15 -and $status.journal -and $status.configuration -and $status.node -and -not $status.effect) 'GENUINE_READONLY_PREREQUISITES_NO_FAKE_READY'
+  Require ($script:ownerCutoverEntryWorkspaceContext.readonlyPhase -ceq 'FALLBACK_INPUTS_BOUND') 'REAL_ENTRY_FALLBACK_INPUTS_CONNECTED';$null=&$record.module {Assert-OwnerCutoverFallbackInputs}
   . (Join-Path $root 'scripts/owner-code-production-cutover-1218.ps1');$code=$null;try{Get-OwnerProductionTaskBinding -Admission $token|Out-Null}catch{$code=$_.Exception.Message};Require ($code -ceq 'ROTATION_CUTOVER_ADMISSION_REQUIRED') 'PRIVATE_DATA_NOT_TASK_AUTHORITY'
   $count=&$record.module {$script:writes.Count};$again=Invoke-OwnerCutoverBootstrap;Require (-not $again.complete -and -not $again.effectCapability) 'ENTRY_REPLAY_REFUSED';Require ((&$record.module {$script:writes.Count}) -eq $count) 'ENTRY_REPLAY_NO_WRITES'
   @{pass=$true;readonlyEntryConnected=$true;taskAdmissionRefused=$true;actualNativeCalls=0}|ConvertTo-Json -Compress

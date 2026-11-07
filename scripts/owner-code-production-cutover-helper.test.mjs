@@ -23,3 +23,9 @@ test('unconfirmed or wrongly bound writeahead receipts consume the original atte
 test('every task snapshot binds XML leaves Id and Context to actual COM getters before mutation and on readonly reconciliation',()=>{const r=run(fixture,['-Scenario','xml-boundary']);assert.equal(r.pass,true);assert.equal(r.realTaskCredentialCalls,0);assert.equal(r.cases.length,24);});
 
 test('kernel observation crossing the original deadline cannot enter the next protected API or revive the attempt',()=>{const r=run(fixture,['-Scenario','clock-kernel-expiry']);assert.equal(r.pass,true);assert.equal(r.realTaskCredentialCalls,0);assert.equal(r.cases.length,3);});
+
+import {readFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+test('public readonly Windows COM transport reaches the actual fixed root through the unchanged production binding', {skip:process.platform!=='win32'?'Windows NOT_RUN; actual readonly COM transport remains unverified':false},()=>{
+ const r=run(fixture,['-Scenario','readonly-com-transport']);assert.equal(r.scope,'PUBLIC_READONLY_COM_TRANSPORT_ONLY');assert.equal(r.actualWindowsExecuted,true);assert.equal(r.helperSourceSha256,createHash('sha256').update(readFileSync(helper)).digest('hex'));assert.equal(r.status,'PASS',r.phase+':'+r.hresult);assert.equal(r.phase,'COMPLETE');assert.match(r.hresult,/^-?[0-9]{1,10}$/);assert.equal(r.hresult,'0');for(const key of ['ownedServiceCreated','connectReturned','rootReturned','fixedRootNameVerified','fixedRootPathVerified','ownedObjectsReleased'])assert.equal(r[key],true,key);assert.equal(r.realTaskCredentialCalls,0);assert.equal(r.nativeGrant,false);assert.doesNotMatch(JSON.stringify(r),/C:\\|S-1-5-21|Exception|Schedule\.Service/);
+});

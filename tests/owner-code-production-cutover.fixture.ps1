@@ -1,6 +1,33 @@
-param([ValidateSet('matrix','native-variant','preloaded-type','clock-boundary','journal-boundary','xml-boundary','clock-kernel-expiry')][string]$Scenario='matrix')
+param([ValidateSet('matrix','native-variant','preloaded-type','clock-boundary','journal-boundary','xml-boundary','clock-kernel-expiry','readonly-com-transport')][string]$Scenario='matrix')
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
+if($Scenario -eq 'readonly-com-transport'){
+ # Fresh process, actual unchanged helper binding, no fixture types/providers.
+ # Root-folder reads only: never GetTask/enumeration/registration/task effects.
+ $helper=Join-Path (Split-Path $PSScriptRoot) 'scripts/owner-code-production-cutover-1218.ps1'
+ $value=@{scope='PUBLIC_READONLY_COM_TRANSPORT_ONLY';actualWindowsExecuted=$false;status='INCONCLUSIVE';phase='PLATFORM_REQUIRED';hresult='0';ownedServiceCreated=$false;connectReturned=$false;rootReturned=$false;fixedRootNameVerified=$false;fixedRootPathVerified=$false;ownedObjectsReleased=$false;realTaskCredentialCalls=0;nativeGrant=$false};$service=$null;$root=$null
+ $value.phase='SOURCE_READ'
+ try{$sha=[Security.Cryptography.SHA256]::Create();try{$value.helperSourceSha256=([BitConverter]::ToString($sha.ComputeHash([IO.File]::ReadAllBytes($helper)))).Replace('-','').ToLowerInvariant()}finally{$sha.Dispose()}}
+ catch{$exception=$_.Exception;while($exception.InnerException){$exception=$exception.InnerException};$value.hresult=([int]$exception.HResult).ToString([Globalization.CultureInfo]::InvariantCulture);$value|ConvertTo-Json -Compress;exit}
+ $value.phase='PLATFORM_REQUIRED'
+ if([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT){$value.status='NOT_RUN';$value|ConvertTo-Json -Compress;exit}
+ $value.actualWindowsExecuted=$true
+ try{
+  $value.phase='IMPORT_HELPER';. $helper
+  $value.phase='INITIALIZE_BINDING';Initialize-OwnerProductionTaskUpdateBinding
+  $value.phase='NEW_SERVICE';$service=New-OwnerProductionTaskService;$value.ownedServiceCreated=[Runtime.InteropServices.Marshal]::IsComObject($service);if(-not $value.ownedServiceCreated){throw 'READONLY_COM_SERVICE_REQUIRED'}
+  $value.phase='CONNECT';[OwnerProductionTaskUpdateBinding]::Connect($service);$value.connectReturned=$true
+  $value.phase='ROOT';$root=[OwnerProductionTaskUpdateBinding]::Root($service);$value.rootReturned=($null -ne $root -and [Runtime.InteropServices.Marshal]::IsComObject($root));if(-not $value.rootReturned){throw 'READONLY_COM_ROOT_REQUIRED'}
+  $value.phase='ROOT_PROPERTIES';$name=$root.Name;$path=$root.Path;$value.fixedRootNameVerified=($name -is [string] -and $name.Length -le 8 -and $name -ceq '\');$value.fixedRootPathVerified=($path -is [string] -and $path.Length -le 8 -and $path -ceq '\');if(-not $value.fixedRootNameVerified -or -not $value.fixedRootPathVerified){throw 'READONLY_COM_FIXED_ROOT_REQUIRED'}
+  $value.status='PASS'
+ }catch{$exception=$_.Exception;while($exception.InnerException){$exception=$exception.InnerException};$value.hresult=([int]$exception.HResult).ToString([Globalization.CultureInfo]::InvariantCulture)}
+ finally{
+  try{if($root -or $service){Close-OwnerProductionHandles @($root,$service)};$value.ownedObjectsReleased=$true}catch{$value.status='INCONCLUSIVE';$value.phase='RELEASE';$exception=$_.Exception;while($exception.InnerException){$exception=$exception.InnerException};$value.hresult=([int]$exception.HResult).ToString([Globalization.CultureInfo]::InvariantCulture)}
+  $root=$null;$service=$null;$name=$null;$path=$null
+ }
+ if($value.status -ceq 'PASS'){$value.phase='COMPLETE'}
+ $value|ConvertTo-Json -Compress;exit
+}
 function Require([bool]$Condition,[string]$Code){if(-not $Condition){throw ('PRODUCTION_FIXTURE_'+$Code)}}
 function Digest([string]$Value){$h=[Security.Cryptography.SHA256]::Create();try{([BitConverter]::ToString($h.ComputeHash([Text.Encoding]::UTF8.GetBytes($Value)))).Replace('-','').ToLowerInvariant()}finally{$h.Dispose()}}
 function ComSnapshotHash([string]$Xml,[string]$Security){

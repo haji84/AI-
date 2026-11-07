@@ -1,8 +1,42 @@
 [CmdletBinding()]
-param([switch]$Prepare,[switch]$PreparePublic,[switch]$BootstrapPublicCutover)
+param([switch]$Prepare,[switch]$PreparePublic,[switch]$BootstrapPublicCutover,[switch]$StartOnly)
 
 # This entry defines only preparation capabilities. Default invocation is inert.
 $script:ownerRotationEntryCodec=$null
+
+# Pure fixed-template DATA compilation, never a native or START_ONLY grant.
+# Genuine private installation/activation/task/source/Owner checks remain the
+# only route to execution; no caller command or environment-name input exists.
+function New-OwnerCutoverCleanStartCommandData($Data){
+ try{
+  $fields=@('profile','windowsDirectory','systemPowerShellPath','ownerProfile','ownerLocalAppData','retainedNodePath','installRoot','releaseRoot','startupStateDirectory','entrySha256','sourceRevision');Assert-OwnerRotationEntryShape $Data $fields
+  foreach($key in $fields){if($Data.$key -isnot [string]){throw 'INVALID_DATA'}}
+  if($Data.profile -cne 'goriq-clean-start-command-data-v1' -or $Data.entrySha256 -cnotmatch '^[a-f0-9]{64}$' -or $Data.sourceRevision -cnotmatch '^[a-f0-9]{40}$'){throw 'INVALID_DATA'}
+  $forbidden=@(0,10,13,33,34,37,38,39,40,41,59,60,62,94,96,124)
+  foreach($key in @('windowsDirectory','systemPowerShellPath','ownerProfile','ownerLocalAppData','retainedNodePath','installRoot','releaseRoot','startupStateDirectory')){
+   $path=$Data.$key;if($path.Length -gt 512 -or $path -cnotmatch '^[A-Za-z]:\\[^:]+$' -or $path.Contains('/') -or $path.EndsWith('\')){throw 'INVALID_PATH'}
+   foreach($character in $path.ToCharArray()){if($forbidden -contains [int]$character){throw 'INVALID_PATH'}}
+   foreach($part in $path.Substring(3).Split([char]92)){if(-not $part -or $part -cin @('.','..') -or $part -match '[. ]$'){throw 'INVALID_PATH'}}
+  }
+  $system=$Data.windowsDirectory+'\System32';$ps=$system+'\WindowsPowerShell\v1.0\powershell.exe';$cmd=$system+'\cmd.exe'
+  if($Data.systemPowerShellPath -ine $ps -or $Data.retainedNodePath -ine ($Data.ownerProfile+'\JARVIS\tools\node-v24.19.0-win-x64\node.exe') -or -not $Data.ownerLocalAppData.StartsWith($Data.ownerProfile+'\',[StringComparison]::OrdinalIgnoreCase) -or -not $Data.installRoot.StartsWith($Data.ownerProfile+'\',[StringComparison]::OrdinalIgnoreCase) -or -not $Data.startupStateDirectory.StartsWith($Data.installRoot+'\',[StringComparison]::OrdinalIgnoreCase)){throw 'INVALID_BINDING'}
+  $metadata=[ordered]@{installRoot=$Data.installRoot;entrySha256=$Data.entrySha256;sourceRevision=$Data.sourceRevision};$payload=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes(($metadata|Microsoft.PowerShell.Utility\ConvertTo-Json -Compress)))
+  $body=@'
+$ErrorActionPreference='Stop';Set-StrictMode -Version Latest
+function Read-FixedStartBytes([string]$p){$f=$null;$m=[IO.MemoryStream]::new();try{$f=[IO.File]::Open($p,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read);$b=New-Object byte[] 8192;while(($n=$f.Read($b,0,$b.Length)) -gt 0){if($m.Length+$n -gt 262144){throw 'REFUSE'};$m.Write($b,0,$n)};return ,$m.ToArray()}finally{if($f){$f.Dispose()};$m.Dispose()}}
+try{$d=([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('FIXED_PAYLOAD')))|Microsoft.PowerShell.Utility\ConvertFrom-Json;$p=$d.installRoot+'\scripts\owner-code-rotation-native-1218.ps1';$b=Read-FixedStartBytes $p;$h=[Security.Cryptography.SHA256]::Create();try{$x=([BitConverter]::ToString($h.ComputeHash($b))).Replace('-','').ToLowerInvariant()}finally{$h.Dispose()};if($x -cne $d.entrySha256){throw 'REFUSE'};$script:ownerCutoverRetainedStartupEntryContext=$d;&([scriptblock]::Create([Text.UTF8Encoding]::new($false,$true).GetString($b))) -StartOnly;exit 1}catch{[Console]::Error.WriteLine('GORIQ_NORMAL_START_REFUSED');exit 1}
+'@
+  $body=$body.Replace('FIXED_PAYLOAD',$payload);$encoded=[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($body));$statements=[Collections.Generic.List[string]]::new()
+  foreach($name in @('HTTPS_PROXY','HTTP_PROXY','NODE_CHANNEL_FD','NODE_CHANNEL_SERIALIZATION_MODE','NODE_CLUSTER_SCHED_POLICY','NODE_COMPILE_CACHE','NODE_COMPILE_CACHE_PORTABLE','NODE_DEBUG','NODE_DEBUG_NATIVE','NODE_DISABLE_COMPILE_CACHE','NODE_EXTRA_CA_CERTS','NODE_ICU_DATA','NODE_NO_WARNINGS','NODE_OPTIONS','NODE_PATH','NODE_PENDING_DEPRECATION','NODE_PENDING_PIPE_INSTANCES','NODE_PRESERVE_SYMLINKS','NODE_PRESERVE_SYMLINKS_MAIN','NODE_REDIRECT_WARNINGS','NODE_REPL_EXTERNAL_MODULE','NODE_REPL_HISTORY','NODE_SKIP_PLATFORM_CHECK','NODE_TEST_CONTEXT','NODE_TLS_REJECT_UNAUTHORIZED','NODE_UNIQUE_ID','NODE_USE_ENV_PROXY','NODE_USE_SYSTEM_CA','NODE_V8_COVERAGE','OPENSSL_CONF','OPENSSL_CONF_INCLUDE','OPENSSL_ENGINES','OPENSSL_MALLOC_FAILURES','OPENSSL_MALLOC_FD','OPENSSL_MALLOC_SEED','OPENSSL_MODULES','OPENSSL_WIN32_UTF8','OPENSSL_ia32cap','SSL_CERT_DIR','SSL_CERT_FILE','WATCH_REPORT_DEPENDENCIES','http_proxy','https_proxy','NODE_DISABLE_COLORS','FORCE_COLOR','NO_COLOR','TZ','UV_THREADPOOL_SIZE','COR_ENABLE_PROFILING','COR_PROFILER','COR_PROFILER_PATH','COR_PROFILER_PATH_32','COR_PROFILER_PATH_64','COR_PROFILER_PATH_ARM64','APPDOMAIN_MANAGER_ASM','APPDOMAIN_MANAGER_TYPE','DEVPATH','COMPLUS_ProfAPI_ProfilerCompatibilitySetting','COMPLUS_MDA','PSModuleAnalysisCachePath','PSDisableModuleAnalysisCacheCleanup')){$statements.Add('set "'+$name+'="')}
+  $nodeDirectory=$Data.retainedNodePath.Substring(0,$Data.retainedNodePath.LastIndexOf([char]92))
+  $bound=[ordered]@{SystemRoot=$Data.windowsDirectory;WINDIR=$Data.windowsDirectory;ComSpec=$cmd;USERPROFILE=$Data.ownerProfile;HOME=$Data.ownerProfile;LOCALAPPDATA=$Data.ownerLocalAppData;TEMP=$Data.startupStateDirectory;TMP=$Data.startupStateDirectory;PATH=($nodeDirectory+';'+$system+';'+$Data.windowsDirectory);PATHEXT='.COM;.EXE;.BAT;.CMD';PSModulePath=($system+'\WindowsPowerShell\v1.0\Modules')}
+  foreach($key in $bound.Keys){$statements.Add('set "'+$key+'='+$bound[$key]+'"')}
+  $statements.Add('"'+$ps+'" -NoLogo -NoProfile -NonInteractive -EncodedCommand '+$encoded)
+  $arguments='/d /v:off /s /c "'+[string]::Join(' & ',$statements.ToArray())+'"';if($arguments.Length -gt 8191){throw 'COMMAND_LIMIT'}
+  return [pscustomobject][ordered]@{profile='goriq-clean-start-command-data-v1';execute=$cmd;arguments=$arguments;workingDirectory=$Data.releaseRoot;effectCapability=$false}
+ }catch{throw 'ROTATION_CUTOVER_START_PREFIX_REJECTED'}
+}
+
 function Get-OwnerRotationEntrySources {
  return @('scripts/owner-code-rotation-acceptance.mjs','scripts/owner-code-fleet-preservation.mjs','scripts/owner-code-pc-preservation.mjs','scripts/owner-code-rotation-worker.ps1','scripts/rotate-jarvis-owner-code-windows.ps1','scripts/read-jarvis-production-config.ps1','scripts/validate-jarvis-production-config.mjs','scripts/jarvis-production-config.mjs','scripts/jarvis-windows-install-paths.mjs')
 }
@@ -672,18 +706,100 @@ function New-OwnerCutoverPrivateModule($State){
     $script:nodePath=$path;return [pscustomobject]@{phase='PROTECTED_NODE_BOUND';retainedDependency=$true;effectCapability=$false;privateContextVerified=$false}
    }catch{$script:nodeTerminal=$true;throw 'ROTATION_CUTOVER_PRIVATE_CONTEXT_REJECTED'}
   }
-  $script:configurationBinding=$null;$script:configurationTerminal=$false
+  # Unknown compiled/default crypto inputs refuse BEFORE starting Node or
+  # decrypting configuration for a Node consumer. The fixed-path observer
+  # retains actual protected ancestry identities for this controller lifetime.
+  $script:nodeStartupPolicyLifetime=@{token=$null;record=$null;terminal=$false;records=[System.Runtime.CompilerServices.ConditionalWeakTable[object,object]]::new()}
+  # This role is limited to the official image's literal compiled-default
+  # ancestry. It never changes the generic Owner/source/config trust policy.
+  $script:compiledDefaultBindings=@{};$script:compiledDefaultFingerprint=$null
+  function Assert-OwnerCutoverCompiledDefaultPath([string]$Path){
+   if($Path -cnotin @('C:\','C:\Program Files','C:\Program Files\Common Files','C:\Program Files\Common Files\SSL','C:\Program Files\Common Files\SSL\openssl.cnf')){throw 'ROTATION_CUTOVER_NODE_STARTUP_POLICY_REQUIRED'}
+  }
+  function Get-OwnerCutoverCompiledDefaultDriveType {return [IO.DriveInfo]::new('C:\').DriveType}
+  function Read-OwnerCutoverCompiledDefaultAttributes([string]$Path){Assert-OwnerCutoverCompiledDefaultPath $Path;return [IO.File]::GetAttributes($Path)}
+  function Get-OwnerCutoverCompiledDefaultPathState([string]$Path){
+   Assert-OwnerCutoverCompiledDefaultPath $Path;Assert-OwnerCutoverPrivateClock
+   try{$attributes=Read-OwnerCutoverCompiledDefaultAttributes $Path;Assert-OwnerCutoverPrivateClock;if($attributes -isnot [IO.FileAttributes]){throw 'ROTATION_CUTOVER_NODE_STARTUP_POLICY_REQUIRED'};return [pscustomobject]@{exists=$true;attributes=$attributes}}
+   catch{Assert-OwnerCutoverPrivateClock;$e=$_.Exception;while($e -is [Management.Automation.MethodInvocationException] -and $e.InnerException){$e=$e.InnerException};if(($e.GetType() -eq [IO.FileNotFoundException] -and ($e.HResult -band 65535) -eq 2) -or ($e.GetType() -eq [IO.DirectoryNotFoundException] -and ($e.HResult -band 65535) -eq 3)){return [pscustomobject]@{exists=$false;attributes=$null}};throw 'ROTATION_CUTOVER_NODE_STARTUP_POLICY_REQUIRED'}
+  }
+  function Read-OwnerCutoverCompiledDefaultSecurity([string]$Path){
+   Assert-OwnerCutoverCompiledDefaultPath $Path;Assert-OwnerCutoverPrivateClock;$directory=[IO.DirectoryInfo]::new($Path);$security=$directory.GetAccessControl([Security.AccessControl.AccessControlSections]'Owner,Access');Assert-OwnerCutoverPrivateClock;$bytes=$security.GetSecurityDescriptorBinaryForm();Assert-OwnerCutoverPrivateClock;$raw=[Security.AccessControl.RawSecurityDescriptor]::new($bytes,0)
+   if(-not($raw.ControlFlags -band [Security.AccessControl.ControlFlags]::DiscretionaryAclPresent) -or $null -eq $raw.DiscretionaryAcl -or $raw.DiscretionaryAcl.Count -gt 256 -or $null -eq $raw.Owner){throw 'ROTATION_CUTOVER_NODE_STARTUP_POLICY_REQUIRED'}
+   $aces=@();foreach($ace in $raw.DiscretionaryAcl){if($ace -isnot [Security.AccessControl.CommonAce] -or $ace.IsCallback){throw 'ROTATION_CUTOVER_NODE_STARTUP_POLICY_REQUIRED'};$qualifier=switch($ace.AceQualifier){'AccessAllowed'{'ALLOW'}'AccessDenied'{'DENY'}default{throw 'ROTATION_CUTOVER_NODE_STARTUP_POLICY_REQUIRED'}};$aces+=,[pscustomobject]@{kind='COMMON';callback=[bool]$ace.IsCallback;flags=[int]$ace.AceFlags;qualifier=$qualifier;sid=$ace.SecurityIdentifier.Value;mask=[long]$ace.AccessMask}}
+   Assert-OwnerCutoverPrivateClock;return [pscustomobject]@{ownerSid=$raw.Owner.Value;aces=$aces;descriptorSha256=(Get-OwnerLauncherDigest $bytes)}
+  }
+  function Open-OwnerCutoverCompiledDefaultDirectory([string]$Path){Assert-OwnerCutoverCompiledDefaultPath $Path;Initialize-OwnerCutoverOwnedNative;Assert-OwnerCutoverPrivateClock;return [GoriqLauncherInspectionNative]::HoldDirectory($Path)}
+  function Get-OwnerCutoverCompiledDefaultIdentity($Handle,[string]$Path){
+   Assert-OwnerCutoverCompiledDefaultPath $Path;Assert-OwnerCutoverPrivateClock;$parts=[GoriqLauncherInspectionNative]::Identity($Handle);Assert-OwnerCutoverPrivateClock;$final=$parts[1];if($final.StartsWith('\\?\')){$final=$final.Substring(4)};if($Path -ceq 'C:\'){$final=$final.TrimEnd('\')+'\'}else{$final=$final.TrimEnd('\')};return [pscustomobject]@{key=$parts[0];finalPath=$final}
+  }
+  function Assert-OwnerCutoverCompiledDefaultSecurity($Security,[string]$Path,[bool]$ProgramFilesHeld){
+   Assert-OwnerLauncherShape $Security @('ownerSid','aces','descriptorSha256')
+   $trusted=@('S-1-5-18','S-1-5-32-544','S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464')
+   if($Security.ownerSid -isnot [string] -or $Security.ownerSid -cnotin $trusted -or $Security.descriptorSha256 -isnot [string] -or $Security.descriptorSha256 -cnotmatch '^[a-f0-9]{64}$' -or $Security.aces -isnot [array] -or $Security.aces.Count -gt 256){throw 'ROTATION_CUTOVER_NODE_STARTUP_POLICY_REQUIRED'}
+   $danger=[long](2 -bor 4 -bor 16 -bor 256 -bor 64 -bor 65536 -bor 262144 -bor 524288)
+   foreach($ace in $Security.aces){
+    Assert-OwnerLauncherShape $ace @('kind','callback','flags','qualifier','sid','mask')
+    if($ace.kind -isnot [string] -or $ace.kind -cne 'COMMON' -or $ace.callback -isnot [bool] -or $ace.callback -or $ace.flags -isnot [int] -or $ace.flags -lt 0 -or ($ace.flags -band (-bnot 31)) -ne 0 -or $ace.qualifier -isnot [string] -or $ace.qualifier -cnotin @('ALLOW','DENY') -or $ace.sid -isnot [string] -or $ace.sid -cnotmatch '^S-1-[0-9]+(?:-[0-9]+)+$' -or ($ace.mask -isnot [int] -and $ace.mask -isnot [long]) -or $ace.mask -lt 0 -or ($ace.mask -band (-bnot [long]2032127)) -ne 0){throw 'ROTATION_CUTOVER_NODE_STARTUP_POLICY_REQUIRED'}
+    if(($ace.flags -band 8) -ne 0){continue}
+    if($ace.sid -ceq 'S-1-3-0'){throw 'ROTATION_CUTOVER_NODE_STARTUP_POLICY_REQUIRED'}
+    if($ace.qualifier -ceq 'ALLOW' -and $ace.sid -cnotin $trusted){$allowedDanger=$danger;if($Path -ceq 'C:\' -and $ProgramFilesHeld){$allowedDanger=$danger -band (-bnot [long]4)};if(($ace.mask -band $allowedDanger) -ne 0){throw 'ROTATION_CUTOVER_NODE_STARTUP_POLICY_REQUIRED'}}
+   }
+  }
+  function Get-OwnerCutoverCompiledDefaultSnapshot {
+   Assert-OwnerCutoverPrivateClock;$drive=Get-OwnerCutoverCompiledDefaultDriveType;Assert-OwnerCutoverPrivateClock;if($drive -isnot [IO.DriveType] -or $drive -ne [IO.DriveType]::Fixed){throw 'ROTATION_CUTOVER_NODE_STARTUP_POLICY_REQUIRED'}
+   $paths=@('C:\','C:\Program Files','C:\Program Files\Common Files','C:\Program Files\Common Files\SSL','C:\Program Files\Common Files\SSL\openssl.cnf');$existing=@();$missing=$null
+   foreach($path in $paths){$state=Get-OwnerCutoverCompiledDefaultPathState $path;if(-not $state.exists){$missing=$path;break};if($path -ceq $paths[4] -or -not($state.attributes -band [IO.FileAttributes]::Directory) -or ($state.attributes -band [IO.FileAttributes]::ReparsePoint)){throw 'ROTATION_CUTOVER_NODE_STARTUP_POLICY_REQUIRED'};$existing+=,$path}
+   if($null -eq $missing -or $existing.Count -lt 1){throw 'ROTATION_CUTOVER_NODE_STARTUP_POLICY_REQUIRED'}
+   $rows=@();foreach($path in $existing){
+    Assert-OwnerCutoverPrivateClock;$security=Read-OwnerCutoverCompiledDefaultSecurity $path;Assert-OwnerCutoverPrivateClock;Assert-OwnerCutoverCompiledDefaultSecurity $security $path ($existing -ccontains 'C:\Program Files');Assert-OwnerCutoverPrivateClock
+    if(-not $script:compiledDefaultBindings.ContainsKey($path)){$handle=$null;try{Assert-OwnerCutoverPrivateClock;$handle=Open-OwnerCutoverCompiledDefaultDirectory $path;Assert-OwnerCutoverPrivateClock;if($null -eq $handle){throw 'ROTATION_CUTOVER_NODE_STARTUP_POLICY_REQUIRED'};$script:compiledDefaultBindings[$path]=@{handle=$handle;identity=$null};$handle=$null}finally{if($null -ne $handle){try{$handle.Dispose()}catch{}}}}
+    $binding=$script:compiledDefaultBindings[$path];Assert-OwnerCutoverPrivateClock;$identity=Get-OwnerCutoverCompiledDefaultIdentity $binding.handle $path;Assert-OwnerCutoverPrivateClock;Assert-OwnerLauncherShape $identity @('key','finalPath')
+    if($identity.key -isnot [string] -or -not $identity.key -or $identity.key.Length -gt 512 -or $identity.finalPath -isnot [string] -or -not $identity.finalPath.Equals($path,[StringComparison]::OrdinalIgnoreCase)){throw 'ROTATION_CUTOVER_NODE_STARTUP_POLICY_REQUIRED'}
+    if($null -ne $binding.identity -and $binding.identity -cne $identity.key){throw 'ROTATION_CUTOVER_NODE_STARTUP_POLICY_REQUIRED'};$binding.identity=$identity.key
+    $rows+=,[ordered]@{path=$path;identity=$identity.key;descriptorSha256=$security.descriptorSha256}
+   }
+   Assert-OwnerCutoverPrivateClock;return (Get-OwnerLauncherDigest ([Text.Encoding]::UTF8.GetBytes((([ordered]@{role='compiled-node24-default-platform-ancestry-only';missing=$missing;existing=$rows})|Microsoft.PowerShell.Utility\ConvertTo-Json -Depth 5 -Compress))))
+  }
+  function Get-OwnerCutoverNodeStartupPolicyObservation {
+   Assert-OwnerCutoverPrivateClock;if($script:nodeStartupPolicyLifetime.terminal){throw 'ROTATION_CUTOVER_NODE_STARTUP_POLICY_REQUIRED'}
+   try{$first=Get-OwnerCutoverCompiledDefaultSnapshot;Assert-OwnerCutoverPrivateClock;$second=Get-OwnerCutoverCompiledDefaultSnapshot;Assert-OwnerCutoverPrivateClock;if($first -cne $second -or ($null -ne $script:compiledDefaultFingerprint -and $first -cne $script:compiledDefaultFingerprint)){throw 'ROTATION_CUTOVER_NODE_STARTUP_POLICY_REQUIRED'};$script:compiledDefaultFingerprint=$first
+    return [pscustomobject]@{profile='goriq-node24-compiled-openssl-conf-absence-v1';nodeSha256=$script:originalState.grant.protectedNodeBootstrap.nodeSha256;entrySourceSha256=$script:originalState.grant.sourceHashes.'scripts/owner-code-rotation-native-1218.ps1';compilerEvidenceSha256='cf88e5151743025a5c2800eedfb78da0efd923445f20355038f576f3d874c55a';configPath='C:\Program Files\Common Files\SSL\openssl.cnf';configDisposition='ABSENT';absenceParentIdentitySha256=$first}
+   }catch{$script:nodeStartupPolicyLifetime.terminal=$true;foreach($binding in $script:compiledDefaultBindings.Values){try{$binding.handle.Dispose()}catch{}};throw}
+  }
+  function Get-OwnerCutoverNodeStartupPolicyHash($Observation){
+   Assert-OwnerLauncherShape $Observation @('profile','nodeSha256','entrySourceSha256','compilerEvidenceSha256','configPath','configDisposition','absenceParentIdentitySha256')
+   foreach($key in @('profile','nodeSha256','entrySourceSha256','compilerEvidenceSha256','configPath','configDisposition','absenceParentIdentitySha256')){if($Observation.$key -isnot [string]){throw 'ROTATION_CUTOVER_NODE_STARTUP_POLICY_REQUIRED'}}
+   if($Observation.profile -cne 'goriq-node24-compiled-openssl-conf-absence-v1' -or $Observation.nodeSha256 -cne $script:originalState.grant.protectedNodeBootstrap.nodeSha256 -or $Observation.entrySourceSha256 -cne $script:originalState.grant.sourceHashes.'scripts/owner-code-rotation-native-1218.ps1' -or $Observation.compilerEvidenceSha256 -cne 'cf88e5151743025a5c2800eedfb78da0efd923445f20355038f576f3d874c55a' -or $Observation.configPath -cne 'C:\Program Files\Common Files\SSL\openssl.cnf' -or $Observation.configDisposition -cne 'ABSENT' -or $Observation.absenceParentIdentitySha256 -cnotmatch '^[a-f0-9]{64}$'){throw 'ROTATION_CUTOVER_NODE_STARTUP_POLICY_REQUIRED'}
+   $canonical=[ordered]@{};foreach($key in @('profile','nodeSha256','entrySourceSha256','compilerEvidenceSha256','configPath','configDisposition','absenceParentIdentitySha256')){$canonical[$key]=$Observation.$key};return (Get-OwnerLauncherDigest ([Text.Encoding]::UTF8.GetBytes(($canonical|Microsoft.PowerShell.Utility\ConvertTo-Json -Compress))))
+  }
+  function Initialize-OwnerCutoverNodeStartupPolicy {
+   Assert-OwnerCutoverPrivateClock
+   if($script:nodeStartupPolicyLifetime.terminal -or $script:nodePath -isnot [string] -or -not $script:nodePath){throw 'ROTATION_CUTOVER_NODE_STARTUP_POLICY_REQUIRED'}
+   if($script:nodeStartupPolicyLifetime.token){Assert-OwnerCutoverNodeStartupPolicy;return}
+   try{
+    Read-OwnerCutoverPrivateKernel;$observation=Get-OwnerCutoverNodeStartupPolicyObservation;Assert-OwnerCutoverPrivateClock;$hash=Get-OwnerCutoverNodeStartupPolicyHash $observation;Assert-OwnerCutoverPrivateClock
+    $identity=[object]::new();$record=@{state=$script:originalState;nodePath=$script:nodePath;nodeSha256=$script:originalState.grant.protectedNodeBootstrap.nodeSha256;observationSha256=$hash};$script:nodeStartupPolicyLifetime.records.Add($identity,$record);$script:nodeStartupPolicyLifetime.token=$identity;$script:nodeStartupPolicyLifetime.record=$record
+   }catch{$script:nodeStartupPolicyLifetime.terminal=$true;$code=$_.Exception.Message;if($code -cin @('ROTATION_CUTOVER_CLOCK_INVALID','ROTATION_CUTOVER_FORWARD_RESERVE')){throw $code};throw 'ROTATION_CUTOVER_NODE_STARTUP_POLICY_REQUIRED'}
+  }
+  function Assert-OwnerCutoverNodeStartupPolicy {
+   Assert-OwnerCutoverPrivateClock;$record=$null
+   if($script:nodeStartupPolicyLifetime.terminal -or $null -eq $script:nodeStartupPolicyLifetime.token -or -not $script:nodeStartupPolicyLifetime.records.TryGetValue($script:nodeStartupPolicyLifetime.token,[ref]$record) -or -not [object]::ReferenceEquals($record,$script:nodeStartupPolicyLifetime.record) -or -not [object]::ReferenceEquals($record.state,$script:originalState) -or $record.nodePath -cne $script:nodePath -or $record.nodeSha256 -cne $script:originalState.grant.protectedNodeBootstrap.nodeSha256){$script:nodeStartupPolicyLifetime.terminal=$true;throw 'ROTATION_CUTOVER_NODE_STARTUP_POLICY_REQUIRED'}
+   try{$observation=Get-OwnerCutoverNodeStartupPolicyObservation;Assert-OwnerCutoverPrivateClock;if((Get-OwnerCutoverNodeStartupPolicyHash $observation) -cne $record.observationSha256){throw 'ROTATION_CUTOVER_NODE_STARTUP_POLICY_REQUIRED'};Assert-OwnerCutoverPrivateClock}catch{$script:nodeStartupPolicyLifetime.terminal=$true;$code=$_.Exception.Message;if($code -cin @('ROTATION_CUTOVER_CLOCK_INVALID','ROTATION_CUTOVER_FORWARD_RESERVE')){throw $code};throw 'ROTATION_CUTOVER_NODE_STARTUP_POLICY_REQUIRED'}
+  }
+  $script:configurationBinding=$null;$script:configurationTerminal=$false;$script:configurationReleaseRoot=$null
   function Open-OwnerCutoverMutableFile([string]$Path){return [IO.File]::Open($Path,[IO.FileMode]::Open,[IO.FileAccess]::Read,([IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete))}
   function Get-OwnerCutoverMutableAclHash([string]$Path){
    Assert-OwnerCutoverPrivateClock;$item=Get-OwnerRotationNativeItem $Path;Assert-OwnerCutoverPrivateClock;$acl=$item.GetAccessControl([Security.AccessControl.AccessControlSections]'Owner,Group,Access');Assert-OwnerCutoverPrivateClock
    return (Get-OwnerLauncherDigest ([Text.Encoding]::UTF8.GetBytes($acl.GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]'Owner,Group,Access'))))
   }
-  function Read-OwnerCutoverMutableSnapshot([string]$Path,[int]$Limit){
+  function Read-OwnerCutoverMutableSnapshot([string]$Path,[int]$Limit,[ValidateSet('NONEMPTY','FIXED_FALLBACK')][string]$Role='NONEMPTY'){
+   $minimum=1;if($Role -ceq 'FIXED_FALLBACK'){if($null -eq $script:configurationBinding -or $Path -cnotin @(($script:configurationBinding.releaseRoot+'\.env'),($script:configurationBinding.releaseRoot+'\.env.local')) -or $Limit -ne 65536){throw 'ROTATION_CUTOVER_PRIVATE_CONTEXT_REJECTED'};$minimum=0}
    Assert-OwnerCutoverPrivateProtectedPath $Path;Open-OwnerCutoverParentHandles $Path;Assert-OwnerCutoverPrivateClock;$aclBefore=Get-OwnerCutoverMutableAclHash $Path;Assert-OwnerCutoverPrivateClock
    $stream=$null;$other=$null;$memory=[IO.MemoryStream]::new()
    try{
     $stream=Open-OwnerCutoverMutableFile $Path;Assert-OwnerCutoverPrivateClock;$first=Get-OwnerCutoverFileIdentity $stream $Path;Assert-OwnerCutoverPrivateClock;$length=$stream.Length;Assert-OwnerCutoverPrivateClock
-    if($first.links -isnot [int] -or $first.links -ne 1 -or $first.finalPath -ine $Path -or $first.key -isnot [string] -or -not $first.key -or $length -lt 1 -or $length -gt $Limit){throw 'ROTATION_CUTOVER_PRIVATE_CONTEXT_REJECTED'}
+    if($first.links -isnot [int] -or $first.links -ne 1 -or $first.finalPath -ine $Path -or $first.key -isnot [string] -or -not $first.key -or $length -lt $minimum -or $length -gt $Limit){throw 'ROTATION_CUTOVER_PRIVATE_CONTEXT_REJECTED'}
     $buffer=New-Object byte[] 8192
     while($true){Assert-OwnerCutoverPrivateClock;$count=$stream.Read($buffer,0,$buffer.Length);Assert-OwnerCutoverPrivateClock;if($count -eq 0){break};if($count -lt 0 -or $count -gt $buffer.Length -or $memory.Length+$count -gt $Limit){throw 'ROTATION_CUTOVER_PRIVATE_CONTEXT_REJECTED'};$memory.Write($buffer,0,$count)}
     $other=Open-OwnerCutoverMutableFile $Path;Assert-OwnerCutoverPrivateClock;$after=Get-OwnerCutoverFileIdentity $other $Path;Assert-OwnerCutoverPrivateClock
@@ -706,14 +822,14 @@ function New-OwnerCutoverPrivateModule($State){
   function New-OwnerCutoverConfigurationValidatorProcess($Info){$p=[Diagnostics.Process]::new();$p.StartInfo=$Info;return $p}
   function Get-OwnerCutoverWindowsDirectory {return [Environment]::GetFolderPath('Windows')}
   function Invoke-OwnerCutoverConfigurationValidator([string]$Json,[string]$ReleaseRoot,[string]$StateRoot){
-   Assert-OwnerCutoverPrivateClock;$windows=Get-OwnerCutoverWindowsDirectory;Assert-OwnerCutoverPrivateClock;Assert-OwnerCutoverKernelPath $windows
+   Initialize-OwnerCutoverNodeStartupPolicy;Assert-OwnerCutoverNodeStartupPolicy;Assert-OwnerCutoverPrivateClock;$windows=Get-OwnerCutoverWindowsDirectory;Assert-OwnerCutoverPrivateClock;Assert-OwnerCutoverKernelPath $windows
    $info=[Diagnostics.ProcessStartInfo]::new();$info.FileName=$script:nodePath;$validatorPath=[IO.Path]::Combine($script:stagePath,'scripts','validate-jarvis-production-config.mjs');$info.Arguments='"'+$validatorPath+'" "'+$ReleaseRoot+'" "'+$StateRoot+'"';$info.WorkingDirectory=$script:stagePath;$info.UseShellExecute=$false;$info.CreateNoWindow=$true;$info.RedirectStandardInput=$true;$info.RedirectStandardOutput=$true;$info.RedirectStandardError=$true
    # This owned validation child receives a minimal environment. This does not
    # assert anything about Scheduler's cached target environment.
    $info.EnvironmentVariables.Clear();$info.EnvironmentVariables['SystemRoot']=$windows;$info.EnvironmentVariables['USERPROFILE']=$script:kernelBaseline.profile;$info.EnvironmentVariables['LOCALAPPDATA']=$script:kernelBaseline.localAppData;$info.EnvironmentVariables['PATH']=(Get-OwnerCutoverParentPath $script:nodePath)+';'+(Get-OwnerCutoverParentPath $script:kernelBaseline.processPath)
    $process=$null;$started=$false;$inputClosed=$false;$outText=[Text.StringBuilder]::new();$errText=[Text.StringBuilder]::new()
    try{
-    Assert-OwnerCutoverPrivateClock;$process=New-OwnerCutoverConfigurationValidatorProcess $info;Assert-OwnerCutoverPrivateClock;$started=$process.Start();Assert-OwnerCutoverPrivateClock;if(-not $started){throw 'ROTATION_CUTOVER_PRIVATE_CONTEXT_REJECTED'}
+    Assert-OwnerCutoverPrivateClock;$process=New-OwnerCutoverConfigurationValidatorProcess $info;Assert-OwnerCutoverPrivateClock;Assert-OwnerCutoverNodeStartupPolicy;$started=$process.Start();Assert-OwnerCutoverPrivateClock;Assert-OwnerCutoverNodeStartupPolicy;if(-not $started){throw 'ROTATION_CUTOVER_PRIVATE_CONTEXT_REJECTED'}
     $outBuffer=New-Object char[] 512;$errBuffer=New-Object char[] 512;$outRead=$process.StandardOutput.ReadAsync($outBuffer,0,$outBuffer.Length);Assert-OwnerCutoverPrivateClock;$errRead=$process.StandardError.ReadAsync($errBuffer,0,$errBuffer.Length);Assert-OwnerCutoverPrivateClock;$inputWrite=$process.StandardInput.WriteAsync($Json);Assert-OwnerCutoverPrivateClock;$outDone=$false;$errDone=$false
     while($true){
      Assert-OwnerCutoverPrivateClock
@@ -738,6 +854,7 @@ function New-OwnerCutoverPrivateModule($State){
   function Initialize-OwnerCutoverPrivateConfiguration {
    Read-OwnerCutoverPrivateKernel
    if(-not $script:claimConsumed -or -not $script:stagePath -or -not $script:nodePath -or $script:stageTerminal -or $script:nodeTerminal -or $script:configurationTerminal -or $script:configurationBinding){throw 'ROTATION_CUTOVER_PRIVATE_CONTEXT_REJECTED'}
+   Initialize-OwnerCutoverNodeStartupPolicy;Assert-OwnerCutoverNodeStartupPolicy
    $opened=$null;$decrypted=$null;$configuration=$null;$plaintext=$null
    try{
     $stateRoot=$script:kernelBaseline.profile+'\JARVIS\production';$path=$stateRoot+'\config.dpapi';Assert-OwnerCutoverPrivateProtectedPath $path;Assert-OwnerCutoverPrivateClock;$configPathObservation=Get-OwnerCutoverPathObservation $path;Assert-OwnerCutoverPrivateClock
@@ -757,6 +874,7 @@ function New-OwnerCutoverPrivateModule($State){
     $again=Read-OwnerCutoverMutableSnapshot $path 1048576
     if($again.sha256 -cne $opened.sha256 -or $again.identityKey -cne $opened.identityKey -or $again.aclSha256 -cne $opened.aclSha256){throw 'ROTATION_CUTOVER_PRIVATE_CONTEXT_REJECTED'}
     $script:configurationBinding=@{configuration=$configuration;configPath=$path;configSnapshot=$opened;stateRoot=$stateRoot;releaseRoot=$release;runtimeRevision=$configuration.commit;manifest=$manifest;build=$build;host=$host;dbPath=$db;dbIdentity=$dbIdentity;sidecars=$sidecars;targetEnvironmentVerified=$false}
+    $script:configurationReleaseRoot=$release
     Assert-OwnerCutoverPrivateClock;return [pscustomobject]@{phase='CONFIGURATION_DATA_BOUND';effectCapability=$false;privateContextVerified=$false;targetEnvironmentVerified=$false}
    }catch{$script:configurationTerminal=$true;throw 'ROTATION_CUTOVER_PRIVATE_CONTEXT_REJECTED'}finally{if($decrypted){$decrypted.plaintext=$null};$decrypted=$null;$plaintext=$null;$configuration=$null}
   }
@@ -783,6 +901,52 @@ function New-OwnerCutoverPrivateModule($State){
    if($script:journalLifetime.terminal -or -not $script:journalLifetime.consumed -or $null -eq $script:journalLifetime.token -or -not $script:journalLifetime.identities.TryGetValue($script:journalLifetime.token,[ref]$record) -or -not [object]::ReferenceEquals($record,$script:journalLifetime.record) -or -not [object]::ReferenceEquals($record.state,$script:originalState) -or -not [object]::ReferenceEquals($record.configuration,$script:configurationBinding) -or -not [object]::ReferenceEquals($record.kernel,$script:kernelBaseline)){throw 'ROTATION_CUTOVER_PRIVATE_CONTEXT_REJECTED'}
    Read-OwnerCutoverPrivateKernel;$observed=Read-OwnerCutoverMutableSnapshot $record.path 16384;Assert-OwnerCutoverPrivateClock
    if($observed.sha256 -cne $record.sha256 -or $observed.identityKey -cne $script:immutableFileBindings[$record.path].identityKey){$script:journalLifetime.terminal=$true;throw 'ROTATION_CUTOVER_PRIVATE_CONTEXT_REJECTED'}
+  }
+
+  # Exact known loader package is required before applying its fallback rules.
+  # This does not claim the complete installed release or environment verified.
+  $script:knownFallbackSources=[ordered]@{'jarvis-remote-host.mjs'='adeff38e18b779d850acf0e5e84b721ff48c373690cabbbeabbe6ce4dde342ef';'jarvis-production-config.mjs'='4a8d55473cdbab4578d4c7ad84b339adce9e5423fea9cbfd9deb2d1d6a8f1fdb';'read-jarvis-production-config.ps1'='252f057b933ddd16c8eec85507fd43b084cf9f0cdba1ded93746ad5e199cccb5';'jarvis-managed-process.mjs'='4ac80f4f258460970bb7bfcf8442c2fa9f610dadf629ff8bba566111ed97c333';'jarvis-remote-access-lib.mjs'='f17d1d217563e4df89b395f9877c0690ba61023f77f6fb5b440f074014b0eab4'}
+  $script:fallbackLifetime=@{token=$null;record=$null;terminal=$false;records=[System.Runtime.CompilerServices.ConditionalWeakTable[object,object]]::new()}
+  function Get-OwnerCutoverBoundFallbackRoot {
+   Assert-OwnerCutoverPrivateClock
+   if($script:fallbackLifetime.terminal -or $null -eq $script:configurationBinding -or $script:configurationReleaseRoot -isnot [string] -or -not $script:configurationReleaseRoot -or $script:configurationBinding.releaseRoot -cne $script:configurationReleaseRoot -or $script:configurationBinding.configuration.releaseRoot -cne $script:configurationReleaseRoot){$script:fallbackLifetime.terminal=$true;throw 'ROTATION_CUTOVER_ENVIRONMENT_REJECTED'}
+   # File-ancestor deletion protection is insufficient for an absent fallback:
+   # its exact directory must also exclude untrusted file/branch creation.
+   Assert-OwnerCutoverPrivateProtectedPath $script:configurationReleaseRoot;Assert-OwnerCutoverPrivateClock
+   return $script:configurationReleaseRoot
+  }
+  function Read-OwnerCutoverFallbackAttributes([string]$Path){
+   $root=Get-OwnerCutoverBoundFallbackRoot;if($Path -cnotin @(($root+'\.env'),($root+'\.env.local'))){throw 'ROTATION_CUTOVER_ENVIRONMENT_REJECTED'}
+   Assert-OwnerCutoverPrivateClock;return [IO.File]::GetAttributes($Path)
+  }
+  function Get-OwnerCutoverFallbackFileState([string]$Name){
+   if($Name -cnotin @('.env','.env.local') -or $null -eq $script:configurationBinding){throw 'ROTATION_CUTOVER_ENVIRONMENT_REJECTED'}
+   $root=Get-OwnerCutoverBoundFallbackRoot;$path=$root+'\'+$Name;Assert-OwnerCutoverPrivateClock
+   try{$attributes=Read-OwnerCutoverFallbackAttributes $path;Assert-OwnerCutoverPrivateClock;if($attributes -isnot [IO.FileAttributes] -or ($attributes -band [IO.FileAttributes]::Directory) -or ($attributes -band [IO.FileAttributes]::ReparsePoint)){throw 'ROTATION_CUTOVER_ENVIRONMENT_REJECTED'};return [pscustomobject]@{exists=$true;path=$path}}
+   catch{Assert-OwnerCutoverPrivateClock;$e=$_.Exception;while($e -is [Management.Automation.MethodInvocationException] -and $e.InnerException){$e=$e.InnerException};if($e.GetType() -eq [IO.FileNotFoundException] -and ($e.HResult -band 65535) -eq 2){return [pscustomobject]@{exists=$false;path=$path}};throw 'ROTATION_CUTOVER_ENVIRONMENT_REJECTED'}
+  }
+  function Assert-OwnerCutoverFallbackInputs {
+   Assert-OwnerCutoverPrivateClock;$record=$null
+   if($script:fallbackLifetime.terminal -or $null -eq $script:fallbackLifetime.token -or -not $script:fallbackLifetime.records.TryGetValue($script:fallbackLifetime.token,[ref]$record) -or -not [object]::ReferenceEquals($record,$script:fallbackLifetime.record) -or -not [object]::ReferenceEquals($record.state,$script:originalState) -or -not [object]::ReferenceEquals($record.configuration,$script:configurationBinding)){throw 'ROTATION_CUTOVER_ENVIRONMENT_REJECTED'}
+   try{
+    if($record.releaseRoot -cne $script:configurationReleaseRoot -or $script:configurationBinding.releaseRoot -cne $record.releaseRoot){throw 'ROTATION_CUTOVER_ENVIRONMENT_REJECTED'}
+    Read-OwnerCutoverPrivateKernel;Assert-OwnerCutoverPrivateJournal;$null=Get-OwnerCutoverBoundFallbackRoot
+    foreach($name in $script:knownFallbackSources.Keys){$null=Get-OwnerCutoverBoundFallbackRoot;$current=Read-OwnerCutoverMutableSnapshot ($record.releaseRoot+'\scripts\'+$name) 1048576;$before=$record.sources[$name];if($current.sha256 -cne $script:knownFallbackSources[$name] -or $current.sha256 -cne $before.sha256 -or $current.identityKey -cne $before.identityKey -or $current.aclSha256 -cne $before.aclSha256){throw 'ROTATION_CUTOVER_ENVIRONMENT_REJECTED'}}
+    foreach($name in @('.env','.env.local')){$state=Get-OwnerCutoverFallbackFileState $name;$before=$record.inputs[$name];if($state.exists -ne $before.exists){throw 'ROTATION_CUTOVER_ENVIRONMENT_REJECTED'};if($state.exists){$current=Read-OwnerCutoverMutableSnapshot $state.path 65536 'FIXED_FALLBACK';if($current.sha256 -cne $before.snapshot.sha256 -or $current.identityKey -cne $before.snapshot.identityKey -or $current.aclSha256 -cne $before.snapshot.aclSha256){throw 'ROTATION_CUTOVER_ENVIRONMENT_REJECTED'}}}
+    Assert-OwnerCutoverPrivateClock
+   }catch{$script:fallbackLifetime.terminal=$true;throw 'ROTATION_CUTOVER_ENVIRONMENT_REJECTED'}
+  }
+  function Initialize-OwnerCutoverFallbackInputs {
+   Assert-OwnerCutoverPrivateClock
+   if($script:fallbackLifetime.terminal -or $null -eq $script:configurationBinding -or $script:configurationTerminal){throw 'ROTATION_CUTOVER_ENVIRONMENT_REJECTED'}
+   if($script:fallbackLifetime.token){Assert-OwnerCutoverFallbackInputs;return [pscustomobject]@{phase='FALLBACK_INPUTS_BOUND';knownLoaderSourcesVerified=5;effectCapability=$false;targetEnvironmentVerified=$false}}
+   try{
+    Read-OwnerCutoverPrivateKernel;Assert-OwnerCutoverPrivateJournal;$sources=@{};$inputs=@{};$release=Get-OwnerCutoverBoundFallbackRoot
+    foreach($name in $script:knownFallbackSources.Keys){$null=Get-OwnerCutoverBoundFallbackRoot;$path=$release+'\scripts\'+$name;$snapshot=Read-OwnerCutoverMutableSnapshot $path 1048576;if($snapshot.sha256 -cne $script:knownFallbackSources[$name]){throw 'ROTATION_CUTOVER_ENVIRONMENT_REJECTED'};Hold-OwnerCutoverSourceFile $path $snapshot.sha256;$sources[$name]=$snapshot}
+    foreach($name in @('.env','.env.local')){$state=Get-OwnerCutoverFallbackFileState $name;$snapshot=$null;if($state.exists){$snapshot=Read-OwnerCutoverMutableSnapshot $state.path 65536 'FIXED_FALLBACK';Hold-OwnerCutoverSourceFile $state.path $snapshot.sha256};$inputs[$name]=@{exists=$state.exists;snapshot=$snapshot}}
+    $identity=[object]::new();$record=@{state=$script:originalState;configuration=$script:configurationBinding;releaseRoot=$release;sources=$sources;inputs=$inputs};$script:fallbackLifetime.records.Add($identity,$record);$script:fallbackLifetime.token=$identity;$script:fallbackLifetime.record=$record
+    Assert-OwnerCutoverFallbackInputs;return [pscustomobject]@{phase='FALLBACK_INPUTS_BOUND';knownLoaderSourcesVerified=5;effectCapability=$false;targetEnvironmentVerified=$false}
+   }catch{$script:fallbackLifetime.terminal=$true;throw 'ROTATION_CUTOVER_ENVIRONMENT_REJECTED'}
   }
   Export-ModuleMember -Function Read-OwnerCutoverPrivateKernel
  }
@@ -832,17 +996,20 @@ function Invoke-OwnerCutoverBootstrap {
   $private=New-OwnerCutoverPrivateBackend -PublicToken $publicReadiness
   $script:ownerCutoverEntryWorkspaceContext.privateReadinessIdentity=$private;$record=$null
   if(-not $script:ownerCutoverPrivateLifetimes.tokens.TryGetValue($private,[ref]$record)){throw 'ROTATION_CUTOVER_PRIVATE_CONTEXT_REJECTED'}
-  $sourceStatus=&$record.module {Initialize-OwnerCutoverPrivateSource};$nodeStatus=&$record.module {Initialize-OwnerCutoverProtectedNode};$configurationStatus=&$record.module {Initialize-OwnerCutoverPrivateConfiguration};$journalStatus=&$record.module {Initialize-OwnerCutoverPrivateJournal}
-  $script:ownerCutoverEntryWorkspaceContext.readonlyPhase=$journalStatus.phase
+  $sourceStatus=&$record.module {Initialize-OwnerCutoverPrivateSource};$nodeStatus=&$record.module {Initialize-OwnerCutoverProtectedNode};&$record.module {Initialize-OwnerCutoverNodeStartupPolicy};$configurationStatus=&$record.module {Initialize-OwnerCutoverPrivateConfiguration};$journalStatus=&$record.module {Initialize-OwnerCutoverPrivateJournal};$fallbackStatus=&$record.module {Initialize-OwnerCutoverFallbackInputs}
+  $script:ownerCutoverEntryWorkspaceContext.readonlyPhase=$fallbackStatus.phase
 
- }catch{$code=$_.Exception.Message;if($code -cin @('ROTATION_CUTOVER_BOOTSTRAP_INCOMPLETE','ROTATION_CUTOVER_PUBLIC_SOURCE_REJECTED','ROTATION_CUTOVER_CLOCK_INVALID','ROTATION_CUTOVER_FORWARD_RESERVE','ROTATION_ENTRY_ATTEMPT_CONSUMED')){$result.failureCode=$code}else{$result.failureCode='ROTATION_ENTRY_CONTEXT_REQUIRED'}}
- # The genuine readonly kernel/source/Node/config/journal path is connected.
- # Target environment/activeDB, held peer/original38, proof and actual recovery
+ }catch{$code=$_.Exception.Message;if($code -cin @('ROTATION_CUTOVER_BOOTSTRAP_INCOMPLETE','ROTATION_CUTOVER_PUBLIC_SOURCE_REJECTED','ROTATION_CUTOVER_CLOCK_INVALID','ROTATION_CUTOVER_FORWARD_RESERVE','ROTATION_CUTOVER_NODE_STARTUP_POLICY_REQUIRED','ROTATION_ENTRY_ATTEMPT_CONSUMED')){$result.failureCode=$code}else{$result.failureCode='ROTATION_ENTRY_CONTEXT_REQUIRED'}}
+ # The genuine readonly kernel/source/Node/config/journal/known-fallback path
+ # is connected. Target environment/activeDB, held peer/original38, proof and actual recovery
  # are not connected; no data context enters the native admission registry.
  return $result
 }
 
 if ($MyInvocation.InvocationName -ne '.') {
+ # The closed retained entry is intentionally unavailable until authentic
+ # activation/current normal-start witnesses are connected; DATA cannot start.
+ if($StartOnly){[Console]::Error.WriteLine('GORIQ_NORMAL_START_REFUSED');exit 1}
  if($BootstrapPublicCutover){[Console]::Out.WriteLine('{"schemaVersion":3,"issue":1218,"operation":"production-cutover-bootstrap","complete":false,"failureCode":"ROTATION_CUTOVER_BOOTSTRAP_INCOMPLETE","effectCapability":false}');exit 1}
  if (-not $Prepare -and -not $PreparePublic) { [Console]::Out.WriteLine('PLAN ONLY: native rotation preparation requires fresh exact-source authority; no Owner state is accessed.');exit 0 }
  if ([IO.Path]::DirectorySeparatorChar -eq [char]92) { $env:PSModulePath=[IO.Path]::Combine($PSHOME,'Modules') }

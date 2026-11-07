@@ -7,6 +7,7 @@ import {fileURLToPath} from 'node:url';
 import {TextDecoder} from 'node:util';
 import {performance} from 'node:perf_hooks';
 import {inflateRawSync} from 'node:zlib';
+import {validateProductionConfig} from './jarvis-production-config.mjs';
 import {ROTATION_SOURCE_FILES,validateRotationScope,validateRotationResult} from './owner-code-rotation-acceptance.mjs';
 import {validateRotationExerciseResult} from './owner-code-rotation-exercise.mjs';
 
@@ -18,6 +19,46 @@ const hash=value=>createHash('sha256').update(value).digest('hex');
 const object=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
 const exact=(value,keys)=>object(value)&&Object.keys(value).length===keys.length&&keys.every(key=>Object.hasOwn(value,key));
 const fail=code=>{throw new Error(code);};
+
+
+// Consumer-only DATA: this transformation never reads configuration, starts a
+// process, or creates native/start-only authority. The owned peer must bind its
+// actual input bytes/source/Owner and original private lifetime separately.
+const cleanPlatformFields=['SystemRoot','ComSpec','USERPROFILE','LOCALAPPDATA','TEMP','TMP','PATH','PATHEXT','PSModulePath'];
+const cleanStartupControls=new Set(["HTTPS_PROXY","HTTP_PROXY","NODE_CHANNEL_FD","NODE_CHANNEL_SERIALIZATION_MODE","NODE_CLUSTER_SCHED_POLICY","NODE_COMPILE_CACHE","NODE_COMPILE_CACHE_PORTABLE","NODE_DEBUG","NODE_DEBUG_NATIVE","NODE_DISABLE_COMPILE_CACHE","NODE_EXTRA_CA_CERTS","NODE_ICU_DATA","NODE_NO_WARNINGS","NODE_OPTIONS","NODE_PATH","NODE_PENDING_DEPRECATION","NODE_PENDING_PIPE_INSTANCES","NODE_PRESERVE_SYMLINKS","NODE_PRESERVE_SYMLINKS_MAIN","NODE_REDIRECT_WARNINGS","NODE_REPL_EXTERNAL_MODULE","NODE_REPL_HISTORY","NODE_SKIP_PLATFORM_CHECK","NODE_TEST_CONTEXT","NODE_TLS_REJECT_UNAUTHORIZED","NODE_UNIQUE_ID","NODE_USE_ENV_PROXY","NODE_USE_SYSTEM_CA","NODE_V8_COVERAGE","OPENSSL_CONF","OPENSSL_CONF_INCLUDE","OPENSSL_ENGINES","OPENSSL_MALLOC_FAILURES","OPENSSL_MALLOC_FD","OPENSSL_MALLOC_SEED","OPENSSL_MODULES","OPENSSL_WIN32_UTF8","OPENSSL_IA32CAP","SSL_CERT_DIR","SSL_CERT_FILE","WATCH_REPORT_DEPENDENCIES","NODE_DISABLE_COLORS","FORCE_COLOR","NO_COLOR","TZ","UV_THREADPOOL_SIZE","COR_ENABLE_PROFILING","COR_PROFILER","COR_PROFILER_PATH","COR_PROFILER_PATH_32","COR_PROFILER_PATH_64","COR_PROFILER_PATH_ARM64","APPDOMAIN_MANAGER_ASM","APPDOMAIN_MANAGER_TYPE","DEVPATH","COMPLUS_PROFAPI_PROFILERCOMPATIBILITYSETTING","COMPLUS_MDA","PSMODULEANALYSISCACHEPATH","PSDISABLEMODULEANALYSISCACHECLEANUP"].map(name=>name.toUpperCase()));
+const cleanForbiddenFallback=new Set([...cleanStartupControls,...cleanPlatformFields.map(name=>name.toUpperCase()),'HOME','WINDIR','PSEXECUTIONPOLICYPREFERENCE','JARVIS_PRODUCTION_CONFIG','GORIQ_RUNTIME_REVISION','NODE_ENV']);
+const prototypeNames=new Set(Object.getOwnPropertyNames(Object.prototype).map(name=>name.toUpperCase()));
+function cutoverProjection(value,depth=0){
+ if(depth>16)fail('ROTATION_CUTOVER_ENVIRONMENT_REJECTED');
+ if(value===null||typeof value==='string'||typeof value==='boolean')return value;
+ if(typeof value==='number'&&Number.isFinite(value))return value;
+ if(Array.isArray(value))return value.map(item=>cutoverProjection(item,depth+1));
+ if(!object(value)||![Object.prototype,null].includes(Object.getPrototypeOf(value)))fail('ROTATION_CUTOVER_ENVIRONMENT_REJECTED');
+ return Object.fromEntries(Object.keys(value).sort().map(key=>[key,cutoverProjection(value[key],depth+1)]));
+}
+export function deriveCutoverCleanEnvironmentData(configuration,releaseRoot,fallbackBytes,platform){
+ try{
+  if(!exact(platform,cleanPlatformFields)||cleanPlatformFields.some(name=>typeof platform[name]!=='string'||!platform[name]||/[\r\n\0]/.test(platform[name]))||!Array.isArray(fallbackBytes)||fallbackBytes.length!==2||fallbackBytes.some(bytes=>!(bytes instanceof Uint8Array)||bytes.byteLength>65536))fail('ROTATION_CUTOVER_ENVIRONMENT_REJECTED');
+  const configured=validateProductionConfig(configuration,releaseRoot),values=new Map();
+  const put=(name,value,overwrite=false)=>{const folded=name.toUpperCase();if(overwrite||!values.has(folded))values.set(folded,{name,value});};
+  for(const [name,value] of Object.entries(platform))put(name,value);
+  put('WINDIR',platform.SystemRoot);
+  for(const [name,value] of Object.entries(configured))put(name,value,true);
+  for(const bytes of fallbackBytes){
+   const text=new TextDecoder('utf-8',{fatal:true,ignoreBOM:true}).decode(bytes);
+   for(const rawLine of text.split(/\r?\n/)){
+    const line=rawLine.trim();if(!line||line.startsWith('#'))continue;const index=line.indexOf('=');if(index<=0)continue;
+    const name=line.slice(0,index).trim(),folded=name.toUpperCase();let value=line.slice(index+1).trim();
+    if(!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)||prototypeNames.has(folded)||cleanForbiddenFallback.has(folded)||value.includes('\0'))fail('ROTATION_CUTOVER_ENVIRONMENT_REJECTED');
+    if(value.startsWith('"')&&value.endsWith('"')||value.startsWith("'")&&value.endsWith("'"))value=value.slice(1,-1);
+    put(name,value);
+   }
+  }
+  const projection=cutoverProjection(configuration);delete projection.environment.JARVIS_OWNER_SECRET;
+  const environment=Object.fromEntries([...values.values()].map(({name,value})=>[name,value]));
+  return frozenTree({profile:'goriq-clean-start-environment-data-v1',effectCapability:false,environment,nonOwnerProjectionSha256:hash(JSON.stringify(projection)),fallbackSha256:fallbackBytes.map(hash)});
+ }catch{fail('ROTATION_CUTOVER_ENVIRONMENT_REJECTED');}
+}
 
 export const ROTATION_PUBLIC_SOURCE_FILES=Object.freeze([...ROTATION_SOURCE_FILES,'scripts/owner-code-rotation-native-1218.mjs','scripts/owner-code-rotation-native-1218.ps1','scripts/owner-code-launcher-binding-inspection-1218.ps1','scripts/owner-code-rotation-exercise.mjs','scripts/owner-code-rotation-exercise.ps1']);
 const publicFlags=['credentialRotationApproval','existingTaskRestartApproval','configPersistenceApproval','normalLoopbackCookieApproval','confirmationApproval','automationConfirmationApproval','fleetReadOnlyApproval','pcSidecarReadOnlyApproval'];
