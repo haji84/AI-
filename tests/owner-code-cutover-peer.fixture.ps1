@@ -1,4 +1,4 @@
-param([string]$Root,[switch]$OwnedTransport,[switch]$ClosedChannel,[switch]$PlatformEnvironment,[switch]$AwaitResultTransport,[switch]$PipeDiagnostic,[ValidateSet(0,1,2)][int]$TransportGroup=0,[ValidateSet('positive','wrong-parent')][string]$HostedAncestry,[string]$NodeExecutable)
+param([string]$Root,[switch]$OwnedTransport,[switch]$ClosedChannel,[switch]$PlatformEnvironment,[switch]$AwaitResultTransport,[switch]$PipeDiagnostic,[switch]$WriteDiagnostic,[ValidateSet(0,1,2)][int]$TransportGroup=0,[ValidateSet('positive','wrong-parent')][string]$HostedAncestry,[string]$NodeExecutable)
 $ErrorActionPreference='Stop';Set-StrictMode -Version Latest
 . (Join-Path $Root 'scripts/owner-code-rotation-native-1218.ps1')
 function Require([bool]$Value,[string]$Code){if(-not $Value){throw ('PEER_FIXTURE_'+$Code)}}
@@ -29,6 +29,30 @@ public static class GoriqPublicAwaitTask { public static Task<GoriqPublicAwaitRe
  Require ($leaked.Count -eq 0) 'WRITE_AWAIT_MUST_NOT_POLLUTE_JSON'
  @{pass=$true;actualHostedStatement=$true;jsonOnly=$true;actualNativeCalls=0;nativeAuthority=$false}|ConvertTo-Json -Compress;return
 }
+# Frozen PUBLIC same-child write counterfactual. ACK is measured while stdin
+# remains open, first after WriteAsync alone, then after BaseStream.FlushAsync.
+if($WriteDiagnostic){
+ Require ([bool]$NodeExecutable -and -not $NodeExecutable.Contains('"')) 'PUBLIC_STDIN_NODE_PATH'
+ $directory=Join-Path ([IO.Path]::GetTempPath()) ('goriq-public-stdin-'+[IO.Path]::GetRandomFileName());$null=[IO.Directory]::CreateDirectory($directory);$ready=Join-Path $directory 'ready';Require (-not $ready.Contains('"')) 'PUBLIC_STDIN_READY_PATH'
+ $program="const fs=require('node:fs');const parse=s=>{const h=JSON.parse(s.replace(/^\uFEFF/,''));if(Object.keys(h).length!==3||h.schemaVersion!==1||h.kind!=='PUBLIC_HELLO'||h.sequence!==1)throw 0;return h;};const plain=JSON.stringify({schemaVersion:1,kind:'PUBLIC_HELLO',sequence:1});try{for(const frame of[plain,'\uFEFF'+plain])parse(frame);for(const frame of['\uFEFF\uFEFF'+plain,plain+'X']){let refused=false;try{parse(frame);}catch{refused=true;}if(!refused)throw 0;}}catch{process.stderr.write('PUBLIC_STDIN_PARSER_CONTROL_REJECTED');process.exit(7);}setTimeout(()=>{process.stderr.write('PUBLIC_STDIN_CONTAINMENT_LIMIT');process.exit(9);},3500);let pending='',acked=false;process.stdin.setEncoding('utf8');process.stdin.on('data',chunk=>{pending+=chunk;const end=pending.indexOf('\n');if(end<0||acked)return;try{parse(pending.slice(0,end));acked=true;process.stdout.write('A');}catch{process.stderr.write('PUBLIC_STDIN_HELLO_REJECTED');process.exit(7);}});process.stdin.on('end',()=>process.exit(0));fs.writeFileSync(process.argv[1],'READY',{flag:'wx'});"
+ $process=[Diagnostics.Process]::new();$watch=[Diagnostics.Stopwatch]::StartNew()
+ try{
+  $info=[Diagnostics.ProcessStartInfo]::new();$info.FileName=$NodeExecutable;$info.Arguments='-e "'+$program+'" "'+$ready+'"';$info.UseShellExecute=$false;$info.CreateNoWindow=$true;$info.RedirectStandardInput=$true;$info.RedirectStandardOutput=$true;$info.RedirectStandardError=$true;$process.StartInfo=$info;Require ($process.Start()) 'PUBLIC_STDIN_STARTED'
+  while(-not [IO.File]::Exists($ready)){Require (-not $process.HasExited -and $watch.ElapsedMilliseconds -lt 2000) 'PUBLIC_STDIN_READY';[Threading.Thread]::Sleep(5)}
+  $stream=$process.StandardInput.BaseStream;$kind=switch($stream.GetType().FullName){'System.IO.FileStream'{'FILE_STREAM'};'System.IO.Pipes.AnonymousPipeClientStream'{'ANONYMOUS_PIPE'};default{'OTHER'}}
+  $ackBuffer=New-Object byte[] 1;$ack=$process.StandardOutput.BaseStream.ReadAsync($ackBuffer,0,1);$errorBuffer=New-Object char[] 1;$stderr=$process.StandardError.ReadAsync($errorBuffer,0,1)
+  $payload=[Text.Encoding]::UTF8.GetBytes('{"schemaVersion":1,"kind":"PUBLIC_HELLO","sequence":1}'+[char]10);Require ($payload.Length -lt 4096) 'PUBLIC_STDIN_SMALL_FRAME'
+  $writeTask=$stream.WriteAsync($payload,0,$payload.Length);while(-not $writeTask.IsCompleted){Require (-not $process.HasExited -and -not $stderr.IsCompleted -and $watch.ElapsedMilliseconds -lt 4000) 'PUBLIC_STDIN_WRITE_BOUND';[Threading.Thread]::Sleep(5)};$null=$writeTask.GetAwaiter().GetResult()
+  $beforeWatch=[Diagnostics.Stopwatch]::StartNew();while(-not $ack.IsCompleted -and $beforeWatch.ElapsedMilliseconds -lt 300){Require (-not $process.HasExited -and -not $stderr.IsCompleted -and $watch.ElapsedMilliseconds -lt 4000) 'PUBLIC_STDIN_OPEN_BOUND';[Threading.Thread]::Sleep(5)}
+  $before=$ack.IsCompleted;Require (-not $process.HasExited -and -not $stderr.IsCompleted) 'PUBLIC_STDIN_HELD_BEFORE_FLUSH';if($before){Require ($ack.GetAwaiter().GetResult() -eq 1 -and $ackBuffer[0] -eq 65) 'PUBLIC_STDIN_INITIAL_ACK'}
+  $flushTask=$stream.FlushAsync();while(-not $flushTask.IsCompleted){Require (-not $process.HasExited -and -not $stderr.IsCompleted -and $watch.ElapsedMilliseconds -lt 4000) 'PUBLIC_STDIN_FLUSH_BOUND';[Threading.Thread]::Sleep(5)};$null=$flushTask.GetAwaiter().GetResult()
+  while(-not $ack.IsCompleted){Require (-not $process.HasExited -and -not $stderr.IsCompleted -and $watch.ElapsedMilliseconds -lt 4000) 'PUBLIC_STDIN_FLUSH_ACK_BOUND';[Threading.Thread]::Sleep(5)}
+  Require ($ack.GetAwaiter().GetResult() -eq 1 -and $ackBuffer[0] -eq 65 -and -not $process.HasExited -and -not $stderr.IsCompleted) 'PUBLIC_STDIN_ACK_WITHOUT_EOF'
+  $process.StandardInput.Close();while(-not $process.HasExited){Require ($watch.ElapsedMilliseconds -lt 4000) 'PUBLIC_STDIN_OWN_EOF';[Threading.Thread]::Sleep(5)};Require ($stderr.Wait(1000) -and $stderr.GetAwaiter().GetResult() -eq 0 -and $process.ExitCode -eq 0) 'PUBLIC_STDIN_CHILD_CLOSED'
+  @{pass=$true;diagnosticOnly=$true;windows=([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT);psMajor=[int]$PSVersionTable.PSVersion.Major;stdinBaseStream=$kind;frameBytes=$payload.Length;writeCompleted=$true;ackBeforeFlush=$before;ackAfterFlush=$true;sameOwnedChild=$true;ackWithoutEof=$true;ownedChildClosed=$true;parserControlsPassed=$true;parserControlsCount=4;timerIsContainmentOnly=$true;localChildTimerMs=3500;actualOwnerTaskAccountDpapiCalls=0;nativeAuthority=$false}|ConvertTo-Json -Compress;return
+ }finally{try{if(-not $process.HasExited){$process.Kill();$null=$process.WaitForExit(1000)}}catch{};$process.Dispose();[IO.Directory]::Delete($directory,$true)}
+}
+
 # Fixed PUBLIC partial-pipe mechanism diagnosis. No Owner/private source or
 # task/account/DPAPI operation. Each process is allocated/contained by this test.
 if($PipeDiagnostic){

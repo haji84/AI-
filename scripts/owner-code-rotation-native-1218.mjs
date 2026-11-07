@@ -62,6 +62,73 @@ export function deriveCutoverCleanEnvironmentData(configuration,releaseRoot,fall
 }
 
 
+// PURE data predicates. These do not read clocks/processes/files, discover a
+// runtime, or authenticate a native clock/DB role. Genuine private producers
+// and sticky original UTC/protocol state remain mandatory before any DB BIND.
+const cutoverSigned64Max=9223372036854775807n,cutoverUnsigned64Max=18446744073709551615n;
+function cutoverDecimal(value,max,zero=false){if(typeof value!=='string'||value.length>20||!/^(?:0|[1-9][0-9]*)$/.test(value))throw 0;const n=BigInt(value);if(n>max||(!zero&&n===0n))throw 0;return n;}
+function cutoverHex(value,n=64){return typeof value==='string'&&new RegExp('^[a-f0-9]{'+n+'}$').test(value);}
+function cutoverPid(value){return Number.isSafeInteger(value)&&value>0&&value<=2147483647;}
+function cutoverUtc(value){
+ if(typeof value!=='string'||!/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(value))throw 0;
+ const year=BigInt(value.slice(0,4)),month=BigInt(value.slice(5,7)),day=BigInt(value.slice(8,10)),hour=BigInt(value.slice(11,13)),minute=BigInt(value.slice(14,16)),second=BigInt(value.slice(17,19)),millisecond=BigInt(value.slice(20,23));
+ const leap=year%4n===0n&&(year%100n!==0n||year%400n===0n),lengths=[31n,leap?29n:28n,31n,30n,31n,30n,31n,31n,30n,31n,30n,31n];
+ if(year<1n||month<1n||month>12n||day<1n||day>lengths[month-1n]||hour>23n||minute>59n||second>59n)throw 0;
+ const previousYear=year-1n;let days=365n*previousYear+previousYear/4n-previousYear/100n+previousYear/400n+day-1n;
+ for(let prior=1n;prior<month;prior++)days+=lengths[prior-1n];
+ return (((days*24n+hour)*60n+minute)*60n+second)*1000n+millisecond;
+}
+export function quantizeCutoverQpcNanoseconds(counterDecimal,frequencyDecimal){
+ try{
+  if(arguments.length!==2)throw 0;const counter=cutoverDecimal(counterDecimal,cutoverSigned64Max),frequency=cutoverDecimal(frequencyDecimal,cutoverSigned64Max);
+  // Exact pinned libuv operation order, deliberately binary64 then truncation.
+  // No endpoint/identity arithmetic uses Number outside this quantizer.
+  const scaledFrequency=Number(frequency)/1000000000,result=Number(counter)/scaledFrequency;
+  if(!Number.isFinite(scaledFrequency)||scaledFrequency<=0||!Number.isFinite(result)||result<0)throw 0;
+  const integer=BigInt(Math.trunc(result));if(integer>cutoverUnsigned64Max)throw 0;return String(integer);
+ }catch{fail('ROTATION_CUTOVER_QPC_DATA_REJECTED');}
+}
+const qpcBindingFields=['sourceRevision','originalGrantSha256','attemptId','workflowRunId','officialJobId','parentPid','parentCreationTicks','nodePid','nodeCreationTicks','ownerSidSha256','sessionId','nodeImageSha256','nativeMjsSha256','nativePsSha256'];
+function cutoverQpcBinding(value){
+ if(!exact(value,qpcBindingFields)||!cutoverHex(value.sourceRevision,40)||!cutoverPid(value.parentPid)||!cutoverPid(value.nodePid)||value.parentPid===value.nodePid||!Number.isSafeInteger(value.sessionId)||value.sessionId<0||value.nodeImageSha256!==cutoverNode.nodeSha256||typeof value.attemptId!=='string'||!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(value.attemptId))throw 0;
+ for(const k of ['originalGrantSha256','ownerSidSha256','nativeMjsSha256','nativePsSha256'])if(!cutoverHex(value[k]))throw 0;
+ for(const k of ['workflowRunId','officialJobId'])cutoverDecimal(value[k],cutoverUnsigned64Max);
+ if(cutoverDecimal(value.parentCreationTicks,3155378975999999999n)>cutoverDecimal(value.nodeCreationTicks,3155378975999999999n))throw 0;
+}
+export function validateCutoverOriginalQpcData(data,expected){
+ try{
+  if(arguments.length!==2||!exact(data,['profile','platform','architecture','nodeVersion','binding','frequencyQpc','stopwatchFrequency','stopwatchHighResolution','nodeHrBefore','nodeHrAfter','qpcBefore','stopwatchSample','qpcAfter','originQpc','forwardQpc','hardQpc','hardEndUtc','originalClockState'])||!exact(expected,['binding','originQpc','frequencyQpc','originalForwardQpc','originalHardQpc','originalHardEndUtc','previousForwardQpc','previousHardQpc','previousHardEndUtc','previousNodeHrtime']))throw 0;
+  if(data.profile!=='goriq-original-qpc-association-data-v1'||data.platform!=='win32'||data.architecture!=='x64'||data.nodeVersion!=='24.19.0'||data.stopwatchHighResolution!==true||data.originalClockState!=='VALID')throw 0;
+  cutoverQpcBinding(data.binding);cutoverQpcBinding(expected.binding);if(qpcBindingFields.some(k=>data.binding[k]!==expected.binding[k]))throw 0;
+  const freq=cutoverDecimal(expected.frequencyQpc,cutoverSigned64Max),origin=cutoverDecimal(expected.originQpc,cutoverSigned64Max),originalHard=cutoverDecimal(expected.originalHardQpc,cutoverSigned64Max),originalForward=cutoverDecimal(expected.originalForwardQpc,cutoverSigned64Max),previousHard=cutoverDecimal(expected.previousHardQpc,cutoverSigned64Max),previousForward=cutoverDecimal(expected.previousForwardQpc,cutoverSigned64Max,true),hard=cutoverDecimal(data.hardQpc,cutoverSigned64Max),forward=cutoverDecimal(data.forwardQpc,cutoverSigned64Max,true),reserve=120n*freq;
+  if(data.frequencyQpc!==expected.frequencyQpc||data.stopwatchFrequency!==expected.frequencyQpc||data.originQpc!==expected.originQpc||originalHard<=origin+reserve||originalHard-origin>900n*freq||originalForward!==originalHard-reserve||previousHard>originalHard||hard>previousHard||previousForward!==(previousHard>reserve?previousHard-reserve:0n)||forward!==(hard>reserve?hard-reserve:0n)||forward>previousForward)throw 0;
+  const originalUtc=cutoverUtc(expected.originalHardEndUtc),previousUtc=cutoverUtc(expected.previousHardEndUtc),hardUtc=cutoverUtc(data.hardEndUtc);if(previousUtc>originalUtc||hardUtc>previousUtc)throw 0;
+  // Every advertised UTC tightening also tightens the absolute QPC cap. Ceil
+  // stops early for fractional tick deltas; no Date/Number budget conversion.
+  const previousUtcCap=originalHard-((originalUtc-previousUtc)*freq+999n)/1000n,currentUtcCap=originalHard-((originalUtc-hardUtc)*freq+999n)/1000n;
+  if(previousHard>previousUtcCap||hard>currentUtcCap)throw 0;
+  const before=cutoverDecimal(data.qpcBefore,cutoverSigned64Max),sample=cutoverDecimal(data.stopwatchSample,cutoverSigned64Max),after=cutoverDecimal(data.qpcAfter,cutoverSigned64Max),hrBefore=cutoverDecimal(data.nodeHrBefore,cutoverUnsigned64Max,true),hrAfter=cutoverDecimal(data.nodeHrAfter,cutoverUnsigned64Max,true),previousHr=cutoverDecimal(expected.previousNodeHrtime,cutoverUnsigned64Max,true);
+  if(before<origin||sample<before||sample>after||after<before||hrBefore<previousHr||hrAfter<hrBefore||hrBefore>BigInt(quantizeCutoverQpcNanoseconds(data.qpcBefore,expected.frequencyQpc))||BigInt(quantizeCutoverQpcNanoseconds(data.qpcAfter,expected.frequencyQpc))>hrAfter)throw 0;
+  const hardMapped=BigInt(quantizeCutoverQpcNanoseconds(data.hardQpc,expected.frequencyQpc)),forwardMapped=forward===0n?0n:BigInt(quantizeCutoverQpcNanoseconds(data.forwardQpc,expected.frequencyQpc));if(hrAfter>=hardMapped)throw 0;
+  return frozenTree({profile:'goriq-original-qpc-association-data-v1',associationDataMatched:true,remainingHardNs:String(hardMapped-hrAfter),remainingForwardNs:String(forwardMapped>hrAfter?forwardMapped-hrAfter:0n),nativeAuthority:false,originalClockAuthorityVerified:false});
+ }catch{fail('ROTATION_CUTOVER_QPC_DATA_REJECTED');}
+}
+export function validateCutoverActiveDbUseData(data,expected){
+ try{
+  const expectedFields=['databasePath','databaseIdentityKey','runtimePid','runtimeCreationFiletime','runtimeOwnerSidSha256','runtimeSessionId','runtimeParentPid','nodePath','brokerSourceSha256','runtimeRevision','observerPid','ownedPeerPid'];
+  if(arguments.length!==2||!exact(data,['profile','registeredFiles','registeredApplications','registeredServices','resultCode','fileBefore','fileAfter','processBefore','processAfter','rmProcesses'])||!exact(expected,expectedFields)||data.profile!=='goriq-fixed-broker-db-use-data-v1'||!peerPath(expected.databasePath)||!peerPath(expected.nodePath)||typeof expected.databaseIdentityKey!=='string'||!/^[a-f0-9]{8}:[a-f0-9]{16}$/.test(expected.databaseIdentityKey))throw 0;
+  if(!cutoverPid(expected.runtimePid)||!cutoverPid(expected.runtimeParentPid)||!cutoverPid(expected.observerPid)||!cutoverPid(expected.ownedPeerPid)||expected.runtimePid===expected.runtimeParentPid||new Set([expected.runtimePid,expected.observerPid,expected.ownedPeerPid]).size!==3||!Number.isSafeInteger(expected.runtimeSessionId)||expected.runtimeSessionId<0||!cutoverHex(expected.runtimeOwnerSidSha256)||!cutoverHex(expected.brokerSourceSha256)||!cutoverHex(expected.runtimeRevision,40))throw 0;
+  cutoverDecimal(expected.runtimeCreationFiletime,2650467743999999999n);
+  if(!Array.isArray(data.registeredFiles)||data.registeredFiles.length!==1||typeof data.registeredFiles[0]!=='string'||data.registeredFiles[0].toLowerCase()!==expected.databasePath.toLowerCase()||data.registeredApplications!==0||data.registeredServices!==0||data.resultCode!==0)throw 0;
+  for(const file of [data.fileBefore,data.fileAfter])if(!exact(file,['identityKey','finalPath','links'])||file.identityKey!==expected.databaseIdentityKey||typeof file.finalPath!=='string'||file.finalPath.toLowerCase()!==expected.databasePath.toLowerCase()||file.links!==1)throw 0;
+  const processFields=['pid','parentPid','creationFiletime','ownerSidSha256','sessionId','imagePath','imageSha256','brokerSourceSha256','releaseRevision','listenerAddress','listenerPort'];
+  for(const row of [data.processBefore,data.processAfter])if(!exact(row,processFields)||row.pid!==expected.runtimePid||row.parentPid!==expected.runtimeParentPid||row.creationFiletime!==expected.runtimeCreationFiletime||row.ownerSidSha256!==expected.runtimeOwnerSidSha256||row.sessionId!==expected.runtimeSessionId||typeof row.imagePath!=='string'||row.imagePath.toLowerCase()!==expected.nodePath.toLowerCase()||row.imageSha256!==cutoverNode.nodeSha256||row.brokerSourceSha256!==expected.brokerSourceSha256||row.releaseRevision!==expected.runtimeRevision||row.listenerAddress!=='127.0.0.1'||row.listenerPort!==8787)throw 0;
+  if(!Array.isArray(data.rmProcesses)||data.rmProcesses.length>64)throw 0;const seen=new Set();let matches=0;
+  for(const row of data.rmProcesses){if(!exact(row,['pid','creationFiletime'])||!cutoverPid(row.pid)||seen.has(row.pid))throw 0;seen.add(row.pid);cutoverDecimal(row.creationFiletime,2650467743999999999n);if(row.pid===expected.runtimePid&&row.creationFiletime===expected.runtimeCreationFiletime)matches++;}
+  if(matches!==1)throw 0;return frozenTree({profile:'goriq-fixed-broker-db-use-data-v1',fileUseDataMatched:true,rmProcessCount:data.rmProcesses.length,nativeAuthority:false,actualDatabaseAuthorityVerified:false});
+ }catch{fail('ROTATION_CUTOVER_ACTIVE_DB_DATA_REJECTED');}
+}
+
 // PURE DATA observer: opaque core9 snapshots are already captured by the
 // consumer. No filesystem/SQL/process/clock/callback is performed here. Only
 // genuine private native/peer provenance can authorize a future live capture.
