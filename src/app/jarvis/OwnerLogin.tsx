@@ -67,6 +67,7 @@ export default function OwnerLogin({ next = "/jarvis", initialError = false }: {
         <input
           id="jarvis-owner-pin"
           name="pin"
+          type="password"
           inputMode="numeric"
           pattern="[0-9]{4}"
           maxLength={4}
@@ -88,7 +89,7 @@ export default function OwnerLogin({ next = "/jarvis", initialError = false }: {
       <button className="button" type="submit" disabled={busy}>{busy ? "接続中…" : "ログインして遠隔操作へ"}</button>
     </form>
     {error && <p className="jarvis-alert" role="alert">{error}</p>}
-    <p className="muted">本番ログインコードを忘れた場合は、Production PCで同じWindowsオーナーとして <code>scripts/owner-code-windows.ps1</code> を実行してください。通常はマスク表示され、<code>-Reveal</code> または <code>-Copy</code> を指定した場合だけ、PC上で表示または確認後にクリップボードへコピーされます。コードの再発行やWorkerの再登録は不要です。</p>
+    <p className="muted">本番ログインコードを忘れた場合は、Production PCで同じWindowsオーナーとして、設置済みのスタートメニューの「GORIQ Owner Code」を開いてください。最初はマスク表示で、「表示」で確認、「コピー」でこのPCのクリップボードへコピーできます。起動口が見当たらない場合は、ローカルツールの設置を確認してください。コードの再発行やWorkerの再登録は不要です。</p>
     <p className="muted">信頼済み端末の登録やPIN変更は、ログイン後の「設定」から行えます。</p>
   </section>;
 }

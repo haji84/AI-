@@ -309,16 +309,6 @@
       "reason": "iOS Worker lifecycle and packaging, including run-specific live-acceptance build identity injection."
     },
     {
-      "path": "apps/ios-worker/project.yml",
-      "sha256": "dc7b823f90021417fe9fa9e29a632f5712bbb1b13984027e850bd19014fc387f",
-      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
-      "requirement_ids": [
-        "DEV-I-001",
-        "DEV-I-007"
-      ],
-      "reason": "iOS Worker lifecycle, app packaging and documented platform limits"
-    },
-    {
       "path": "apps/ios-worker/README.md",
       "sha256": "1e8bea2297893986653bc03326794f1fa5b5e4897397c59bfef4c8495b7af293",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -364,6 +354,16 @@
         "RA-022"
       ],
       "reason": "iOS Worker lifecycle and signed result evidence, including run-specific live-acceptance device, build-challenge, and bundle binding."
+    },
+    {
+      "path": "apps/ios-worker/project.yml",
+      "sha256": "dc7b823f90021417fe9fa9e29a632f5712bbb1b13984027e850bd19014fc387f",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "DEV-I-001",
+        "DEV-I-007"
+      ],
+      "reason": "iOS Worker lifecycle, app packaging and documented platform limits"
     },
     {
       "path": "docs/architecture/0001-ai-company-operating-model.md",
@@ -727,7 +727,7 @@
     },
     {
       "path": "docs/architecture/jarvis-windows-production.md",
-      "sha256": "ca29c5357d2b339a5623b4899b95d48c292a67d7e5cf779d126d7b26f15f5b9a",
+      "sha256": "010885d7bf11d2b05de5e7dc42e2ed99d8826b50dc369bfa6417e2bb2d1bea69",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "HOST-003"
@@ -959,7 +959,7 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "6d216853a21b4b5103eb30a749e5f18e421f3f2d3c476c765a9accf2b8393a2d",
+      "sha256": "06332e6302c6cf13d701e3f9672705126a8b17ffa59f1f430a0a6ea10ecad1a4",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-003",
@@ -978,9 +978,11 @@
         "SEC-007",
         "SEC-010",
         "UI-009",
-        "INT-001"
+        "INT-001",
+        "OPS-015",
+        "OPS-016"
       ],
-      "reason": "Protected Broker now exposes bounded local-first voice discovery and synthesis while preserving existing owner authority and all prior Broker responsibilities."
+      "reason": "Protected Broker now exposes bounded local-first voice discovery and synthesis while preserving existing owner authority and all prior Broker responsibilities. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim. #1858 approved host-selected completion integration and isolated verification; no live activation or physical acceptance inference. Protected Broker now exposes bounded local-first voice discovery and synthesis while preserving existing owner authority and all prior Broker responsibilities. #1219 only accepted nonterminal Goal resumed on changed verifier receipt; signature and authorizations still checked in child Executor."
     },
     {
       "path": "scripts/jarvis-direct-commander-service.sh",
@@ -1073,7 +1075,7 @@
     },
     {
       "path": "scripts/jarvis-goal-executor.ts",
-      "sha256": "27844810e38af97c64c40b49a8acc578e78a30f4422442e9fbe67d04295ed57a",
+      "sha256": "754dbf5f7241512640efcbde42cf8a8b5b1ec72fec09b2b781534d34a1f02f2b",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "AUTO-001",
@@ -1081,7 +1083,7 @@
         "GOV-025",
         "OWN-001"
       ],
-      "reason": "Issues #1219/#1284 Direct Goal Bridge executor auto-routes accepted development intent from Daily Driver into the bounded Builder runtime when explicit self-development environment configuration is absent; existing capability, verifier, risk, Human Gate, and release controls remain authoritative. Physical iPhone E2E remains required before completion."
+      "reason": "Issues #1219/#1284 Direct Goal Bridge executor auto-routes accepted development intent from Daily Driver into the bounded Builder runtime when explicit self-development environment configuration is absent; existing capability, verifier, risk, Human Gate, and release controls remain authoritative. Physical iPhone E2E remains required before completion. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim. #1858 bounded host-pinned resident handoff and negative evidence recovery; no production or physical acceptance inference. #1219 scope pinning follows resident Ollama opt-in; no complete runtime E2E claim. Issues #1219/#1284 Direct Goal Bridge executor auto-routes accepted development intent from Daily Driver into the bounded Builder runtime when explicit self-development environment configuration is absent; existing capability, verifier, risk, Human Gate, and release controls remain authoritative. Physical iPhone E2E remains required before completion. #1219 scope pinning follows resident Ollama opt-in; no complete runtime E2E claim. #1219 bounded Codex-free TDD RED and local separate-process GREEN proof work; complete independent release verification and physical Goal E2E are not claimed. #1219 independently readback artifact bytes and hold unavailable evidence without discarding Change Set. #1219 independently signed local verifier receipts bound to exact Goal and Change Set before required checks may be accepted."
     },
     {
       "path": "scripts/jarvis-mac-broker-service.sh",
@@ -1601,13 +1603,13 @@
     },
     {
       "path": "src/app/api/jarvis/work/[goalId]/route.ts",
-      "sha256": "2a44b52a1b53bcb2f12406e2f1f91b004e3044f12aa3276993f3acb5a901f048",
+      "sha256": "c2c4552711f627472ac124ea004dbf2214ba9ce38cf24f71390e472301112b35",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-001",
         "AUTO-004"
       ],
-      "reason": "Persisted work intake/state API"
+      "reason": "Persisted work intake/state API #1858 approved host-selected completion integration and isolated verification; no live activation or physical acceptance inference."
     },
     {
       "path": "src/app/api/jarvis/work/route.ts",
@@ -1778,149 +1780,6 @@
       "reason": "Declared route.ts responsibility implements/supports Owner Authentication; Session Control; One Front Door. Parent ownership is not functional or physical acceptance evidence."
     },
     {
-      "path": "src/app/jarvis/accessibility-preferences.ts",
-      "sha256": "03c2d24603cdfd7fc6c07f507244373c8ecb5f7da855d094c62bcf0ce7d97700",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "GOV-028"
-      ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
-    },
-    {
-      "path": "src/app/jarvis/accessibility-status.css",
-      "sha256": "fe235cacad2461fbd652ad5f7af0651a819ebc44cdb1f2a8c3092b1939a3fcd5",
-      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
-      "requirement_ids": [
-        "UI-031"
-      ],
-      "reason": "Accessibility display preferences"
-    },
-    {
-      "path": "src/app/jarvis/apple-icon.tsx",
-      "sha256": "d2fb532ad8216c8179c739614e4a8c03898ae1202940e77e05a403ab6f01d536",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "UI-006"
-      ],
-      "reason": "App branding and manifest assets"
-    },
-    {
-      "path": "src/app/jarvis/command-search.css",
-      "sha256": "ed9777db8b48b6f6238bf9e2d06a3fe84f8dc3f40b33c95606f827db59f77ec0",
-      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
-      "requirement_ids": [
-        "UI-021"
-      ],
-      "reason": "Universal command search UI"
-    },
-    {
-      "path": "src/app/jarvis/connectivity-status.ts",
-      "sha256": "034abf592db0b6b256057415edac703ccb4fce2fbd5e281aa76394199fa140a8",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "GOV-028"
-      ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
-    },
-    {
-      "path": "src/app/jarvis/decisions/page.tsx",
-      "sha256": "9a05a62dae191da93219a26bb047efcc158d55782e83f5904644b2ed27c963c8",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "UI-003",
-        "UI-020",
-        "UI-026",
-        "AUTO-022"
-      ],
-      "reason": "First-class Decision Queue route reuses the protected Task state and limits the view to owner decisions without creating a second task authority."
-    },
-    {
-      "path": "src/app/jarvis/devices/page.tsx",
-      "sha256": "985aa9c049c6eda01f429a820da312ef66b28a8d0cc2e05482950a1e2b3e7f47",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "DEV-I-008",
-        "RA-006",
-        "RA-022"
-      ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
-    },
-    {
-      "path": "src/app/jarvis/devices/PlatformRemoteAssistFleet.tsx",
-      "sha256": "7ff7b178c79c9f3a513442ed909f82e4f44b5e0b76f46c47d46e76c716618eeb",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "UI-002",
-        "RA-006"
-      ],
-      "reason": "Fleet page and capability display"
-    },
-    {
-      "path": "src/app/jarvis/diagnostics/page.tsx",
-      "sha256": "230afc816899892dd00e7ab3f1c03d2c2eeb8f8343ff7980eb114e1cabc6206e",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "OPS-008"
-      ],
-      "reason": "Owner diagnostics page"
-    },
-    {
-      "path": "src/app/jarvis/display-modes.ts",
-      "sha256": "f00bc9fdea794adea1188f2999c066ee81f47fa3c83971ea3f603b9e2ad77977",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "UI-024",
-        "UI-026"
-      ],
-      "reason": "Distance/mobile display profiles"
-    },
-    {
-      "path": "src/app/jarvis/enroll/EnrollmentProgress.tsx",
-      "sha256": "e6138a25d2806a27cc29c43843eac23d605dc4bac904862ba853a2f2364011a0",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "FLEET-003",
-        "FLEET-006"
-      ],
-      "reason": "Owner enrollment progress/invitation/pending pages"
-    },
-    {
-      "path": "src/app/jarvis/enroll/OwnerInvitationPanel.tsx",
-      "sha256": "8ab754db12d9ce247229449f2d1a173cee0f2c77289102677947d8bd4cfee535",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "FLEET-003",
-        "FLEET-006"
-      ],
-      "reason": "Owner enrollment progress/invitation/pending pages"
-    },
-    {
-      "path": "src/app/jarvis/enroll/page.tsx",
-      "sha256": "53eefdcc604922a8522260518593a1efd89d569773133a0118d55a16345357a4",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "FLEET-001",
-        "FLEET-002",
-        "FLEET-003",
-        "FLEET-004",
-        "FLEET-005",
-        "FLEET-006",
-        "FLEET-007",
-        "FLEET-008"
-      ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
-    },
-    {
-      "path": "src/app/jarvis/enroll/PendingRegistration.tsx",
-      "sha256": "671715958180754b4b53e8e039afee8adbb9e472bb85c77291f8fa5b53db4fac",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "FLEET-003",
-        "FLEET-006"
-      ],
-      "reason": "Owner enrollment progress/invitation/pending pages"
-    },
-    {
       "path": "src/app/jarvis/GlobalConversationLauncher.tsx",
       "sha256": "c6641807bd282803cdbf77e939ce61bbc11a36846302632525c8a10aab076fe6",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -1940,35 +1799,6 @@
         "OPS-018"
       ],
       "reason": "Icon set supports the simplified GORIQ routine navigation without removing any destination"
-    },
-    {
-      "path": "src/app/jarvis/icon.tsx",
-      "sha256": "60701017daeeeae58ced9ff0031ffb693b6b7694dad414d668d5d4c83fa0c1c9",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "UI-006"
-      ],
-      "reason": "App branding and manifest assets"
-    },
-    {
-      "path": "src/app/jarvis/jarvis.css",
-      "sha256": "edfe5d563e9b899ddb8cae2f6c7263f7a84622d3ad6c3072d755e8e2487a422f",
-      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
-      "requirement_ids": [
-        "UI-001",
-        "UI-002",
-        "UI-003",
-        "UI-006",
-        "UI-020",
-        "UI-026",
-        "UI-027",
-        "UI-031",
-        "UI-032",
-        "UI-034",
-        "UI-037",
-        "UI-038"
-      ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
     },
     {
       "path": "src/app/jarvis/JarvisAccessibilityControls.tsx",
@@ -2120,6 +1950,233 @@
       "reason": "GORIQ Daily Driver command composer is the primary owner entry, resumes the last durable Goal, and preserves existing theme selection"
     },
     {
+      "path": "src/app/jarvis/OwnerLogin.tsx",
+      "sha256": "3ab7107ddb569f03673809720a28cbc695e9bbd83f633446e31f105c7ea8464a",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "SEC-001",
+        "SEC-002"
+      ],
+      "reason": "Owner trusted browser authentication and local production-code recovery guidance"
+    },
+    {
+      "path": "src/app/jarvis/RemoteAssistMultiView.tsx",
+      "sha256": "11a822414eeb041b1ee7f5cdcca1145c909e606212bd9ad67f38b2b70ce3a122",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "RA-003",
+        "RA-004",
+        "RA-005"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/app/jarvis/RemoteScreenControl.tsx",
+      "sha256": "9d7958f9494c31d4d7fa1aba7cb25f50255ef4b4f1ec7192faa90e3355d22cc3",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "RA-007",
+        "RA-009"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/app/jarvis/RemoteVideo.tsx",
+      "sha256": "20b5fa5981f99c1702ee3b4543ba0a814514c999ece8285a184750b9000a743a",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "RA-013",
+        "RA-014"
+      ],
+      "reason": "Remote video presentation"
+    },
+    {
+      "path": "src/app/jarvis/TeachingControls.tsx",
+      "sha256": "f6ea5fe271c8cd070222b819f67c943451964ba169a04de19c787cfea81cc793",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "TEACH-001",
+        "TEACH-002",
+        "TEACH-003",
+        "TEACH-004",
+        "TEACH-005",
+        "TEACH-006"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/app/jarvis/accessibility-preferences.ts",
+      "sha256": "03c2d24603cdfd7fc6c07f507244373c8ecb5f7da855d094c62bcf0ce7d97700",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "GOV-028"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/app/jarvis/accessibility-status.css",
+      "sha256": "fe235cacad2461fbd652ad5f7af0651a819ebc44cdb1f2a8c3092b1939a3fcd5",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "UI-031"
+      ],
+      "reason": "Accessibility display preferences"
+    },
+    {
+      "path": "src/app/jarvis/apple-icon.tsx",
+      "sha256": "d2fb532ad8216c8179c739614e4a8c03898ae1202940e77e05a403ab6f01d536",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-006"
+      ],
+      "reason": "App branding and manifest assets"
+    },
+    {
+      "path": "src/app/jarvis/command-search.css",
+      "sha256": "ed9777db8b48b6f6238bf9e2d06a3fe84f8dc3f40b33c95606f827db59f77ec0",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "UI-021"
+      ],
+      "reason": "Universal command search UI"
+    },
+    {
+      "path": "src/app/jarvis/connectivity-status.ts",
+      "sha256": "034abf592db0b6b256057415edac703ccb4fce2fbd5e281aa76394199fa140a8",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "GOV-028"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/app/jarvis/decisions/page.tsx",
+      "sha256": "9a05a62dae191da93219a26bb047efcc158d55782e83f5904644b2ed27c963c8",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-003",
+        "UI-020",
+        "UI-026",
+        "AUTO-022"
+      ],
+      "reason": "First-class Decision Queue route reuses the protected Task state and limits the view to owner decisions without creating a second task authority."
+    },
+    {
+      "path": "src/app/jarvis/devices/PlatformRemoteAssistFleet.tsx",
+      "sha256": "7ff7b178c79c9f3a513442ed909f82e4f44b5e0b76f46c47d46e76c716618eeb",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-002",
+        "RA-006"
+      ],
+      "reason": "Fleet page and capability display"
+    },
+    {
+      "path": "src/app/jarvis/devices/page.tsx",
+      "sha256": "985aa9c049c6eda01f429a820da312ef66b28a8d0cc2e05482950a1e2b3e7f47",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "DEV-I-008",
+        "RA-006",
+        "RA-022"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/app/jarvis/diagnostics/page.tsx",
+      "sha256": "230afc816899892dd00e7ab3f1c03d2c2eeb8f8343ff7980eb114e1cabc6206e",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OPS-008"
+      ],
+      "reason": "Owner diagnostics page"
+    },
+    {
+      "path": "src/app/jarvis/display-modes.ts",
+      "sha256": "f00bc9fdea794adea1188f2999c066ee81f47fa3c83971ea3f603b9e2ad77977",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-024",
+        "UI-026"
+      ],
+      "reason": "Distance/mobile display profiles"
+    },
+    {
+      "path": "src/app/jarvis/enroll/EnrollmentProgress.tsx",
+      "sha256": "e6138a25d2806a27cc29c43843eac23d605dc4bac904862ba853a2f2364011a0",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-003",
+        "FLEET-006"
+      ],
+      "reason": "Owner enrollment progress/invitation/pending pages"
+    },
+    {
+      "path": "src/app/jarvis/enroll/OwnerInvitationPanel.tsx",
+      "sha256": "8ab754db12d9ce247229449f2d1a173cee0f2c77289102677947d8bd4cfee535",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-003",
+        "FLEET-006"
+      ],
+      "reason": "Owner enrollment progress/invitation/pending pages"
+    },
+    {
+      "path": "src/app/jarvis/enroll/PendingRegistration.tsx",
+      "sha256": "671715958180754b4b53e8e039afee8adbb9e472bb85c77291f8fa5b53db4fac",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-003",
+        "FLEET-006"
+      ],
+      "reason": "Owner enrollment progress/invitation/pending pages"
+    },
+    {
+      "path": "src/app/jarvis/enroll/page.tsx",
+      "sha256": "53eefdcc604922a8522260518593a1efd89d569773133a0118d55a16345357a4",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-001",
+        "FLEET-002",
+        "FLEET-003",
+        "FLEET-004",
+        "FLEET-005",
+        "FLEET-006",
+        "FLEET-007",
+        "FLEET-008"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
+      "path": "src/app/jarvis/icon.tsx",
+      "sha256": "60701017daeeeae58ced9ff0031ffb693b6b7694dad414d668d5d4c83fa0c1c9",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-006"
+      ],
+      "reason": "App branding and manifest assets"
+    },
+    {
+      "path": "src/app/jarvis/jarvis.css",
+      "sha256": "edfe5d563e9b899ddb8cae2f6c7263f7a84622d3ad6c3072d755e8e2487a422f",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "UI-001",
+        "UI-002",
+        "UI-003",
+        "UI-006",
+        "UI-020",
+        "UI-026",
+        "UI-027",
+        "UI-031",
+        "UI-032",
+        "UI-034",
+        "UI-037",
+        "UI-038"
+      ],
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+    },
+    {
       "path": "src/app/jarvis/layout-modes.css",
       "sha256": "69eb0f8f33c810f16d329244c01e8af70ce07f8eabe203bf0f36246a7f3a966f",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
@@ -2159,6 +2216,17 @@
         "UI-006"
       ],
       "reason": "App branding and manifest assets"
+    },
+    {
+      "path": "src/app/jarvis/mobile/MobileCommander.tsx",
+      "sha256": "05efa89ef73e9201e1b7e0f9e51b1f7c8558e3bbcdbb43dfbfc570e29c0d6ac3",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "INT-003",
+        "UI-020",
+        "OPS-018"
+      ],
+      "reason": "Device-specific advanced controls remain available while routine owner commands use the single GORIQ Daily Driver front door"
     },
     {
       "path": "src/app/jarvis/mobile/command-context.ts",
@@ -2235,17 +2303,6 @@
       "reason": "Mobile owner command surface"
     },
     {
-      "path": "src/app/jarvis/mobile/MobileCommander.tsx",
-      "sha256": "05efa89ef73e9201e1b7e0f9e51b1f7c8558e3bbcdbb43dfbfc570e29c0d6ac3",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "INT-003",
-        "UI-020",
-        "OPS-018"
-      ],
-      "reason": "Device-specific advanced controls remain available while routine owner commands use the single GORIQ Daily Driver front door"
-    },
-    {
       "path": "src/app/jarvis/mobile/page.tsx",
       "sha256": "6d94fe5259ce8f3a4ab3f252e930044797c1c93a86f79f043bec8a944f394f19",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -2256,8 +2313,8 @@
       "reason": "Mobile owner command surface"
     },
     {
-      "path": "src/app/jarvis/mobile/pointer/imu-pointer.ts",
-      "sha256": "a4ab9ea2b772c946a1db4fdfaafac7d4c973bf4654f80e48da23dff805d16a46",
+      "path": "src/app/jarvis/mobile/pointer/ImuPointerCommander.tsx",
+      "sha256": "e8728b510435ded9bb3879d1866d7771474a32b6b94b2a2eb2a9a25309dbb3ea",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "GEST-006",
@@ -2266,8 +2323,8 @@
       "reason": "Smartphone inertial pointer"
     },
     {
-      "path": "src/app/jarvis/mobile/pointer/ImuPointerCommander.tsx",
-      "sha256": "e8728b510435ded9bb3879d1866d7771474a32b6b94b2a2eb2a9a25309dbb3ea",
+      "path": "src/app/jarvis/mobile/pointer/imu-pointer.ts",
+      "sha256": "a4ab9ea2b772c946a1db4fdfaafac7d4c973bf4654f80e48da23dff805d16a46",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "GEST-006",
@@ -2335,6 +2392,19 @@
       "reason": "Mobile voice input keeps visible transcript and protected device-command semantics while local speech output uses the selected AivisSpeech/VOICEVOX path when available."
     },
     {
+      "path": "src/app/jarvis/mobile/voice/SpeechPersonaStylePanel.tsx",
+      "sha256": "463ae0b55ffbad8757310bd7cbf26d0a7398c0f039765eced3398a64a62bdde0",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "INT-001",
+        "INT-008",
+        "INT-009",
+        "INT-017",
+        "UI-009"
+      ],
+      "reason": "Mobile voice/persona/style surface uses the owner-facing voice label while keeping voice, persona and speech style independent."
+    },
+    {
       "path": "src/app/jarvis/mobile/voice/page.tsx",
       "sha256": "4c24ae25115829edad996c7476b15a95c4ba9c4aa6992367e1dc4f649171a84d",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -2357,19 +2427,6 @@
         "INT-017"
       ],
       "reason": "Voice input/persona/policy UI"
-    },
-    {
-      "path": "src/app/jarvis/mobile/voice/SpeechPersonaStylePanel.tsx",
-      "sha256": "463ae0b55ffbad8757310bd7cbf26d0a7398c0f039765eced3398a64a62bdde0",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "INT-001",
-        "INT-008",
-        "INT-009",
-        "INT-017",
-        "UI-009"
-      ],
-      "reason": "Mobile voice/persona/style surface uses the owner-facing voice label while keeping voice, persona and speech style independent."
     },
     {
       "path": "src/app/jarvis/mobile/voice/voice.css",
@@ -2457,16 +2514,6 @@
       "reason": "Focus/privacy/read-only operating modes"
     },
     {
-      "path": "src/app/jarvis/OwnerLogin.tsx",
-      "sha256": "ee00ea9002f436ac7465ea96ea690c3578cdcd3dbf26cf2ee6ccd60ab94b04f2",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "SEC-001",
-        "SEC-002"
-      ],
-      "reason": "Owner trusted browser authentication and local production-code recovery guidance"
-    },
-    {
       "path": "src/app/jarvis/page.tsx",
       "sha256": "45da1da4f2aa62c047788105718f92636d57e60c1781bdb1eb8b03a27832b73d",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -2479,15 +2526,6 @@
       "reason": "GORIQ Daily Driver single owner front door; advanced routes remain reachable without being primary navigation"
     },
     {
-      "path": "src/app/jarvis/qa/page.tsx",
-      "sha256": "8f857c3eb351b7f8ca1a257db41be8fd975cf75075c2a468c4104415eaca45a2",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "TEACH-003"
-      ],
-      "reason": "Owner-authorized sequence observation and condition QA"
-    },
-    {
       "path": "src/app/jarvis/qa/QaSequenceConsole.tsx",
       "sha256": "f52c50aa3ccee08601e0fc8d1d7bfc9a6b2ea0f5f273f8421609f6b4c13d164a",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -2497,8 +2535,17 @@
       "reason": "Owner-authorized sequence observation and condition QA"
     },
     {
-      "path": "src/app/jarvis/recordings/page.tsx",
-      "sha256": "f52bcf34b672e36388bd978b478dfbd65f9468e76a7d2844a6a0716371cbe9e5",
+      "path": "src/app/jarvis/qa/page.tsx",
+      "sha256": "8f857c3eb351b7f8ca1a257db41be8fd975cf75075c2a468c4104415eaca45a2",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "TEACH-003"
+      ],
+      "reason": "Owner-authorized sequence observation and condition QA"
+    },
+    {
+      "path": "src/app/jarvis/recordings/RecordingHistory.tsx",
+      "sha256": "cb38f6c544ec1ec9cb58841ddca89331590cd8ff6230d3c22f9c946997f8e0d8",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "RA-013"
@@ -2506,8 +2553,8 @@
       "reason": "Recording list and retention UI"
     },
     {
-      "path": "src/app/jarvis/recordings/RecordingHistory.tsx",
-      "sha256": "cb38f6c544ec1ec9cb58841ddca89331590cd8ff6230d3c22f9c946997f8e0d8",
+      "path": "src/app/jarvis/recordings/page.tsx",
+      "sha256": "f52bcf34b672e36388bd978b478dfbd65f9468e76a7d2844a6a0716371cbe9e5",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "RA-013"
@@ -2522,37 +2569,6 @@
         "OPS-009"
       ],
       "reason": "Recovery dashboard page"
-    },
-    {
-      "path": "src/app/jarvis/RemoteAssistMultiView.tsx",
-      "sha256": "11a822414eeb041b1ee7f5cdcca1145c909e606212bd9ad67f38b2b70ce3a122",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "RA-003",
-        "RA-004",
-        "RA-005"
-      ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
-    },
-    {
-      "path": "src/app/jarvis/RemoteScreenControl.tsx",
-      "sha256": "9d7958f9494c31d4d7fa1aba7cb25f50255ef4b4f1ec7192faa90e3355d22cc3",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "RA-007",
-        "RA-009"
-      ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
-    },
-    {
-      "path": "src/app/jarvis/RemoteVideo.tsx",
-      "sha256": "20b5fa5981f99c1702ee3b4543ba0a814514c999ece8285a184750b9000a743a",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "RA-013",
-        "RA-014"
-      ],
-      "reason": "Remote video presentation"
     },
     {
       "path": "src/app/jarvis/research/page.tsx",
@@ -2641,19 +2657,8 @@
       "reason": "Settings surface edits and resets layout profiles for the currently selected Screen Design using browser-local state only."
     },
     {
-      "path": "src/app/jarvis/settings/page.tsx",
-      "sha256": "ee8cd6bd5b932e22247e404cd3965bf8accc3d95af5e3b7eaaeb775f37695736",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "UI-005",
-        "UI-007",
-        "UI-009"
-      ],
-      "reason": "Owner settings now includes dedicated local voice configuration while retaining existing protected-setting boundaries."
-    },
-    {
       "path": "src/app/jarvis/settings/TrustedDeviceSettings.tsx",
-      "sha256": "e332d85306fe838fe3431891bd896fb8782b694bb212aec0239572d9d7803ff9",
+      "sha256": "a0a1596cc07c5667ad021578f9cc3f8bd78ec1a087771007819631223f13da07",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "SEC-001",
@@ -2662,8 +2667,21 @@
       "reason": "Owner trusted browser authentication UI"
     },
     {
-      "path": "src/app/jarvis/setup/page.tsx",
-      "sha256": "f39c20e9ebe835ce196e39b7605466479247c8cecb69c066f76398c3310875ab",
+      "path": "src/app/jarvis/settings/page.tsx",
+      "sha256": "6cf61a20bd0495c2d103598f608f17bc43ebc14705d4ee039f504d6e08c8da2d",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-005",
+        "UI-007",
+        "UI-009",
+        "OPS-015",
+        "OPS-016"
+      ],
+      "reason": "Owner settings now includes dedicated local voice configuration while retaining existing protected-setting boundaries."
+    },
+    {
+      "path": "src/app/jarvis/setup/SetupWizardClient.tsx",
+      "sha256": "d3cbc9c86ccb82055d9ca24826d719816e3a42145a0767d2e36ccd6205716331",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OPS-012"
@@ -2671,8 +2689,8 @@
       "reason": "First-run setup wizard"
     },
     {
-      "path": "src/app/jarvis/setup/SetupWizardClient.tsx",
-      "sha256": "d3cbc9c86ccb82055d9ca24826d719816e3a42145a0767d2e36ccd6205716331",
+      "path": "src/app/jarvis/setup/page.tsx",
+      "sha256": "f39c20e9ebe835ce196e39b7605466479247c8cecb69c066f76398c3310875ab",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OPS-012"
@@ -2730,7 +2748,7 @@
     },
     {
       "path": "src/app/jarvis/tasks/GoalBridgeStatus.tsx",
-      "sha256": "11f1f65031eea425cfc7ab37f2e4ab258b72eccd5356f2d8849d37c29b8ae80d",
+      "sha256": "4d23c479f869aa0b61fbf734e40e2c8886fab401113da74dae7de9907181b7f0",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "AUTO-001",
@@ -2738,26 +2756,7 @@
         "GOV-025",
         "OWN-001"
       ],
-      "reason": "Issue #1219 Direct Goal Bridge internal surface for authenticated provider-neutral status/event delivery; parent requirements remain PARTIAL pending real E2E."
-    },
-    {
-      "path": "src/app/jarvis/tasks/page.tsx",
-      "sha256": "32639ad1a2ab93f224aec905f0c41ec0d25db457e30a17664ac0f615f5245517",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "UI-003",
-        "OPS-001"
-      ],
-      "reason": "Task board and history"
-    },
-    {
-      "path": "src/app/jarvis/tasks/requirements-panel.css",
-      "classification": "COVERED_BY_REQUIREMENT",
-      "requirement_ids": [
-        "UI-003"
-      ],
-      "reason": "Issue1205 additive requirement inventory, saved conversation and owner-visible workflow; parent mapping does not claim functional/physical completion",
-      "sha256": "1f408ea3c6b3d5705b2a7a30351a116942abbfe2ac9d06ec92208322c9f4f489"
+      "reason": "Issue #1219 Direct Goal Bridge internal surface for authenticated provider-neutral status/event delivery; parent requirements remain PARTIAL pending real E2E. #1858 approved host-selected completion integration and isolated verification; no live activation or physical acceptance inference."
     },
     {
       "path": "src/app/jarvis/tasks/RequirementsPanel.tsx",
@@ -2783,19 +2782,23 @@
       "reason": "Project/task surface exposes current state and a decision-only filtered view while retaining the existing owner-protected state API and Human Gate semantics."
     },
     {
-      "path": "src/app/jarvis/teach/page.tsx",
-      "sha256": "17cd9cf2bb278e2c4c03b928edd6f679585ab4035645ea46e3ce1e6c1764a991",
+      "path": "src/app/jarvis/tasks/page.tsx",
+      "sha256": "32639ad1a2ab93f224aec905f0c41ec0d25db457e30a17664ac0f615f5245517",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
-        "TEACH-001",
-        "TEACH-002",
-        "TEACH-003",
-        "TEACH-004",
-        "TEACH-005",
-        "TEACH-006",
-        "CORE-018"
+        "UI-003",
+        "OPS-001"
       ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+      "reason": "Task board and history"
+    },
+    {
+      "path": "src/app/jarvis/tasks/requirements-panel.css",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "UI-003"
+      ],
+      "reason": "Issue1205 additive requirement inventory, saved conversation and owner-visible workflow; parent mapping does not claim functional/physical completion",
+      "sha256": "1f408ea3c6b3d5705b2a7a30351a116942abbfe2ac9d06ec92208322c9f4f489"
     },
     {
       "path": "src/app/jarvis/teach/VideoReplayControls.tsx",
@@ -2818,8 +2821,8 @@
       "reason": "Teaching/video candidate controls"
     },
     {
-      "path": "src/app/jarvis/TeachingControls.tsx",
-      "sha256": "f6ea5fe271c8cd070222b819f67c943451964ba169a04de19c787cfea81cc793",
+      "path": "src/app/jarvis/teach/page.tsx",
+      "sha256": "17cd9cf2bb278e2c4c03b928edd6f679585ab4035645ea46e3ce1e6c1764a991",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "TEACH-001",
@@ -2827,7 +2830,8 @@
         "TEACH-003",
         "TEACH-004",
         "TEACH-005",
-        "TEACH-006"
+        "TEACH-006",
+        "CORE-018"
       ],
       "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
     },
@@ -2944,7 +2948,7 @@
     },
     {
       "path": "src/compass/store.ts",
-      "sha256": "480a4d6f421ae78afbd0493f5a22a2c7b4933fe731e0fc70ddf5da690438a755",
+      "sha256": "3864d349f6f65abe5a5e33c715ffc09bc9e46abc41da7b5450f9b3bb4b557de8",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
@@ -3490,16 +3494,16 @@
     },
     {
       "path": "src/gai/primary-brain.ts",
-      "sha256": "37f41b7b2f95a8d8e89cb3fefb4cc1ba41bf2ba85cca787846302f2ac4bef47d",
+      "sha256": "5288e6e1ab48e247bf1559ecee6a9abde73514d478f8f8317294a5f23266d7cd",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OWN-001"
       ],
-      "reason": "#1216 OWN-001 bounded local cognition and evidence-bound prediction calibration; research metadata never grants authority or implies whole-product acceptance."
+      "reason": "#1216 OWN-001 bounded local cognition and evidence-bound prediction calibration; research metadata never grants authority or implies whole-product acceptance. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim."
     },
     {
       "path": "src/gai/production-autonomy-runtime.ts",
-      "sha256": "c676bc34968d56ec68b346f13b6273edd9471bbda31e11fa89a1ad2794433f64",
+      "sha256": "3c0f5153ad0860fab1972ca4d86d65d543226ebdcf39b310f9c2caedc9cdb376",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-001",
@@ -3800,13 +3804,13 @@
     },
     {
       "path": "src/gai/worker-runtime.ts",
-      "sha256": "e02c6614481d1847d7463a9124ed2b26d44708f4cb50e761f1afa485febf646d",
+      "sha256": "3a7f46c4b8dad210a2b74eb2178df6cd8d40ea18d8478985e810142f74c3ba22",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-010",
         "AUTO-011"
       ],
-      "reason": "Shared pure node resource fitness policy reused by MultiWorkerRuntime and Production Jarvis FleetManager; evaluates bounded capability/resource/load/locality/power/thermal constraints without a third scheduler."
+      "reason": "Shared pure node resource fitness policy reused by MultiWorkerRuntime and Production Jarvis FleetManager; evaluates bounded capability/resource/load/locality/power/thermal constraints without a third scheduler. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim."
     },
     {
       "path": "src/gai/world-model-calibration.ts",
@@ -4347,7 +4351,7 @@
     },
     {
       "path": "src/jarvis/recovery-dashboard.ts",
-      "sha256": "de2c5ce3f56e4d721617bf081dd79863822e7a252549c74619d897db12348e10",
+      "sha256": "e65130bcb04c60cd4f1a30a1c96d858f749d329d54971dd705b4f1335c31d702",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OPS-009"
@@ -4819,14 +4823,14 @@
     },
     {
       "path": "src/orchestrator/bounded-runner.ts",
-      "sha256": "3b7c7fd57496879ef148ba3323c5e97fd359b88be91eebde45c166e11beb2c91",
+      "sha256": "b2c6c15fddb9661641e8e442d92d2cdc853eeb3fa8bd81639260dfa2242ad50d",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-017",
         "AUTO-018",
         "AUTO-019"
       ],
-      "reason": "Declared bounded-runner.ts responsibility implements/supports Repair; Replan; Bounded retry. Parent ownership is not functional or physical acceptance evidence."
+      "reason": "Declared bounded-runner.ts responsibility implements/supports Repair; Replan; Bounded retry. Parent ownership is not functional or physical acceptance evidence. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim."
     },
     {
       "path": "src/orchestrator/brain-provider.ts",
@@ -4963,7 +4967,7 @@
     },
     {
       "path": "src/orchestrator/compass-goal-bridge-event-store.ts",
-      "sha256": "ea3faea6edf2b7aaa56d17df4b7d33383ff2d72ea819c0c67f5dc344dcf5745c",
+      "sha256": "2c067013863e7e46f58d061310b65c0afdd728df14fef2b84828e9471826f697",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "AUTO-001",
@@ -4975,7 +4979,7 @@
     },
     {
       "path": "src/orchestrator/compass-goal-controller.ts",
-      "sha256": "133ede30533ca6ee8acfc606d67e1e0f7225fd3024341ff446e64dde782a2fdf",
+      "sha256": "c0a1bc2230a1f3151192bee42d4c3dd6337e6b6b4da635f2510610c32da36b96",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
@@ -4986,7 +4990,7 @@
     },
     {
       "path": "src/orchestrator/compass-goal-execution-adapter.ts",
-      "sha256": "22614eaab2575158d9fc32b990488f9864d1c1e075f1a36503652019f7f96df1",
+      "sha256": "81b88c21120ef46efd30278f03cb9d4709b3fdb099b73abac56d14a4c388111b",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
@@ -4994,11 +4998,11 @@
         "AUTO-026",
         "OWN-001"
       ],
-      "reason": "Issue #1216 reviewed Cognitive Core integration/hardening; mapped requirement does not imply full acceptance"
+      "reason": "Issue #1216 reviewed Cognitive Core integration/hardening; mapped requirement does not imply full acceptance #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim. #1858 approved host-selected completion integration and isolated verification; no live activation or physical acceptance inference."
     },
     {
       "path": "src/orchestrator/compass-goal-execution-context-store.ts",
-      "sha256": "219d820abba835a7bd3821cca0ee2c27d6265ab511cff8a69585d999d412c4bf",
+      "sha256": "033b82f13c8d736f891150a99c13c68cfb0594d735131f97dfd30279928ce1ea",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
@@ -5031,7 +5035,7 @@
     },
     {
       "path": "src/orchestrator/compass-work-run-store.ts",
-      "sha256": "6d837f5e43173ff33c3bdb2e8d07af7808fefdfbfa22c2b1497013ab7195044b",
+      "sha256": "5547a9933315be8e7014340eea494762deec3c8c7274d18c1a3785eeca56a4d5",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
@@ -5042,14 +5046,14 @@
     },
     {
       "path": "src/orchestrator/compass-work-state-store.ts",
-      "sha256": "1aee990907e0c50b4317cddaf6f009d3fb8818c58077a2dff17c1ffed5e7c129",
+      "sha256": "0ddd7b1390e71ed3f2c794969070340783b8bab7c3c9435b2e193128a1ae9c08",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
         "AUTO-004",
         "AUTO-026"
       ],
-      "reason": "Declared compass-work-state-store.ts responsibility implements/supports Goal persistence; Current State persistence; Verified completion only. Parent ownership is not functional or physical acceptance evidence."
+      "reason": "Declared compass-work-state-store.ts responsibility implements/supports Goal persistence; Current State persistence; Verified completion only. Parent ownership is not functional or physical acceptance evidence. #1858 adds explicit read-only completion advice or its durable journal; existing execution and approval authority is unchanged. This is not production or physical acceptance evidence. #1858 approved host-selected completion integration and isolated verification; no live activation or physical acceptance inference."
     },
     {
       "path": "src/orchestrator/context-adapters.ts",
@@ -5161,7 +5165,7 @@
     },
     {
       "path": "src/orchestrator/development-job-store.ts",
-      "sha256": "63edb21201d942cae5417ebc456d8ffadf115f08c5c65c458f55dcd662bd47b5",
+      "sha256": "7589cc672859c410f9f17fab782ed23df90ec07ca8fc7c1cd2dc59afb3fc65ed",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -5172,11 +5176,11 @@
         "AUTO-008",
         "AUTO-023"
       ],
-      "reason": "#681 atomic durable Development Job storage and reconstruction."
+      "reason": "#681 atomic durable Development Job storage and reconstruction. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim."
     },
     {
       "path": "src/orchestrator/development-job.ts",
-      "sha256": "cb3e3afa2763eac549c35d8b9e5be9e3a0b59b4af301687987cdbfbfd2f0a64b",
+      "sha256": "ef8a75719e8fdeb8e252e4b0e4a8f99e9ef62e2a203a1e2b2ba77b07f57ab8b2",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -5189,11 +5193,11 @@
         "AUTO-008",
         "AUTO-026"
       ],
-      "reason": "#681 State Controller-owned append-only Development Job contract and verified-completion invariant."
+      "reason": "#681 State Controller-owned append-only Development Job contract and verified-completion invariant. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim."
     },
     {
       "path": "src/orchestrator/development-orchestrator.ts",
-      "sha256": "0b1e1564e2f073875e7e931dcd3d469a6d8d00214daf04f29fda6048de29ac54",
+      "sha256": "91ad663465bdc31773aac95e46b9d57f03070a1ccb4dca30f64b59cb1f46790a",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -5202,7 +5206,7 @@
         "AUTO-017",
         "AUTO-018"
       ],
-      "reason": "#681 TDD-first development planning, dependency decomposition, recovery strategy variation, and no release authority."
+      "reason": "#681 TDD-first development planning, dependency decomposition, recovery strategy variation, and no release authority. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim. #1858 adds explicit read-only completion advice or its durable journal; existing execution and approval authority is unchanged. This is not production or physical acceptance evidence. #1858 approved host-selected completion integration and isolated verification; no live activation or physical acceptance inference."
     },
     {
       "path": "src/orchestrator/development-release-gate.ts",
@@ -5387,17 +5391,17 @@
     },
     {
       "path": "src/orchestrator/goal-controller-execution-bridge.ts",
-      "sha256": "890716e0c80a9f10521ef7e5360c52f28f882a17932375394a80d081ead37a6f",
+      "sha256": "fcaa8e4c378d264a5487fd3a599d7f39f1172770a0f5f3d8de79a1be1d2a064a",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-001",
         "CORE-002"
       ],
-      "reason": "Declared goal-controller-execution-bridge.ts responsibility implements/supports One Front Door; Goal Completion Engine. Parent ownership is not functional or physical acceptance evidence."
+      "reason": "Declared goal-controller-execution-bridge.ts responsibility implements/supports One Front Door; Goal Completion Engine. Parent ownership is not functional or physical acceptance evidence. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim. Declared goal-controller-execution-bridge.ts responsibility implements/supports One Front Door; Goal Completion Engine. Parent ownership is not functional or physical acceptance evidence. #1219 independently readback artifact bytes and hold unavailable evidence without discarding Change Set."
     },
     {
       "path": "src/orchestrator/goal-controller-runtime.ts",
-      "sha256": "dc3b9cc0ce6fe462a5900ccd5378610f81ebe385131a6c8475cfb3bb72cff8b6",
+      "sha256": "8e165a2bedac0622a0d82179f61a0b3e2c2eeb1038db278e9f38641d32782733",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-002",
@@ -5405,7 +5409,7 @@
         "AUTO-004",
         "OWN-001"
       ],
-      "reason": "Declared goal-controller-runtime.ts responsibility implements/supports Goal Completion Engine. Parent ownership is not functional or physical acceptance evidence. #1219 binds bounded owner-supplied Goal success criteria through Unified Intake; parent requirements remain PARTIAL pending real E2E."
+      "reason": "Declared goal-controller-runtime.ts responsibility implements/supports Goal Completion Engine. Parent ownership is not functional or physical acceptance evidence. #1219 binds bounded owner-supplied Goal success criteria through Unified Intake; parent requirements remain PARTIAL pending real E2E. #1858 adds explicit read-only completion advice or its durable journal; existing execution and approval authority is unchanged. This is not production or physical acceptance evidence."
     },
     {
       "path": "src/orchestrator/goal-decision-store.ts",
@@ -5567,7 +5571,7 @@
     },
     {
       "path": "src/orchestrator/local-development-builder.ts",
-      "sha256": "93b98833cdc34a3f386ad19119506033172312cda93b2db4a838cbb9a21e2b83",
+      "sha256": "e8fd1bae4b12af905c374520fcfed961ddfb01492d86b0566d1411a2fb7f6e65",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-008",
@@ -5757,14 +5761,14 @@
     },
     {
       "path": "src/orchestrator/planner-enhancement.ts",
-      "sha256": "9b6947024d89840f229203bd218f5cef411a022d31eb669758628cc58af7618f",
+      "sha256": "76cc730e98e4b6abbfd9c443c6257b4dc46bcc131fa7ce0c81e007d60af81f45",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-017",
         "AUTO-018",
         "AUTO-019"
       ],
-      "reason": "Declared planner-enhancement.ts responsibility implements/supports Repair; Replan; Bounded retry. Parent ownership is not functional or physical acceptance evidence."
+      "reason": "Declared planner-enhancement.ts responsibility implements/supports Repair; Replan; Bounded retry. Parent ownership is not functional or physical acceptance evidence. #1858 approved host-selected completion integration and isolated verification; no live activation or physical acceptance inference."
     },
     {
       "path": "src/orchestrator/production-browser-capability.ts",
@@ -5892,7 +5896,7 @@
     },
     {
       "path": "src/orchestrator/resident-development-goal-host.ts",
-      "sha256": "40255ff4e7374f40bcfc385fc93d98f16b62f21c540a8addf88d6a969ad89a79",
+      "sha256": "8324fc2dc94435dc8ff8d057484315a825b14f6ca13bcf5f85ade3815d9778e7",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -5904,7 +5908,19 @@
         "AUTO-025",
         "AUTO-026"
       ],
-      "reason": "#681 explicit host-opted resident development runtime resumes durable Job and Change Set stages without duplicate Builder, verifier, or release effects."
+      "reason": "#681 explicit host-opted resident development runtime resumes durable Job and Change Set stages without duplicate Builder, verifier, or release effects. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim. #681 explicit host-opted resident development runtime resumes durable Job and Change Set stages without duplicate Builder, verifier, or release effects. #1219 bounded Codex-free TDD RED and local separate-process GREEN proof work; complete independent release verification and physical Goal E2E are not claimed. #1219 independently readback artifact bytes and hold unavailable evidence without discarding Change Set."
+    },
+    {
+      "path": "src/orchestrator/resident-development-scope.ts",
+      "sha256": "7014f02ee31e81c4040ffb7b76b1bae7d362205bc07efd99211c53bb7667ea6c",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1219 local Goal runtime pins the isolated workspace and allows exactly one owner-scoped file. This is implementation traceability, not Codex-free E2E acceptance. #1219 bounded Codex-free TDD RED and local separate-process GREEN proof work; complete independent release verification and physical Goal E2E are not claimed."
     },
     {
       "path": "src/orchestrator/risk-policy.ts",
@@ -5918,7 +5934,7 @@
     },
     {
       "path": "src/orchestrator/runtime-builder-capability.ts",
-      "sha256": "c975965ddc4ad580eab79f481c8bae9c4f903455cb156e859d5ab384fa592e97",
+      "sha256": "e017a514cde42c6659d9f6a20664e5e35366c7d5945f9c0168db566b070757fd",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -5927,7 +5943,7 @@
         "AUTO-004",
         "OWN-001"
       ],
-      "reason": "Declared runtime-builder-capability.ts responsibility implements/supports Software Development Autopilot. Parent ownership is not functional or physical acceptance evidence. #1219 allows the resident Mac Goal executor to discover its protected local Builder token and loopback endpoint."
+      "reason": "Declared runtime-builder-capability.ts responsibility implements/supports Software Development Autopilot. Parent ownership is not functional or physical acceptance evidence. #1219 allows the resident Mac Goal executor to discover its protected local Builder token and loopback endpoint. #1219 adds explicit isolated Ollama-only routing; main/8796/8797 and fallback unchanged when disabled. #1219 forwards prepared-write recovery only as a direct trusted host option; Goal/model/environment payloads cannot select a journal path."
     },
     {
       "path": "src/orchestrator/runtime-development-planner.ts",
@@ -5944,7 +5960,7 @@
     },
     {
       "path": "src/orchestrator/runtime-development-verifier.ts",
-      "sha256": "1376b76ca8ce1ffc8421a0bb91d0a8b7a5b8a070aaef848094c67170c8558c6a",
+      "sha256": "4baba6cca13c7314cb1b647b2e9ca73259e59da23db9501b4395554212fb98eb",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-010",
@@ -5954,7 +5970,43 @@
         "AUTO-004",
         "OWN-001"
       ],
-      "reason": "Declared runtime-development-verifier.ts responsibility implements/supports 独立Verification; World-state Verification. Parent ownership is not functional or physical acceptance evidence. #1219 supports independent verification against the protected loopback Mac Builder token."
+      "reason": "Declared runtime-development-verifier.ts responsibility implements/supports 独立Verification; World-state Verification. Parent ownership is not functional or physical acceptance evidence. #1219 supports independent verification against the protected loopback Mac Builder token. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim. #1219 Codex-free local Ollama opt-in rejects the legacy 8796 Builder verifier until independently rooted evidence exists."
+    },
+    {
+      "path": "src/orchestrator/runtime-local-ollama-builder.ts",
+      "sha256": "6888fc79f1b99bbf44751555257ed5398fe0378a32f67f29095eea993f090c07",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-008",
+        "CORE-014",
+        "AUTO-010",
+        "AUTO-015"
+      ],
+      "reason": "#1219 Codex-independent local Ollama Builder: explicit detached-clean-worktree and new-file allowlist, exclusive write, no existing-file overwrite or remote fallback. This is implementation mapping, not independent verifier or complete Goal E2E evidence. #1219 bounded Codex-free TDD RED and local separate-process GREEN proof work; complete independent release verification and physical Goal E2E are not claimed. #1219 recovers only exact host-bound prepared RED/GREEN writes after complete scoped worktree readback, without new inference or overwriting existing bytes; intent never substitutes for independent verification. #1219 opt-in bounded prior-failure signature/hypothesis feedback is advisory only; explicit installed fallback selection never grants release authority."
+    },
+    {
+      "path": "src/orchestrator/runtime-ollama-review-checkpoint.d.mts",
+      "sha256": "0097171868aa4ed84d190a5998ccdbe9050e4c4aa5278753a4f7dea3419fd49b",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-010",
+        "CORE-011",
+        "DEV-PC-006",
+        "AUTO-001"
+      ],
+      "reason": "#1219 opt-in local review checkpoint and declaration: binds candidate, deterministic-check evidence and PR identity to an immutable local observation. Cache replay is not formal AI09 approval, GitHub review, deployment, physical or Actions-cross-run acceptance."
+    },
+    {
+      "path": "src/orchestrator/runtime-ollama-review-checkpoint.mjs",
+      "sha256": "e4696478c5b40d6af8070af767e05bd258e6679653c2be9365c7d863c9e9bf15",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-010",
+        "CORE-011",
+        "DEV-PC-006",
+        "AUTO-001"
+      ],
+      "reason": "#1219 opt-in local review checkpoint and declaration: binds candidate, deterministic-check evidence and PR identity to an immutable local observation. Cache replay is not formal AI09 approval, GitHub review, deployment, physical or Actions-cross-run acceptance."
     },
     {
       "path": "src/orchestrator/safe-pr-capability.ts",
@@ -6167,25 +6219,25 @@
     },
     {
       "path": "src/orchestrator/work-run-state.ts",
-      "sha256": "b246d100e79091450d66f99aa99e71d3b4805ba5fa0b612eafd1b0d9250f982a",
+      "sha256": "33b95ea2fa757b1ee691b7d1be3480645f3578ec3dc65fbdf7d509c781f96863",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
         "AUTO-004",
         "AUTO-026"
       ],
-      "reason": "Declared work-run-state.ts responsibility implements/supports Goal persistence; Current State persistence; Verified completion only. Parent ownership is not functional or physical acceptance evidence."
+      "reason": "Declared work-run-state.ts responsibility implements/supports Goal persistence; Current State persistence; Verified completion only. Parent ownership is not functional or physical acceptance evidence. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim."
     },
     {
       "path": "src/orchestrator/work-state-integration.ts",
-      "sha256": "d4fab8488d46770550fee4748a18966a4d6cf7b7427099a7b30e7fed99928c4a",
+      "sha256": "0333f361163fec1f467c0a571e2af6553b4b12394a07876dd63977ebcc4cf389",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
         "AUTO-004",
         "AUTO-026"
       ],
-      "reason": "Declared work-state-integration.ts responsibility implements/supports Goal persistence; Current State persistence; Verified completion only. Parent ownership is not functional or physical acceptance evidence."
+      "reason": "Declared work-state-integration.ts responsibility implements/supports Goal persistence; Current State persistence; Verified completion only. Parent ownership is not functional or physical acceptance evidence. #1858 approved host-selected completion integration and isolated verification; no live activation or physical acceptance inference."
     },
     {
       "path": "src/orchestrator/work-state.ts",
@@ -6219,6 +6271,453 @@
         "OWN-001"
       ],
       "reason": "Issue #1219 ZBook timeout-only recovery transition preserves Goal identity, completion checks, evidence, and Human Gate boundaries; parent requirements remain PARTIAL pending physical E2E."
+    },
+    {
+      "path": "src/gai/development-resource-admission.ts",
+      "sha256": "8bad0dcaaac1d0c4902e398387a15c9c380139fbd55545799c68ea53413c8742",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-010",
+        "AUTO-011"
+      ],
+      "reason": "#1845 Execution-time admission reuses shared resource fitness and per-user cognitive lease; a resource wait is not completion."
+    },
+    {
+      "path": "src/gai/worker-resource-probe.ts",
+      "sha256": "e1262d33222b1e8abdfc4545c46435a4ef84baae79b736b04bf19dea21db6032",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "FLEET-007",
+        "DEV-PC-007"
+      ],
+      "reason": "#1845 Bounded measured native CPU/RAM/commit/disk/optional GPU snapshot; unknowns retained, no broader manifest or physical acceptance claim."
+    },
+    {
+      "path": "src/orchestrator/development-resource-scheduler.ts",
+      "sha256": "c7528872d5c344be28b946e0fed26233b409ca52089cc42f60ff60b0cd62e12e",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-002",
+        "AUTO-004",
+        "AUTO-005"
+      ],
+      "reason": "#1845 Existing Broker one-shot continuation from persisted resource wait; goal/run gates rechecked and budget expiry remains visible."
+    },
+    {
+      "path": "src/orchestrator/development-resource-wait.ts",
+      "sha256": "76a378f837fc591d8e97ebae3387a11d2517d37424eb32f8517d2ede5d5624a4",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-002",
+        "AUTO-004"
+      ],
+      "reason": "#1845 Typed bounded resource-wait checkpoint and evidence parsing; preserves state without treating pressure as test success."
+    },
+    {
+      "path": "docs/architecture/goriq-completion-path-activation.md",
+      "sha256": "b0d4d95de9143c8c4c4e4c39678b61d5ef9f0e155cb2b6138b4c639575884177",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-002",
+        "AUTO-009",
+        "AUTO-022"
+      ],
+      "reason": "#1858 records an unapproved next-stage integration proposal and Human Gate scope. It does not activate execution, change authority, or establish functional or physical acceptance. #1858 approved host-selected completion integration and isolated verification; no live activation or physical acceptance inference."
+    },
+    {
+      "path": "src/orchestrator/completion-path.ts",
+      "sha256": "468317a08bd7454ccbf7a2c3711637d36273cb7d455a1f0cf2e6579ce945db7c",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-002",
+        "AUTO-005",
+        "AUTO-009",
+        "AUTO-018",
+        "AUTO-022",
+        "AUTO-026"
+      ],
+      "reason": "#1858 adds pure completion-path advice: evidence-bound gaps, dependency-aware candidate ranking, prepared human-action notifications, and progress/recovery assessment. Existing Goal, risk, and recovery policies are reused; no dispatch or approval grant is added. Parent mapping is not functional or physical acceptance evidence."
+    },
+    {
+      "path": "src/orchestrator/completion-execution.ts",
+      "sha256": "fb554c0d042dea3cda306d44d410fb07008b4649e613417fb57806e2f0a9762a",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-002",
+        "AUTO-009",
+        "AUTO-016",
+        "AUTO-018",
+        "AUTO-022",
+        "AUTO-023",
+        "AUTO-026"
+      ],
+      "reason": "#1858 binds completion advice to existing Goal Loop actions, WorkState, risk/approval and independent observations using an explicit host adapter. Atomic reservation/finalization and durable notifications do not grant permissions or establish physical acceptance. #1858 bounded host-pinned resident handoff and negative evidence recovery; no production or physical acceptance inference."
+    },
+    {
+      "path": "src/orchestrator/completion-runtime-handoff.ts",
+      "sha256": "67002eb1c18c17a62706c3fdbeb56b584f8641c85b10beae81cf560326ed97ac",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-002",
+        "AUTO-009",
+        "AUTO-016",
+        "AUTO-018",
+        "AUTO-022",
+        "AUTO-023",
+        "AUTO-026"
+      ],
+      "reason": "#1858 bounded host-pinned resident handoff and negative evidence recovery; no production or physical acceptance inference."
+    },
+    {
+      "path": "src/jarvis/completion-native-activation.ts",
+      "sha256": "d788e1fbf76a2e92a30636b022517adf08c1c192f29665dd00acaed4db8ed6c2",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-002",
+        "AUTO-009",
+        "AUTO-022"
+      ],
+      "reason": "#1858 fixed owner-approved native activation scope, expiry and configuration preservation. Reuses existing deployment controls; implementation mapping is not live activation or operational acceptance evidence."
+    },
+    {
+      "path": "scripts/jarvis-independent-artifact-attestation.mjs",
+      "sha256": "95b9a30f3bb9fe2aceb78b819b7b228d50209552e1b4db16801b347a64c470a1",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1219 generic bounded artifact readback verifies UTF-8 SHA256, Git scope and revisions. Does not claim executable behavior or whole-product acceptance."
+    },
+    {
+      "path": "scripts/jarvis-independent-check-runner.mjs",
+      "sha256": "7a94db1ee12e9393aca6b04e8c3e0168e8d9a3908b70084ea893b84debd0812d",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1219 explicit locally provisioned isolated verifier runner with immutable container image requirement, no-network Docker check execution from a separate verifier workspace, exact Change Set digest recheck and separately held Ed25519 signing. OS/container trust and physical deployment still unverified. #1219 additionally excludes both the candidate and verifier workspaces from trusted Docker executable resolution; source tests do not establish physical isolation. #1219 makes existing noexec explicit and tightens temporary storage to UID/GID65534 mode0700; execution/network/resource restrictions remain in force. #1219 records an explicit supported Next production Webpack build profile and actual fixed arguments; Turbopack compatibility is not inferred. #1219 retains bounded Docker CLI timing in the existing signed output digest; no check or acceptance change."
+    },
+    {
+      "path": "scripts/jarvis-local-ollama-tdd-verifier.mjs",
+      "sha256": "eee7c92b2bc994083fcc1e1445bdae7900cb48e19c4a6e659d361df080394351",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1219 bounded Python fixture separate-process TDD RED/GREEN evidence support; not a general code verifier, not full release acceptance. #1219 independently readback artifact bytes and hold unavailable evidence without discarding Change Set."
+    },
+    {
+      "path": "scripts/jarvis-verifier-container.mjs",
+      "sha256": "76217aa6c0f4209cecf01e4d6802d3bad8d9fccb65c68ce63245d23660e233a6",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-010",
+        "AUTO-016",
+        "GOV-004"
+      ],
+      "reason": "#1219 independent-verifier container lifecycle helper bounds CLI deadlines and output, uses an absolute runtime outside the workspace, and requires exact named-container cleanup confirmation. Supports code-execution containment; real container isolation and separate-principal acceptance remain unverified. #1219 validates the Docker executable against all host-supplied candidate and verifier-workspace roots before any CLI call; no physical containment claim. #1219 records monotonic CLI lifetime and output-arrival timing without changing deadlines, output caps, failure or cleanup decisions."
+    },
+    {
+      "path": "scripts/jarvis-verifier-live-ci.mjs",
+      "sha256": "162a524acd473db6b26d4197183093a1d550e652eb5946f46b25267a2ab4cb14",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-010",
+        "AUTO-016",
+        "GOV-004"
+      ],
+      "reason": "#1219 explicit disposable hosted-container CI assembles exact offline dependencies, executes all six production checks, audits signed log/image/source/cleanup bindings and retains public evidence only. This is CI infrastructure, not AI09 physical principal, native Ollama or Windows reboot acceptance."
+    },
+    {
+      "path": "scripts/jarvis-verifier-resource-observer.mjs",
+      "sha256": "d2ea1ee7e183c74956d95bf2569e74c8c3e40c4c4ffe5af90fbe8eca368cf76f",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-010",
+        "AUTO-016",
+        "GOV-004"
+      ],
+      "reason": "#1218 bounded hosted-CI numeric resource observer for the existing independent-verifier job; fixed local Unix-socket GET sampling and separate unsigned provisional diagnostics only. Supports verifier diagnosis under existing containment boundaries; no signed-check acceptance, requirement status, physical/runtime completion or new authority is conferred."
+    },
+    {
+      "path": "scripts/jarvis-verifier-safe-git.mjs",
+      "sha256": "fb319bd6cdb15c65a26395415b83f071b0b7f18b5ef1696e6de194d5f7339a24",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-010",
+        "AUTO-016",
+        "GOV-004"
+      ],
+      "reason": "#1219 bounded Git observations for independent verification disable callbacks, reject execution configuration and submodules, isolate inherited Git settings, and preserve literal tracked paths. This supports host code-execution containment under owner-controlled Git metadata; it is not a sandbox or physical acceptance evidence."
+    },
+    {
+      "path": "scripts/jarvis-zbook-ollama-acceptance-preflight.mjs",
+      "sha256": "aba2512e3422d22872e5d2e9cfba3ad5e1ba726931471ad3f83fc48f0604cb4f",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1219 read-only physical ZBook acceptance preflight; listens on existing loopback ports and checks model/checkout without writing, authenticating or asserting E2E Goal completion. Read-only inspection now reports Docker daemon, digest-pinned local image and verifier public-key pin readiness separately from physical OS-principal proof."
+    },
+    {
+      "path": "src/orchestrator/goal-verifier-receipt-wake.ts",
+      "sha256": "70f9ea0920f27c301a5a5957db29ca13378d6146ea61e167cb8d1b81977773cb",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1219 bounded read-only digest polling of verifier receipt for idempotent resume of already accepted Goal; not a new source of Goal authority."
+    },
+    {
+      "path": "src/orchestrator/local-candidate-identity.ts",
+      "sha256": "2bb07102a715bcf26cd8a107d0ad91d2df8e1ce9805886bf93d36ce6140a236a",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-014",
+        "CORE-010",
+        "GOV-008"
+      ],
+      "reason": "#1219 shared deterministic candidate identity binds the base revision and every declared file hash across the local Builder and independent verifier, including supporting tests. Supports artifact provenance; hashing alone is not verification, release authorization or whole-Goal acceptance."
+    },
+    {
+      "path": "src/orchestrator/local-ollama-tdd.ts",
+      "sha256": "e1cfeef10315f8f72ab69996a1b9ca7dcbdc363c58fdfe154cfbbe0413cb4905",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1219 bounded Python fixture separate-process TDD RED/GREEN evidence support; not a general code verifier, not full release acceptance."
+    },
+    {
+      "path": "src/orchestrator/signed-local-verifier-receipt.ts",
+      "sha256": "50f2134e62bed3b5a4c4d21d4c1a3a933347e3a258a951ed8e63d591c54d0885",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1219 explicit opt-in signed local verifier receipt contract. Separate verifier private-key/OS trust is a mandatory physical acceptance boundary; no generalized code safety claim."
+    },
+    {
+      "path": "scripts/jarvis-local-artifact-readback.mjs",
+      "sha256": "226fe877ab74aa2b29c3323bc7735dc0f5316306b51acb951e5f0f4943f48e3d",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1219 host-pinned criterion acceptance and bounded successor Job continuation; software contract only, independent physical signer and native E2E remain unverified."
+    },
+    {
+      "path": "src/orchestrator/resident-development-sequence.ts",
+      "sha256": "64b9a3d10e6cabbef09e1f057c0952b26beb657f4f5333b702353ce95960b11e",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1219 host-pinned criterion acceptance and bounded successor Job continuation; software contract only, independent physical signer and native E2E remain unverified."
+    },
+    {
+      "path": "src/orchestrator/resident-execution-manifest.ts",
+      "sha256": "e58cc2a2fd91208660ef5efc867e613dca42083af6517d39fa4babce8fecb50e",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1219 host-pinned criterion acceptance and bounded successor Job continuation; software contract only, independent physical signer and native E2E remain unverified."
+    },
+    {
+      "path": "src/orchestrator/resident-receipt-wakes.ts",
+      "sha256": "f8ffe782254a81ad87b77774ace0084f4664db3b8ef1a3920f1c42bd7c6d65ef",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1219 host-pinned criterion acceptance and bounded successor Job continuation; software contract only, independent physical signer and native E2E remain unverified."
+    },
+    {
+      "path": "src/orchestrator/resident-runtime-files.ts",
+      "sha256": "8f9cf5598f0c312210f5133351fa8a98f9dd31e80df92cf8a6c29d1f8d7c6b0a",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1219 host-pinned criterion acceptance and bounded successor Job continuation; software contract only, independent physical signer and native E2E remain unverified."
+    },
+    {
+      "path": "src/orchestrator/resident-signed-acceptance.ts",
+      "sha256": "995033d0ac5dbc4aefdb36ac6bb40d2264436158da4c0a97c33b6c986460597a",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1219 host-pinned criterion acceptance and bounded successor Job continuation; software contract only, independent physical signer and native E2E remain unverified."
+    },
+    {
+      "path": "src/orchestrator/sequenced-resident-runtime.ts",
+      "sha256": "f23cba3c365f0d9976a0a6041dbf778034a8b01c7ff857b2dccc0a2e9405c68a",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1219 host-pinned criterion acceptance and bounded successor Job continuation; software contract only, independent physical signer and native E2E remain unverified. #1219 binds each prepared-write journal to the pinned execution contract, Goal/Job/WorkItem, attempt, phase and candidate path so interrupted ChangeSet persistence can resume through unchanged independent checks and signed acceptance."
+    },
+    {
+      "path": "scripts/jarvis-verifier-offline-workspace.mjs",
+      "sha256": "7af15a69bfb5f354ec06722e27d5f1e7b5a149ae1371325ef960813347dd7fa4",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1219 bounded verifier request transfer and offline preparation; implementation mapping only, no physical completion claim. #1219 adds bounded before-check observations of fixed cgroup files and derived Node24 default concurrency; unavailable data stays explicit and these observations do not prove runtime throttling, observed concurrency or physical acceptance."
+    },
+    {
+      "path": "scripts/jarvis-verifier-request-transfer.mjs",
+      "sha256": "b286576bfb5d3630b87ca28176363f853c51a59bb3cd5d604fc1727e732bc004",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1219 bounded verifier request transfer and offline preparation; implementation mapping only, no physical completion claim."
+    },
+    {
+      "path": "src/orchestrator/resident-verifier-request.ts",
+      "sha256": "a019f93ad0676060d82f38bc0ed026015461fbdbac97e2b46830fa2a7a28364d",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1219 bounded verifier request transfer and offline preparation; implementation mapping only, no physical completion claim."
+    },
+    {
+      "path": "src/orchestrator/local-prepared-write.ts",
+      "sha256": "5700fbcd4f7918f4c1f7342ebb88ef09623dabb4c0e9dc485ae34ea4231cfa58",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1219 immutable create-only, fsynced external prepared-write journal binds the trusted execution contract and exact Goal/Job/WorkItem/attempt/phase/base/workspace/path/model and public fixture bytes. It supports interrupted local execution recovery under the existing host authority; unverified intent grants no criterion acceptance, signer authority or physical reboot completion."
+    },
+    {
+      "path": "src/orchestrator/tracked-repair-resident-runtime.ts",
+      "sha256": "840623cf4d6523491656c5d19ac4466a1f34defbb71599d4aae0f0c4653efb47",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1219 opt-in host-pinned tracked-source repair, frozen baseline RED, bounded model edits, durable prepared candidate and signed six-check receipt continuation; implementation mapping only, no physical or global product completion claim."
+    },
+    {
+      "path": "scripts/jarvis-tracked-repair-actions.mjs",
+      "sha256": "dfc236325609e183866b69f7c99b1f9d8f985a4c7f96fca2c46c09bbea1e68de",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1219 owner-only Actions A/B recovery of an existing accepted tracked-repair checkpoint through the existing executor, with fixed nonsecret file transport and exact Job/candidate/receipt binding; source mapping only, no independent principal, real model, physical acceptance, next issue or global completion inference."
+    },
+    {
+      "path": "src/orchestrator/approved-next-work.ts",
+      "sha256": "51f45e0c87d817dd96a6da2b2d71d856301fcde45b76e4e424606b6621c2fc56",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "AUTO-002",
+        "AUTO-004",
+        "AUTO-026"
+      ],
+      "reason": "Owner-authenticated deferred next work and atomic verified-predecessor retirement; implementation linkage only, no global completion or privileged execution authority."
+    },
+    {
+      "path": "src/app/jarvis/settings/JarvisStateBackupSettings.tsx",
+      "sha256": "715a2cd47eb61049d2715690049d9eb5d4bf7c72bd8f407e2ac84b1679b7f791",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OPS-015",
+        "OPS-016",
+        "SEC-001",
+        "SEC-002"
+      ],
+      "reason": "Existing Goal681 P10 Owner Settings to authenticated Broker managed local SQLite backup and isolated restore verification; bounded cloud-fixture integration only, excludes PC JSON/sidecars, no live activation, full-system point-in-time, physical or global completion claim."
+    },
+    {
+      "path": "src/app/api/jarvis/state-backups/route.ts",
+      "sha256": "1cb79a94843a20c2226a6816d1adb9c6c413fab058d18c205387c236789c98ba",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OPS-015",
+        "OPS-016",
+        "SEC-001",
+        "SEC-002"
+      ],
+      "reason": "Existing Goal681 P10 Owner Settings to authenticated Broker managed local SQLite backup and isolated restore verification; bounded cloud-fixture integration only, excludes PC JSON/sidecars, no live activation, full-system point-in-time, physical or global completion claim."
+    },
+    {
+      "path": "src/jarvis/local-state-backups.ts",
+      "sha256": "758aaa25b3187b78673551ff2999f42e1e04e18ec96310f0bd1ee24d6ccb2adf",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "OPS-015",
+        "OPS-016",
+        "SEC-001",
+        "SEC-002"
+      ],
+      "reason": "Existing Goal681 P10 Owner Settings to authenticated Broker managed local SQLite backup and isolated restore verification; bounded cloud-fixture integration only, excludes PC JSON/sidecars, no live activation, full-system point-in-time, physical or global completion claim."
     }
   ],
   "hash_policy": "utf8-crlf-to-lf-v1;binary-raw"

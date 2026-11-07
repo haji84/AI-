@@ -68,8 +68,7 @@ export default function TrustedDeviceSettings() {
       if (!response.ok) throw new Error("サーバーで失効できなかったため端末内の登録を残しました");
       await removeTrustedDevice();
       setTrusted(false);
-      setMessage("この端末のPINログイン資格を失効しました。");
-      await refresh();
+      window.location.replace("/jarvis/login");
     } catch (error) { setMessage(error instanceof Error ? error.message : "失効できませんでした"); }
     finally { setBusy(false); }
   }
@@ -97,14 +96,14 @@ export default function TrustedDeviceSettings() {
       <label>端末名</label>
       <input value={label} maxLength={80} onChange={(event) => setLabel(event.target.value)} required disabled={busy} />
       <label>使用する4桁PIN</label>
-      <input inputMode="numeric" pattern="[0-9]{4}" maxLength={4} value={nextPin} onChange={(event) => setNextPin(event.target.value.replace(/\D/g, "").slice(0, 4))} required disabled={busy} />
+      <input type="password" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} value={nextPin} onChange={(event) => setNextPin(event.target.value.replace(/\D/g, "").slice(0, 4))} required disabled={busy} />
       <button className="button" type="submit" disabled={busy || nextPin.length !== 4}>この端末を信頼済みにする</button>
     </form> : <form onSubmit={changePin} className="jarvis-task-form">
       <p className="muted">登録済み: {label}</p>
       <label>現在の4桁PIN</label>
-      <input inputMode="numeric" pattern="[0-9]{4}" maxLength={4} value={currentPin} onChange={(event) => setCurrentPin(event.target.value.replace(/\D/g, "").slice(0, 4))} required disabled={busy} />
+      <input type="password" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} value={currentPin} onChange={(event) => setCurrentPin(event.target.value.replace(/\D/g, "").slice(0, 4))} required disabled={busy} />
       <label>新しい4桁PIN</label>
-      <input inputMode="numeric" pattern="[0-9]{4}" maxLength={4} value={nextPin} onChange={(event) => setNextPin(event.target.value.replace(/\D/g, "").slice(0, 4))} required disabled={busy} />
+      <input type="password" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} value={nextPin} onChange={(event) => setNextPin(event.target.value.replace(/\D/g, "").slice(0, 4))} required disabled={busy} />
       <button className="button" type="submit" disabled={busy || currentPin.length !== 4 || nextPin.length !== 4}>PINを変更</button>
       <button className="button secondary" type="button" disabled={busy} onClick={remove}>この端末のPIN資格を失効</button>
     </form>}

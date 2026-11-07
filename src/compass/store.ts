@@ -288,6 +288,34 @@ export class CompassStore {
     } catch (error) { this.db.exec("ROLLBACK"); throw error; }
   }
 
+  /** Goal Controller-only atomic adoption. The synchronous policy runs under
+   * the same write lock as replacement, so a late owner stop cannot be lost.
+   * Old metadata/evidence must be retained by the controller in active state. */
+  promoteGoal(transform: (goal: GoalRecord | null, state: StateRecord) => {
+    goal: { title: string; description: string; successCriteria: string[]; constraints: string[] };
+    active: unknown[];
+  } | null): GoalRecord | null {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const current = this.getGoal(), state = this.getState(), next = transform(current, state);
+      if (!next) { this.db.exec("ROLLBACK"); return null; }
+      if (!current) throw Error("Goal promotion requires a predecessor");
+      assertNonEmpty(next.goal.title, "title");
+      const timestamp = nowIso();
+      this.db.prepare(`UPDATE goal SET title = ?, description = ?, success_criteria = ?,
+        constraints = ?, created_at = ?, updated_at = ? WHERE id = 1`).run(
+        next.goal.title, next.goal.description, encode(next.goal.successCriteria),
+        encode(next.goal.constraints), timestamp, timestamp);
+      this.db.prepare(`UPDATE state SET phase = ?, status = ?, active = ?,
+        verification_summary = NULL, next_action = ?, updated_at = ? WHERE project_id = ?`).run(
+        "successor_planning", "IN_PROGRESS", encode(preserveOwnerReceipts(state.active, next.active)),
+        "Plan accepted next Goal", timestamp, PROJECT_ID);
+      const result = this.getGoal();
+      this.db.exec("COMMIT");
+      return result;
+    } catch (error) { this.db.exec("ROLLBACK"); throw error; }
+  }
+
   getState(): StateRecord {
     const row = this.db.prepare("SELECT * FROM state WHERE project_id = ?").get(PROJECT_ID) as Record<string, unknown>;
     return {

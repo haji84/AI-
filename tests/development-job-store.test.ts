@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { createDevelopmentJob } from "../src/orchestrator/development-job.ts";
+import { createDevelopmentJob, DevelopmentJobStateController } from "../src/orchestrator/development-job.ts";
 import {
   JsonFileDevelopmentJobStore,
   MemoryDevelopmentJobStore,
@@ -58,4 +58,19 @@ test("JSON store rejects a corrupt or unsupported snapshot", async () => {
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
+});
+
+test("concurrent stale history cannot overwrite a Human Gate even with a newer timestamp", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "goriq-development-gate-"));
+  try {
+    const path = join(directory, "jobs.json");
+    const first = new JsonFileDevelopmentJobStore(path), second = new JsonFileDevelopmentJobStore(path);
+    const initial = job(), controller = new DevelopmentJobStateController();
+    await first.put(initial);
+    const stale = (await first.get(initial.jobId))!;
+    await second.put(controller.apply(initial, { transitionId: "owner-gate", actor: "state-controller", to: "HUMAN_GATE", reason: "owner gate", at: "2026-09-26T00:00:01.000Z" }));
+    const late = controller.apply(stale, { transitionId: "late-wait", actor: "state-controller", to: "WAITING_FOR_RESOURCE", reason: "pressure", at: "2026-09-26T00:00:02.000Z" });
+    await assert.rejects(first.put(late), /conflicting development job history/);
+    assert.equal((await first.get(initial.jobId))?.phase, "HUMAN_GATE");
+  } finally { await rm(directory, { recursive: true, force: true }); }
 });

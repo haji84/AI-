@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 
-import type { ProductionRecoveryAction, ProductionRunState } from "../gai/production-autonomy-runtime.ts";
+import type { ProductionFailureHistoryEntry, ProductionRecoveryAction, ProductionRunState } from "../gai/production-autonomy-runtime.ts";
 
 export type JarvisRecoveryDashboardState = "idle" | "recovering" | "waiting" | "blocked" | "unknown";
 
@@ -32,7 +32,9 @@ interface PersistedRun {
   runId: string;
   goal: { title: string };
   state: ProductionRunState;
+  cycles?: number;
   updatedAt: string;
+  failureHistory?: ProductionFailureHistoryEntry[];
   recoveryHistory?: PersistedRecoveryEntry[];
   recoveryBudget?: { blockedReason?: string };
   journal?: { nextAction?: string | null };
@@ -59,6 +61,20 @@ function isRecoveryEntry(value: unknown): value is PersistedRecoveryEntry {
     && (entry.nextAction === null || entry.nextAction === undefined || (typeof entry.nextAction === "string" && entry.nextAction.trim().length > 0));
 }
 
+function isFailureEntry(value: unknown): value is ProductionFailureHistoryEntry {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const entry = value as Partial<ProductionFailureHistoryEntry>;
+  return Number.isInteger(entry.cycle)
+    && (entry.cycle ?? 0) >= 1
+    && validIso(entry.observedAt)
+    && (entry.kind === "execution" || entry.kind === "verification" || entry.kind === "terminal")
+    && typeof entry.summary === "string"
+    && entry.summary.trim().length > 0
+    && (entry.blocker === null || (typeof entry.blocker === "string" && entry.blocker.trim().length > 0))
+    && (entry.actionId === null || (typeof entry.actionId === "string" && entry.actionId.trim().length > 0))
+    && (entry.actionDescription === null || (typeof entry.actionDescription === "string" && entry.actionDescription.trim().length > 0));
+}
+
 function isRun(value: unknown): value is PersistedRun {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const run = value as Partial<PersistedRun>;
@@ -66,6 +82,7 @@ function isRun(value: unknown): value is PersistedRun {
   if (!run.goal || typeof run.goal !== "object" || typeof run.goal.title !== "string" || run.goal.title.trim().length === 0) return false;
   if (typeof run.state !== "string" || !RUN_STATES.has(run.state as ProductionRunState)) return false;
   if (!validIso(run.updatedAt)) return false;
+  if (run.failureHistory !== undefined && (!Array.isArray(run.failureHistory) || !run.failureHistory.every(isFailureEntry))) return false;
   if (run.recoveryHistory !== undefined && (!Array.isArray(run.recoveryHistory) || !run.recoveryHistory.every(isRecoveryEntry))) return false;
   if (run.recoveryBudget !== undefined) {
     if (!run.recoveryBudget || typeof run.recoveryBudget !== "object" || Array.isArray(run.recoveryBudget)) return false;
@@ -104,12 +121,22 @@ function latestRecovery(run: PersistedRun): PersistedRecoveryEntry | null {
     .sort((left, right) => right.observedAt.localeCompare(left.observedAt) || right.cycle - left.cycle)[0] ?? null;
 }
 
+function currentTerminalFailure(run: PersistedRun): ProductionFailureHistoryEntry | null {
+  if (run.state !== "blocked" || !Number.isInteger(run.cycles) || (run.cycles ?? 0) < 1) return null;
+  // The runtime stamps each failure with the cycle and updatedAt of its persisted report.
+  return [...(run.failureHistory ?? [])].reverse().find((entry) => entry.kind === "terminal"
+    && entry.cycle === run.cycles
+    && entry.observedAt === run.updatedAt) ?? null;
+}
+
 function reportForRun(run: PersistedRun): JarvisRecoveryDashboardReport {
   const latest = latestRecovery(run);
   const budgetBlocker = run.recoveryBudget?.blockedReason?.trim() || null;
   const recoveryBlocker = latest?.blocked || latest?.action === "blocked" ? latest.reason.trim() : null;
   const approvalBlocker = run.state === "approval-required" ? "Human Gate pending" : null;
-  const blocker = budgetBlocker ?? recoveryBlocker ?? approvalBlocker;
+  const existingBlocker = budgetBlocker ?? recoveryBlocker ?? approvalBlocker;
+  const terminal = existingBlocker ? null : currentTerminalFailure(run);
+  const blocker = existingBlocker ?? terminal?.blocker?.trim() ?? terminal?.summary.trim() ?? null;
   const state: JarvisRecoveryDashboardState = blocker || run.state === "blocked"
     ? "blocked"
     : run.state === "waiting" || run.state === "approval-required"
@@ -124,15 +151,17 @@ function reportForRun(run: PersistedRun): JarvisRecoveryDashboardReport {
     runId: run.runId,
     goalTitle: run.goal.title,
     runState: run.state,
-    cycle: latest?.cycle ?? null,
+    cycle: terminal?.cycle ?? latest?.cycle ?? null,
     recoveryAction: latest?.action ?? null,
-    reason: latest?.reason.trim() ?? null,
+    reason: terminal?.summary.trim() ?? latest?.reason.trim() ?? null,
     blocker,
     nextAction: latest?.nextAction?.trim() || run.journal?.nextAction?.trim() || null,
-    observedAt: latest?.observedAt ?? run.updatedAt,
-    detail: latest
-      ? "Durable recovery state was observed."
-      : "An active run exists, but no recovery decision has been persisted yet.",
+    observedAt: terminal?.observedAt ?? latest?.observedAt ?? run.updatedAt,
+    detail: terminal
+      ? "Durable terminal failure was observed."
+      : latest
+        ? "Durable recovery state was observed."
+        : "An active run exists, but no recovery decision has been persisted yet.",
   };
 }
 

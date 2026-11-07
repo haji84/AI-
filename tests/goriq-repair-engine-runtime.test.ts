@@ -181,10 +181,10 @@ test("Windows local repair status tolerates PowerShell UTF-8 BOM", async () => {
   assert.match(source, /readFileSync\(statusPath, "utf8"\)\.replace\(\/\^\\uFEFF\//);
 });
 
-test("repair runtimes prefer the newest execution and do not let stale runs block fixes", async () => {
+test("repair runtimes replace stale runs within the same event without cancelling manual work", async () => {
   const runtime = await readFile(runtimeWorkflowUrl, "utf8");
   const autonomy = await readFile(new URL("../.github/workflows/autonomy-mobile.yml", import.meta.url), "utf8");
-  assert.match(runtime, /concurrency:\s+group: goriq-repair-engines-runtime\s+cancel-in-progress: true/);
+  assert.match(runtime, /concurrency:\s+group: goriq-repair-engines-runtime-\$\{\{ github\.event_name \}\}\s+cancel-in-progress: true/);
   assert.match(autonomy, /project-chat-work-repair:[\s\S]*?group: goriq-project-repair-\$\{\{ github\.event\.client_payload\.issue_number \|\| github\.run_id \}\}[\s\S]*?cancel-in-progress: true/);
 });
 

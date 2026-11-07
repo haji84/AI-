@@ -17,15 +17,16 @@ test("stale pull requests are rejected on GitHub-hosted preflight before ZBook a
   const workflow = await readFile(workflowUrl, "utf8");
   assert.match(workflow, /preflight:/);
   assert.match(workflow, /runs-on: ubuntu-latest/);
-  assert.match(workflow, /pr\.head\.sha === context\.payload\.workflow_run\.head_sha/);
-  assert.match(workflow, /Skipping stale or ineligible PR/);
+  // Eligibility behavior (including current head) executes the actual Actions
+  // script in goriq-pr-ci-recovery-preflight.test.mjs rather than matching its spelling.
+  assert.match(workflow, /await runRecoveryPreflight\(\{ github, context, core \}\)/);
   assert.match(workflow, /recover:\s+needs: \[preflight\]\s+if: needs\.preflight\.outputs\.eligible == 'true'\s+runs-on: \[self-hosted, Windows, X64\]/);
 });
 
 test("trusted control checkout is separated from target PR checkout", async () => {
   const workflow = await readFile(workflowUrl, "utf8");
-  assert.match(workflow, /ref: main\s+path: control\s+persist-credentials: false/);
-  assert.match(workflow, /ref: \$\{\{ needs\.preflight\.outputs\.branch \}\}\s+path: target\s+fetch-depth: 0\s+persist-credentials: false/);
+  assert.equal([...workflow.matchAll(/ref: \$\{\{ github\.sha \}\}\s+path: control\s+persist-credentials: false/g)].length, 2);
+  assert.match(workflow, /ref: \$\{\{ needs\.preflight\.outputs\.head_sha \}\}\s+path: target\s+fetch-depth: 0\s+persist-credentials: false/);
   assert.match(workflow, /invoke-node-with-groq-secret-windows\.ps1/);
   assert.match(workflow, /-NodeScript \.\\control\\scripts\\goriq-pr-ci-recovery\.ts/);
   assert.doesNotMatch(workflow, /secrets\.GROQ_API_KEY/);

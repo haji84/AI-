@@ -10,6 +10,8 @@
 3. Prove actual MacBook/ZBook distributed execution, failure/reconnect/reconciliation and non-permanent Coordinator.
 4. Verify the entire frozen product contract and release only when applicable acceptance and governance gates pass.
 
+`PROJECT_STATE.md` records this delivery precedence. The earlier Mac-first delivery ordering is superseded for these Goals; Mac stabilization remains a technical prerequisite whenever the next acceptance gate requires it. The no-permanent-main-PC architecture and existing mobile/device rollout prerequisites remain. Dedicated AI09 is later work; required independent verification stays mandatory.
+
 Keep existing implementation phases below as **full target scope**. Work proceeds by critical-path completion gates above; none of the original phases, deferred requirements, device safety or Human Gates is discarded. A CI-only pass is not a substitute for a physical acceptance gate.
 
 

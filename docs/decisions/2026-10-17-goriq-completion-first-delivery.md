@@ -8,6 +8,10 @@ GORIQ succeeds by increasing **requirements with current, valid completion evide
 
 The completion-first policy is proposed through protected review. It becomes repository-operative when integrated under existing governance; documentation alone does not implement, activate or prove autonomous runtime behavior.
 
+For these Goals, this delivery order supersedes the earlier Mac-first ordering recorded in PROJECT_STATE. Mac stabilization remains a technical prerequisite where needed for the next gate; the no-permanent-main-PC architecture and existing device rollout prerequisites remain unchanged. This precedence changes no requirement status or completion evidence.
+
+Dedicated AI09 is a later feature and is not a blanket prerequisite for current delivery. Required independent verification, trusted evidence and Builder/Final Verifier/Gate Authority separation remain mandatory. Use an existing authorized verification capability that satisfies the relevant contract; do not use Copilot, CodeRabbit or paid or potentially billable fallbacks. Record actual implementation and inference provenance: Codex changes do not count as GORIQ or local-model execution without that actual runtime evidence.
+
 ## Critical path and ordered exit gates
 
 ### Gate 0: Baseline, deduplicate and stabilize the backlog

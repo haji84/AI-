@@ -3,7 +3,7 @@ import { PcTaskObservations, projectPcObservation, assertPcObserver, PC_OBSERVAT
 import { DurableTaskRuntime, JsonFileDurableTaskStore } from "../src/gai/durable-task-runtime.ts";
 import { MATERIAL_REQUEST_BYTES } from "../src/gai/cognitive-material-intake.ts";
 import { cognitiveHostOptions } from "../src/gai/cognitive-host-config.ts";
-import { CognitiveService } from "../src/gai/cognitive-service.ts";
+import type { CognitiveService } from "../src/gai/cognitive-service.ts";
 import {requirementWorkflow,prepareOwnerPreview} from "./jarvis-requirement-workflow.mjs";
 import { createSpecificationPublisher } from "./jarvis-spec-publisher.mjs";
 import { fileURLToPath } from "node:url";
@@ -13,6 +13,7 @@ import { execFileSync, spawn } from "node:child_process";
 import { createHash, createPublicKey, randomBytes, timingSafeEqual } from "node:crypto";
 import { existsSync, readFileSync, lstatSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import { createResidentReceiptWakes } from "../src/orchestrator/resident-receipt-wakes.ts";
 import { OwnerInvitationStore, INVITATION_PREFIX } from "../src/jarvis/owner-invitation.ts";
 import { generateOwnerRecoveryCode, OwnerRecoveryRejectedError, TrustedDeviceRegistry } from "../src/jarvis/trusted-device-registry.ts";
 import { GoogleOwnerStateRegistry } from "../src/jarvis/google-owner-state-registry.ts";
@@ -37,18 +38,22 @@ import { WorkerRemoteMailbox } from "../src/jarvis/worker-remote-mailbox.ts";
 import { remoteDeviceInventory } from "../src/jarvis/remote-device-inventory.ts";
 import { PendingEnrollment } from "../src/jarvis/pending-enrollment.ts";
 import { CompassStore } from "../src/compass/store.ts";
+import { CompassWorkStateStoreAdapter } from "../src/orchestrator/compass-work-state-store.ts";
 import { GoalControllerRuntime, type GoalControllerDecision } from "../src/orchestrator/goal-controller-runtime.ts";
 import { CompassGoalRegistryAdapter, CompassGoalDecisionStoreAdapter } from "../src/orchestrator/compass-goal-controller.ts";
 import { CompassWorkRunStore } from "../src/orchestrator/compass-work-run-store.ts";
+import { CompassApprovedNextWork, approvedNextRuntimeReady } from "../src/orchestrator/approved-next-work.ts";
 import { CompassGoalBridgeEventStore } from "../src/orchestrator/compass-goal-bridge-event-store.ts";
 import { CompassGoalExecutionContextStore } from "../src/orchestrator/compass-goal-execution-context-store.ts";
 import { workRunProgress } from "../src/orchestrator/work-run-state.ts";
 import { createQueuedWorkRun } from "../src/orchestrator/work-run-state.ts";
+import { ResourceWaitScheduler } from "../src/orchestrator/development-resource-scheduler.ts";
 import { validateWindowsVerificationDispatch } from "../src/orchestrator/windows-verification-dispatch.ts";
 import { DeviceDevelopmentIntake, JsonFileDeviceDevelopmentInbox } from "../src/orchestrator/device-development-intake.ts";
 import { parseDailyDriverDeviceCommand } from "../src/jarvis/daily-driver-device-command.ts";
 import { PcEnrollmentService, validatePcEnrollmentApproval } from "../src/jarvis/pc-enrollment.ts";
 import { discoverLocalTts, synthesizeLocalTts } from "../src/jarvis/local-tts.ts";
+import { LocalStateBackups, LocalStateBackupError, parseLocalStateBackupCommand } from "../src/jarvis/local-state-backups.ts";
 
 
 const host = process.env.JARVIS_BROKER_HOST?.trim() || "127.0.0.1";
@@ -88,14 +93,24 @@ function approvedPcEnrollment(): PcEnrollmentService {
 }
 const compassPath = process.env.JARVIS_COMPASS_DB_PATH?.trim() || (process.env.JARVIS_DB_PATH?.trim() ? `${process.env.JARVIS_DB_PATH.trim()}.compass.sqlite` : resolve(".jarvis/compass.db"));
 const compass = new CompassStore(compassPath);
+const localStateBackups = new LocalStateBackups({ brokerPath: process.env.JARVIS_DB_PATH?.trim() || resolve(".jarvis", "jarvis.db"), compassPath });
 const workRuns = new CompassWorkRunStore(compass);
+const completionWorkState = new CompassWorkStateStoreAdapter(compass);
 const goalBridgeEvents = new CompassGoalBridgeEventStore(compass);
 const goalExecutionContexts = new CompassGoalExecutionContextStore(compass);
-const cognitive = new CognitiveService(compassPath, cognitiveHostOptions(process.env));
+const cognitiveOptions = cognitiveHostOptions(process.env);
+let cognitiveInstance: Promise<CognitiveService> | undefined;
+function getCognitive(): Promise<CognitiveService> {
+  return cognitiveInstance ??= import("../src/gai/cognitive-service.ts")
+    .then(({ CognitiveService }) => new CognitiveService(compassPath, cognitiveOptions))
+    .catch(() => { throw Error("Cognitive cycle unavailable"); });
+}
 const ownerRequirements = new OwnerRequirementIntake(compass);
 const specificationPublisher = createSpecificationPublisher({root:fileURLToPath(new URL("../",import.meta.url)),intake:ownerRequirements,token:process.env.GITHUB_TOKEN});
+const goalWorkStates = new CompassWorkStateStoreAdapter(compass);
 const goalController = new GoalControllerRuntime({
-  registry: new CompassGoalRegistryAdapter(compass),
+  registry: new CompassGoalRegistryAdapter(compass, goalWorkStates),
+  workStateStore: goalWorkStates,
   decisionStore: new CompassGoalDecisionStoreAdapter(compass),
 });
 const deviceDevelopmentIntake = new DeviceDevelopmentIntake({
@@ -110,6 +125,80 @@ const deviceDevelopmentIntake = new DeviceDevelopmentIntake({
   },
 });
 const activeGoalExecutions = new Map<string, ReturnType<typeof spawn>>();
+const approvedNextWork = new CompassApprovedNextWork(compass);
+const nextInspectionFlag = process.env.GORIQ_APPROVED_NEXT_WORK_INSPECTION_ONLY?.trim();
+if (nextInspectionFlag && nextInspectionFlag !== "1") throw Error("Invalid host next-work inspection restriction");
+let nextWorkDraining = false;
+let nextWorkTimer: ReturnType<typeof setTimeout> | undefined;
+let shuttingDown = false;
+function requestApprovedNextWorkDrain(): void {
+  if (shuttingDown || nextWorkDraining) return;
+  if (nextWorkTimer) clearTimeout(nextWorkTimer);
+  nextWorkTimer = undefined;
+  void drainApprovedNextWork().catch(error => console.error("[goriq-goal] next_work_held", error instanceof Error ? error.name : "unknown"));
+}
+async function drainApprovedNextWork(): Promise<void> {
+  if (shuttingDown || nextWorkDraining) return;
+  nextWorkDraining = true;
+  try {
+    if (!approvedNextRuntimeReady(process.env)) return; // never clear/rebind predecessor pins
+    const address = server.address();
+    if (!address || typeof address === "string" || !["127.0.0.1", "0.0.0.0", "::1", "::"].includes(address.address)) return;
+    // Recovery may observe accepted work after a response/parent-process loss.
+    for (const record of approvedNextWork.list().filter(r => r.status === "PROMOTED" || r.status === "HELD")) {
+      if (await workRuns.getByGoal(record.targetGoalId)) {
+        try { approvedNextWork.started(record.id, record.targetGoalId); } catch { /* changed owner contract stays held */ }
+      }
+    }
+    if (activeGoalExecutions.size || shuttingDown) return;
+    for (const pending of approvedNextWork.pending()) {
+      const promoted = approvedNextWork.promote(pending.id);
+      if (!promoted || shuttingDown) continue;
+      const localHost = address.family === "IPv6" ? "[::1]" : "127.0.0.1";
+      try {
+        // Re-enter the existing authenticated Owner intake. Requirement capture,
+        // normal Goal/State/Gate checks and scheduling are never bypassed.
+        const response = await fetch(`http://${localHost}:${address.port}/api/jarvis/admin/work`, {
+          method: "POST", headers: { Authorization: `Bearer ${ownerToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ text: promoted.request.text, goalHint: promoted.targetGoalId,
+            goalContract: promoted.request.goalContract, idempotencyKey: promoted.request.idempotencyKey }),
+          signal: AbortSignal.timeout(5000),
+        });
+        const accepted = await response.json() as { accepted?: boolean; goalId?: string };
+        if (response.status === 202 && accepted.accepted === true && accepted.goalId === promoted.targetGoalId && await workRuns.getByGoal(promoted.targetGoalId)) {
+          approvedNextWork.started(promoted.id, promoted.targetGoalId);
+        } else approvedNextWork.held(promoted.id, promoted.targetGoalId, "OWNER_INTAKE_REQUIRES_CLARIFICATION");
+      } catch {
+        if (await workRuns.getByGoal(promoted.targetGoalId)) approvedNextWork.started(promoted.id, promoted.targetGoalId);
+        else approvedNextWork.held(promoted.id, promoted.targetGoalId, "INTAKE_RECONCILIATION_REQUIRED");
+      }
+      break; // one authoritative next Goal; remaining bindings await their predecessor
+    }
+  } finally {
+    nextWorkDraining = false;
+    if (!shuttingDown && approvedNextRuntimeReady(process.env) && approvedNextWork.pending().length) {
+      nextWorkTimer = setTimeout(requestApprovedNextWorkDrain, 5000);
+      nextWorkTimer.unref();
+    }
+  }
+}
+const resourceWaitScheduler = new ResourceWaitScheduler({
+  async read(goalId) {
+    const active = await new CompassGoalRegistryAdapter(compass).listActive();
+    return { active: compass.getState().status !== "PAUSED" && active.some(goal => goal.goalId === goalId), run: await workRuns.getByGoal(goalId) };
+  },
+  async resume(goalId) {
+    const active = (await new CompassGoalRegistryAdapter(compass).listActive()).find(goal => goal.goalId === goalId);
+    if (!active || compass.getState().status === "PAUSED") return;
+    scheduleGoalExecution({
+      action: "CONTINUE_GOAL", goalId, resolution: {
+        kind: "EXISTING_GOAL", intent: "COMMAND", goal: active, reason: "resume_persisted_resource_wait",
+        intake: { id: "resource-" + goalId, source: "event", text: "Recheck accepted resource wait", sourceContext: {}, idempotencyKey: "resource-" + goalId, goalHint: goalId },
+      },
+    }, goalExecutionContexts.get(goalId));
+  },
+  onError: error => console.error("[goriq-goal] resource_resume_failed", error),
+});
 
 function encodeGoalExecutionContext(context: unknown[]): string {
   const encoded = Buffer.from(JSON.stringify(context), "utf8").toString("base64");
@@ -118,6 +207,7 @@ function encodeGoalExecutionContext(context: unknown[]): string {
 }
 
 function scheduleGoalExecution(decision: GoalControllerDecision, context: unknown[] = []): boolean {
+  if (shuttingDown || compass.getState().status === "PAUSED") return false;
   if (decision.goalId && context.length) goalExecutionContexts.put(decision.goalId, context);
   if (decision.action !== "CONTINUE_GOAL" || !decision.goalId) return false;
   if (activeGoalExecutions.has(decision.goalId)) return true;
@@ -131,6 +221,8 @@ function scheduleGoalExecution(decision: GoalControllerDecision, context: unknow
     stdio: ["ignore", "ignore", "pipe"],
     env: {
       ...process.env,
+      ...(nextInspectionFlag === "1" && approvedNextWork.list().some(row => row.targetGoalId === goalId && row.status !== "QUEUED")
+        ? { JARVIS_GOAL_EXECUTION_INSPECTION_ONLY: "1" } : {}),
       JARVIS_GOAL_EXECUTION_GOAL_ID: goalId,
       JARVIS_GOAL_EXECUTION_CONTEXT_B64: encodeGoalExecutionContext(context),
       JARVIS_GOAL_EXECUTION_COMPASS_PATH: compassPath,
@@ -147,6 +239,10 @@ function scheduleGoalExecution(decision: GoalControllerDecision, context: unknow
     activeGoalExecutions.delete(goalId);
     if (code !== 0) {
       console.error("[goriq-goal]", goalId, `executor_exit=${code ?? "null"} signal=${signal ?? "none"} ${stderr.trim()}`.trim());
+    }
+    if (code === 0) {
+      void resourceWaitScheduler.arm(goalId).catch(error => console.error("[goriq-goal] resource_resume_failed", error));
+      requestApprovedNextWorkDrain();
     }
   });
   activeGoalExecutions.set(goalId, child);
@@ -329,6 +425,31 @@ function validatedAndroidTask(type: string, payload: Record<string, unknown>): R
 async function handler(request: IncomingMessage, response: ServerResponse): Promise<void> {
   const url = new URL(request.url || "/", "http://localhost");
   const path = url.pathname; const method = request.method || "GET";
+  // This bounded route owns its input/error boundary before the generic body reader.
+  if (path === "/api/jarvis/admin/state-backups") {
+    response.setHeader("Cache-Control", "no-store");
+    response.setHeader("Referrer-Policy", "no-referrer");
+    if (!requireOwner(request)) return json(response, 401, { code: "owner_required" });
+    if (url.search) return json(response, 400, { code: "invalid_request" });
+    if (method === "GET") return json(response, 200, await localStateBackups.list());
+    if (method !== "POST") return json(response, 405, { code: "invalid_request" });
+    // Bearer authentication above remains mandatory, including for direct Broker clients.
+    if (request.headers.origin || request.headers["sec-fetch-site"] === "cross-site") return json(response, 403, { code: "same_origin_required" });
+    const mode = request.headers["x-jarvis-operation-mode"];
+    if (mode && mode !== "standard") return json(response, 403, { code: "read_only" });
+    if (!request.headers["content-type"]?.startsWith("application/json")) return json(response, 400, { code: "invalid_request" });
+    try {
+      let command;
+      try { command = parseLocalStateBackupCommand(parseJson(await readBody(request, 1024))); }
+      catch { return json(response, 400, { code: "invalid_request" }); }
+      const generation = command.operation === "create" ? await localStateBackups.create() : await localStateBackups.verify(command.generationId);
+      return json(response, command.operation === "create" ? 201 : 200, { generation });
+    } catch (error) {
+      const code = error instanceof LocalStateBackupError ? error.code : "operation_failed";
+      const status = code === "generation_not_found" ? 404 : ["private_storage_unsupported", "source_unavailable", "operation_failed"].includes(code) ? 503 : 409;
+      return json(response, status, { code });
+    }
+  }
   const body = method === "GET" || method === "HEAD" ? Buffer.alloc(0) : await readBody(request,
     [PC_OBSERVATION_EXPORT, PC_OBSERVATION_RECEIVE].includes(path) ? PC_OBSERVATION_MAX_BYTES : 1_000_000);
 
@@ -508,24 +629,24 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
     }
     if (path === "/api/jarvis/admin/cognitive/goal/proposal" && method === "POST") {
       if (body.length > 1024) return json(response, 413, { message: "Goal proposal input too large" });
-      try { return json(response, 200, await cognitive.proposeGoalCriteria(payload)); }
+      try { return json(response, 200, await (await getCognitive()).proposeGoalCriteria(payload)); }
       catch { return json(response, 409, { message: "候補を作れませんでした。Goal・既存作業・ローカルAIを確認してください。完了条件は手入力できます。" }); }
     }
     if (path === "/api/jarvis/admin/cognitive/goal" && method === "POST") {
       if (body.length > 32_000) return json(response, 413, { message: "Goal refinement input too large" });
-      try { return json(response, 200, await cognitive.refineGoal(payload)); }
+      try { return json(response, 200, await (await getCognitive()).refineGoal(payload)); }
       catch { return json(response, 409, { message: "このGoalは既に変更または実行されています。条件と履歴を保持して再確認してください。" }); }
     }
     if (path === "/api/jarvis/admin/cognitive/materials") {
       try {
         if (method === "POST") {
           if (body.length > MATERIAL_REQUEST_BYTES) return json(response, 413, { message: "Material input too large" });
-          return json(response, 200, await cognitive.prepareMaterials(payload));
+          return json(response, 200, await (await getCognitive()).prepareMaterials(payload));
         }
         if (method === "GET") {
           const params = new URL(request.url!, "http://localhost").searchParams;
           if ([...params.keys()].some(k => !["goalId", "outputId"].includes(k)) || params.getAll("goalId").length !== 1 || params.getAll("outputId").length !== 1) return json(response, 400, { message: "Invalid output request" });
-          const output = await cognitive.output(params.get("goalId")!, params.get("outputId")!);
+          const output = await (await getCognitive()).output(params.get("goalId")!, params.get("outputId")!);
           return json(response, 200, { contentBase64: output.bytes.toString("base64"), filename: output.filename, contentType: output.contentType });
         }
         return json(response, 405, { message: "Method not allowed" });
@@ -534,21 +655,21 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
     if (path === "/api/jarvis/admin/cognitive/learning" && method === "POST") {
       if (body.length > 2048 || Object.keys(payload).some(k => !["operation", "goalId", "originalId", "replacementId"].includes(k))) return json(response, 400, { message: "Invalid learning request" });
       try {
-        if (payload.operation === "import-history" && Object.keys(payload).length === 1) return json(response, 200, await cognitive.importHistory());
+        if (payload.operation === "import-history" && Object.keys(payload).length === 1) return json(response, 200, await (await getCognitive()).importHistory());
         if (payload.operation === "training-candidate" && Object.keys(payload).length === 1) {
-          const candidate = await cognitive.trainingCandidate();
+          const candidate = await (await getCognitive()).trainingCandidate();
           return json(response, 200, { digest: candidate.digest, train: candidate.train.length, validation: candidate.validation.length, heldout: candidate.heldout.length, rejected: candidate.rejected.length, training: candidate.training });
         }
-        if (payload.operation === "correct" && Object.keys(payload).length === 4 && [payload.goalId,payload.originalId,payload.replacementId].every(v => typeof v === "string")) return json(response, 200, await cognitive.correct(payload.goalId as string, payload.originalId as string, payload.replacementId as string));
+        if (payload.operation === "correct" && Object.keys(payload).length === 4 && [payload.goalId,payload.originalId,payload.replacementId].every(v => typeof v === "string")) return json(response, 200, await (await getCognitive()).correct(payload.goalId as string, payload.originalId as string, payload.replacementId as string));
         return json(response, 400, { message: "Invalid learning operation" });
       } catch { return json(response, 409, { message: "学習対象と検証結果を確認してください。未検証の内容は昇格しません。" }); }
     }
     if (path === "/api/jarvis/admin/cognitive") {
       try {
-        if (method === "GET") return json(response, 200, await cognitive.status());
+        if (method === "GET") return json(response, 200, await (await getCognitive()).status());
         if (method === "POST") {
           if (body.length > 512 || Object.keys(payload).some(k => k !== "goalId") || typeof payload.goalId !== "string") return json(response, 400, { message: "Invalid bounded cognitive request" });
-          return json(response, 200, await cognitive.continue(payload.goalId));
+          return json(response, 200, await (await getCognitive()).continue(payload.goalId));
         }
         return json(response, 405, { message: "Method not allowed" });
       } catch (error) { return json(response, 409, { message: error instanceof Error ? error.message : "Cognitive cycle unavailable" }); }
@@ -563,15 +684,38 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
       await goalBridgeEvents.markDelivered(payload.eventId);
       return json(response, 200, { ok: true });
     }
+    if (method === "GET" && path === "/api/jarvis/admin/work-successors") {
+      try { return json(response, 200, { successors: approvedNextWork.list() }); }
+      catch { return json(response, 409, { message: "承認済み次案件の保存状態を確認してください。" }); }
+    }
     if (method === "GET" && path.startsWith("/api/jarvis/admin/work/")) {
       const goalId = decodeURIComponent(path.slice("/api/jarvis/admin/work/".length));
       const run = await workRuns.getByGoal(goalId);
       if (!run) return json(response, 404, { message: "Work Runがありません", goalId });
-      return json(response, 200, { run, progress: workRunProgress(run) });
+      const completion = (await completionWorkState.getCompletionHistory(goalId)).at(-1) ?? null;
+      return json(response, 200, { run, progress: workRunProgress(run), completion });
+    }
+    if (method === "POST" && path.startsWith("/api/jarvis/admin/work/")) {
+      if (body.length > 8_192) return json(response, 413, { message: 'notification receipt too large' });
+      const goalId = decodeURIComponent(path.slice('/api/jarvis/admin/work/'.length));
+      if (!(await workRuns.getByGoal(goalId))) return json(response, 404, { message: 'Work Runがありません' });
+      try {
+        const completion = await completionWorkState.acknowledgeCompletionNotifications(goalId, payload as unknown as { cycleId: string; notificationIds: string[] });
+        return json(response, 200, { completion });
+      } catch { return json(response, 409, { message: '通知の表示内容を再取得してください。承認状態は変更していません。' }); }
     }
     if (method === "POST" && path === "/api/jarvis/admin/work") {
       try {
         if (body.length > 64_000) return json(response, 413, { message: "work input too large" });
+        if (Object.hasOwn(payload, "afterGoalId")) {
+          if (typeof payload.text !== "string" || parseDailyDriverDeviceCommand(payload.text).kind !== "not-device") {
+            return json(response, 409, { accepted: false, message: "次案件はGoalとして受け付けます。端末操作は既存の個別Gateを使用してください。" });
+          }
+          const next = approvedNextWork.accept(payload);
+          setImmediate(requestApprovedNextWorkDrain);
+          return json(response, 202, { accepted: true, action: "QUEUED_SUCCESSOR", successorId: next.id,
+            targetGoalId: next.targetGoalId, afterGoalId: next.afterGoalId, executionScheduled: false, status: next.status });
+        }
         const text = typeof payload.text === "string" ? payload.text.trim() : "";
         if (!text) return json(response, 400, { message: "仕事の内容を入力してください" });
         const idempotencyKey = typeof payload.idempotencyKey === "string" ? payload.idempotencyKey.trim() : undefined;
@@ -967,16 +1111,52 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
 const server = createServer((request, response) => {
   handler(request, response).catch((error) => { console.error("[jarvis-broker] request failed", error); json(response, 500, { message: error instanceof Error ? error.message : "internal error" }); });
 });
+const verifierReceiptWakes = createResidentReceiptWakes(process.env, process.cwd());
+let verifierReceiptTimer: NodeJS.Timeout | undefined;
+
 server.listen(port, host, () => {
+  requestApprovedNextWorkDrain();
   console.log(`[jarvis-broker] listening on http://${host}:${port}`);
   console.log(`[jarvis-broker] nodes=${plane.snapshot().stats.registered} tasks=${plane.snapshot().tasks.length} workerApk=${workerApkInfo() ? "ready" : "missing"}`);
+  // A signer is a separate OS/VM principal. New receipt bytes wake an already
+  // accepted non-terminal Goal, never create a new Goal or grant approval.
+  // Signature, artifact binding and all gates are checked by Goal Executor.
+  if (verifierReceiptWakes.length) {
+    let inspecting = false;
+    verifierReceiptTimer = setInterval(() => {
+      if (inspecting || activeGoalExecutions.size > 0) return;
+      inspecting = true;
+      void (async () => {
+        const active = (await new CompassGoalRegistryAdapter(compass).listActive())[0];
+        if (!active) return;
+        const run = await workRuns.getByGoal(active.goalId);
+        if (!run || !["RUNNING", "VERIFYING"].includes(run.phase) ||
+            activeGoalExecutions.has(active.goalId)) return;
+        if (!verifierReceiptWakes.map(wake => wake.changedDigest()).some(Boolean)) return;
+        scheduleGoalExecution({
+          action: "CONTINUE_GOAL", goalId: active.goalId, resolution: {
+            kind: "EXISTING_GOAL", intent: "COMMAND", goal: active,
+            reason: "independent_verifier_receipt_arrived",
+            intake: { id: `verifier-resume-${active.goalId}`, source: "event",
+              text: "Resume accepted Goal after signed verifier receipt",
+              sourceContext: {}, idempotencyKey: `verifier-resume-${active.goalId}`,
+              goalHint: active.goalId },
+          },
+        }, goalExecutionContexts.get(active.goalId));
+      })().catch(error => console.error("[goriq-goal] verifier_receipt_wake_failed",
+        error instanceof Error ? error.name : "unknown"))
+        .finally(() => { inspecting = false; });
+    }, 15000);
+    verifierReceiptTimer.unref();
+  }
   // Only a previously accepted, non-terminal Work Run has execution authority.
   // A Broker restart must resume it without another owner message.
   void (async () => {
     const active = (await new CompassGoalRegistryAdapter(compass).listActive())[0];
-    if (!active) return;
+    if (!active || compass.getState().status === "PAUSED") return;
     const run = await workRuns.getByGoal(active.goalId);
     if (!run || !["QUEUED", "PLANNING", "RUNNING", "VERIFYING", "RECOVERING"].includes(run.phase)) return;
+    if (await resourceWaitScheduler.arm(active.goalId)) return;
     scheduleGoalExecution({
       action: "CONTINUE_GOAL", goalId: active.goalId, resolution: {
         kind: "EXISTING_GOAL", intent: "COMMAND", goal: active, reason: "resume_persisted_work_run",
@@ -986,6 +1166,10 @@ server.listen(port, host, () => {
   })().catch((error) => console.error("[goriq-goal] startup_resume_failed", error));
 });
 function shutdown(): void {
+  shuttingDown = true;
+  if (nextWorkTimer) clearTimeout(nextWorkTimer);
+  if (verifierReceiptTimer) clearInterval(verifierReceiptTimer);
+  resourceWaitScheduler.close();
   for (const child of activeGoalExecutions.values()) {
     if (child.exitCode === null && child.signalCode === null) child.kill();
   }

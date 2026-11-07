@@ -108,3 +108,35 @@ test("development verifier sends an addressable candidate and accepts per-check 
   assert.equal((requestBody?.binding as { sourceRevision: string }).sourceRevision, "a".repeat(64));
   assert.equal(((result.evidence as { verificationEvidence: unknown[] }).verificationEvidence).length, 2);
 });
+
+test("Codex-free Ollama runtime never treats 8796 Builder verification as independent", async () => {
+  let networkCalls = 0;
+  const fetchImpl: typeof fetch = async () => {
+    networkCalls += 1;
+    throw Error("Original Builder/paid capability must never be called");
+  };
+  const verifier = createRuntimeDevelopmentVerifier({
+    GORIQ_LOCAL_OLLAMA_BUILDER_ENABLED: "1",
+    CODE_BUILDER_LOCAL_URL: "http://127.0.0.1:8796",
+    CODE_BUILDER_LOCAL_TOKEN: "existing-builder-token-must-not-be-used",
+  }, fetchImpl);
+  const response = await verifier.verify({
+    goal: { title: "local-test", successCriteria: [], constraints: [] },
+    action: {
+      id: "test-local-verifier",
+      description: "verify a generated file",
+      capability: "code.builder",
+      risk: "low",
+      input: {
+        verificationContract: { kind: "repository_checks", profile: "standard", requiredChecks: ["lint"] },
+        candidate: { changedPaths: ["tests/fixtures/local-goal.py"], artifactRef: "sha256:" + "a".repeat(64) },
+        releaseBinding: { builderId: "local-ollama-builder", sourceRevision: "b".repeat(64), artifactDigest: "a".repeat(64) },
+      },
+    },
+    result: { actionId: "test-local-verifier", ok: true, summary: "Builder wrote file" },
+    context: [],
+  });
+  assert.equal(response.ok, false);
+  assert.equal((response.evidence as { blocker: string }).blocker, "independent_local_ollama_verifier_required");
+  assert.equal(networkCalls, 0);
+});

@@ -1,0 +1,57 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import {mkdtempSync,mkdirSync,writeFileSync,rmSync,realpathSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join,resolve} from 'node:path';
+import {spawnSync} from 'node:child_process';
+const shell=process.platform==='win32'?join(process.env.SystemRoot,'System32/WindowsPowerShell/v1.0/powershell.exe'):'pwsh',q=s=>"'"+s.replaceAll("'","''")+"'";
+function capture(scenario){const d=realpathSync.native(mkdtempSync(join(tmpdir(),'private-scope-public-'))),profile=join(d,'profile'),state=join(profile,'JARVIS','production'),release=join(d,'release'),db=join(d,'broker.sqlite'),node=join(d,'node.exe'),config=join(state,'config.dpapi');mkdirSync(state,{recursive:true});mkdirSync(join(release,'scripts'),{recursive:true});writeFileSync(db,'PUBLIC_SQLITE_BOUNDARY');writeFileSync(node,'PUBLIC_INTERPRETER_BYTES');writeFileSync(join(release,'jarvis-release.json'),JSON.stringify({commit:'e'.repeat(40)}));writeFileSync(config,JSON.stringify({commit:'e'.repeat(40),releaseRoot:release,environment:{JARVIS_OWNER_SECRET:'PRIVATE_CANARY_MUST_STAY_LOCAL_12345',JARVIS_DB_PATH:db}}));const code=`$ErrorActionPreference='Stop';. ${q(resolve('scripts/owner-code-rotation-native-1218.ps1'))};. ${q(resolve('scripts/rotate-jarvis-owner-code-windows.ps1'))};if(-not(Get-Command New-OwnerRotationLocalScope -ErrorAction SilentlyContinue)){@{missingFeature=$true}|ConvertTo-Json -Compress;return};
+$script:scenario=${q(scenario)};$script:calls=0;$script:reads=0;$script:owner='S-1-5-21-1-2-3-1004';
+function Get-Acl {param($LiteralPath,$ErrorAction) $value=[pscustomobject]@{Access=@();Owner=$script:owner};if($script:scenario -eq 'foreign-release-owner' -and $LiteralPath -ceq ${q(release)}){$value.Owner='S-1-5-21-9-9-9-9999'};$value|Add-Member ScriptMethod GetOwner {param($t)[pscustomobject]@{Value=$this.Owner}};$value|Add-Member ScriptMethod GetAccessRules {param($a,$b,$c)@()};return $value};foreach($type in @('System.IO.FileInfo','System.IO.DirectoryInfo')){Update-TypeData -TypeName $type -MemberType ScriptMethod -MemberName GetAccessControl -Value {param($x)Get-Acl -LiteralPath $this.FullName} -Force};
+function Get-OwnerRotationPrincipalSid {param($p)$script:owner};
+$script:runtimeGuardDiagnostics=[ordered]@{observed=$false;computationFailed=$false;runtimeRevisionMatch=$false;singleAction=$false;nodePathMatch=$false;taskArgumentsMatch=$false;workingDirectoryMatch=$false;principalMatch=$false;contextNodeIsCanonical=$false;configurationReleaseIsCanonical=$false};
+$script:originalRuntimeGuard=(Get-Command Assert-OwnerRotationRuntimeConfiguration).ScriptBlock
+function Assert-OwnerRotationRuntimeConfiguration {
+ param($Authorization,$Context,$Configuration)
+ $script:runtimeGuardDiagnostics.observed=$true
+ try {
+  $release=Get-OwnerRotationSafePath ([string]$Configuration.releaseRoot);$manifest=Get-OwnerRotationSafePath (Join-Path $release 'jarvis-release.json')
+  $metadata=[IO.File]::ReadAllText($manifest)|ConvertFrom-Json
+  $task=$Context.Task;$actions=@($task.Actions)
+  $script:runtimeGuardDiagnostics.runtimeRevisionMatch=$metadata.commit -ceq $Authorization.runtimeRevision
+  $script:runtimeGuardDiagnostics.singleAction=$actions.Count -eq 1
+  $script:runtimeGuardDiagnostics.nodePathMatch=(Get-OwnerRotationSafePath ([string]$actions[0].Execute)) -ieq $Context.NodePath
+  $script:runtimeGuardDiagnostics.taskArgumentsMatch=[string]$actions[0].Arguments -ceq ('"'+(Join-Path $release 'scripts/jarvis-remote-host.mjs')+'"')
+  $script:runtimeGuardDiagnostics.workingDirectoryMatch=(Get-OwnerRotationSafePath ([string]$actions[0].WorkingDirectory)) -ieq $release
+  $script:runtimeGuardDiagnostics.principalMatch=(Get-OwnerRotationPrincipalSid $task.Principal) -ceq $Authorization.ownerSid
+  $script:runtimeGuardDiagnostics.contextNodeIsCanonical=[string]$Context.NodePath -ceq (Get-OwnerRotationSafePath ([string]$Context.NodePath))
+  $script:runtimeGuardDiagnostics.configurationReleaseIsCanonical=[string]$Configuration.releaseRoot -ceq $release
+ }catch{$script:runtimeGuardDiagnostics.computationFailed=$true}
+ & $script:originalRuntimeGuard -Authorization $Authorization -Context $Context -Configuration $Configuration
+}
+function Get-OwnerRotationHostTask {$script:calls++;$args='"'+${q(join(release,'scripts','jarvis-remote-host.mjs'))}+'"';if($script:scenario -eq 'task-drift' -and $script:calls -gt 1){$args='PRIVATE_CHANGED_ARGUMENT'};$script:taskArgumentsMatchGuard=$args -ceq ('"'+(Join-Path ${q(release)} 'scripts/jarvis-remote-host.mjs')+'"');[pscustomobject]@{State='Running';TaskName='JARVIS Remote Host';TaskPath='\\';Actions=@([pscustomobject]@{Execute=$(if($script:scenario -eq 'compatibility-task'){'PRIVATE_COMPATIBILITY_LAUNCHER'}else{${q(node)}});Arguments=$args;WorkingDirectory=${q(release)}});Principal=[pscustomobject]@{UserId=$script:owner;LogonType='Password';RunLevel='Limited'}}};
+function Read-OwnerRotationHostConfiguration {param($Path,$Consumer)$script:reads++;& $Consumer ([IO.File]::ReadAllText($Path)|ConvertFrom-Json)|Out-Null;if($script:scenario -eq 'config-drift'){[IO.File]::AppendAllText($Path,' ')}};
+$now=[datetimeoffset]::UtcNow;$env:GITHUB_RUN_ID='12345678';$env:GITHUB_RUN_ATTEMPT='1';$g=[pscustomobject]@{issuedAt=$now.AddSeconds(-1).ToString('o');expiresAt=$now.AddMinutes(20).ToString('o');sourceRevision=('a'*40);sourceHashes=[pscustomobject]@{};approvalId='12345678-1234-4234-8234-123456789012';cohortAuthority=[pscustomobject]@{kind='approved-active-capture';expectedCount=38};pcSidecars=[pscustomobject]@{profile='jarvis-pc-sidecars-v1';expectedTaskFile=$(if($script:scenario -eq 'sidecar-mismatch'){'present'}else{'absent'});expectedObservationFile='absent'}};
+foreach($f in (Get-OwnerRotationEntrySources)){$g.sourceHashes|Add-Member NoteProperty $f ('b'*64)};foreach($flag in @('credentialRotationApproval','existingTaskRestartApproval','configPersistenceApproval','normalLoopbackCookieApproval','confirmationApproval','automationConfirmationApproval','fleetReadOnlyApproval','pcSidecarReadOnlyApproval')){$g|Add-Member NoteProperty $flag $true};
+$kernel=[pscustomobject]@{ownerSid=$script:owner};$bytes=[Text.Encoding]::UTF8.GetBytes('{"public":"grant"}');$rejected=$false;$bound=$false
+try{$a=New-OwnerRotationLocalScope -Grant $g -GrantBytes $bytes -Root ${q(resolve('.'))} -Kernel $kernel -Profile ${q(profile)} -Node ${q(node)} -NodeHash (Get-OwnerRotationHash ${q(node)});$bound=$a.scope.dbPath -ceq ${q(db)} -and $a.scope.ownerSid -ceq $script:owner -and $a.scope.configSha256 -ceq (Get-OwnerRotationHash ${q(config)}) -and @($a.scope.sourceHashes.PSObject.Properties).Count -eq 9 -and $a.scope.runtimeRevision -ceq ('e'*40) -and $a.scope.credentialRotationApproval -eq $true}catch{
+$rejected=$true;$failureKind=$_.Exception.GetType().FullName;$failureRole='OTHER_PUBLIC_CODE';$failureLine=0;$stackRole='NONE';$stackLine=0
+if($failureKind -cnotin @('System.Management.Automation.RuntimeException','System.Management.Automation.MethodInvocationException','System.Management.Automation.ParameterBindingException','System.InvalidOperationException','System.ArgumentException')){$failureKind='OTHER'}
+if($_.InvocationInfo){$publicFile=[IO.Path]::GetFileName([string]$_.InvocationInfo.ScriptName);$failureLine=[int]$_.InvocationInfo.ScriptLineNumber
+$failureRole=switch -CaseSensitive ($publicFile){'owner-code-rotation-native-1218.ps1'{'NATIVE_ENTRY_SOURCE'};'rotate-jarvis-owner-code-windows.ps1'{'IMMUTABLE_TRANSACTION_SOURCE'};'fixture.ps1'{'OWNED_PUBLIC_FIXTURE'};default{'OTHER_PUBLIC_CODE'}}}
+$trace=[string]$_.ScriptStackTrace;if($trace.Length -gt 8192){$trace=$trace.Substring(0,8192)}
+$publicFrame=[regex]::Match($trace,'(owner-code-rotation-native-1218[.]ps1|rotate-jarvis-owner-code-windows[.]ps1): line ([0-9]{1,6})')
+if($publicFrame.Success){$stackRole=if($publicFrame.Groups[1].Value -ceq 'owner-code-rotation-native-1218.ps1'){'NATIVE_ENTRY_SOURCE'}else{'IMMUTABLE_TRANSACTION_SOURCE'};$stackLine=[int]$publicFrame.Groups[2].Value}
+};@{missingFeature=$false;rejected=$rejected;bound=$bound;configurationReads=$script:reads;privateFailureDiagnostics=@{exceptionKind=$(if($failureKind){$failureKind}else{'NONE'});role=$(if($failureRole){$failureRole}else{'NONE'});line=[int]$failureLine;stackRole=$(if($stackRole){$stackRole}else{'NONE'});stackLine=[int]$stackLine;configurationReads=$script:reads;taskReads=$script:calls;taskArgumentsMatchGuard=[bool]$script:taskArgumentsMatchGuard;runtimeGuard=$script:runtimeGuardDiagnostics}}|ConvertTo-Json -Depth 3 -Compress`;
+const file=join(d,'fixture.ps1');writeFileSync(file,'\ufeff'+code);try{const r=spawnSync(shell,['-NoProfile','-NonInteractive','-File',file],{encoding:'utf8',timeout:15000});assert.equal(r.error,undefined);assert.equal(r.status,0,r.stderr);assert.equal(r.stderr,'');assert.doesNotMatch(r.stdout,/PRIVATE_|configSha256|runtimeScopeSha256|ownerSid|[A-Z]:\\|private-scope-public/);return JSON.parse(r.stdout);}finally{rmSync(d,{recursive:true,force:true});}}
+function privateFailureMessage(value){
+ const d=value.privateFailureDiagnostics,keys=['exceptionKind','role','line','stackRole','stackLine','configurationReads','taskReads','taskArgumentsMatchGuard','runtimeGuard'];
+ const runtimeKeys=['observed','computationFailed','runtimeRevisionMatch','singleAction','nodePathMatch','taskArgumentsMatch','workingDirectoryMatch','principalMatch','contextNodeIsCanonical','configurationReleaseIsCanonical'];
+ const kinds=['NONE','OTHER','System.Management.Automation.RuntimeException','System.Management.Automation.MethodInvocationException','System.Management.Automation.ParameterBindingException','System.InvalidOperationException','System.ArgumentException'];
+ const roles=['NONE','OTHER_PUBLIC_CODE','NATIVE_ENTRY_SOURCE','IMMUTABLE_TRANSACTION_SOURCE','OWNED_PUBLIC_FIXTURE'];
+ if(!d||typeof d!=='object'||Array.isArray(d)||Object.keys(d).length!==keys.length||keys.some(k=>!Object.hasOwn(d,k))||!kinds.includes(d.exceptionKind)||!roles.includes(d.role)||!roles.includes(d.stackRole)||typeof d.taskArgumentsMatchGuard!=='boolean'||['line','stackLine','configurationReads','taskReads'].some(k=>!Number.isSafeInteger(d[k])||d[k]<0||d[k]>1000000)||!d.runtimeGuard||typeof d.runtimeGuard!=='object'||Array.isArray(d.runtimeGuard)||Object.keys(d.runtimeGuard).length!==runtimeKeys.length||runtimeKeys.some(k=>typeof d.runtimeGuard[k]!=='boolean'))return 'PRIVATE_FIXTURE_DIAGNOSTIC_INVALID';
+ return JSON.stringify(d);
+}
+// Publishing caller-chosen private metadata or capturing mixed state would break these real-file checks.
+test('host-local scope derives private metadata from fixed configuration and current task without emitting it',()=>{const r=capture('success');assert.equal(r.missingFeature,false,'host-local private scope capture is missing');assert.equal(r.rejected,false,privateFailureMessage(r));assert.equal(r.bound,true);assert.equal(r.configurationReads,1);});
+for(const scenario of ['config-drift','task-drift','compatibility-task','foreign-release-owner','sidecar-mismatch'])test('host-local capture refuses actual protected-context inconsistency: '+scenario,()=>{const r=capture(scenario);assert.equal(r.missingFeature,false,'host-local private scope capture is missing');assert.equal(r.rejected,true);assert.equal(r.bound,false);});

@@ -1,0 +1,78 @@
+# GORIQ #1219: independent verifier and real ZBook Goal acceptance
+
+Status: **software increment under Draft #1827; physical validation HOLD**. This is a procedure and acceptance contract, not evidence of having executed the procedure.
+
+## Trust and permission boundary
+
+The local Builder writes only to a fresh, explicitly pinned clean detached Worktree. The verifier must be a different owner-approved OS/VM principal; it must never use the 8796 or 8797 Builder endpoint as its verifier. Keep the private Ed25519 key in verifier-only storage, outside all Builder-accessible paths and the verifier's untrusted checkout. Owner provisioning of the private key, account/ACL or VM capability requires its separate Human Gate. **Setting `GORIQ_VERIFIER_OPERATOR_ISOLATED=1` alone does not establish separation.** Verify effective identity, file ACLs, container isolation and mounted paths independently first.
+
+The fixed-check runner `scripts/jarvis-independent-check-runner.mjs` refuses execution without an explicit trusted, locally installed `name@sha256:<digest>` container image. It uses `docker run --pull=never` with no network, a read-only exported source snapshot, all Linux capabilities dropped, no-new-privileges, a nonroot UID, memory/CPU/PID limits and a bounded temporary filesystem. The export contains tracked baseline files plus declared candidate files; ignored files and Git metadata are excluded. No arbitrary commands or online package installation are accepted from the Goal payload. Docker daemon security and kernel/container escape risk remain host concerns; they are **not** solved or certified by the JavaScript alone. The actual pinned image must contain matching Node/pnpm/toolchain, offline dependencies accessible to the temporary working copy, and needed build tools. Do not assume Docker or a suitable image exists on ZBook.
+
+## What the verifier genuinely does
+
+Given an explicit manifest and a fresh separate verifier checkout at the exact same base revision:
+1. Read back the Builder's one or more allowlisted new files, exact Git revision and SHA-256, rejecting dirty/changed paths.
+2. Stage only those files into a clean separate verifier Worktree. Do not modify the owner primary checkout or previous smoke Worktree.
+3. Execute **only** fixed lint / TypeScript / complete Node test suite (unit/integration) / P8 security / build checks in a preinstalled restricted container. Missing image, command or dependency yields no PASS. Retain bounded logs under `<receiptFile>.logs/<check>.json`; the signed output hash covers exact log bytes including command, arguments, complete candidate identity/file hashes, exit status, stdout/stderr, failure code and cleanup observations. These private logs are not automatically published.
+4. Re-read the original Builder and staged verifier files and verify the complete identical candidate before signing. Checks use distinct named containers; timeout/output failure triggers bounded cleanup. An unconfirmed CLI exit or container absence yields inconclusive, never PASS. Actual daemon behavior still requires physical validation.
+5. Produce a bounded, timestamped Ed25519 receipt with exact Goal ID, Job ID, Change Set ID, Builder ID, base/candidate revision, artifact digest and per-check outcome. Only a separately pinned public key allows the normal Goal Executor to consume it.
+6. Keep missing or failed evidence distinct. Unsigned reports, labels, out-of-date results and missing platform-specific checks never authorize release.
+
+A passing fixed suite is not an independent human code review, proof of absent vulnerabilities, native Windows/macOS/device verification, or permission to publish.
+
+## Physical ZBook acceptance sequence (not yet executed)
+
+**Phase 0, read-only inventory:** preserve original checkout and both existing untracked evidence files. Check current heads and `git worktree list --porcelain`; verify listener PIDs and health on 8787, 8796 and 8797 without altering them. Confirm installed Ollama model via local `/api/tags`. Confirm private verifier principal is unavailable to the Builder.
+
+**Phase 1, authorized isolation:** after Human Gate for any required separate identity/key, prepare two *new* detached isolated worktrees (Builder candidate and verifier checkout) from an exact pinned commit, with clean baseline and distinct paths. Never reset, clean, delete or reuse the old smoke worktree. Preinstall the pinned no-network container image and dependencies under approved zero-additional-cost conditions. Set local model routing to the existing installed Ollama only; keep Codex and paid fallback explicitly unavailable.
+
+**Phase 2, authenticated Goal:** spawn a new test Broker on an OS-assigned unused loopback port with its own temporary Compass DB, owner authentication and persisted Work Run. Do **not** restart or rebind the existing port 8787 Broker. Submit one deterministic LOW-risk Goal with explicit criteria and idempotency key, then repeat the same key and prove one Goal/Work Run. Do not substitute a GitHub Issue comment for actual intake.
+
+**Phase 3, real execution:** observe Goal Controller waking the resident executor; retain Goal ID, Job ID, Change Set ID, exact model tag, base revision and file hash. Prove a real `11434/api/generate` call with installed local Ollama and zero Codex/remote model calls. Capture actual RED failing test evidence followed by changed file and passing GREEN test. Do not infer this from HTTP 202 alone.
+
+**Phase 4, independent verification:** have the separate verifier principal read the candidate and execute all six required check classes in the restricted preinstalled container, publish signed receipts, and verify them using the previously pinned public key. Ensure data-binding matches source revision and artifact digest. A byte-readback-only or single Python unit proof cannot satisfy all six required checks.
+
+**Phase 5, durability and continuation:** interrupt only the newly created *test* Broker/executor once after a persisted checkpoint, restart that test instance with the same database, then prove the Goal and Work Run IDs are unchanged, the Builder is not re-invoked for an already verified Change Set, no duplicate PR is opened, the next incomplete job is selected automatically and persisted Goal status advances. Preserve exact receipts and per-step evidence. Test recovery after a genuinely failed check and behavior at a Human Gate; do not bypass it.
+
+**Phase 6, release decision:** require separate human independent PR review, protected head CI, correct base mergeability, release approval as applicable, and post-merge physical checks before `ACHIEVED`. Do not merge Draft #1824/#1826/#1827 or alter Vercel solely due to isolated success.
+
+## Required evidence fields
+
+- exact test Broker process identity and port, URL path (not bearer token)
+- Goal ID, Work Run ID, Job ID, Change Set ID, idempotency key digest
+- model/provider name and genuine local inference receipt, Codex-used boolean
+- original/new Worktree paths and exact HEAD; changed path list and SHA-256
+- RED error signature and exit status; GREEN exit status
+- verifier principal/container image digest, public-key fingerprint, per-check status/log hashes, signed receipt file fingerprint
+- process restart checkpoint and before/after Goal status, next autonomous action, duplicate suppression counts
+- exact CI run/head, independent review outcome, Human Gate decisions
+
+Treat missing, forged, stale, inconclusive or unavailable evidence as HOLD. The GitHub connector itself cannot access ZBook loopback endpoints; the attached local executor can perform explicitly scoped machine operations. On 2026-10-19 it observed the existing listeners and installed Ollama model, but did not establish a separate verifier principal or container. A GitHub CI PASS proves software tests, not the physical acceptance sequence.
+
+## Candidate compatibility and provisioning prerequisites
+
+Single-file identities keep their original digest format. Multiple-file candidates now hash a sorted path/SHA-256 manifest into the patch digest and candidate revision, so changing a supporting test invalidates old evidence. Recompute pending multi-file Draft fixture candidates/receipts; do not rewrite old evidence as current.
+
+Host Git observations use a bounded query allowlist, suppress callbacks and inherited Git routing, and reject configured executable filters and submodules. The Git binary/PATH and Git metadata must be owner-controlled and stable; this is not a sandbox for a concurrent hostile Git-directory writer. System/global Git configuration is ignored, including global `safe.directory` and line-ending settings. Provision the separate checkout with explicit safe ownership and deterministic repository-local line endings; never add a wildcard ownership bypass or mutate existing worktrees to make checks green.
+
+For the fixed Python fixture, `GORIQ_LOCAL_TDD_PYTHON` may name an already installed absolute interpreter outside the candidate. Python automatic installation is disabled. The verifier executes code-owned fixed fixture bytes in its own temporary directory and compares bounded candidate hashes before/after; arbitrary generated Python is never approved by this fixture. The temporary directory must be outside Builder access under the independently approved principal. This fixture remains distinct from general independent container verification.
+
+Persisted next-Job selection skips completed Jobs while retaining the first unfinished Job's blocker/Human Gate. The host-pinned bounded sequence and exact-file acceptance added later are described in `1219-sequenced-acceptance-2026-10-19.md`; portable request production/import are described in `1219-verifier-portable-requests-2026-10-19.md`. These software contracts do not bypass release gates or establish physical acceptance.
+
+## Explicit tracked-source candidate contract
+
+The independent attestation/runner also accepts an explicit host-owned `trackedEdits` manifest, `{version:2,files:[{path,beforeSha256,afterSha256}]}`. Without that field, the original new-file-only contract and identities remain unchanged. V2 admits only unstaged modifications to the declared tracked regular files at the exact pinned HEAD; both raw baseline blob bytes and replacement bytes must match their declared hashes. It refuses staged, deleted, renamed, symlink, executable-mode, hidden-index and undeclared changes. Declared new files may accompany edits through the existing `allowedUntracked` list, with at most32 total paths.
+
+The v2 identity uses a separate `tracked-edits-v2` domain and binds the sorted paths and complete before/after hashes to the base revision. The runner requires all six fixed checks for this mode, copies only those bound bytes into a pristine separate detached worktree, and rechecks candidate and verifier identities before signing. `stageIndependentCandidate` only prepares those bytes; it does not establish OS isolation, execute checks, sign, or authorize release. Existing v1 resident-request/transfer packets remain new-file-only; callers must not smuggle v2 metadata into a v1 packet or relabel a fixture receipt.
+
+This source support does not configure a principal, provision a key/image, or demonstrate native acceptance. The existing separate Human Gates, public-key pinning, offline container limits, receipt binding and expiry remain mandatory. Only trusted host scope may select the manifest; a model proposal cannot authorize its own paths or acceptance.
+
+An authorized trusted host may call `runIndependentVerifier(request, {signerTransport:{publicKeyPem,sign,timeoutMs?}})` to keep its private key in a separate signer process/container. This option is never read from the request, environment or Goal. The request must omit `privateKeyFile` in this mode and must require all six fixed checks. The host supplies the pinned Ed25519 public key; the callback receives only a copy of the bounded canonical payload and returns one bounded Base64 signature. The runner verifies that signature against the host-pinned key before writing a receipt and rechecks request expiry after the asynchronous operation. The transport deadline is at most15 seconds; the host remains responsible for independently confirmed signer-process cleanup, effective principal, mounts and key custody. A callback or acknowledgement flag is not proof of isolation. Default CLI/host-key behavior is unchanged.
+
+## Opt-in tracked repair resident profile
+
+`GORIQ_TRACKED_REPAIR_MANIFEST_FILE` and `GORIQ_TRACKED_REPAIR_MANIFEST_SHA256` select the exact host-owned `TrackedRepairManifest` exported by `src/orchestrator/tracked-repair-resident-runtime.ts`. This profile is mutually exclusive with the existing sequence/completion-handoff profiles. It admits one LOW, `verified-local-artifact` sequence Job at a pinned base, with distinct candidate/baseline worktrees, tracked before-file hashes, bounded numeric before-text slots, an external frozen Node probe and hash, expiry, loopback llama-server model alias/artifact hash/budget, and externally pinned Ed25519 public key/receipt paths. The manifest SHA becomes `executionContractDigest`; configure the real public key before deriving this pin and accepting the Goal. Model artifact/server provisioning remains trusted-host responsibility.
+
+The existing Broker authenticates intake and the existing resident controller persists Goal, Job and Change Set state. The profile executes the frozen probe only against the attested original baseline, retaining its expected RED failure. It applies the server's chat template, preserves the exact raw source context, places the WorkItem objective after that context, and permits only numeric slot replacements from bounded model JSON. Full rendered prompt/raw response and a prepared-byte checkpoint remain outside both worktrees. A persisted candidate resumes without model inference; an interrupted inference with unknown output refuses silent retry. Resource wait before network admission leaves no inference intent.
+
+Generated source is handled only as bytes by this Broker-side profile. It emits `<receiptFile>.request.json`, a separate version2 tracked-repair outbox with real Goal/Job/Change Set identifiers, exact candidate identities/bytes and all six required checks. It does not send this packet through a v1 fixture transfer contract. Missing receipts retain `VERIFYING`; existing receipt wakes/restarts reuse the same durable Job. GREEN and criterion acceptance require the normal pinned signature validator and all six bound checks, followed by unchanged candidate readback. The local-only release state cannot publish. Unit model responses and published RFC8032 signature vectors demonstrate this software contract; they do not prove real inference, independent principals, Actions recovery, native acceptance, release, or global product completion.

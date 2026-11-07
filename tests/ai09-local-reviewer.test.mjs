@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { execFileSync } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath, URL } from "node:url";
 import process from "node:process";
 import { reviewLocalPatch } from "../src/orchestrator/ai09-local-reviewer.mjs";
 
@@ -110,11 +114,22 @@ test("CLI without scope refuses before contacting local model", () => {
 });
 
 
-test("manual CLI accepts omitted model with local default, but refuses unknown switches", () => {
+test("manual CLI accepts omitted model with local default, but refuses unknown switches", t => {
+  // The verifier deliberately exports no .git metadata. Establish the actual
+  // Git precondition here instead of depending on the surrounding checkout.
+  const repo = mkdtempSync(join(tmpdir(), "goriq-review-cli-"));
+  t.after(() => {
+    assert.equal(dirname(resolve(repo)), resolve(tmpdir()));
+    rmSync(repo, { recursive: true, force: true });
+  });
+  execFileSync("git", ["init", "--quiet"], { cwd: repo });
+  execFileSync("git", ["-c", "user.name=CLI fixture", "-c", "user.email=fixture@example.invalid",
+    "commit", "--quiet", "--allow-empty", "-m", "fixture"], { cwd: repo });
+  const script = fileURLToPath(new URL("../scripts/goriq-ai09-review.mjs", import.meta.url));
   function invoke(args) {
     try {
-      execFileSync(process.execPath, ["scripts/goriq-ai09-review.mjs", ...args], {
-        encoding: "utf8", timeout: 10000, stdio: ["ignore", "pipe", "ignore"],
+      execFileSync(process.execPath, [script, ...args], {
+        cwd: repo, encoding: "utf8", timeout: 10000, stdio: ["ignore", "pipe", "ignore"],
       });
       assert.fail("not at exact test SHA but CLI unexpectedly passed");
     } catch (error) {

@@ -1,0 +1,242 @@
+{
+  "schema": "GORIQ_SOURCE_RECOVERY_CHECKPOINT_v1",
+  "recordedAt": "2026-11-02T13:17:40.738Z",
+  "repository": "haji84/AI-",
+  "issue": 1219,
+  "parentIssue": 681,
+  "pullRequest": 1827,
+  "ownerDecision": "https://github.com/haji84/AI-/issues/1817#issuecomment-6577200240",
+  "handoffSha256": "df0875707911ee9ffbcf0f223e352327d36f9f24e357b08aedc41402af9c6ab2",
+  "baseRevision": "283e6d565fcfd1357d302a844e532bcaf552fa79",
+  "scope": "SOURCE_ONLY_LOCAL_EXPERIMENT_NOT_AUTHENTICATED_BROKER_E2E",
+  "canonicalGoalUnchanged": true,
+  "goalId": "issue:1219",
+  "jobId": "issue-1219-terminal-conflict-20261102",
+  "goalRegistryView": "Non-authoritative local projection of existing Issue1219; no production Goal/Compass mutation.",
+  "authorization": {
+    "risk": "medium",
+    "sourceOnly": true,
+    "expiresAt": "2026-11-02T14:48:48.138Z",
+    "releaseAuthorized": false,
+    "privilegedOperationsAuthorized": false
+  },
+  "intake": {
+    "resolution": "EXISTING_GOAL",
+    "action": "CONTINUE_GOAL",
+    "decisionStore": "existing SqliteGoalDecisionStore in owned source-experiment directory",
+    "newGoalsCreated": 0
+  },
+  "changes": {
+    "source": "src/orchestrator/goal-controller-execution-bridge.ts",
+    "sourceSha256": "fcaa8e4c378d264a5487fd3a599d7f39f1172770a0f5f3d8de79a1be1d2a064a",
+    "sourceBuilder": "Codex",
+    "behavior": [
+      "Explicit stop conditions precede success.",
+      "Conflicting completion evidence stops with goal_evaluation_conflict.",
+      "Explicit blocked/retry_exhausted precedes resource wait."
+    ],
+    "originalFrozenTestSha256": "3fd67df03490ef9c14930824a094da104d6605d0dcf95ea699c1b19ee7a29dd9",
+    "finalFrozenTestSha256": "3fd67df03490ef9c14930824a094da104d6605d0dcf95ea699c1b19ee7a29dd9",
+    "additionalReviewTestSha256": "84704b5f8968aac68eaa42bc7fa736af462f72a83eb6f3cd3ca1a5a8b9daeede"
+  },
+  "red": {
+    "jobId": "issue-1219-terminal-conflict-20261102",
+    "goalId": "issue:1219",
+    "pid": 316956,
+    "phase": "red-independent",
+    "exitCode": 1,
+    "tests": 21,
+    "passed": 10,
+    "failed": 11,
+    "testSha256": "3fd67df03490ef9c14930824a094da104d6605d0dcf95ea699c1b19ee7a29dd9",
+    "sourceSha256": "03b9d1ef356af724eb7d8119ca0b4b3235bd7d78f68ce9d43cad338c05c9ac9b",
+    "logSha256": "d29032d6f785a7573b7f166293997aca4153f099c943168d9c2edca0f2f663f9",
+    "recordedAt": "2026-11-02T12:51:56.676Z"
+  },
+  "green": {
+    "jobId": "issue-1219-terminal-conflict-20261102",
+    "goalId": "issue:1219",
+    "pid": 322808,
+    "phase": "green-independent-review",
+    "exitCode": 0,
+    "tests": 23,
+    "passed": 23,
+    "failed": 0,
+    "testSha256": "3fd67df03490ef9c14930824a094da104d6605d0dcf95ea699c1b19ee7a29dd9",
+    "sourceSha256": "fcaa8e4c378d264a5487fd3a599d7f39f1172770a0f5f3d8de79a1be1d2a064a",
+    "logSha256": "76cdd7064c7fd1a522d02cce77a4d25e9c78473a6e6166a5123cde5cdb41b2c2",
+    "recordedAt": "2026-11-02T13:13:50.525Z"
+  },
+  "reviewRed": {
+    "goalId": "issue:1219",
+    "jobId": "issue-1219-terminal-conflict-20261102",
+    "failedTests": 2,
+    "logSha256": "4a01743c7de045796a6c1a400854b4e702a6be8aaf3d6367e04f98c492b8b6da",
+    "rejectedCandidate": "issue-1219-terminal-conflict-20261102:codex-candidate-1",
+    "newTestSha256": "84704b5f8968aac68eaa42bc7fa736af462f72a83eb6f3cd3ca1a5a8b9daeede"
+  },
+  "recovery": {
+    "stores": [
+      "DevelopmentJobStateController",
+      "JsonFileDevelopmentJobStore",
+      "JsonFileDevelopmentChangeSetStore",
+      "ResidentDevelopmentGoalHost"
+    ],
+    "retainedLocalModelFailures": 3,
+    "retainedRejectedCandidate": "issue-1219-terminal-conflict-20261102:codex-candidate-1",
+    "currentCandidate": "issue-1219-terminal-conflict-20261102:codex-candidate-2",
+    "currentPhase": "VERIFYING",
+    "initialCandidateProcess": 304720,
+    "firstRestartProcess": 310820,
+    "reviewRestartProcess": 322808,
+    "restartBuildCalls": 0,
+    "restartLocalModelCalls": 0,
+    "staleEvidenceRefused": true
+  },
+  "localModelAttempts": [
+    {
+      "index": 1,
+      "model": {
+        "name": "qwen2.5-coder:3b",
+        "digest": "f72c60cabf6237b07f6e632b2c48d533cef25eda2efbd34bed21c5e9c01e6225"
+      },
+      "status": "STARTED",
+      "goalId": "issue:1219",
+      "jobId": "issue-1219-terminal-conflict-20261102",
+      "requestSha256": "94b62bcd932f24cfee914ad595d66fc645165ccfd5fc20ea325070b0629cb262",
+      "at": "2026-11-02T12:52:00.001Z",
+      "pid": 316956,
+      "budget": 1,
+      "outcome": "NO_RESPONSE_CAPTURED",
+      "failure": {
+        "mode": "build",
+        "pid": 316956,
+        "code": "Error",
+        "message": "GORIQ_OLLAMA_REPAIR_UNREACHABLE",
+        "modelCalls": 1,
+        "at": "2026-11-02T12:53:59.810Z"
+      },
+      "deadlineMs": 120000
+    },
+    {
+      "index": 2,
+      "goalId": "issue:1219",
+      "jobId": "issue-1219-terminal-conflict-20261102",
+      "model": {
+        "name": "qwen2.5-coder:1.5b",
+        "digest": "d7372fd828518a4d38b1eb196c673c31a85f2ed302b3d1e406c4c2d1b64a0668"
+      },
+      "requestSha256": "fd39bcf7ea4f3faca080582296cd7c4004df5a49a245050e465d042f5544191b",
+      "responseSha256": "7ee1672229690b883462f601d398b5678e1c150d05cb41624b4ce6d2ea31d2a3",
+      "responseBytes": 4606,
+      "promptTokens": 1449,
+      "outputTokens": 1034,
+      "done": true,
+      "doneReason": "stop",
+      "options": {
+        "temperature": 0,
+        "num_ctx": 4096,
+        "num_predict": 2048,
+        "num_thread": 2
+      },
+      "keepAlive": "0s",
+      "at": "2026-11-02T12:58:52.009Z",
+      "pid": 317880,
+      "outcome": "UNCHANGED_OUTPUT_REJECTED",
+      "sourceChanged": false
+    },
+    {
+      "index": 3,
+      "model": {
+        "name": "qwen2.5-coder:1.5b",
+        "digest": "d7372fd828518a4d38b1eb196c673c31a85f2ed302b3d1e406c4c2d1b64a0668"
+      },
+      "requestSha256": "597d8349afe80d6511e46e2e0a0b1973305ed567e884f282f00bfc2ac7597ee0",
+      "responseSha256": "6302f09d289b600605c2e83d38a0c0f2f564cdb34ffd56d5c3ec5016cf7377ca",
+      "responseBytes": 2478,
+      "outputTokens": 512,
+      "doneReason": "length",
+      "outcome": "TRUNCATED_JSON_REJECTED",
+      "sourceChanged": false
+    }
+  ],
+  "localModelRepairPassed": false,
+  "additionalLocalModelCallsPlanned": 0,
+  "rawPromptResponseStorage": {
+    "retainedLocallyOutsideGitAndOneDrive": true,
+    "published": false,
+    "containsOnlyScopedPublicSource": true,
+    "windowsAclProof": false
+  },
+  "environment": {
+    "platform": "win32",
+    "node": "24.19.0",
+    "ollamaVersionObserved": "0.40.11",
+    "resourceAdmission": "existing native shared development resource guard; no fixture injection",
+    "modelDeadlineMs": 120000,
+    "numCtx": 4096,
+    "numThreads": 2,
+    "keepAlive": "0s",
+    "noNewModelOrService": true
+  },
+  "advisoryReview": {
+    "configuredModel": "gpt-6.1-terra",
+    "servingDigestObserved": false,
+    "formalGitHubApproval": false,
+    "scope": "Focused source/caller review; not complete audit of entire stack.",
+    "finding": "Mixed terminal and resource wait misclassified; reproduced two failures and fixed.",
+    "deferredStaticConcern": "projectResidentProgress trusts runtime completion before bridge validation; no inconsistent report producer established in the current resident host."
+  },
+  "verificationPending": [
+    "Remaining required lint/typecheck/integration/security/build in durable Job",
+    "Exact new HEAD CI",
+    "Complete applicable merge review and protected gates",
+    "Authenticated resident Broker/Goal execution",
+    "Successful local-model repair",
+    "Authorized main integration and runtime",
+    "24h/two-project and physical recovery acceptance"
+  ],
+  "projectStatus": "NOT_ACHIEVED",
+  "formalAI09": false,
+  "physicalE2E": false,
+  "mainMerged": false,
+  "productionActivated": false,
+  "canonical341StatusesChanged": false,
+  "rollback": "Revert coherent scoped source/test/fingerprint changes through existing PR, retain local attempts, Job/ChangeSet history and old evidence. No keys/services/permissions/runtime changed.",
+  "localVerification": {
+    "baseline": "34/34 PASS",
+    "affectedRegression": "32/32 PASS,0 skips",
+    "lint": {
+      "mode": "lint",
+      "started": "2026-11-02T13:18:16.740Z",
+      "finished": "2026-11-02T13:18:21.508Z",
+      "code": 0,
+      "signal": null
+    },
+    "typecheck": {
+      "mode": "typecheck",
+      "started": "2026-11-02T13:18:21.841Z",
+      "finished": "2026-11-02T13:18:37.597Z",
+      "code": 0,
+      "signal": null
+    },
+    "regressions": {
+      "mode": "regressions",
+      "started": "2026-11-02T13:18:37.884Z",
+      "finished": "2026-11-02T13:18:42.641Z",
+      "code": 0,
+      "signal": null
+    },
+    "secretAudit": "PASS",
+    "traceability": {
+      "surfaces": 611,
+      "requirements": 341,
+      "status": "PASS",
+      "functionalCompletion": false
+    },
+    "dependencySetup": {
+      "offline": "FAILED: cached Next tarball missing",
+      "frozenOnline": "PASS; no lockfile/dependency changes; scripts disabled"
+    }
+  }
+}
