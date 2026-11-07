@@ -69,35 +69,39 @@ jobs:
               probe = '[Console]::Out.WriteLine($PSVersionTable.PSVersion.ToString());[Console]::Out.WriteLine([Runtime.InteropServices.RuntimeInformation]::FrameworkDescription);[Console]::Out.WriteLine($ExecutionContext.SessionState.LanguageMode.ToString())'
               child = None
               streams = None
+              def probe_once():
+                  nonlocal child, streams
+                  try:
+                      deadline = time.monotonic() + 14
+                      child = subprocess.Popen([str(binary), '-NoLogo', '-NoProfile', '-NonInteractive', '-Command', probe], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                      streams = selectors.DefaultSelector()
+                      output = {'stdout': bytearray(), 'stderr': bytearray()}
+                      for name, pipe in (('stdout', child.stdout), ('stderr', child.stderr)):
+                          os.set_blocking(pipe.fileno(), False)
+                          streams.register(pipe, selectors.EVENT_READ, name)
+                      while streams.get_map():
+                          remaining = deadline - time.monotonic()
+                          if remaining <= 0:
+                              return {'state': 'INCONCLUSIVE_TIMEOUT'}
+                          for key, _ in streams.select(min(remaining, 0.1)):
+                              data = os.read(key.fileobj.fileno(), 4097)
+                              if not data:
+                                  streams.unregister(key.fileobj)
+                              elif len(output[key.data]) + len(data) > 4096:
+                                  return {'state': 'INCONCLUSIVE_OUTPUT_BOUND'}
+                              else:
+                                  output[key.data].extend(data)
+                      status = child.wait(timeout=max(0, deadline - time.monotonic()))
+                      lines = bytes(output['stdout']).decode('utf-8', errors='strict').splitlines()
+                      if status == 0 and not output['stderr'] and len(lines) == 3 and re.fullmatch(r'[0-9]{1,4}\.[0-9]{1,4}\.[0-9]{1,4}', lines[0]) and re.fullmatch(r'\.NET(?: Core)? [0-9.]{1,32}', lines[1]) and lines[2] in ('FullLanguage', 'ConstrainedLanguage', 'NoLanguage', 'RestrictedLanguage'):
+                          return {'state': 'CLOSED_VALID_FACTS', 'version': lines[0], 'framework': lines[1], 'languageMode': lines[2]}
+                      return {'state': 'INCONCLUSIVE_CLOSED_PROBE'}
+                  except subprocess.TimeoutExpired:
+                      return {'state': 'INCONCLUSIVE_TIMEOUT'}
+                  except (OSError, ValueError, UnicodeError):
+                      return {'state': 'INCONCLUSIVE_IO'}
               try:
-                  deadline = time.monotonic() + 14
-                  child = subprocess.Popen([str(binary), '-NoLogo', '-NoProfile', '-NonInteractive', '-Command', probe], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                  streams = selectors.DefaultSelector()
-                  output = {'stdout': bytearray(), 'stderr': bytearray()}
-                  for name, pipe in (('stdout', child.stdout), ('stderr', child.stderr)):
-                      os.set_blocking(pipe.fileno(), False)
-                      streams.register(pipe, selectors.EVENT_READ, name)
-                  while streams.get_map():
-                      remaining = deadline - time.monotonic()
-                      if remaining <= 0:
-                          return {'state': 'INCONCLUSIVE_TIMEOUT'}
-                      for key, _ in streams.select(min(remaining, 0.1)):
-                          data = os.read(key.fileobj.fileno(), 4097)
-                          if not data:
-                              streams.unregister(key.fileobj)
-                          elif len(output[key.data]) + len(data) > 4096:
-                              return {'state': 'INCONCLUSIVE_OUTPUT_BOUND'}
-                          else:
-                              output[key.data].extend(data)
-                  status = child.wait(timeout=max(0, deadline - time.monotonic()))
-                  lines = bytes(output['stdout']).decode('utf-8', errors='strict').splitlines()
-                  if status == 0 and not output['stderr'] and len(lines) == 3 and re.fullmatch(r'[0-9]{1,4}\.[0-9]{1,4}\.[0-9]{1,4}', lines[0]) and re.fullmatch(r'\.NET(?: Core)? [0-9.]{1,32}', lines[1]) and lines[2] in ('FullLanguage', 'ConstrainedLanguage', 'NoLanguage', 'RestrictedLanguage'):
-                      return {'state': 'CLOSED_VALID_FACTS', 'version': lines[0], 'framework': lines[1], 'languageMode': lines[2]}
-                  return {'state': 'INCONCLUSIVE_CLOSED_PROBE'}
-              except subprocess.TimeoutExpired:
-                  return {'state': 'INCONCLUSIVE_TIMEOUT'}
-              except (OSError, ValueError, UnicodeError):
-                  return {'state': 'INCONCLUSIVE_IO'}
+                  result = probe_once()
               finally:
                   cleanup_failed = False
                   if streams is not None:
@@ -126,9 +130,10 @@ jobs:
                                   pipe.close()
                               except OSError:
                                   cleanup_failed = True
-                  if cleanup_failed:
-                      # Any unconfirmed owned cleanup overrides positive facts.
-                      return {'state': 'INCONCLUSIVE_CLEANUP'}
+              if cleanup_failed:
+                  # Any unconfirmed owned cleanup overrides positive facts.
+                  return {'state': 'INCONCLUSIVE_CLEANUP'}
+              return result
 
 
           def collect_facts():
