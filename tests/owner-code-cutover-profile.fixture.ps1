@@ -1,6 +1,148 @@
-param([ValidateSet('selector','capsule','execution-boundary','clr-public-policy','clr-public-profiler','clr-product-data','clr-product-profiler')][string]$Scenario='selector')
+param([ValidateSet('selector','capsule','execution-boundary','clr-public-policy','clr-public-profiler','clr-product-data','clr-product-profiler','owned-job-policy','owned-job-windows','owned-job-manager')][string]$Scenario='selector')
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
+# PUBLIC owned-process mechanism only. These types are never product interop.
+if($Scenario -in @('owned-job-policy','owned-job-windows','owned-job-manager')){
+ $jobResult=@{scope='PUBLIC_OWNED_JOB_MECHANISM_ONLY';nativeAuthority=$false;status='INCONCLUSIVE';failureCode='PUBLIC_JOB_NOT_EXECUTED';actualWindowsExecuted=$false;actualProductInteropLinked=$false;privateCWTAuthorityLinked=$false;originalAdminClockLinked=$false;nativeGrant=$false;actualPrivateOrTaskCalls=0;ownedArtifactsRemoved=$true;ownedChildrenExited=$true}
+ function Job-Public-Digest([byte[]]$Bytes){$h=[Security.Cryptography.SHA256]::Create();try{return ([BitConverter]::ToString($h.ComputeHash($Bytes))).Replace('-','').ToLowerInvariant()}finally{$h.Dispose()}}
+ if($Scenario -eq 'owned-job-windows' -and [Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT){$jobResult.status='NOT_RUN';$jobResult.failureCode='PUBLIC_JOB_WINDOWS_REQUIRED';$jobResult.processAllocations=0;$jobResult.jobCreateCalls=0;$jobResult|ConvertTo-Json -Depth 5 -Compress;exit}
+ $jobSource=@'
+using System;using System.Diagnostics;using System.Runtime.CompilerServices;using System.Runtime.InteropServices;using Microsoft.Win32.SafeHandles;
+public sealed class PublicOwnedJobPrototypeHandle:SafeHandleZeroOrMinusOneIsInvalid {
+ public PublicOwnedJobPrototypeHandle():base(true){}public int PublicPrototypeMarker{get{return 1;}}
+ [DllImport("kernel32.dll",SetLastError=true)]static extern bool CloseHandle(IntPtr h);
+ protected override bool ReleaseHandle(){return CloseHandle(handle);}
+}
+public sealed class PublicOwnedJobPrototype {
+ [StructLayout(LayoutKind.Sequential)]struct Basic {public long ProcessTime,JobTime;public uint Flags;public UIntPtr MinWork,MaxWork;public uint Active;public UIntPtr Affinity;public uint Priority,Schedule;}
+ [StructLayout(LayoutKind.Sequential)]struct Io {public ulong ReadOps,WriteOps,OtherOps,ReadBytes,WriteBytes,OtherBytes;}
+ [StructLayout(LayoutKind.Sequential)]struct Extended {public Basic Basic;public Io Io;public UIntPtr ProcessMemory,JobMemory,PeakProcess,PeakJob;}
+ [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true)]static extern PublicOwnedJobPrototypeHandle CreateJobObjectW(IntPtr attributes,string name);
+ [DllImport("kernel32.dll",SetLastError=true)]static extern bool SetInformationJobObject(PublicOwnedJobPrototypeHandle job,int kind,ref Extended info,uint size);
+ [DllImport("kernel32.dll",SetLastError=true)]static extern bool GetHandleInformation(PublicOwnedJobPrototypeHandle job,out uint flags);
+ [DllImport("kernel32.dll",SetLastError=true)]static extern bool AssignProcessToJobObject(PublicOwnedJobPrototypeHandle job,IntPtr process);
+ [DllImport("kernel32.dll",SetLastError=true)]static extern bool IsProcessInJob(IntPtr process,PublicOwnedJobPrototypeHandle job,out bool member);
+ [DllImport("kernel32.dll",SetLastError=true)]static extern bool TerminateProcess(IntPtr process,uint exitCode);
+ readonly ConditionalWeakTable<Process,ProcessStartInfo> allocations=new ConditionalWeakTable<Process,ProcessStartInfo>();
+ Process node;ProcessStartInfo info;string image,args,cwd;PublicOwnedJobPrototypeHandle job;bool terminal,started,assigned;int calls,lastError;
+ public int PublicPrototypeMarker{get{return 1;}}public bool Started{get{return started;}}public bool Assigned{get{return assigned;}}public bool Terminal{get{return terminal;}}public int NativeCalls{get{return calls;}}public int LastNativeError{get{return lastError;}}public bool NonInheritable{get;private set;}
+ static void Windows(){if(Environment.OSVersion.Platform!=PlatformID.Win32NT)throw new InvalidOperationException("PUBLIC_JOB_WINDOWS_REQUIRED");}
+ void Active(){if(terminal)throw new InvalidOperationException("PUBLIC_JOB_TERMINAL");}
+ void NativeFailure(string code){lastError=Marshal.GetLastWin32Error();throw new InvalidOperationException(code);}
+ public Process AllocateNode(ProcessStartInfo value){Active();if(node!=null||value==null||value.UseShellExecute||!String.IsNullOrEmpty(value.UserName))throw new InvalidOperationException("PUBLIC_JOB_ALLOCATION_REFUSED");info=value;image=value.FileName;args=value.Arguments;cwd=value.WorkingDirectory;node=new Process();node.StartInfo=value;allocations.Add(node,value);return node;}
+ public void AssertOriginal(Process value){ProcessStartInfo original;if(value==null||!Object.ReferenceEquals(node,value)||!allocations.TryGetValue(value,out original)||!Object.ReferenceEquals(original,info)||!Object.ReferenceEquals(value.StartInfo,info)||info.FileName!=image||info.Arguments!=args||info.WorkingDirectory!=cwd)throw new InvalidOperationException("PUBLIC_JOB_ALLOCATION_REFUSED");}
+ public void CreateOwnedJob(){Active();Windows();if(job!=null)throw new InvalidOperationException("PUBLIC_JOB_DUPLICATE_CREATE");calls++;job=CreateJobObjectW(IntPtr.Zero,null);if(job==null||job.IsInvalid)NativeFailure("PUBLIC_JOB_CREATE_FAILED");Extended limit=new Extended();limit.Basic.Flags=0x2000;calls++;if(!SetInformationJobObject(job,9,ref limit,(uint)Marshal.SizeOf(typeof(Extended))))NativeFailure("PUBLIC_JOB_LIMIT_FAILED");uint flags;calls++;if(!GetHandleInformation(job,out flags))NativeFailure("PUBLIC_JOB_FLAGS_FAILED");NonInheritable=(flags&1)==0;if(!NonInheritable)throw new InvalidOperationException("PUBLIC_JOB_INHERITABLE_REFUSED");}
+ public void StartAllocated(Process value){Active();AssertOriginal(value);Windows();if(started)throw new InvalidOperationException("PUBLIC_JOB_DUPLICATE_START");if(!value.Start())throw new InvalidOperationException("PUBLIC_JOB_START_FAILED");started=true;IntPtr retained=value.Handle;if(retained==IntPtr.Zero)throw new InvalidOperationException("PUBLIC_JOB_PROCESS_HANDLE_REQUIRED");}
+ public void AssignOriginal(Process value){Active();AssertOriginal(value);if(!started||job==null||job.IsClosed||job.IsInvalid)throw new InvalidOperationException("PUBLIC_JOB_ASSIGNMENT_REQUIRED");Windows();if(assigned)throw new InvalidOperationException("PUBLIC_JOB_DUPLICATE_ASSIGN");calls++;if(!AssignProcessToJobObject(job,value.Handle))NativeFailure("PUBLIC_JOB_ASSIGN_FAILED");bool member;calls++;if(!IsProcessInJob(value.Handle,job,out member))NativeFailure("PUBLIC_JOB_MEMBERSHIP_FAILED");if(!member)throw new InvalidOperationException("PUBLIC_JOB_MEMBERSHIP_REQUIRED");assigned=true;}
+ public void AssertHelloAllowed(Process value){Active();AssertOriginal(value);if(!started||!assigned)throw new InvalidOperationException("PUBLIC_JOB_ASSIGNMENT_REQUIRED");}
+ public bool CloseOwnedJob(){if(terminal)return false;terminal=true;if(job!=null){job.Dispose();job=null;}return true;}
+ public void StopOnlyOwnedUnassigned(Process value){AssertOriginal(value);if(!started||assigned)throw new InvalidOperationException("PUBLIC_JOB_UNASSIGNED_CLEANUP_REQUIRED");Windows();if(!value.HasExited){calls++;if(!TerminateProcess(value.Handle,137))NativeFailure("PUBLIC_JOB_NODE_CONTAINMENT_FAILED");}}
+}
+'@
+ $jobResult.prototypeSourceSha256=Job-Public-Digest ([Text.Encoding]::UTF8.GetBytes($jobSource))
+ try{
+  if(('PublicOwnedJobPrototype' -as [type]) -or ('PublicOwnedJobPrototypeHandle' -as [type])){throw 'PUBLIC_JOB_PRELOADED_TYPE_REFUSED'}
+  $null=Add-Type -TypeDefinition $jobSource
+ }catch{$jobResult.failureCode='PUBLIC_JOB_PROTOTYPE_SOURCE_REFUSED';$jobResult|ConvertTo-Json -Depth 5 -Compress;exit}
+ # Closed numeric messages are lookup hints only. Binding requires actual held
+ # process observations; duplicate identity tuples are never new authority.
+ function Job-ParseIdentity([string]$Line,[string]$Role){
+  if($Role -cnotin @('NODE','HELPER')){throw 'PUBLIC_JOB_IDENTITY_MESSAGE_REFUSED'}
+  $match=[regex]::Match($Line,('^'+$Role+' ([1-9][0-9]{0,9}) ([1-9][0-9]{0,19})\z'))
+  $idValue=0;$birth=0L
+  if(-not $match.Success -or -not [int]::TryParse($match.Groups[1].Value,[ref]$idValue) -or -not [long]::TryParse($match.Groups[2].Value,[ref]$birth)){throw 'PUBLIC_JOB_IDENTITY_MESSAGE_REFUSED'}
+  return @{role=$Role;id=$idValue;birth=$birth}
+ }
+ function Job-BindIdentity($Claim,[int]$ObservedId,[long]$ObservedBirth,[string]$ObservedImage,[string]$ExpectedImage,[int]$ObservedParent,[int]$ExpectedParent,$Rows){
+  if($Claim.id -ne $ObservedId -or $Claim.birth -ne $ObservedBirth -or -not [string]::Equals($ObservedImage,$ExpectedImage,[StringComparison]::OrdinalIgnoreCase) -or $ObservedParent -ne $ExpectedParent -or $ExpectedParent -lt 1){throw 'PUBLIC_JOB_IDENTITY_REFUSED'}
+  $key=[string]$Claim.id+':'+[string]$Claim.birth
+  if(-not $Rows.Add($key)){throw 'PUBLIC_JOB_IDENTITY_REUSE_REFUSED'}
+ }
+ if($Scenario -eq 'owned-job-policy'){try{
+  $a=[PublicOwnedJobPrototype]::new();$b=[PublicOwnedJobPrototype]::new();$i=[Diagnostics.ProcessStartInfo]::new();$i.FileName='PUBLIC_NOT_EXECUTED_NODE';$i.UseShellExecute=$false;$p=$a.AllocateNode($i);$j=[Diagnostics.ProcessStartInfo]::new();$j.FileName='PUBLIC_NOT_EXECUTED_NODE';$j.UseShellExecute=$false;$foreign=$b.AllocateNode($j)
+  $foreignRefused=$false;$beforeHelloRefused=$false;$changedInfoRefused=$false
+  try{$a.AssertOriginal($foreign)}catch{$foreignRefused=$_.Exception.Message.Contains('PUBLIC_JOB_ALLOCATION_REFUSED')}
+  try{$a.AssertHelloAllowed($p)}catch{$beforeHelloRefused=$_.Exception.Message.Contains('PUBLIC_JOB_ASSIGNMENT_REQUIRED')}
+  $i.Arguments='CHANGED_PUBLIC_DATA';try{$a.AssertOriginal($p)}catch{$changedInfoRefused=$_.Exception.Message.Contains('PUBLIC_JOB_ALLOCATION_REFUSED')}
+  $closed=$a.CloseOwnedJob();$duplicate=$a.CloseOwnedJob();$null=$b.CloseOwnedJob();$p.Dispose();$foreign.Dispose()
+  $rows=[Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal);$claim=Job-ParseIdentity 'HELPER 123 456' 'HELPER';Job-BindIdentity $claim 123 456 'PUBLIC_FIXED_IMAGE' 'PUBLIC_FIXED_IMAGE' 11 11 $rows
+  $identity=@{};foreach($case in @('malformed','foreignRole','overflow','birthMismatch','imageMismatch','parentMismatch','reuse')){
+   $refused=$false;try{switch($case){
+    'malformed'{$null=Job-ParseIdentity 'HELPER 123 456 extra' 'HELPER'}
+    'foreignRole'{$null=Job-ParseIdentity 'NODE 123 456' 'HELPER'}
+    'overflow'{$null=Job-ParseIdentity 'HELPER 9999999999 456' 'HELPER'}
+    'birthMismatch'{Job-BindIdentity $claim 123 457 'PUBLIC_FIXED_IMAGE' 'PUBLIC_FIXED_IMAGE' 11 11 $rows}
+    'imageMismatch'{Job-BindIdentity $claim 123 456 'PUBLIC_FOREIGN_IMAGE' 'PUBLIC_FIXED_IMAGE' 11 11 $rows}
+    'parentMismatch'{Job-BindIdentity $claim 123 456 'PUBLIC_FIXED_IMAGE' 'PUBLIC_FIXED_IMAGE' 12 11 $rows}
+    'reuse'{Job-BindIdentity $claim 123 456 'PUBLIC_FIXED_IMAGE' 'PUBLIC_FIXED_IMAGE' 11 11 $rows}
+   }}catch{$refused=$_.Exception.Message -cmatch '^PUBLIC_JOB_IDENTITY_(?:MESSAGE_REFUSED|REFUSED|REUSE_REFUSED)$'};$identity[$case]=$refused
+  };$jobResult.identityRefusals=$identity
+  $wireCases=@(('HELPER 123 456'+[string][char]10),('HELPER 123 456'+[string][char]13),('HELPER 123 456'+[string][char]13+[string][char]10),('HELPER 123 456 extra'),(' HELPER 123 456'),('HELPER 123 456 '),('HELPER 0123 456'),('HELPER 123 0456'),('HELPER 0 456'),('HELPER 123 0'),('HELPER -1 456'),('HELPER 123 -1'),('HELPER +123 456'),('HELPER 123 +456'),('helper 123 456'),('NODE 123 456'),('HELPER 2147483648 456'),('HELPER 123 9223372036854775808'),('HELPER 123'+[string][char]9+'456'),('HELPER 123 456'+[string][char]0),('HELPER 123 456'+[string][char]10+'HELPER 123 456'),(''),('HELPER 123'),('HELPER 123 456 789'));$wireRefused=0
+  foreach($line in $wireCases){try{$null=Job-ParseIdentity $line 'HELPER'}catch{if($_.Exception.Message -ceq 'PUBLIC_JOB_IDENTITY_MESSAGE_REFUSED'){$wireRefused++}}}
+  $maxClaim=Job-ParseIdentity 'HELPER 2147483647 9223372036854775807' 'HELPER'
+  $jobResult.hostileIdentityMessageCount=$wireCases.Count;$jobResult.hostileIdentityMessagesRefused=($wireRefused -eq $wireCases.Count);$jobResult.identityUpperBoundsAccepted=($maxClaim.id -eq [int]::MaxValue -and $maxClaim.birth -eq [long]::MaxValue);$jobResult.tupleConsumesOnlyOnValidBinding=($rows.Count -eq 1)
+
+  $jobResult.status='POLICY_ONLY';$jobResult.failureCode='NONE';$jobResult.foreignAllocationRefused=$foreignRefused;$jobResult.helloBeforeAssignmentRefused=$beforeHelloRefused;$jobResult.changedStartInfoRefused=$changedInfoRefused;$jobResult.firstCloseReturned=$closed;$jobResult.duplicateCloseReturned=$duplicate;$jobResult.nativeCalls=($a.NativeCalls+$b.NativeCalls);$jobResult.processesStarted=0;$jobResult|ConvertTo-Json -Depth 5 -Compress;exit
+ }catch{$jobResult.failureCode='PUBLIC_JOB_POLICY_SETUP_REFUSED';$jobResult|ConvertTo-Json -Depth 5 -Compress;exit}}
+ $jobWatch=[Diagnostics.Stopwatch]::StartNew();$jobRoot=$null;$script:jobOwners=[Collections.Generic.List[object]]::new();$script:jobRecords=[Collections.Generic.List[object]]::new();$script:jobObserved=[Collections.Generic.List[object]]::new();$script:managerRecord=$null;$script:jobIdentityRows=[Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+ function Job-Remaining([int]$Cap){$left=14000-[int]$jobWatch.ElapsedMilliseconds;if($left -lt 1){throw 'PUBLIC_JOB_CASE_BUDGET_EXHAUSTED'};return [Math]::Min($Cap,$left)}
+ function Job-Info([string]$Image,[string]$Arguments,[string]$Directory){$i=[Diagnostics.ProcessStartInfo]::new();$i.FileName=$Image;$i.Arguments=$Arguments;$i.WorkingDirectory=$Directory;$i.UseShellExecute=$false;$i.CreateNoWindow=$true;$i.RedirectStandardInput=$true;$i.RedirectStandardOutput=$true;$i.RedirectStandardError=$true;$i.EnvironmentVariables.Clear();$i.EnvironmentVariables['SystemRoot']=$windows;$i.EnvironmentVariables['windir']=$windows;$i.EnvironmentVariables['PATH']=$windows+'\System32';$i.EnvironmentVariables['TEMP']=$Directory;$i.EnvironmentVariables['TMP']=$Directory;$i.EnvironmentVariables['PSModulePath']=$windows+'\System32\WindowsPowerShell\v1.0\Modules';return $i}
+ function Job-Line($Record){$t=$Record.process.StandardOutput.ReadLineAsync();if(-not $t.Wait((Job-Remaining 2500)) -or $t.IsFaulted){throw 'PUBLIC_JOB_MESSAGE_TIMEOUT'};$line=$t.Result;if($line -isnot [string] -or $line.Length -gt 128){throw 'PUBLIC_JOB_MESSAGE_REFUSED'};return $line}
+ function Job-Observe([string]$Line,[string]$Role,[string]$Image,$Parent){
+  $claim=Job-ParseIdentity $Line $Role;if($Parent.HasExited){throw 'PUBLIC_JOB_IDENTITY_MESSAGE_REFUSED'}
+  $p=[Diagnostics.Process]::GetProcessById($claim.id);[void]$script:jobObserved.Add($p);$null=$p.Handle
+  if($p.HasExited){throw 'PUBLIC_JOB_IDENTITY_REFUSED'}
+  # Narrow readonly query of this already factory-reported child only. No scan,
+  # PID assignment or PID termination; retained HANDLE is used after this point.
+  $row=CimCmdlets\Get-CimInstance Win32_Process -Filter ('ProcessId='+$claim.id) -OperationTimeoutSec 2 -ErrorAction Stop
+  if($null -eq $row -or $Parent.HasExited -or $p.HasExited){throw 'PUBLIC_JOB_PARENT_REFUSED'}
+  Job-BindIdentity $claim $p.Id ($p.StartTime.ToUniversalTime().ToFileTimeUtc()) $p.MainModule.FileName $Image ([int]$row.ParentProcessId) $Parent.Id $script:jobIdentityRows
+  return $p
+ }
+ function Job-StartNode([bool]$WithJob){$owner=[PublicOwnedJobPrototype]::new();[void]$script:jobOwners.Add($owner);if($WithJob){$owner.CreateOwnedJob()};$info=Job-Info $nodePath ('"'+$nodeScript+'"') $jobRoot;$p=$owner.AllocateNode($info);$record=@{owner=$owner;process=$p;stderr=$null;hello=$false};[void]$script:jobRecords.Add($record);$owner.StartAllocated($p);$record.stderr=$p.StandardError.ReadToEndAsync();$record.birth=$p.StartTime.ToUniversalTime().ToFileTimeUtc();if((Job-Line $record) -cne 'READY'){throw 'PUBLIC_JOB_READY_REQUIRED'};return $record}
+ function Job-Hello($Record,[bool]$Assigned){if($Assigned){$Record.owner.AssertHelloAllowed($Record.process)};if($Record.hello){throw 'PUBLIC_JOB_DUPLICATE_HELLO'};$Record.process.StandardInput.WriteLine('HELLO');$Record.process.StandardInput.Flush();$Record.hello=$true;return Job-Observe (Job-Line $Record) 'HELPER' $fixedPS $Record.process}
+ function Job-Wait($p,[int]$Cap){if(-not $p.WaitForExit((Job-Remaining $Cap))){throw 'PUBLIC_JOB_OWNED_EXIT_TIMEOUT'}}
+ try{
+  if([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT -or [IntPtr]::Size -ne 8 -or $PSVersionTable.PSVersion.Major -ne 5){throw 'PUBLIC_JOB_WINPS51_X64_REQUIRED'};$jobResult.actualWindowsExecuted=$true
+  $windows=[Environment]::GetFolderPath('Windows');$fixedPS=$windows+'\System32\WindowsPowerShell\v1.0\powershell.exe';$selfPath=$MyInvocation.MyCommand.Path
+  $data=if($Scenario -eq 'owned-job-manager'){[Console]::In.ReadLine()|ConvertFrom-Json}else{[Console]::In.ReadToEnd()|ConvertFrom-Json}
+  $fields=if($Scenario -eq 'owned-job-manager'){@('requests','nodePath','nodeSha256','fixtureSha256','root')}else{@('requests','nodePath','nodeSha256','fixtureSha256')};$keys=@($data.PSObject.Properties.Name);if($keys.Count -ne $fields.Count -or @($fields|Where-Object {$keys -cnotcontains $_}).Count){throw 'PUBLIC_JOB_INPUT_REFUSED'}
+  $nodePath=$data.nodePath;if($nodePath -isnot [string] -or $nodePath -cnotmatch '^[A-Za-z]:\\[^"\r\n\x00]+\\node\.exe$' -or $data.nodeSha256 -cnotmatch '^[a-f0-9]{64}$' -or $data.fixtureSha256 -cne (Job-Public-Digest ([IO.File]::ReadAllBytes($selfPath))) -or (Job-Public-Digest ([IO.File]::ReadAllBytes($nodePath))) -cne $data.nodeSha256 -or -not [IO.File]::Exists($fixedPS)){throw 'PUBLIC_JOB_FIXED_SOURCE_REQUIRED'}
+  if($Scenario -eq 'owned-job-manager'){$jobRoot=[string]$data.root}else{$jobRoot=[IO.Path]::Combine([IO.Path]::GetTempPath(),('public-owned-job-'+[Guid]::NewGuid().ToString('N')));$null=[IO.Directory]::CreateDirectory($jobRoot)}
+  if($jobRoot -cnotmatch '^[A-Za-z]:\\[^"\r\n\x00]+\\public-owned-job-[a-f0-9]{32}$'){throw 'PUBLIC_JOB_ROOT_REFUSED'};$nodeScript=[IO.Path]::Combine($jobRoot,'public-node.cjs');$helperScript=[IO.Path]::Combine($jobRoot,'public-helper.ps1')
+  $helperSource='$ErrorActionPreference="Stop"; $p=[Diagnostics.Process]::GetCurrentProcess(); [Console]::Out.WriteLine(("HELPER "+$p.Id+" "+$p.StartTime.ToUniversalTime().ToFileTimeUtc())); [Console]::Out.Flush(); [Threading.Thread]::Sleep(5000); exit 73'
+  $psLiteral=ConvertTo-Json -InputObject $fixedPS -Compress;$helperLiteral=ConvertTo-Json -InputObject $helperScript -Compress
+  $nodeSource=@'
+'use strict';const {spawn}=require('node:child_process');const fixedPS=__PS__,script=__HELPER__;let started=false,pending='';const timer=setTimeout(()=>process.exit(74),8000);process.stdin.setEncoding('utf8');process.stdin.on('data',chunk=>{pending+=chunk;if(pending.length>16)process.exit(76);const at=pending.indexOf('\n');if(at<0)return;const line=pending.slice(0,at).replace(/\r$/,'');pending=pending.slice(at+1);if(started||line!=='HELLO'||pending)process.exit(76);started=true;const child=spawn(fixedPS,['-NoLogo','-NoProfile','-NonInteractive','-File',script],{windowsHide:true,detached:false,stdio:['ignore','pipe','pipe'],env:{...process.env}});let text='',reported=false;child.on('error',()=>process.exit(76));child.stderr.on('data',()=>process.exit(76));child.stdout.setEncoding('utf8');child.stdout.on('data',part=>{text+=part;if(text.length>128)process.exit(76);const end=text.indexOf('\n');if(end<0)return;const value=text.slice(0,end).replace(/\r$/,'');if(reported||text.slice(end+1)||!/^HELPER [1-9][0-9]{0,9} [1-9][0-9]{0,19}$/.test(value)||Number(value.split(' ')[1])!==child.pid)process.exit(76);reported=true;process.stdout.write(value+'\n');});});process.stdout.write('READY\n');
+'@
+  $nodeSource=$nodeSource.Replace('__PS__',$psLiteral).Replace('__HELPER__',$helperLiteral)
+  if($Scenario -eq 'owned-job-manager'){if([IO.File]::ReadAllText($nodeScript) -cne $nodeSource -or [IO.File]::ReadAllText($helperScript) -cne $helperSource){throw 'PUBLIC_JOB_CHILD_SOURCE_REFUSED'}}else{[IO.File]::WriteAllText($nodeScript,$nodeSource,[Text.UTF8Encoding]::new($false));[IO.File]::WriteAllText($helperScript,$helperSource,[Text.UTF8Encoding]::new($false))}
+  if($Scenario -eq 'owned-job-manager'){
+   $record=Job-StartNode $true;$record.owner.AssignOriginal($record.process);[Console]::Out.WriteLine(('NODE '+$record.process.Id+' '+$record.birth));[Console]::Out.Flush();$heldHelper=Job-Hello $record $true;[Console]::Out.WriteLine(('HELPER '+$heldHelper.Id+' '+$heldHelper.StartTime.ToUniversalTime().ToFileTimeUtc()));[Console]::Out.Flush();[Threading.Thread]::Sleep(8000);exit 75
+  }
+  # Counterfactual: only original owned Node is terminated; verified helper must
+  # still be alive, then self-reap with73. Never terminate a reported helper PID.
+  $control=Job-StartNode $false;$controlHelper=Job-Hello $control $false;$outsideHelperHandle=$controlHelper.Handle;$outsideHelperBirth=$controlHelper.StartTime.ToUniversalTime().ToFileTimeUtc();if($controlHelper.HasExited){throw 'PUBLIC_JOB_COUNTERFACTUAL_POSITIVE_MISSING'};$control.owner.StopOnlyOwnedUnassigned($control.process);Job-Wait $control.process 1000;if($controlHelper.HasExited){throw 'PUBLIC_JOB_PARENT_ONLY_CONTROL_MISSING'};$jobResult.parentOnly=@{nodeExited=$true;helperAliveAfterParentKill=$true;helperSelfReaped=$false}
+  $clean=Job-StartNode $true;$clean.owner.AssignOriginal($clean.process);$cleanHelper=Job-Hello $clean $true;if($clean.process.HasExited -or $cleanHelper.HasExited){throw 'PUBLIC_JOB_CLOSE_POSITIVE_MISSING'};$firstClose=$clean.owner.CloseOwnedJob();$duplicateClose=$clean.owner.CloseOwnedJob();Job-Wait $clean.process 1000;Job-Wait $cleanHelper 1000;if($cleanHelper.ExitCode -eq 73 -or $clean.process.ExitCode -eq 74){throw 'PUBLIC_JOB_TIMER_CANNOT_PROVE_CONTAINMENT'};if($controlHelper.HasExited -or $controlHelper.Handle -ne $outsideHelperHandle -or $controlHelper.StartTime.ToUniversalTime().ToFileTimeUtc() -ne $outsideHelperBirth){throw 'PUBLIC_JOB_OUTSIDE_HELPER_POSITIVE_MISSING'};$jobResult.jobClose=@{assignedBeforeHello=$true;nonInheritable=$clean.owner.NonInheritable;nodeExited=$true;helperExited=$true;helperSelfTimerWasNotExitCause=$true;outsideJobHelperRemainedAlive=$true;firstClose=$firstClose;duplicateClose=$duplicateClose}
+  Job-Wait $controlHelper 5500;if($controlHelper.ExitCode -ne 73){throw 'PUBLIC_JOB_HELPER_SELF_REAP_REQUIRED'};$jobResult.parentOnly.helperSelfReaped=$true
+  # A closed-job assignment is refused before HELLO. Actual nested-job API
+  # failure is not forced; if encountered above it fails closed without HELLO.
+  $early=Job-StartNode $true;$null=$early.owner.CloseOwnedJob();$refused=$false;try{$early.owner.AssignOriginal($early.process)}catch{$refused=$true};if(-not $refused -or $early.hello){throw 'PUBLIC_JOB_PREHELLO_REFUSAL_REQUIRED'};$early.owner.StopOnlyOwnedUnassigned($early.process);Job-Wait $early.process 1000;$remaining=$early.process.StandardOutput.ReadToEndAsync();if(-not $remaining.Wait((Job-Remaining 500)) -or $remaining.Result.Length -ne 0){throw 'PUBLIC_JOB_HELPER_BEFORE_HELLO'};$jobResult.preHelloAssignment=@{closedJobRefused=$true;helloSent=$false;helperMessages=0;nodeContained=$true;forcedKernelAssignmentFailure=$false}
+  $managerInfo=Job-Info $fixedPS ('-NoLogo -NoProfile -NonInteractive -File "'+$selfPath+'" -Scenario owned-job-manager') $jobRoot;$manager=[Diagnostics.Process]::new();$manager.StartInfo=$managerInfo;$script:managerRecord=@{process=$manager;stderr=$null};if(-not $manager.Start()){throw 'PUBLIC_JOB_MANAGER_START_FAILED'};$null=$manager.Handle;$script:managerRecord.stderr=$manager.StandardError.ReadToEndAsync();$managerInput=[ordered]@{requests=@();nodePath=$nodePath;nodeSha256=$data.nodeSha256;fixtureSha256=$data.fixtureSha256;root=$jobRoot}|ConvertTo-Json -Compress;$manager.StandardInput.WriteLine($managerInput);$manager.StandardInput.Flush();$deathNode=Job-Observe (Job-Line $script:managerRecord) 'NODE' $nodePath $manager;$deathHelper=Job-Observe (Job-Line $script:managerRecord) 'HELPER' $fixedPS $deathNode
+  if($manager.HasExited -or $deathNode.HasExited -or $deathHelper.HasExited){throw 'PUBLIC_JOB_MANAGER_DEATH_POSITIVE_MISSING'};$manager.Kill();Job-Wait $manager 1000;Job-Wait $deathNode 1000;Job-Wait $deathHelper 1000;if($manager.ExitCode -eq 75 -or $deathNode.ExitCode -eq 74 -or $deathHelper.ExitCode -eq 73){throw 'PUBLIC_JOB_TIMER_CANNOT_PROVE_CONTAINMENT'};$jobResult.managerDeath=@{originalManagerKilled=$true;nodeExited=$true;helperExited=$true;selfTimersWereNotExitCause=$true}
+  $jobResult.status='PASS';$jobResult.failureCode='NONE';$jobResult.selfTimersAreAdminClockProof=$false;$jobResult.noPidAssignmentOrTermination=$true;$jobResult.actualOriginalClockProof=$false;$jobResult.actualImplicitSQLiteCleanupProof=$false
+ }catch{$code=[string]$_.Exception.Message;if($code -cnotmatch '^PUBLIC_JOB_[A-Z0-9_]+$'){$code='PUBLIC_JOB_PROBE_FAILED'};$jobResult.status='INCONCLUSIVE';$jobResult.failureCode=$code}
+ finally{
+  foreach($owner in $script:jobOwners){try{$null=$owner.CloseOwnedJob()}catch{$jobResult.ownedChildrenExited=$false}}
+  foreach($record in $script:jobRecords){try{$null=$record.owner.CloseOwnedJob();if($record.owner.Started -and -not $record.process.HasExited){if(-not $record.owner.Assigned){$record.owner.StopOnlyOwnedUnassigned($record.process)};if(-not $record.process.WaitForExit(1000)){$jobResult.ownedChildrenExited=$false}}}catch{$jobResult.ownedChildrenExited=$false}}
+  if($script:managerRecord){try{if(-not $script:managerRecord.process.HasExited){$script:managerRecord.process.Kill();if(-not $script:managerRecord.process.WaitForExit(1000)){$jobResult.ownedChildrenExited=$false}}}catch{$jobResult.ownedChildrenExited=$false}}
+  foreach($p in $script:jobObserved){try{if(-not $p.HasExited){if(-not $p.WaitForExit(1000)){$jobResult.ownedChildrenExited=$false}}}catch{$jobResult.ownedChildrenExited=$false}finally{$p.Dispose()}}
+  foreach($record in $script:jobRecords){$record.process.Dispose()};if($script:managerRecord){$script:managerRecord.process.Dispose()}
+  if($Scenario -ne 'owned-job-manager' -and $jobRoot -and [IO.Directory]::Exists($jobRoot)){try{[IO.Directory]::Delete($jobRoot,$true)}catch{$jobResult.ownedArtifactsRemoved=$false}}
+  if(-not $jobResult.ownedChildrenExited -or -not $jobResult.ownedArtifactsRemoved){$jobResult.status='FAIL';$jobResult.failureCode='PUBLIC_JOB_OWNED_CLEANUP_FAILED'}
+ }
+ if($Scenario -ne 'owned-job-manager'){$jobResult|ConvertTo-Json -Depth 6 -Compress};exit
+}
 # Test-only literal policy. This is deliberately NOT the product compiler.
 # Future acceptance requires running/byte-binding its actual private output at
 # this same A/B child boundary, followed by independent source review.

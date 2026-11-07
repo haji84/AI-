@@ -6,7 +6,14 @@ import {spawnSync} from 'node:child_process';
 import {join,resolve} from 'node:path';
 const shell=process.platform==='win32'?join(process.env.SystemRoot,'System32/WindowsPowerShell/v1.0/powershell.exe'):'pwsh';
 const helper=resolve('scripts/owner-code-production-cutover-1218.ps1'),fixture=resolve('tests/owner-code-production-cutover.fixture.ps1');
-function run(file,args=[]){const env={...process.env};delete env.PSModulePath;const r=spawnSync(shell,['-NoLogo','-NoProfile','-NonInteractive','-File',file,...args],{env,encoding:'utf8',timeout:30000,maxBuffer:131072,windowsHide:true});assert.equal(r.error,undefined);assert.equal(r.status,0,r.stdout+r.stderr);assert.equal(r.stderr,'');return JSON.parse(r.stdout.trim());}
+function run(file,args=[]){
+ const known=new Set(['matrix','native-variant','preloaded-type','clock-boundary','journal-boundary','xml-boundary','clock-kernel-expiry','readonly-com-transport','guarded-c3-protocol','guarded-c3-boundaries','guarded-c3-http','validator-default-environment','guarded-c3-restoration-reporting','guarded-c3-fractional-clock']);const scenario=file===helper&&args.length===0?'PLAN_ONLY':file===fixture&&args.length===2&&args[0]==='-Scenario'&&known.has(args[1])?args[1]:'UNKNOWN';const start=Date.now();let r;
+ const category=error=>error?.code==='ETIMEDOUT'?'TIMEOUT':error?.code==='ENOENT'?'SPAWN_NOT_FOUND':['EACCES','EPERM'].includes(error?.code)?'SPAWN_DENIED':error?.name==='AssertionError'?'ASSERTION':error?.name==='SyntaxError'?'JSON':error?'OTHER':'NONE';
+ const emit=(phase,error)=>{const elapsed=Date.now()-start;console.log('GORIQ_PUBLIC_C3_CHILD_STATE '+JSON.stringify({scenario,phase,elapsedMs:Number.isSafeInteger(elapsed)&&elapsed>=0?elapsed:0,spawnStatus:r?r.status===0?'ZERO':Number.isInteger(r.status)?'NONZERO':'NO_STATUS':phase==='ENTER'?'NOT_RETURNED':'THREW',errorCategory:category(r?.error??error),signal:r?.signal==='SIGKILL'?'SIGKILL':r?.signal==='SIGTERM'?'SIGTERM':r?.signal?'OTHER':'NONE'}));};
+ emit('ENTER');const env={...process.env};delete env.PSModulePath;
+ try{r=spawnSync(shell,['-NoLogo','-NoProfile','-NonInteractive','-File',file,...args],{env,encoding:'utf8',timeout:30000,maxBuffer:131072,windowsHide:true});}catch(error){emit('REFUSED',error);throw error;}
+ emit('RETURN');try{assert.equal(r.error,undefined);assert.equal(r.status,0,r.stdout+r.stderr);assert.equal(r.stderr,'');return JSON.parse(r.stdout.trim());}catch(error){emit('REFUSED',error);throw error;}
+}
 test('production fixed-task adapter defaults inert before actual native admission exists',()=>{
  assert.ok(existsSync(helper),'new production helper feature is absent');assert.deepEqual(run(helper),{schemaVersion:1,operation:'production-fixed-task-action-migration',mode:'PLAN_ONLY',complete:false,nativeCalls:0});
 });
