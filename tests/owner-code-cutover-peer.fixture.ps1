@@ -1,4 +1,4 @@
-param([string]$Root,[switch]$OwnedTransport,[switch]$ClosedChannel,[switch]$PlatformEnvironment,[switch]$AwaitResultTransport,[switch]$PipeDiagnostic,[switch]$WriteDiagnostic,[ValidateSet(0,1,2)][int]$TransportGroup=0,[ValidateSet('positive','wrong-parent')][string]$HostedAncestry,[string]$NodeExecutable)
+param([string]$Root,[switch]$OwnedTransport,[switch]$ClosedChannel,[switch]$PlatformEnvironment,[switch]$AwaitResultTransport,[switch]$PipeDiagnostic,[switch]$WriteDiagnostic,[switch]$ManagedFlushTransport,[ValidateSet(0,1,2)][int]$TransportGroup=0,[ValidateSet('positive','wrong-parent')][string]$HostedAncestry,[string]$NodeExecutable)
 $ErrorActionPreference='Stop';Set-StrictMode -Version Latest
 . (Join-Path $Root 'scripts/owner-code-rotation-native-1218.ps1')
 function Require([bool]$Value,[string]$Code){if(-not $Value){throw ('PEER_FIXTURE_'+$Code)}}
@@ -13,6 +13,64 @@ function Write-PublicPeerProgress([string]$Phase){
  $bytes=[Text.Encoding]::UTF8.GetBytes($Phase+':'+$elapsed.ToString([Globalization.CultureInfo]::InvariantCulture)+[char]10);$stream=$null
  try{$stream=[IO.File]::Open($script:peerProgressPath,[IO.FileMode]::Open,[IO.FileAccess]::Write,[IO.FileShare]::Read);if($stream.Length+$bytes.Length -gt 8192){throw 'PUBLIC_PEER_PROGRESS_REJECTED'};$null=$stream.Seek(0,[IO.SeekOrigin]::End);$stream.Write($bytes,0,$bytes.Length);$stream.Flush();$script:peerProgressRows++}catch{throw 'PUBLIC_PEER_PROGRESS_REJECTED'}finally{if($stream){$stream.Dispose()}}
 }
+# Public managed-leaf controls use the actual private production function and
+# actual Action/Task.Run assignment ASTs. Test-only fake clocks do not grant an
+# original-clock/native capability. All files/processes belong to this fixture.
+if($ManagedFlushTransport){
+ $nativePath=Join-Path $Root 'scripts/owner-code-rotation-native-1218.ps1';$parseErrors=$null;$tokens=$null;$ast=[Management.Automation.Language.Parser]::ParseFile($nativePath,[ref]$tokens,[ref]$parseErrors)
+ Require ($parseErrors.Count -eq 0) 'MANAGED_PARSE'
+ $definitions=@($ast.FindAll({param($x)$x -is [Management.Automation.Language.FunctionDefinitionAst] -and $x.Name -ceq 'Invoke-OwnerCutoverPeerInputFlush'},$true));Require ($definitions.Count -eq 1) 'ONE_ACTUAL_MANAGED_FLUSH_FUNCTION'
+ $definition=$definitions[0]
+ $actionStatements=@($definition.FindAll({param($x)$x -is [Management.Automation.Language.AssignmentStatementAst] -and $x.Left.Extent.Text -ceq '$flushAction'},$true))
+ $taskStatements=@($definition.FindAll({param($x)$x -is [Management.Automation.Language.AssignmentStatementAst] -and $x.Left.Extent.Text -ceq '$entry.task'},$true))
+ Require ($actionStatements.Count -eq 1 -and $taskStatements.Count -eq 1) 'ONE_ACTUAL_ACTION_TASK_VECTOR'
+ $makeAction=[scriptblock]::Create($actionStatements[0].Extent.Text);$makeTask=[scriptblock]::Create($taskStatements[0].Extent.Text)
+ Add-Type -TypeDefinition @'
+using System;using System.IO;using System.Threading;
+public sealed class GoriqPublicFlushStream:Stream {
+ public readonly ManualResetEventSlim Entered=new ManualResetEventSlim(false),Release=new ManualResetEventSlim(false);
+ public bool Fail;public int Calls,ThreadId;
+ public override void Flush(){Interlocked.Increment(ref Calls);ThreadId=Thread.CurrentThread.ManagedThreadId;Entered.Set();if(!Release.Wait(2000))throw new IOException("PUBLIC_FLUSH_LIMIT");if(Fail)throw new IOException("PUBLIC_FLUSH_REJECTED");}
+ public override bool CanRead{get{return false;}}public override bool CanWrite{get{return true;}}public override bool CanSeek{get{return false;}}
+ public override long Length{get{throw new NotSupportedException();}}public override long Position{get{throw new NotSupportedException();}set{throw new NotSupportedException();}}
+ public override int Read(byte[] b,int o,int c){throw new NotSupportedException();}public override void Write(byte[] b,int o,int c){throw new NotSupportedException();}public override long Seek(long o,SeekOrigin s){throw new NotSupportedException();}public override void SetLength(long n){throw new NotSupportedException();}
+}
+'@|Out-Null
+ $path=Join-Path ([IO.Path]::GetTempPath()) ('goriq-public-flush-'+[IO.Path]::GetRandomFileName());$stream=$null;$writer=$null;$reader=$null;$process=$null;$pending=$null
+ try{
+  $payload=[Text.Encoding]::UTF8.GetBytes('PUBLIC_UTF8_'+[char]0x65E5+[char]0x672C+[char]10)
+  $stream=[IO.FileStream]::new($path,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::Read,4096,[IO.FileOptions]::None)
+  $write=$stream.WriteAsync($payload,0,$payload.Length);Require ($write.Wait(1000)) 'FILE_WRITE_COMPLETE';$null=$write.GetAwaiter().GetResult()
+  $reader=[IO.File]::Open($path,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::ReadWrite);Require ($reader.Length -eq 0) 'REAL_FILESTREAM_BUFFERED_RED_CONTROL'
+  $entry=@{task=$null};$null=. $makeAction;$null=. $makeTask;Require ($entry.task.Wait(1000)) 'REAL_FILESTREAM_MANAGED_FLUSH';$leaked=@($entry.task.GetAwaiter().GetResult());Require ($leaked.Count -eq 0) 'MANAGED_TASK_VOID_JSON_ONLY'
+  Require ($reader.Length -eq $payload.Length) 'EXACT_BYTES_VISIBLE_AFTER_FLUSH';$bytes=New-Object byte[] $payload.Length;Require ($reader.Read($bytes,0,$bytes.Length) -eq $payload.Length -and [Convert]::ToBase64String($bytes) -ceq [Convert]::ToBase64String($payload)) 'UTF8_BYTES_UNCHANGED'
+  $reader.Dispose();$reader=$null;$stream.Dispose();$stream=$null
+  $stream=[GoriqPublicFlushStream]::new();$entry=@{task=$null};$parentThread=[Threading.Thread]::CurrentThread.ManagedThreadId;$null=. $makeAction;$null=. $makeTask;$pending=$entry.task
+  Require ($stream.Entered.Wait(1000) -and -not $pending.IsCompleted -and $stream.ThreadId -ne $parentThread -and $stream.Calls -eq 1) 'BLOCKED_FLUSH_RUNS_OFF_PARENT'
+  $stream.Release.Set();Require ($pending.Wait(1000)) 'RELEASED_FLUSH_FINITE';$null=$pending.GetAwaiter().GetResult();$stream.Dispose();$stream=$null;$pending=$null
+  $stream=[GoriqPublicFlushStream]::new();$stream.Fail=$true;$stream.Release.Set();$entry=@{task=$null};$null=. $makeAction;$null=. $makeTask;$refused=$false;try{$entry.task.GetAwaiter().GetResult()}catch{$refused=$true};Require ($refused -and $entry.task.IsFaulted -and $stream.Calls -eq 1) 'FLUSH_ERROR_NOT_SUCCESS'
+  $stream.Dispose();$stream=$null;$bad=$false;try{$null=[Delegate]::CreateDelegate([Action],[object]::new(),'Flush')}catch{$bad=$true};Require $bad 'MISSING_METHOD_NO_FALLBACK'
+  # Actual function guards on a real owned child. Only the private module's
+  # original-clock observation is replaced; no production TestMode/provider.
+  Require ([bool]$NodeExecutable -and -not $NodeExecutable.Contains('"')) 'MANAGED_NODE_PATH'
+  $info=[Diagnostics.ProcessStartInfo]::new();$info.FileName=$NodeExecutable;$info.Arguments='-e "process.stdin.resume();process.stdin.on(''end'',()=>process.exit(0));"';$info.UseShellExecute=$false;$info.CreateNoWindow=$true;$info.RedirectStandardInput=$true;$info.RedirectStandardOutput=$true;$info.RedirectStandardError=$true
+  $process=[Diagnostics.Process]::new();$process.StartInfo=$info;Require ($process.Start()) 'MANAGED_OWNED_CHILD_STARTED'
+  $module=New-Module -ScriptBlock {param($definition,$owned,$info)
+   . ([scriptblock]::Create($definition));$script:originalState=[object]::new();$script:ownedPeerLifetime=@{process=$owned;inputFlush=$null;allocations=[Runtime.CompilerServices.ConditionalWeakTable[object,object]]::new()};$script:ownedPeerLifetime.allocations.Add($owned,@{state=$script:originalState;info=$info});$script:checks=0;$script:expireAt=0;$script:waits=0
+   function Assert-OwnerCutoverPrivateClock {$script:checks++;if($script:expireAt -gt 0 -and $script:checks -ge $script:expireAt){throw 'PUBLIC_ORIGINAL_CLOCK_EXPIRED'}}
+   function Wait-OwnerCutoverPeerTask($Task,$Process,$LocalWatch,$StderrTask){$script:waits++;Require ($Task.Wait(1000)) 'OWNED_TASK_FINITE'}
+  } -ArgumentList $definition.Extent.Text,$process,$info
+  $watch=[Diagnostics.Stopwatch]::StartNew();$foreign=[Diagnostics.Process]::new();$foreign.StartInfo=$info
+  try{$refused=$false;try{&$module {param($p,$w)Invoke-OwnerCutoverPeerInputFlush $p $w $null} $foreign $watch}catch{$refused=$true};Require ($refused -and (&$module {$null -eq $script:ownedPeerLifetime.inputFlush -and $script:waits -eq 0})) 'FOREIGN_PROCESS_NO_FLUSH'}finally{$foreign.Dispose()}
+  foreach($expire in @(1,3)){&$module {param($at)$script:checks=0;$script:expireAt=$at} $expire;$refused=$false;try{&$module {param($p,$w)Invoke-OwnerCutoverPeerInputFlush $p $w $null} $process $watch}catch{$refused=$true};Require ($refused -and (&$module {$null -eq $script:ownedPeerLifetime.inputFlush -and $script:waits -eq 0})) 'ORIGINAL_HARD_ZERO_NO_SCHEDULE'}
+  &$module {$script:checks=0;$script:expireAt=0};$leaked=@(&$module {param($p,$w)Invoke-OwnerCutoverPeerInputFlush $p $w $null} $process $watch);Require ($leaked.Count -eq 0 -and (&$module {$script:ownedPeerLifetime.inputFlush.state -ceq 'RETURNED' -and $script:waits -eq 1})) 'SUCCESS_VOID_AND_COMPLETION_MEMORY'
+  &$module {$script:checks=0;$script:expireAt=0;function script:Wait-OwnerCutoverPeerTask($Task,$Process,$LocalWatch,$StderrTask){$script:waits++;Require ($Task.Wait(1000)) 'OWNED_POST_TASK_FINITE';throw 'PUBLIC_ORIGINAL_CLOCK_EXPIRED'}}
+  $refused=$false;try{&$module {param($p,$w)Invoke-OwnerCutoverPeerInputFlush $p $w $null} $process $watch}catch{$refused=$true};Require ($refused -and (&$module {$script:ownedPeerLifetime.inputFlush.state -ceq 'RETURNED'})) 'POST_GUARD_FAILURE_RETAINS_ACTUAL_RETURNED'
+  $process.StandardInput.Close();Require ($process.WaitForExit(1000)) 'OWNED_MANAGED_CHILD_EOF';$process.Dispose();$process=$null
+  @{pass=$true;realBufferedFileStream=$true;actualProductionActionVector=$true;utf8Unchanged=$true;voidSuccessStream=$true;offParentThread=$true;throwRefused=$true;foreignProcessRefused=$true;expiredClockNoSchedule=$true;postguardRetainsCompletion=$true;nativeAuthority=$false;actualOwnerTaskAccountDpapiCalls=0}|ConvertTo-Json -Compress;return
+ }finally{if($stream -is [GoriqPublicFlushStream]){$stream.Release.Set()};if($pending){try{$null=$pending.Wait(2500)}catch{}};if($reader){$reader.Dispose()};if($stream){$stream.Dispose()};if($process){try{if(-not $process.HasExited){$process.Kill();$null=$process.WaitForExit(1000)}}catch{};$process.Dispose()};if([IO.File]::Exists($path)){[IO.File]::Delete($path)}}
+}
+
 if($AwaitResultTransport){
  # Replay the exact actual hosted call-site statement with a benign generic
  # struct-valued Task. WinPS5 exposes VoidTaskResult on the real WriteAsync;
@@ -108,6 +166,8 @@ if($HostedAncestry){
   $wire=[Text.Encoding]::UTF8.GetBytes(($hello|Microsoft.PowerShell.Utility\ConvertTo-Json -Depth 4 -Compress)+[char]10)
   $write=$node.StandardInput.BaseStream.WriteAsync($wire,0,$wire.Length)
   while(-not $write.IsCompleted){Require ($watch.ElapsedMilliseconds -lt 13000) 'FINITE_CHILD_WRITE';[Threading.Thread]::Sleep(5)};$null=$write.GetAwaiter().GetResult()
+  $flushAction=[Delegate]::CreateDelegate([Action],$node.StandardInput.BaseStream,'Flush');$flushTask=[Threading.Tasks.Task]::Run($flushAction)
+  while(-not $flushTask.IsCompleted){Require (-not $node.HasExited -and $watch.ElapsedMilliseconds -lt 13000) 'FINITE_CHILD_FLUSH';[Threading.Thread]::Sleep(5)};$null=$flushTask.GetAwaiter().GetResult()
   if($HostedAncestry -ceq 'wrong-parent'){
    $node.StandardInput.Close();while(-not $node.HasExited){Require ($watch.ElapsedMilliseconds -lt 13000) 'FINITE_REFUSAL';[Threading.Thread]::Sleep(5)}
    Require ($stdoutTask.Wait(1000) -and $stderrTask.Wait(1000)) 'REFUSAL_PIPE_CLOSED';$outCount=$stdoutTask.GetAwaiter().GetResult();$errCount=$stderrTask.GetAwaiter().GetResult()
@@ -181,7 +241,7 @@ import{closeSync}from'node:fs';let pending='';process.stdin.setEncoding('utf8');
    $null=&$module {Initialize-OwnerCutoverOwnedPeer};$ownedId=&$module {$script:ownedPeerLifetime.process.Id}
    $observation=&$module {param($name)
     $key=if($name -ceq 'late-stdout-eof'){'extraTask'}else{'stderrTask'};$command=if($name -ceq 'late-stdout-eof'){'PUBLIC_TRIGGER_CLOSE_STDOUT'}else{'PUBLIC_TRIGGER_CLOSE_STDERR'}
-    $bytes=[Text.Encoding]::UTF8.GetBytes($command+[char]10);$script:ownedPeerLifetime.process.StandardInput.BaseStream.Write($bytes,0,$bytes.Length)
+    $bytes=[Text.Encoding]::UTF8.GetBytes($command+[char]10);$script:ownedPeerLifetime.process.StandardInput.BaseStream.Write($bytes,0,$bytes.Length);$flushAction=[Delegate]::CreateDelegate([Action],$script:ownedPeerLifetime.process.StandardInput.BaseStream,'Flush');$flushTask=[Threading.Tasks.Task]::Run($flushAction);Require ($flushTask.Wait(1000)) 'PUBLIC_TRIGGER_FLUSH_FINITE';$null=$flushTask.GetAwaiter().GetResult()
     $watch=[Diagnostics.Stopwatch]::StartNew();$task=$script:ownedPeerLifetime.record[$key];while(-not $task.IsCompleted -and $watch.ElapsedMilliseconds -lt 2000){[Threading.Thread]::Sleep(5)}
     return @{eofTaskCompleted=$task.IsCompleted;eofResult=$(if($task.IsCompleted){$task.GetAwaiter().GetResult()}else{-1});aliveBefore=(-not $script:ownedPeerLifetime.process.HasExited)}
    } $which
@@ -190,7 +250,7 @@ import{closeSync}from'node:fs';let pending='';process.stdin.setEncoding('utf8');
    $stillAlive=$false;$probe=$null;try{$probe=[Diagnostics.Process]::GetProcessById($ownedId);$stillAlive=-not $probe.HasExited}catch{}finally{if($probe){$probe.Dispose()}}
    Require (-not $stillAlive) 'CLOSED_STDIO_OWNED_OBSERVER_TERMINATED'
   }
-  elseif($which -ceq 'late-stderr'){$null=&$module {Initialize-OwnerCutoverOwnedPeer};$ownedId=&$module {$script:ownedPeerLifetime.process.Id};&$module {$bytes=[Text.Encoding]::UTF8.GetBytes('PUBLIC_TRIGGER_LATE_STDERR'+[char]10);$script:ownedPeerLifetime.process.StandardInput.BaseStream.Write($bytes,0,$bytes.Length);$watch=[Diagnostics.Stopwatch]::StartNew();while(-not $script:ownedPeerLifetime.record.stderrTask.IsCompleted -and $watch.ElapsedMilliseconds -lt 2000){[Threading.Thread]::Sleep(10)}};Refused {&$module {Assert-OwnerCutoverOwnedPeer}};$stillAlive=$false;$probe=$null;try{$probe=[Diagnostics.Process]::GetProcessById($ownedId);$stillAlive=-not $probe.HasExited}catch{}finally{if($probe){$probe.Dispose()}};Require (-not $stillAlive) 'FAILED_OWNED_OBSERVER_TERMINATED'}
+  elseif($which -ceq 'late-stderr'){$null=&$module {Initialize-OwnerCutoverOwnedPeer};$ownedId=&$module {$script:ownedPeerLifetime.process.Id};&$module {$bytes=[Text.Encoding]::UTF8.GetBytes('PUBLIC_TRIGGER_LATE_STDERR'+[char]10);$script:ownedPeerLifetime.process.StandardInput.BaseStream.Write($bytes,0,$bytes.Length);$flushAction=[Delegate]::CreateDelegate([Action],$script:ownedPeerLifetime.process.StandardInput.BaseStream,'Flush');$flushTask=[Threading.Tasks.Task]::Run($flushAction);Require ($flushTask.Wait(1000)) 'PUBLIC_TRIGGER_FLUSH_FINITE';$null=$flushTask.GetAwaiter().GetResult();$watch=[Diagnostics.Stopwatch]::StartNew();while(-not $script:ownedPeerLifetime.record.stderrTask.IsCompleted -and $watch.ElapsedMilliseconds -lt 2000){[Threading.Thread]::Sleep(10)}};Refused {&$module {Assert-OwnerCutoverOwnedPeer}};$stillAlive=$false;$probe=$null;try{$probe=[Diagnostics.Process]::GetProcessById($ownedId);$stillAlive=-not $probe.HasExited}catch{}finally{if($probe){$probe.Dispose()}};Require (-not $stillAlive) 'FAILED_OWNED_OBSERVER_TERMINATED'}
   else{Refused {&$module {Initialize-OwnerCutoverOwnedPeer}}}
   Write-PublicPeerProgress ($phaseCase+'_PEER_DONE')
   $count=&$module {$script:transportCreated};$writes=&$module {$script:writes.Count};Refused {&$module {Initialize-OwnerCutoverOwnedPeer}};Require ((&$module {$script:transportCreated}) -eq $count -and (&$module {$script:writes.Count}) -eq $writes) 'NO_PROCESS_OR_WRITEAHEAD_REISSUE';Require ($count -eq $(if($which -cin @('journal-throw','node-binding-missing')){0}else{1})) 'OWNED_PROCESS_COUNT';if($which -cne 'foreign-factory'){$startedCount+=$count;}$rows+=@{case=$which;expected=$(if($which -ceq 'success'){'DATA_ONLY'}else{'REFUSE'})}

@@ -1066,6 +1066,27 @@ function New-OwnerCutoverPrivateModule($State){
    }
    Assert-OwnerCutoverPrivateClock;if($Task.IsFaulted -or $Task.IsCanceled){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}
   }
+  function Invoke-OwnerCutoverPeerInputFlush($Process,$LocalWatch,$StderrTask){
+   Assert-OwnerCutoverPrivateClock;$allocation=$null
+   if($Process -isnot [Diagnostics.Process] -or -not [object]::ReferenceEquals($Process,$script:ownedPeerLifetime.process) -or -not $script:ownedPeerLifetime.allocations.TryGetValue($Process,[ref]$allocation) -or -not [object]::ReferenceEquals($allocation.state,$script:originalState) -or -not [object]::ReferenceEquals($allocation.info,$Process.StartInfo)){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}
+   Assert-OwnerCutoverPrivateClock;$stream=$Process.StandardInput.BaseStream;Assert-OwnerCutoverPrivateClock
+   $flushAction=[Delegate]::CreateDelegate([Action],$stream,'Flush')
+   Assert-OwnerCutoverPrivateClock
+   # Schedule only this exact owned stream leaf. Scheduling is not worker-side
+   # deadline admission or preemption. Retain pending resources without a parent
+   # Dispose/Flush; native/private capture remains refused until containment.
+   $entry=@{state='ENTERED';task=$null;stream=$stream;action=$flushAction};$script:ownedPeerLifetime.inputFlush=$entry
+   try{
+    $entry.task=[Threading.Tasks.Task]::Run($flushAction)
+    $entry.state='PENDING';Assert-OwnerCutoverPrivateClock
+    Wait-OwnerCutoverPeerTask $entry.task $Process $LocalWatch $StderrTask
+    $null=$entry.task.GetAwaiter().GetResult()
+   }finally{
+    # Task state is retained memory, not further protected I/O after expiry.
+    if($entry.task -and $entry.task.IsCompleted){$entry.state=if($entry.task.IsFaulted -or $entry.task.IsCanceled){'THREW'}else{'RETURNED'}}
+   }
+   Assert-OwnerCutoverPrivateClock
+  }
   function Assert-OwnerCutoverPeerNodeBinding {
    Assert-OwnerCutoverPrivateClock
    if($script:nodeTerminal -or $script:nodeStream -isnot [IO.Stream] -or -not $script:nodeStream.CanRead -or -not $script:sourceHandles.Contains($script:nodeStream) -or $null -eq $script:nodeIdentity){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}
@@ -1115,6 +1136,7 @@ function New-OwnerCutoverPrivateModule($State){
     $hello=[ordered]@{schemaVersion=1;kind='GORIQ_OWNED_NODE_PEER_HELLO';sequence=1;sourceRevision=$script:originalState.sourceRevision;originalGrantSha256=$script:originalState.grantHash;attemptId=$script:originalState.grant.approvalId;workflowRunId=$script:originalState.workflowRunId;officialJobId=$script:originalState.jobId;nativeMjsSha256=$script:originalState.grant.sourceHashes.'scripts/owner-code-rotation-native-1218.mjs';nativePsSha256=$script:originalState.grant.sourceHashes.'scripts/owner-code-rotation-native-1218.ps1';bootstrapPid=$script:kernelBaseline.pid;bootstrapCreationTicks=$script:kernelBaseline.creationTicks;ownerSidSha256=$script:originalState.grant.ownerSidSha256;sessionId=$script:kernelBaseline.sessionId;nodePid=$observed.pid;nodeCreationTicks=$observed.creationTicks;nodePath=$script:nodePath;nodeImageIdentityKey=$script:nodeIdentity.key}
     $wire=[Text.Encoding]::UTF8.GetBytes(($hello|Microsoft.PowerShell.Utility\ConvertTo-Json -Compress)+[char]10);if($wire.Length -gt 32768){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}
     $errorBuffer=New-Object char[] 1;Assert-OwnerCutoverPrivateClock;$stderrTask=$process.StandardError.ReadAsync($errorBuffer,0,1);Assert-OwnerCutoverPrivateClock;$write=$process.StandardInput.BaseStream.WriteAsync($wire,0,$wire.Length);Assert-OwnerCutoverPrivateClock;Wait-OwnerCutoverPeerTask $write $process $watch $stderrTask;$null=$write.GetAwaiter().GetResult();Assert-OwnerCutoverPrivateClock
+    Invoke-OwnerCutoverPeerInputFlush $process $watch $stderrTask
     $bytes=New-Object byte[] 32769;$total=0;$complete=$false
     while(-not $complete){Assert-OwnerCutoverPrivateClock;$read=$process.StandardOutput.BaseStream.ReadAsync($bytes,$total,$bytes.Length-$total);Assert-OwnerCutoverPrivateClock;Wait-OwnerCutoverPeerTask $read $process $watch $stderrTask;$count=$read.Result;Assert-OwnerCutoverPrivateClock;if($count -le 0){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'};$total+=$count;if($total -gt 32768){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'};for($index=0;$index -lt $total;$index++){if($bytes[$index] -eq 10){if($index -ne $total-1){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'};$complete=$true;break}}}
     $frame=New-Object byte[] ($total-1);[Array]::Copy($bytes,$frame,$total-1);$reply=ConvertFrom-OwnerCutoverPeerWire $frame;Assert-OwnerLauncherShape $reply @('schemaVersion','kind','sequence','sourceRevision','originalGrantSha256','nativeMjsSha256','nativePsSha256','ancestry')
