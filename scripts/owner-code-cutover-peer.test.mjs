@@ -3,11 +3,11 @@ import test from 'node:test';
 import {spawnSync} from 'node:child_process';
 import {join} from 'node:path';
 import * as native from './owner-code-rotation-native-1218.mjs';
-import {readFileSync,mkdtempSync,rmSync,writeFileSync,renameSync} from 'node:fs';
+import {readFileSync,mkdtempSync,rmSync,writeFileSync,renameSync,lstatSync,existsSync,unlinkSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {DatabaseSync} from 'node:sqlite';
 import {captureFleetSnapshot,compareFleetSnapshots,fleetSnapshotSummary} from './owner-code-fleet-preservation.mjs';
-import {createHash} from 'node:crypto';
+import {createHash,createPrivateKey,sign} from 'node:crypto';
 import {grant,environment,encode,now} from '../tests/fixtures/owner-code-production-proof.fixture.mjs';
 
 const row=(pid,parentPid,node=false)=>({pid,parentPid,creationTicks:String(639000000000000000n+BigInt(4-pid)),sessionId:2,imagePath:node?'C:\\Users\\Owner\\JARVIS\\tools\\node-v24.19.0-win-x64\\node.exe':'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe',imageSha256:node?'3602f2bb1a10f2cbab4c36886218a33c1ab3db87290e73b033c46c77147d0237':'a'.repeat(64),imageIdentityKey:'file-'+pid,ownerSidSha256:'b'.repeat(64),signatureStatus:node?'NOT_REQUIRED':'Valid',publisher:node?'':'Microsoft Corporation'});
@@ -172,4 +172,120 @@ test('public same-child stdin write diagnosis compares open WriteAsync ACK befor
 
 test('actual managed flush vector delivers exact buffered UTF8 off the parent and preserves original-clock refusals',()=>{
  const shell=process.platform==='win32'?join(process.env.SystemRoot,'System32/WindowsPowerShell/v1.0/powershell.exe'):'pwsh';const child=spawnSync(shell,['-NoLogo','-NoProfile','-NonInteractive','-File','tests/owner-code-cutover-peer.fixture.ps1','-Root',process.cwd(),'-ManagedFlushTransport','-NodeExecutable',process.execPath],{encoding:'utf8',timeout:15000,maxBuffer:8192});assert.equal(child.error,undefined);assert.equal(child.status,0,child.stdout+child.stderr);assert.equal(child.stderr,'');const value=JSON.parse(child.stdout);for(const key of ['pass','realBufferedFileStream','actualProductionActionVector','utf8Unchanged','voidSuccessStream','offParentThread','throwRefused','foreignProcessRefused','expiredClockNoSchedule','postguardRetainsCompletion'])assert.equal(value[key],true);assert.equal(value.nativeAuthority,false);assert.equal(value.actualOwnerTaskAccountDpapiCalls,0);
+});
+
+// Freeze the exact public peer program, including its current HELLO parser.
+// These controlled public frames contain no grant or native capability.
+test('public peer fixture accepts plain and exactly one BOM while rejecting a second BOM or malformed HELLO',()=>{
+ const source=readFileSync('tests/owner-code-cutover-peer.fixture.ps1','utf8');
+ const programs=[...source.matchAll(/ \$js=@'\r?\n([\s\S]*?)\r?\n'@/g)];assert.equal(programs.length,1);
+ const frame=JSON.stringify(hello());const outcomes=[];
+ for(const [name,input] of [['PLAIN',frame],['ONE_BOM','\uFEFF'+frame],['DOUBLE_BOM','\uFEFF\uFEFF'+frame],['MALFORMED',frame+'X']]){
+  const result=spawnSync(process.execPath,['--input-type=module','--eval',programs[0][1]],{input:input+'\n',encoding:'utf8',timeout:3000,maxBuffer:8192});assert.equal(result.error,undefined);
+  const replied=result.status===0&&result.stderr===''&&result.stdout.endsWith('\n');outcomes.push({frameClass:name,accepted:replied});
+  if(replied){const reply=JSON.parse(result.stdout);assert.equal(reply.kind,'GORIQ_OWNED_NODE_PEER_OS_DATA');assert.equal(reply.ancestry.effectCapability,false);}else assert.equal(result.stdout,'');
+ }
+ console.log('GORIQ_PUBLIC_EXACT_FAKE_PARSER '+JSON.stringify({outcomes,nativeAuthority:false,actualOwnerTaskAccountDpapiCalls:0}));assert.deepEqual(outcomes,[{frameClass:'PLAIN',accepted:true},{frameClass:'ONE_BOM',accepted:true},{frameClass:'DOUBLE_BOM',accepted:false},{frameClass:'MALFORMED',accepted:false}]);
+});
+
+test('public owned managed stdin classifies default and explicit UTF8 preambles without disclosing frames',()=>{
+ const shell=process.platform==='win32'?join(process.env.SystemRoot,'System32/WindowsPowerShell/v1.0/powershell.exe'):'pwsh';
+ const child=spawnSync(shell,['-NoLogo','-NoProfile','-NonInteractive','-File','tests/owner-code-cutover-peer.fixture.ps1','-Root',process.cwd(),'-HelloPreambleDiagnostic','-NodeExecutable',process.execPath],{encoding:'utf8',timeout:15000,maxBuffer:8192});
+ assert.equal(child.error,undefined);assert.equal(child.status,0,child.stdout+child.stderr);assert.equal(child.stderr,'');const value=JSON.parse(child.stdout);
+ assert.equal(value.profile,'goriq-public-stdin-preamble-diagnostic-v1');assert.equal(value.nativeAuthority,false);assert.equal(value.actualOwnerTaskAccountDpapiCalls,0);
+ assert.deepEqual(value.rows.map(row=>row.mode),['DEFAULT','UTF8_BOM','UTF8_NO_BOM']);for(const row of value.rows){assert.ok(['PLAIN','ONE_BOM'].includes(row.firstFrameClass));assert.equal(row.childClosed,true);assert.equal(row.beforeEof,true);assert.ok([0,3].includes(row.managedEncodingPreambleLength));}
+ assert.equal(value.rows[1].firstFrameClass,'ONE_BOM');assert.equal(value.rows[1].managedEncodingPreambleLength,3);assert.equal(value.rows[2].firstFrameClass,'PLAIN');assert.equal(value.rows[2].managedEncodingPreambleLength,0);console.log('GORIQ_PUBLIC_STDIN_PREAMBLE '+JSON.stringify(value));
+});
+
+test('actual readonly peer diagnostic returns closed phases and actual exception classifications without leaking error contents',()=>{
+ const shell=process.platform==='win32'?join(process.env.SystemRoot,'System32/WindowsPowerShell/v1.0/powershell.exe'):'pwsh';
+ const child=spawnSync(shell,['-NoLogo','-NoProfile','-NonInteractive','-File','tests/owner-code-cutover-peer.fixture.ps1','-Root',process.cwd(),'-ProbeDiagnosticTransport'],{encoding:'utf8',timeout:15000,maxBuffer:8192});assert.equal(child.error,undefined);assert.equal(child.status,0,child.stdout+child.stderr);assert.equal(child.stderr,'');const value=JSON.parse(child.stdout);
+ assert.equal(value.pass,true);assert.equal(value.diagnosticCases,5);assert.equal(value.nativeAuthority,false);assert.equal(value.actualNativeCalls,0);assert.doesNotMatch(child.stdout,/PRIVATE_CANARY|S-1-|[A-Za-z]:\\|exceptionMessage|\bpid\b/i);
+});
+
+test('public helper diagnostic wire keeps only closed complete phases and refuses raw malformed or over-budget data',()=>{
+ const source=readFileSync('tests/owner-code-cutover-peer.fixture.ps1','utf8');const programs=[...source.matchAll(/ \$diagnosticDriver=@'\r?\n([\s\S]*?)\r?\n'@/g)];assert.equal(programs.length,1);
+ const result=spawnSync(process.execPath,['--eval',programs[0][1],'PUBLIC_PARSER_CONTROLS'],{encoding:'utf8',timeout:3000,maxBuffer:8192});assert.equal(result.error,undefined);assert.equal(result.status,0,result.stdout+result.stderr);assert.equal(result.stderr,'');assert.deepEqual(JSON.parse(result.stdout),{pass:true,controls:7,nativeAuthority:false});
+});
+
+test('hosted Windows exact readonly producer reports closed diagnostic phase without native authority',{skip:hostedWindows?false:'NOT_RUN: requires actual hosted Windows fixed System PowerShell'},()=>{
+ const shell=join(process.env.SystemRoot,'System32/WindowsPowerShell/v1.0/powershell.exe');const child=spawnSync(shell,['-NoLogo','-NoProfile','-NonInteractive','-File','tests/owner-code-cutover-peer.fixture.ps1','-Root',process.cwd(),'-HostedProbeDiagnostic','-NodeExecutable',process.execPath],{encoding:'utf8',timeout:15000,maxBuffer:8192});assert.equal(child.error,undefined);assert.equal(child.status,0,child.stdout+child.stderr);assert.equal(child.stderr,'');const value=JSON.parse(child.stdout);assert.equal(value.profile,'goriq-public-owned-probe-diagnostic-v1');assert.equal(value.capsuleKind,'EXPLICIT_DIAGNOSTIC_SOURCE_AUTHENTICATED');assert.ok(['CLOSED_DIAGNOSTIC','HELPER_TIMEOUT','SPAWN_ERROR','OUTPUT_LIMIT','STDERR_DATA','HELPER_REFUSED'].includes(value.capsuleState));assert.equal(value.nativeAuthority,false);assert.equal(value.actualOwnerTaskAccountDpapiCalls,0);assert.equal(value.localHelperLimitMs,12000);assert.ok(value.progressRows>=0&&value.progressRows<=96);if(value.lastObservedEntered){assert.equal(value.lastObservedEntered.meaning,'LAST_OBSERVED_ENTERED_NOT_RETURNED_OR_CAUSE');assert.ok(value.lastObservedEntered.rowIndex>=0&&value.lastObservedEntered.rowIndex<=2);}assert.doesNotMatch(child.stdout,/PRIVATE_CANARY|S-1-|[A-Za-z]:\\|\bpid\b/i);console.log('GORIQ_PUBLIC_READONLY_HELPER_DIAGNOSTIC '+JSON.stringify(value));
+});
+
+
+// Explicit new-profile PUBLIC differential corpus. Only this test adapter reads
+// its disposable SQLite/files. Production APIs consume a primitive JSON string.
+const guardedDataProfile='goriq-guarded-preservation-data-v1';
+const guardedReject=fn=>assert.throws(fn,/^Error: ROTATION_CUTOVER_GUARDED_PRESERVATION_DATA_REJECTED$/);
+function guardedApi(){for(const name of ['projectCutoverGuardedPreservationData','summarizeCutoverGuardedPreservationData','compareCutoverGuardedPreservationData','createCutoverGuardedPreservationObserver','acceptCutoverGuardedPreservationData'])assert.equal(typeof native[name],'function',name);return native;}
+function publicGuardedRows(f){
+ const db=new DatabaseSync(f.path,{readOnly:true});let rows;try{rows={profile:'goriq-guarded-preservation-rows-data-v1',options:globalThis.structuredClone(f.options),schema:{objects:db.prepare('SELECT type,name,tbl_name,sql FROM sqlite_schema ORDER BY type,name').all(),userVersion:db.prepare('PRAGMA user_version').get().user_version,applicationId:db.prepare('PRAGMA application_id').get().application_id,tableList:db.prepare('PRAGMA table_list').all()},file:null,stateRows:db.prepare('SELECT id,payload,updated_at FROM jarvis_state ORDER BY id').all(),identityRows:db.prepare('SELECT node_id,payload,updated_at FROM jarvis_worker_identity ORDER BY node_id COLLATE BINARY').all(),nonceRows:db.prepare('SELECT node_id,nonce,expires_at FROM jarvis_worker_nonce ORDER BY node_id COLLATE BINARY,nonce COLLATE BINARY').all(),pc:f.options.pcSidecars?{tasksText:existsSync(f.path+'.pc-tasks.json')?readFileSync(f.path+'.pc-tasks.json','utf8'):null,observationsText:existsSync(f.path+'.pc-observations.json')?readFileSync(f.path+'.pc-observations.json','utf8'):null}:null,capturedAtMs:Date.now()};}finally{db.close();}
+ const stat=lstatSync(f.path,{bigint:true});rows.file={path:f.path,dev:String(stat.dev),ino:String(stat.ino),birthtime:String(stat.birthtimeNs)};return rows;
+}
+function publicSql(f,sql,...args){const db=new DatabaseSync(f.path);try{return db.prepare(sql).run(...args);}finally{db.close();}}
+const publicCanonical=v=>Array.isArray(v)?'['+v.map(publicCanonical).join(',')+']':v&&typeof v==='object'?'{'+Object.keys(v).sort((a,b)=>a.localeCompare(b)).map(k=>JSON.stringify(k)+':'+publicCanonical(v[k])).join(',')+'}':JSON.stringify(v);
+const publicSha=s=>createHash('sha256').update(s).digest('hex');
+function publicPcBundle(){
+ const key='PUBLIC_RFC8032_FIXTURE',id='pc-'+publicSha('1219:'+key),payload={idempotencyKey:key,goalIssue:1219,privacyClass:'PUBLIC',content:'PUBLIC signed fixture',capsule:{goal:'#1219',currentJob:'PUBLIC',why:'differential',workflowPosition:'fixture',inputs:[],constraints:[],decisions:[],dependencies:[],expectedOutput:['digest'],definitionOfDone:['digest'],verificationContract:'PUBLIC',recoveryContext:[]}};
+ const task={id,idempotencyKey:id,type:'pc-public-file-sha256',payload,status:'queued',priority:'normal',requiredCapabilities:['filesystem'],dependsOn:[],attempts:0,maxAttempts:3,migrationClass:'RESTARTABLE',executionEpoch:0,createdAt:fleetAt,updatedAt:fleetAt,history:[{from:null,to:'queued',at:fleetAt,reason:'PUBLIC queued'}]};
+ function variant(sequence=1){const observation={version:1,id,idempotencyKey:id,type:task.type,payload:globalThis.structuredClone(payload),migrationClass:'RESTARTABLE',requiredCapabilities:['filesystem'],status:'queued',executionEpoch:0,sequence};const rawBody=JSON.stringify({taskId:id,revision:'a'.repeat(40),sourceNodeId:'macbook',observation}),signed={nodeId:'macbook',timestamp:fleetAt,nonce:'PUBLIC_RFC8032_NONCE',method:'POST',path:'/api/jarvis/worker/pc/observation/receive',bodySha256:publicSha(rawBody)};
+  // RFC8032 section7.1 TEST1 published seed; fixed public test vector only.
+  const privateKey=createPrivateKey({key:Buffer.from('302e020100300506032b6570042204209d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60','hex'),format:'der',type:'pkcs8'});signed.signatureBase64=sign(null,Buffer.from([signed.nodeId,signed.timestamp,signed.nonce,signed.method,signed.path,signed.bodySha256].join('\n')),privateKey).toString('base64');return {digest:publicSha(publicCanonical(observation)),sourceNodeId:'macbook',observation,provenance:{rawBody,signed,identity:{nodeId:'macbook',publicKeyPem:fleetPublicKey,enrolledAt:fleetAt,algorithm:'ed25519'}}};}
+ const record={recordId:id,entityType:'evidence',version:1,deviceId:'pc-observation-adapter',updatedAt:fleetAt,clock:{'pc-observation-adapter':1},syncState:'pending-push',ownerTaskId:id,verification:{status:'unverified'},value:{version:1,taskId:id,conflicted:false,variants:[variant()]}};return {task,variant,tasks:{version:1,tasks:[task],savedAt:fleetAt},observations:{version:1,records:[record],savedAt:fleetAt}};
+}
+function writePublicPc(f,b){writeFileSync(f.path+'.pc-tasks.json',JSON.stringify(b.tasks,null,2)+'\n');writeFileSync(f.path+'.pc-observations.json',JSON.stringify(b.observations,null,2)+'\n');}
+const guardedCases=['unchanged','operational','key','lifecycle','cohort','audit-loss','audit-window','task-payload','task-attempts','live-nonce','expired-nonce','takeover','file','binding','authority','pc-create','pc-loss-content','pc-history','pc-variant','pc-provenance','pc-policy'];
+function guardedCorpus(t,kind){
+ const pc=kind.startsWith('pc-')&&kind!=='pc-create',f=publicPeerFleet(t,{present:pc}),bundle=pc?publicPcBundle():null;if(pc)writePublicPc(f,bundle);
+ if(kind==='audit-window'){f.state.audit=Array.from({length:1000},(_,i)=>({id:'PUBLIC_AUDIT_'+i,at:fleetAt,actor:'owner',action:'PUBLIC'}));f.save();}
+ if(kind==='takeover'){f.state.activeTakeovers=[{id:'PUBLIC_TAKEOVER',nodeId:f.state.fleet[0].id,status:'active',reason:'PUBLIC',createdAt:fleetAt,updatedAt:fleetAt}];f.save();}
+ if(kind==='expired-nonce')publicSql(f,'UPDATE jarvis_worker_nonce SET expires_at=0');
+ if(kind==='pc-history'){const task=bundle.task;Object.assign(task,{status:'running',attempts:1,executionEpoch:1,leaseOwner:'macbook',leaseUntil:'2026-11-07T04:10:00.000Z',fencingToken:'PUBLIC_FENCE',updatedAt:fleetLater});task.history.push({from:'queued',to:'leased',at:fleetLater,reason:'PUBLIC leased',actor:'macbook'},{from:'leased',to:'running',at:fleetLater,reason:'PUBLIC run',actor:'macbook'});writePublicPc(f,bundle);}
+ const before=f.capture(),beforeRows=publicGuardedRows(f);
+ if(kind==='operational'){f.state.fleet[0].status='busy';f.state.fleet[0].telemetry.checkedAt=fleetLater;f.state.tasks[0].status='running';f.state.tasks[0].attempts=1;f.state.tasks[0].updatedAt=fleetLater;f.state.stats.ready=37;f.state.stats.queued=0;f.state.stats.running=1;f.state.audit.push({id:'PUBLIC_APPEND',at:fleetLater,actor:'owner',action:'PUBLIC'});f.save();}
+ if(kind==='key')f.identity(fleetOtherKey);
+ if(kind==='lifecycle')publicSql(f,'UPDATE jarvis_worker_identity SET payload=? WHERE node_id=?',JSON.stringify({nodeId:f.state.fleet[0].id,publicKeyPem:fleetPublicKey,enrolledAt:'2026-11-06T04:00:00.000Z',algorithm:'ed25519'}),f.state.fleet[0].id);
+ if(kind==='cohort'){const old=f.state.fleet[0].id;f.state.fleet[0].id='PUBLIC_NEW_COHORT';publicSql(f,'UPDATE jarvis_worker_identity SET node_id=?,payload=? WHERE node_id=?',f.state.fleet[0].id,JSON.stringify({nodeId:f.state.fleet[0].id,publicKeyPem:fleetPublicKey,enrolledAt:fleetAt,algorithm:'ed25519'}),old);f.save();}
+ if(kind==='audit-loss'){f.state.audit=[];f.save();}
+ if(kind==='audit-window'){f.state.audit.shift();f.state.audit.push({id:'PUBLIC_AUDIT_1000',at:fleetLater,actor:'owner',action:'PUBLIC'});f.save();}
+ if(kind==='task-payload'){f.state.tasks[0].payload.text='PUBLIC_CHANGED';f.save();}
+ if(kind==='task-attempts'){f.state.tasks[0].updatedAt='2026-11-06T04:00:00.000Z';f.save();}
+ if(['live-nonce','expired-nonce'].includes(kind))publicSql(f,'DELETE FROM jarvis_worker_nonce');
+ if(kind==='takeover'){f.state.activeTakeovers[0].reason='PUBLIC_CHANGED';f.save();}
+ if(kind==='file')f.replace();if(kind==='binding')f.options.databaseBinding.configSha256='e'.repeat(64);if(kind==='authority')f.options.cohortAuthority.approvalSha256='f'.repeat(64);
+ if(kind==='pc-create')f.writePc();
+ if(kind==='pc-loss-content'){bundle.task.payload.content='PUBLIC_CHANGED';writePublicPc(f,bundle);}
+ if(kind==='pc-history'){const reset=publicPcBundle();bundle.tasks=reset.tasks;writePublicPc(f,bundle);}
+ if(kind==='pc-variant'){const r=bundle.observations.records[0];r.value.variants.push(bundle.variant(2));r.version=2;r.clock['pc-observation-adapter']=2;r.updatedAt=fleetLater;writePublicPc(f,bundle);}
+ if(kind==='pc-provenance'){bundle.observations.records=[];writePublicPc(f,bundle);}
+ if(kind==='pc-policy')f.options.pcSidecars.expectedTaskFile='absent';
+ const after=f.capture(),afterRows=publicGuardedRows(f),comparison=compareFleetSnapshots(before,after);return {f,before,after,beforeRows,afterRows,comparison};
+}
+function guardedSafe(value){assert.equal(value.profile,guardedDataProfile);assert.equal(value.nativeAuthority,false);assert.equal(value.actualCohortAuthorityVerified,false);assert.equal(value.freshnessVerified,false);safePreservationData(value);}
+test('public guarded corpus first establishes all frozen core9 oracle categories on real disposable SQLite and signed sidecars',t=>{
+ const status={unchanged:'PASS',operational:'PASS','expired-nonce':'PASS','pc-create':'PASS','pc-variant':'PASS','audit-window':'INCONCLUSIVE'};for(const kind of guardedCases){const c=guardedCorpus(t,kind);assert.equal(c.comparison.status,status[kind]??'FAIL',kind);assert.equal(c.comparison.coverage.wholeR06,false);}
+});
+test('guarded PURE projection exactly matches frozen core9 summary comparison reasons coverage and allowed operational progress',t=>{
+ for(const kind of guardedCases){const c=guardedCorpus(t,kind),api=guardedApi(),a=api.projectCutoverGuardedPreservationData(JSON.stringify(c.beforeRows)),b=api.projectCutoverGuardedPreservationData(JSON.stringify(c.afterRows));assert.equal(Object.isFrozen(a),true);assert.deepEqual(Reflect.ownKeys(a),[]);const summary=api.summarizeCutoverGuardedPreservationData(a),comparison=api.compareCutoverGuardedPreservationData(a,b);guardedSafe(summary);guardedSafe(comparison);assert.deepEqual(summary.summary,fleetSnapshotSummary(c.before),kind);assert.deepEqual(comparison.comparison,c.comparison,kind);}
+});
+test('guarded PURE canonical envelope rejects getters proxies extra duplicate lossy unsafe schema rows and missing sidecars',t=>{
+ const f=publicPeerFleet(t,{present:true}),rows=publicGuardedRows(f),api=guardedApi();let observed=0;const hostile=new Proxy({},{get(){observed++;throw Error('PRIVATE_CANARY');},ownKeys(){observed++;throw Error('PRIVATE_CANARY');}});for(const value of [null,{},hostile,()=>{},Buffer.from('{}'),1,true])guardedReject(()=>api.projectCutoverGuardedPreservationData(value));assert.equal(observed,0);
+ const wire=JSON.stringify(rows);for(const invalid of ['\uFEFF'+wire,wire+'\n',wire.replace('"capturedAtMs":','"capturedAtMs":0,"capturedAtMs":'),wire.replace('"capturedAtMs":'+rows.capturedAtMs,'"capturedAtMs":9007199254740993'),' '.repeat(64*1024*1024+1)])guardedReject(()=>api.projectCutoverGuardedPreservationData(invalid));
+ for(const mutate of [d=>d.extra=true,d=>d.file.extra=true,d=>d.file.dev='01',d=>d.file.path+='other',d=>d.schema.extra=true,d=>d.schema.objects.push(d.schema.objects[0]),d=>d.schema.objects[0].sql='PUBLIC_INVALID',d=>d.schema.objects[0].name='__proto__',d=>d.schema.objects[0].extra=true,d=>d.schema.userVersion=1,d=>d.schema.tableList.find(x=>x.name==='jarvis_state').strict=0,d=>d.stateRows[0].id=2,d=>d.stateRows.push(d.stateRows[0]),d=>d.stateRows[0].payload=d.stateRows[0].payload.replace('"generatedAt":','"generatedAt":null,"generatedAt":'),d=>d.stateRows[0].extra=true,d=>d.identityRows.push(d.identityRows[0]),d=>d.identityRows[0].payload='{}',d=>d.identityRows[0].extra=true,d=>d.nonceRows.push(d.nonceRows[0]),d=>d.nonceRows[0].expires_at='123',d=>d.nonceRows[0].extra=true,d=>d.pc.tasksText=null,d=>d.pc.observationsText=null,d=>d.pc.extra=true,d=>d.pc.tasksText='{}',d=>d.pc.tasksText=d.pc.tasksText+'\n',d=>d.options.extra=true,d=>d.capturedAtMs=-1]){const value=globalThis.structuredClone(rows);mutate(value);guardedReject(()=>api.projectCutoverGuardedPreservationData(JSON.stringify(value)));}
+});
+test('guarded PURE PC cryptographic shape schema and storage refusal matches unchanged oracle without exposing payload',t=>{
+ const f=publicPeerFleet(t,{present:true}),b=publicPcBundle();writePublicPc(f,b);f.capture();const api=guardedApi();
+ for(const mutate of [x=>x.tasks.tasks[0].history[0].from='running',x=>x.tasks.tasks[0].executionEpoch=1,x=>x.observations.records[0].value.variants[0].provenance.signed.signatureBase64='A'.repeat(88),x=>x.observations.records[0].value.variants[0].provenance.rawBody+=' ',x=>x.observations.records[0].value.variants[0].digest='e'.repeat(64)]){const changed=globalThis.structuredClone({tasks:b.tasks,observations:b.observations});mutate(changed);writePublicPc(f,changed);assert.throws(()=>f.capture(),/FLEET_PC_SIDECAR_UNAVAILABLE/);guardedReject(()=>api.projectCutoverGuardedPreservationData(JSON.stringify(publicGuardedRows(f))));}
+ writePublicPc(f,b);unlinkSync(f.path+'.pc-tasks.json');assert.throws(()=>f.capture(),/FLEET_PC_SIDECAR_UNAVAILABLE/);guardedReject(()=>api.projectCutoverGuardedPreservationData(JSON.stringify(publicGuardedRows(f))));
+});
+test('guarded new opaque profile stays separate from core9 and preserves same original38 through seven ordered events without replacement',t=>{
+ const f=publicPeerFleet(t),core=f.capture(),wire=JSON.stringify(publicGuardedRows(f)),api=guardedApi(),project=()=>api.projectCutoverGuardedPreservationData(wire),observer=api.createCutoverGuardedPreservationObserver();
+ guardedReject(()=>api.summarizeCutoverGuardedPreservationData(core));const first=project();assert.throws(()=>fleetSnapshotSummary(first),/FLEET_HANDLE_INVALID/);guardedReject(()=>api.compareCutoverGuardedPreservationData({...first},first));preserveReject(()=>native.acceptCutoverPreservationData(original38Observer(),'capture-before-cutover',first));
+ const events=['capture-before-cutover','after-cutover','before-rotation','before-commit','before-planned-restore','after-planned-restore'];for(const event of events){const result=api.acceptCutoverGuardedPreservationData(observer,event,event==='capture-before-cutover'?first:project());guardedSafe(result);assert.equal(result.accepted,true);assert.equal(result.requiredClockPhase,event==='after-planned-restore'?'RECOVERY':'FORWARD');}
+ guardedReject(()=>api.acceptCutoverGuardedPreservationData(observer,'after-planned-restore',project()));const other=api.createCutoverGuardedPreservationObserver();guardedReject(()=>api.acceptCutoverGuardedPreservationData(other,'capture-before-cutover',first));guardedReject(()=>api.acceptCutoverGuardedPreservationData({...observer},'capture-before-cutover',project()));
+ const rollback=api.createCutoverGuardedPreservationObserver();api.acceptCutoverGuardedPreservationData(rollback,'capture-before-cutover',project());api.acceptCutoverGuardedPreservationData(rollback,'after-cutover',project());api.acceptCutoverGuardedPreservationData(rollback,'before-rotation',project());const changed=publicGuardedRows(f),state=JSON.parse(changed.stateRows[0].payload);state.fleet[0].label='PUBLIC_DRIFT';changed.stateRows[0].payload=JSON.stringify(state);const failed=api.acceptCutoverGuardedPreservationData(rollback,'before-commit',api.projectCutoverGuardedPreservationData(JSON.stringify(changed)));assert.equal(failed.accepted,false);guardedReject(()=>api.acceptCutoverGuardedPreservationData(rollback,'before-planned-restore',project()));const recovered=api.acceptCutoverGuardedPreservationData(rollback,'after-rollback',project());assert.equal(recovered.accepted,true);assert.equal(recovered.requiredClockPhase,'RECOVERY');guardedReject(()=>api.acceptCutoverGuardedPreservationData(rollback,'capture-before-cutover',project()));
+ const bad=api.createCutoverGuardedPreservationObserver();guardedReject(()=>api.acceptCutoverGuardedPreservationData(bad,'capture-before-cutover',{}));guardedReject(()=>api.acceptCutoverGuardedPreservationData(bad,'capture-before-cutover',project()));
+});
+test('guarded PURE data works after owned fixture removal and explicitly refuses to claim freshness clock or native capture authority',t=>{
+ const f=publicPeerFleet(t),rows=publicGuardedRows(f),wire=JSON.stringify(rows);f.erase();const api=guardedApi(),a=api.projectCutoverGuardedPreservationData(wire),b=api.projectCutoverGuardedPreservationData(wire);guardedSafe(api.summarizeCutoverGuardedPreservationData(a));guardedSafe(api.compareCutoverGuardedPreservationData(a,b));assert.equal(api.compareCutoverGuardedPreservationData(a,b).comparison.status,'PASS');const smaller=publicPeerFleet(t,{count:37});guardedReject(()=>api.acceptCutoverGuardedPreservationData(api.createCutoverGuardedPreservationObserver(),'capture-before-cutover',api.projectCutoverGuardedPreservationData(JSON.stringify(publicGuardedRows(smaller)))));
 });

@@ -48,6 +48,18 @@ function Assert-OwnerCutoverPeerProbeBudget {
  if(($elapsed -isnot [long] -and $elapsed -isnot [int]) -or $elapsed -lt 0 -or $elapsed -gt 10000 -or $elapsed -lt $script:ownerCutoverPeerProbeState.lastElapsed){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}
  $script:ownerCutoverPeerProbeState.lastElapsed=[long]$elapsed
 }
+# Fixed diagnostic progress only; ordinary producer calls remain silent.
+function Write-OwnerCutoverPeerProbeDiagnosticProgress {
+ if($args.Count -ne 0){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}
+ $state=$script:ownerCutoverPeerProbeState;if(-not $state.diagnosticProgress){return}
+ Assert-OwnerCutoverPeerProbeBudget
+ $phases=@('PLATFORM','ROW_READ','PROCESS_QUERY','PROCESS_OPEN','OWNER_QUERY','NATIVE_COMPILE','IMAGE_OPEN','IMAGE_IDENTITY','IMAGE_READ','IMAGE_RECHECK','SIGNATURE','ROW_SHAPE','ROW_BINDING','CHAIN_BINDING','COMPLETE')
+ if($state.phase -cnotin $phases -or $state.index -isnot [int] -or $state.index -lt 0 -or $state.index -gt 2){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}
+ $key=$state.phase+' '+$state.index;if($state.lastProgress -ceq $key){return}
+ $line='GORIQ_PUBLIC_PEER_PROBE_PHASE '+$key;$bytes=[Text.Encoding]::UTF8.GetByteCount($line)+2
+ if($state.progressRows -ge 96 -or $state.progressBytes+$bytes -gt 8192){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}
+ [Console]::Out.WriteLine($line);$state.lastProgress=$key;$state.progressRows++;$state.progressBytes+=$bytes
+}
 function Initialize-OwnerCutoverPeerFileNative {
  Assert-OwnerCutoverPeerProbeBudget;$existing='GoriqCutoverPeerFileNative' -as [type];$owned=Get-Variable ownerCutoverPeerFileNativeType -Scope Script -ErrorAction SilentlyContinue
  if($owned){if(-not [object]::ReferenceEquals($existing,$owned.Value)){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'};return};if($existing){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}
@@ -68,42 +80,53 @@ function Read-OwnerCutoverPeerProcessData {
  if($id -isnot [int] -or $id -le 0){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}
  $process=$null;$stream=$null;$hash=[Security.Cryptography.SHA256]::Create()
  try{
-  Assert-OwnerCutoverPeerProbeBudget;$rows=@(CimCmdlets\Get-CimInstance -ClassName Win32_Process -Filter ('ProcessId = '+$id) -OperationTimeoutSec 10 -ErrorAction Stop);Assert-OwnerCutoverPeerProbeBudget
+  Assert-OwnerCutoverPeerProbeBudget;$script:ownerCutoverPeerProbeState.phase='PROCESS_QUERY';Write-OwnerCutoverPeerProbeDiagnosticProgress;$rows=@(CimCmdlets\Get-CimInstance -ClassName Win32_Process -Filter ('ProcessId = '+$id) -OperationTimeoutSec 10 -ErrorAction Stop);Assert-OwnerCutoverPeerProbeBudget
   if($rows.Count -ne 1 -or [long]$rows[0].ProcessId -ne $id -or $rows[0].ParentProcessId -isnot [uint32] -or $rows[0].ParentProcessId -gt [int]::MaxValue){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'};$row=$rows[0]
-  $process=[Diagnostics.Process]::GetProcessById($id);Assert-OwnerCutoverPeerProbeBudget;$null=$process.Handle;Assert-OwnerCutoverPeerProbeBudget;$creation=$process.StartTime.ToUniversalTime().Ticks.ToString([Globalization.CultureInfo]::InvariantCulture);Assert-OwnerCutoverPeerProbeBudget;$session=$process.SessionId;Assert-OwnerCutoverPeerProbeBudget;$image=$process.MainModule.FileName;Assert-OwnerCutoverPeerProbeBudget
-  $owner=CimCmdlets\Invoke-CimMethod -InputObject $row -MethodName GetOwnerSid -OperationTimeoutSec 10 -ErrorAction Stop;Assert-OwnerCutoverPeerProbeBudget
+  $script:ownerCutoverPeerProbeState.phase='PROCESS_OPEN';Write-OwnerCutoverPeerProbeDiagnosticProgress;$process=[Diagnostics.Process]::GetProcessById($id);Assert-OwnerCutoverPeerProbeBudget;$null=$process.Handle;Assert-OwnerCutoverPeerProbeBudget;$creation=$process.StartTime.ToUniversalTime().Ticks.ToString([Globalization.CultureInfo]::InvariantCulture);Assert-OwnerCutoverPeerProbeBudget;$session=$process.SessionId;Assert-OwnerCutoverPeerProbeBudget;$image=$process.MainModule.FileName;Assert-OwnerCutoverPeerProbeBudget
+  $script:ownerCutoverPeerProbeState.phase='OWNER_QUERY';Write-OwnerCutoverPeerProbeDiagnosticProgress;$owner=CimCmdlets\Invoke-CimMethod -InputObject $row -MethodName GetOwnerSid -OperationTimeoutSec 10 -ErrorAction Stop;Assert-OwnerCutoverPeerProbeBudget
   if($owner.ReturnValue -isnot [uint32] -or $owner.ReturnValue -ne 0 -or $owner.Sid -isnot [string] -or $owner.Sid -cnotmatch '^S-1-[0-9]+(?:-[0-9]+)+$' -or $image -isnot [string] -or $image -cnotmatch '^[A-Za-z]:\\[^:\r\n\0]+$'){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}
-  Initialize-OwnerCutoverPeerFileNative;Assert-OwnerCutoverPeerProbeBudget;$stream=[IO.File]::Open($image,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read);Assert-OwnerCutoverPeerProbeBudget;$before=[GoriqCutoverPeerFileNative]::Identity($stream.SafeFileHandle);Assert-OwnerCutoverPeerProbeBudget
+  $script:ownerCutoverPeerProbeState.phase='NATIVE_COMPILE';Write-OwnerCutoverPeerProbeDiagnosticProgress;Initialize-OwnerCutoverPeerFileNative;Assert-OwnerCutoverPeerProbeBudget;$script:ownerCutoverPeerProbeState.phase='IMAGE_OPEN';Write-OwnerCutoverPeerProbeDiagnosticProgress;$stream=[IO.File]::Open($image,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read);Assert-OwnerCutoverPeerProbeBudget;$script:ownerCutoverPeerProbeState.phase='IMAGE_IDENTITY';Write-OwnerCutoverPeerProbeDiagnosticProgress;$before=[GoriqCutoverPeerFileNative]::Identity($stream.SafeFileHandle);Assert-OwnerCutoverPeerProbeBudget
   $final=$before[1];if($final.StartsWith('\\?\')){$final=$final.Substring(4)};if($final -ine $image -or $stream.Length -lt 1 -or $stream.Length -gt 134217728 -or ($script:ownerCutoverPeerProbeState.index -eq 1 -and $before[2] -cne '1')){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}
-  $buffer=New-Object byte[] 65536;$length=[long]0
+  $script:ownerCutoverPeerProbeState.phase='IMAGE_READ';Write-OwnerCutoverPeerProbeDiagnosticProgress;$buffer=New-Object byte[] 65536;$length=[long]0
   while($true){Assert-OwnerCutoverPeerProbeBudget;$count=$stream.Read($buffer,0,$buffer.Length);Assert-OwnerCutoverPeerProbeBudget;if($count -eq 0){break};$length+=$count;if($length -gt 134217728){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'};$null=$hash.TransformBlock($buffer,0,$count,$buffer,0)};$null=$hash.TransformFinalBlock([byte[]]@(),0,0);Assert-OwnerCutoverPeerProbeBudget
-  $after=[GoriqCutoverPeerFileNative]::Identity($stream.SafeFileHandle);Assert-OwnerCutoverPeerProbeBudget;if($before[0] -cne $after[0] -or $before[1] -cne $after[1] -or $before[2] -cne $after[2] -or $length -ne $stream.Length -or $process.HasExited -or $creation -cne $process.StartTime.ToUniversalTime().Ticks.ToString([Globalization.CultureInfo]::InvariantCulture)){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'};Assert-OwnerCutoverPeerProbeBudget
-  $status='NOT_REQUIRED';$publisher='';if($script:ownerCutoverPeerProbeState.index -ne 1){$signature=Microsoft.PowerShell.Security\Get-AuthenticodeSignature -LiteralPath $image -ErrorAction Stop;Assert-OwnerCutoverPeerProbeBudget;$status=[string]$signature.Status;$publisher=if($signature.SignerCertificate -and $signature.SignerCertificate.Subject -match '(?:^|,\s*)O=Microsoft Corporation(?:,|$)'){'Microsoft Corporation'}else{'OTHER'}}
+  $script:ownerCutoverPeerProbeState.phase='IMAGE_RECHECK';Write-OwnerCutoverPeerProbeDiagnosticProgress;$after=[GoriqCutoverPeerFileNative]::Identity($stream.SafeFileHandle);Assert-OwnerCutoverPeerProbeBudget;if($before[0] -cne $after[0] -or $before[1] -cne $after[1] -or $before[2] -cne $after[2] -or $length -ne $stream.Length -or $process.HasExited -or $creation -cne $process.StartTime.ToUniversalTime().Ticks.ToString([Globalization.CultureInfo]::InvariantCulture)){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'};Assert-OwnerCutoverPeerProbeBudget
+  $script:ownerCutoverPeerProbeState.phase='SIGNATURE';Write-OwnerCutoverPeerProbeDiagnosticProgress;$status='NOT_REQUIRED';$publisher='';if($script:ownerCutoverPeerProbeState.index -ne 1){$signature=Microsoft.PowerShell.Security\Get-AuthenticodeSignature -LiteralPath $image -ErrorAction Stop;Assert-OwnerCutoverPeerProbeBudget;$status=[string]$signature.Status;$publisher=if($signature.SignerCertificate -and $signature.SignerCertificate.Subject -match '(?:^|,\s*)O=Microsoft Corporation(?:,|$)'){'Microsoft Corporation'}else{'OTHER'}}
   return [pscustomobject][ordered]@{pid=$id;parentPid=[int]$row.ParentProcessId;creationTicks=$creation;sessionId=[int]$session;imagePath=$image;imageSha256=([BitConverter]::ToString($hash.Hash)).Replace('-','').ToLowerInvariant();imageIdentityKey=$before[0];ownerSidSha256=(Get-OwnerRotationEntryDigest ([Text.Encoding]::UTF8.GetBytes($owner.Sid)));signatureStatus=$status;publisher=$publisher}
  }finally{if($stream){$stream.Dispose()};if($process){$process.Dispose()};$hash.Dispose()}
 }
 function Get-OwnerCutoverPeerAncestryData {
  # No external PID/server/path/command/clock is accepted by this entry.
- $script:ownerCutoverPeerProbeState=@{stopwatch=[Diagnostics.Stopwatch]::StartNew();lastElapsed=[long]0;cursor=$null;index=0}
+ $script:ownerCutoverPeerProbeState=@{stopwatch=[Diagnostics.Stopwatch]::StartNew();lastElapsed=[long]0;cursor=$null;index=0;phase='PLATFORM';exceptionClass='NONE';actualExceptionHResult=$null;diagnosticProgress=([bool](Get-Variable ownerCutoverPeerProbeDiagnosticRequest -Scope Script -ValueOnly -ErrorAction SilentlyContinue));lastProgress='';progressRows=0;progressBytes=0}
  try{
-  Assert-OwnerCutoverPeerProbeBudget;$platform=Get-OwnerCutoverPeerProbePlatform;Assert-OwnerCutoverPeerProbeBudget
+  Write-OwnerCutoverPeerProbeDiagnosticProgress;Assert-OwnerCutoverPeerProbeBudget;$platform=Get-OwnerCutoverPeerProbePlatform;Assert-OwnerCutoverPeerProbeBudget
   if($platform.windows -isnot [bool] -or -not $platform.windows -or $platform.major -isnot [int] -or $platform.major -ne 5 -or $platform.nativeSystem -isnot [string] -or $platform.nativeSystem -cnotmatch '^[A-Za-z]:\\[^:\r\n\0]+\\System32$'){throw 'REFUSE'}
   $script:ownerCutoverPeerProbeState.cursor=Get-OwnerCutoverPeerProbeSelfId;Assert-OwnerCutoverPeerProbeBudget;$rows=@();$seen=@{}
   for($index=0;$index -lt 3;$index++){
    $id=$script:ownerCutoverPeerProbeState.cursor;if($id -isnot [int] -or $id -le 0 -or $seen.ContainsKey($id)){throw 'REFUSE'};$seen[$id]=$true;$script:ownerCutoverPeerProbeState.index=$index
-   Assert-OwnerCutoverPeerProbeBudget;$row=Read-OwnerCutoverPeerProcessData;Assert-OwnerCutoverPeerProbeBudget
-   Assert-OwnerRotationEntryShape $row @('pid','parentPid','creationTicks','sessionId','imagePath','imageSha256','imageIdentityKey','ownerSidSha256','signatureStatus','publisher')
+   Assert-OwnerCutoverPeerProbeBudget;$script:ownerCutoverPeerProbeState.phase='ROW_READ';Write-OwnerCutoverPeerProbeDiagnosticProgress;$row=Read-OwnerCutoverPeerProcessData;Assert-OwnerCutoverPeerProbeBudget
+   $script:ownerCutoverPeerProbeState.phase='ROW_SHAPE';Write-OwnerCutoverPeerProbeDiagnosticProgress;Assert-OwnerRotationEntryShape $row @('pid','parentPid','creationTicks','sessionId','imagePath','imageSha256','imageIdentityKey','ownerSidSha256','signatureStatus','publisher')
    if($row.pid -isnot [int] -or $row.pid -ne $id -or $row.parentPid -isnot [int] -or $row.parentPid -le 0 -or $row.creationTicks -isnot [string] -or $row.creationTicks -cnotmatch '^[1-9][0-9]{10,18}$' -or $row.sessionId -isnot [int] -or $row.sessionId -lt 0){throw 'REFUSE'}
    foreach($name in @('imageSha256','ownerSidSha256')){if($row.$name -isnot [string] -or $row.$name -cnotmatch '^[a-f0-9]{64}$'){throw 'REFUSE'}}
    if($row.imageIdentityKey -isnot [string] -or -not $row.imageIdentityKey -or $row.imageIdentityKey.Length -gt 512){throw 'REFUSE'}
-   $fixed=$platform.nativeSystem+'\WindowsPowerShell\v1.0\powershell.exe'
+   $script:ownerCutoverPeerProbeState.phase='ROW_BINDING';Write-OwnerCutoverPeerProbeDiagnosticProgress;$fixed=$platform.nativeSystem+'\WindowsPowerShell\v1.0\powershell.exe'
    if($index -eq 1){if($row.imagePath -isnot [string] -or $row.imagePath -cnotmatch '^[A-Za-z]:\\[^:\r\n\0]+\\node.exe$' -or $row.imageSha256 -cne '3602f2bb1a10f2cbab4c36886218a33c1ab3db87290e73b033c46c77147d0237' -or $row.signatureStatus -cne 'NOT_REQUIRED' -or $row.publisher -cne ''){throw 'REFUSE'}}elseif($row.imagePath -isnot [string] -or -not $row.imagePath.Equals($fixed,[StringComparison]::OrdinalIgnoreCase) -or $row.signatureStatus -isnot [string] -or $row.signatureStatus -cne 'Valid' -or $row.publisher -isnot [string] -or $row.publisher -cne 'Microsoft Corporation'){throw 'REFUSE'}
    if($index -gt 0 -and ($row.ownerSidSha256 -cne $rows[0].ownerSidSha256 -or $row.sessionId -ne $rows[0].sessionId -or [long]$row.creationTicks -gt [long]$rows[$index-1].creationTicks)){throw 'REFUSE'}
    $rows+=,$row;$script:ownerCutoverPeerProbeState.cursor=$row.parentPid
   }
-  if($rows[0].imageSha256 -cne $rows[2].imageSha256){throw 'REFUSE'};Assert-OwnerCutoverPeerProbeBudget
-  return [pscustomobject][ordered]@{profile='goriq-owned-node-peer-ancestry-data-v1';effectCapability=$false;helper=$rows[0];node=$rows[1];bootstrap=$rows[2]}
- }catch{throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}finally{$script:ownerCutoverPeerProbeState.stopwatch.Stop()}
+  $script:ownerCutoverPeerProbeState.phase='CHAIN_BINDING';Write-OwnerCutoverPeerProbeDiagnosticProgress;if($rows[0].imageSha256 -cne $rows[2].imageSha256){throw 'REFUSE'};Assert-OwnerCutoverPeerProbeBudget
+  $script:ownerCutoverPeerProbeState.phase='COMPLETE';Write-OwnerCutoverPeerProbeDiagnosticProgress;return [pscustomobject][ordered]@{profile='goriq-owned-node-peer-ancestry-data-v1';effectCapability=$false;helper=$rows[0];node=$rows[1];bootstrap=$rows[2]}
+ }catch{$exception=$_.Exception;$script:ownerCutoverPeerProbeState.actualExceptionHResult=[int]$exception.HResult;$script:ownerCutoverPeerProbeState.exceptionClass=switch($exception.GetType().FullName){'System.Management.Automation.RuntimeException'{'RUNTIME'};'System.Management.Automation.MethodInvocationException'{'METHOD_INVOCATION'};'Microsoft.Management.Infrastructure.CimException'{'CIM'};'System.IO.IOException'{'IO'};'System.UnauthorizedAccessException'{'ACCESS'};default{'OTHER'}};throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}finally{$script:ownerCutoverPeerProbeState.stopwatch.Stop()}
+}
+
+# Explicit readonly diagnostic DATA. This invokes the same no-input producer;
+# it never returns process facts, exception text, or a native capability.
+function Get-OwnerCutoverPeerAncestryDiagnosticData {
+ if($args.Count -ne 0){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}
+ $completed=$false;$script:ownerCutoverPeerProbeDiagnosticRequest=$true;try{$null=Get-OwnerCutoverPeerAncestryData;$completed=$true}catch{}finally{Remove-Variable ownerCutoverPeerProbeDiagnosticRequest -Scope Script -ErrorAction SilentlyContinue}
+ $state=$script:ownerCutoverPeerProbeState
+ $phases=@('PLATFORM','ROW_READ','PROCESS_QUERY','PROCESS_OPEN','OWNER_QUERY','NATIVE_COMPILE','IMAGE_OPEN','IMAGE_IDENTITY','IMAGE_READ','IMAGE_RECHECK','SIGNATURE','ROW_SHAPE','ROW_BINDING','CHAIN_BINDING','COMPLETE')
+ if($state.phase -cnotin $phases -or $state.index -isnot [int] -or $state.index -lt 0 -or $state.index -gt 2 -or $state.exceptionClass -cnotin @('NONE','RUNTIME','METHOD_INVOCATION','CIM','IO','ACCESS','OTHER') -or ($null -ne $state.actualExceptionHResult -and $state.actualExceptionHResult -isnot [int]) -or ($completed -and ($state.phase -cne 'COMPLETE' -or $state.exceptionClass -cne 'NONE' -or $null -ne $state.actualExceptionHResult))){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}
+ return [pscustomobject][ordered]@{profile='goriq-readonly-peer-probe-diagnostic-v1';ancestryCompleted=$completed;lastEnteredPhase=$state.phase;rowIndex=$state.index;exceptionClass=$state.exceptionClass;actualExceptionHResult=$state.actualExceptionHResult;hresultMeaning='ACTUAL_DOTNET_EXCEPTION_NOT_UNDERLYING_NATIVE_CAUSE';nativeAuthority=$false;effectCapability=$false}
 }
 
 function Get-OwnerRotationEntrySources {

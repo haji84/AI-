@@ -1,8 +1,8 @@
 // Inert transport to the existing High-gated rotation controller. A mode is not approval.
-import {createHash} from 'node:crypto';
+import {createHash,createPublicKey,verify} from 'node:crypto';
 import {lstatSync,readFileSync,realpathSync} from 'node:fs';
 import {spawn} from 'node:child_process';
-import {dirname,resolve,join,win32} from 'node:path';
+import {dirname,resolve,join,win32,isAbsolute} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {TextDecoder} from 'node:util';
 import {performance} from 'node:perf_hooks';
@@ -169,6 +169,516 @@ export function acceptCutoverPreservationData(token,event,snapshot){
   fail('ROTATION_CUTOVER_PRESERVATION_DATA_REJECTED');
  }
 }
+
+
+// Explicit NEW guarded-preservation DATA profile. The literal pure semantics
+// below originate in frozen fleet197d838c and PCd0d5d9fd; these are separate
+// closures and WeakMaps, not core9 runtime handles or a live capture adapter.
+// Nested legacy cohortAuthorityVerified fields describe DATA equivalence only.
+// capturedAtMs is caller DATA: even an unseen older valid capture proves no
+// freshness. Genuine original session/clock/held DB authority is still absent.
+// No filesystem, SQL, clock sampling, process, callback or native CWT is used.
+const guardedPreservationData = (() => {
+const pc = (() => {
+const PROFILE = "jarvis-pc-sidecars-v1", MAX_BYTES = 8 * 1024 * 1024;
+const ownErrors = new WeakSet();
+const COVERAGE = Object.freeze({ pcTaskSidecars: true, pcObservationSidecars: true, workerPrivateKeys: false, compassHistory: false, cognitiveHistory: false, wholeR06: false, crossStoreAtomicity: false });
+const STATUSES = ["queued", "waiting-dependency", "leased", "running", "waiting-connectivity", "waiting-resource", "ready-to-publish", "retrying", "completed", "failed", "cancelled"];
+const TERMINAL = ["completed", "failed", "cancelled"];
+const TASK_KEYS = "id idempotencyKey type payload status priority requiredCapabilities dependsOn attempts maxAttempts migrationClass pinnedNodeId waitReason executionEpoch leaseOwner leaseUntil fencingToken nextAttemptAt checkpointRef result error createdAt updatedAt history".split(" ");
+const TASK_REQUIRED = "id idempotencyKey type payload status priority requiredCapabilities dependsOn attempts maxAttempts migrationClass executionEpoch createdAt updatedAt history".split(" ");
+const RUNTIME = "status attempts executionEpoch leaseOwner leaseUntil fencingToken nextAttemptAt waitReason result error updatedAt history".split(" ");
+const CAPSULE = "goal currentJob why workflowPosition inputs constraints decisions dependencies expectedOutput definitionOfDone verificationContract recoveryContext".split(" ");
+const RESULT_KEYS = "sha256 bytes nodeId goalIssue verified issuer executionEpoch observedAt".split(" ");
+const SIGNED_KEYS = "nodeId timestamp nonce method path bodySha256 signatureBase64".split(" ");
+const RECEIVE_PATH = "/api/jarvis/worker/pc/observation/receive";
+function fail(code) { const error = new Error(code); error.code = code; ownErrors.add(error); throw error; }
+function requireValue(value, code = "PC_PAYLOAD_INVALID") { if (!value) fail(code); }
+function object(v) { return !!v && typeof v === "object" && !Array.isArray(v); }
+function shape(v, allowed, required = allowed) { return object(v) && Object.keys(v).every(k => allowed.includes(k)) && required.every(k => Object.hasOwn(v, k)); }
+function text(v, max = 16_384) { return typeof v === "string" && v.length > 0 && v.length <= max; }
+function date(v) { return text(v, 30) && Number.isFinite(Date.parse(v)); }
+function integer(v) { return Number.isSafeInteger(v) && v >= 0; }
+function hex(v, n = 64) { return typeof v === "string" && new RegExp(`^[a-f0-9]{${n}}$`).test(v); }
+function node(v) { return v === "macbook" || v === "zbook"; }
+function hash(v) { return createHash("sha256").update(v).digest("hex"); }
+function canonical(v) {
+  if (Array.isArray(v)) return "[" + v.map(canonical).join(",") + "]";
+  if (object(v)) return "{" + Object.keys(v).sort((a, b) => a.localeCompare(b)).map(k => JSON.stringify(k) + ":" + canonical(v[k])).join(",") + "}";
+  return JSON.stringify(v);
+}
+function same(a, b) { return canonical(a) === canonical(b); }
+function omit(v, keys) { return Object.fromEntries(Object.entries(v).filter(([k]) => !keys.includes(k))); }
+function tree(v, depth = 0) {
+  requireValue(depth <= 40);
+  if (v === null || typeof v === "string" || typeof v === "boolean") return;
+  if (typeof v === "number") { requireValue(Number.isFinite(v)); return; }
+  requireValue(object(v) || Array.isArray(v));
+  for (const child of Object.values(v)) tree(child, depth + 1);
+}
+function parse(raw, pretty = false) {
+  let value;
+  try { value = JSON.parse(raw); } catch { fail("PC_PAYLOAD_INVALID"); }
+  // These are the actual store/client writer forms. Equality also rejects
+  // duplicate object properties, lossy numbers and noncanonical UTF-8 input.
+  requireValue(raw === (pretty ? JSON.stringify(value, null, 2) + "\n" : JSON.stringify(value)));
+  tree(value); return value;
+}
+function validateWork(p) {
+  requireValue(shape(p, ["idempotencyKey", "goalIssue", "targetNodeId", "privacyClass", "content", "capsule"], ["idempotencyKey", "goalIssue", "privacyClass", "content", "capsule"]) && typeof p.idempotencyKey === "string" && /^[A-Za-z0-9._:-]{1,150}$/.test(p.idempotencyKey) && integer(p.goalIssue) && p.goalIssue > 0 && p.privacyClass === "PUBLIC" && typeof p.content === "string" && Buffer.byteLength(p.content) <= 32768);
+  requireValue(p.targetNodeId === undefined || typeof p.targetNodeId === "string" && /^[A-Za-z0-9._-]{1,100}$/.test(p.targetNodeId));
+  const c = p.capsule;
+  requireValue(shape(c, CAPSULE) && Buffer.byteLength(JSON.stringify(c)) <= 16384 && c.goal === `#${p.goalIssue}`);
+  for (const k of ["goal", "currentJob", "why", "workflowPosition", "verificationContract"]) requireValue(text(c[k]) && c[k].trim());
+  for (const k of ["inputs", "constraints", "decisions", "dependencies", "expectedOutput", "definitionOfDone", "recoveryContext"]) requireValue(Array.isArray(c[k]) && c[k].length <= 1000 && c[k].every(v => typeof v === "string" && v.length <= 16384));
+}
+function validateResult(r, task, observation = false) {
+  requireValue(shape(r, RESULT_KEYS) && hex(r.sha256) && r.sha256 === hash(task.payload.content) && r.bytes === Buffer.byteLength(task.payload.content) && text(r.nodeId, 100) && r.goalIssue === task.payload.goalIssue && r.verified === true && r.issuer === "signed-worker-request" && r.executionEpoch === task.executionEpoch && r.executionEpoch > 0 && date(r.observedAt) && (!task.payload.targetNodeId || task.payload.targetNodeId === r.nodeId) && (!observation || node(r.nodeId)));
+}
+function validTransition(from, to) {
+  if (from === null) return to === "queued";
+  if (TERMINAL.includes(from)) return false;
+  if (to === "cancelled") return true;
+  if (from === "queued" || from === "retrying") return ["leased", "waiting-dependency", "waiting-connectivity", "waiting-resource", "failed"].includes(to);
+  if (from === "leased") return ["running", "completed", "ready-to-publish", "retrying", "failed", "waiting-connectivity", "waiting-resource"].includes(to);
+  if (from === "running") return ["completed", "ready-to-publish", "retrying", "failed", "waiting-connectivity", "waiting-resource"].includes(to);
+  if (from === "ready-to-publish") return to === "completed";
+  return ["queued", "failed", "retrying"].includes(to);
+}
+function validateTask(t) {
+  requireValue(shape(t, TASK_KEYS, TASK_REQUIRED)); validateWork(t.payload);
+  requireValue(t.id === "pc-" + hash(`${t.payload.goalIssue}:${t.payload.idempotencyKey}`) && t.idempotencyKey === t.id && t.type === "pc-public-file-sha256" && same(t.requiredCapabilities, ["filesystem"]) && same(t.dependsOn, []) && t.migrationClass === "RESTARTABLE" && t.pinnedNodeId === undefined && t.maxAttempts === 3 && ["urgent", "high", "normal", "low", "background"].includes(t.priority) && STATUSES.includes(t.status) && integer(t.attempts) && t.attempts <= t.maxAttempts && integer(t.executionEpoch) && date(t.createdAt) && date(t.updatedAt) && Date.parse(t.updatedAt) >= Date.parse(t.createdAt));
+  requireValue(Array.isArray(t.history) && t.history.length > 0 && t.history.length <= 10000);
+  let previous = null, at = Date.parse(t.createdAt), leases = 0, leaseActor = null, leaseEpoch = 0;
+  for (const e of t.history) {
+    requireValue(shape(e, ["from", "to", "at", "reason", "actor", "evidence"], ["from", "to", "at", "reason"]) && e.from === previous && validTransition(e.from, e.to) && date(e.at) && Date.parse(e.at) >= at && text(e.reason) && (e.actor === undefined || text(e.actor, 200)) && (e.evidence === undefined || object(e.evidence)));
+    if (e.to === "leased") { leases++; requireValue(text(e.actor, 200)); leaseActor = e.actor; leaseEpoch = leases; }
+    if (e.to === "running") requireValue(leaseActor !== null && e.actor === leaseActor);
+    if (["leased", "running"].includes(e.from) && e.actor !== undefined) requireValue(e.actor === leaseActor);
+    // The legacy owner-based runtime omits evidence; claimed transitions carry
+    // the current epoch. Neither form may contradict the history's live lease.
+    if (e.evidence && Object.hasOwn(e.evidence, "executionEpoch")) requireValue(leaseActor !== null && e.evidence.executionEpoch === leaseEpoch);
+    if (!["leased", "running"].includes(e.to)) leaseActor = null;
+    previous = e.to; at = Date.parse(e.at);
+  }
+  requireValue(previous === t.status && t.history[0].at === t.createdAt && at <= Date.parse(t.updatedAt) && t.attempts === leases && t.executionEpoch === leases);
+  const active = ["leased", "running"].includes(t.status);
+  requireValue(active ? text(t.leaseOwner, 200) && text(t.fencingToken, 200) && date(t.leaseUntil) && leases > 0 && leaseActor === t.leaseOwner && leaseEpoch === t.executionEpoch : t.leaseOwner === undefined && t.leaseUntil === undefined && t.fencingToken === undefined);
+  requireValue(t.nextAttemptAt === undefined || date(t.nextAttemptAt));
+  requireValue(t.checkpointRef === undefined || text(t.checkpointRef));
+  requireValue(t.error === undefined || text(t.error));
+  requireValue(t.waitReason === undefined || ["connectivity", "resource", "pinned-node", "migration-checkpoint", "side-effect-reconciliation"].includes(t.waitReason));
+  if (t.status === "completed") {
+    validateResult(t.result, t);
+    const last = t.history.at(-1); requireValue(last.actor === t.result.nodeId && last.at === t.result.observedAt && last.evidence?.executionEpoch === t.executionEpoch && t.history.findLast(e => e.to === "leased")?.actor === t.result.nodeId);
+  } else requireValue(t.result === undefined);
+}
+function validateTasks(s) {
+  if (s === null) return;
+  requireValue(shape(s, ["version", "tasks", "savedAt"]) && s.version === 1 && date(s.savedAt) && Array.isArray(s.tasks) && s.tasks.length <= 10000);
+  s.tasks.forEach(validateTask); requireValue(new Set(s.tasks.map(t => t.id)).size === s.tasks.length);
+}
+function validateObservation(o) {
+  const keys = "version id idempotencyKey type payload migrationClass requiredCapabilities status executionEpoch sequence claim result".split(" ");
+  requireValue(shape(o, keys, keys.filter(k => !["claim", "result"].includes(k))) && Buffer.byteLength(JSON.stringify(o)) <= 65536);
+  validateWork(o.payload);
+  requireValue(o.version === 1 && o.payload.goalIssue === 1219 && (!o.payload.targetNodeId || node(o.payload.targetNodeId)) && o.id === "pc-" + hash(`${o.payload.goalIssue}:${o.payload.idempotencyKey}`) && o.idempotencyKey === o.id && o.type === "pc-public-file-sha256" && o.migrationClass === "RESTARTABLE" && same(o.requiredCapabilities, ["filesystem"]) && STATUSES.includes(o.status) && integer(o.executionEpoch) && integer(o.sequence) && o.sequence >= 1);
+  if (["leased", "running"].includes(o.status)) {
+    const c = o.claim;
+    requireValue(shape(c, ["taskId", "owner", "epoch", "fencingToken", "leaseUntil"]) && c.taskId === o.id && node(c.owner) && c.epoch === o.executionEpoch && c.epoch > 0 && typeof c.fencingToken === "string" && /^[A-Za-z0-9._:-]{1,200}$/.test(c.fencingToken) && date(c.leaseUntil) && (!o.payload.targetNodeId || o.payload.targetNodeId === c.owner));
+  } else requireValue(o.claim === undefined);
+  if (o.status === "completed") validateResult(o.result, o, true); else requireValue(o.result === undefined);
+}
+function validateVariant(v, taskId) {
+  requireValue(shape(v, ["digest", "sourceNodeId", "observation", "provenance"]) && hex(v.digest) && node(v.sourceNodeId));
+  validateObservation(v.observation); requireValue(v.observation.id === taskId && hash(canonical(v.observation)) === v.digest);
+  const p = v.provenance;
+  requireValue(shape(p, ["rawBody", "signed", "identity"]) && typeof p.rawBody === "string" && Buffer.byteLength(p.rawBody) <= 65536);
+  const body = parse(p.rawBody), s = p.signed, i = p.identity;
+  requireValue(shape(body, ["taskId", "revision", "sourceNodeId", "observation"]) && body.taskId === taskId && hex(body.revision, 40) && body.sourceNodeId === v.sourceNodeId && same(body.observation, v.observation));
+  requireValue(shape(s, SIGNED_KEYS) && s.nodeId === v.sourceNodeId && date(s.timestamp) && text(s.nonce) && s.method === "POST" && s.path === RECEIVE_PATH && s.bodySha256 === hash(p.rawBody) && typeof s.signatureBase64 === "string" && /^[A-Za-z0-9+/]+={0,2}$/.test(s.signatureBase64));
+  requireValue(shape(i, ["nodeId", "publicKeyPem", "enrolledAt", "algorithm", "revokedAt"], ["nodeId", "publicKeyPem", "enrolledAt"]) && i.nodeId === v.sourceNodeId && text(i.publicKeyPem) && date(i.enrolledAt) && i.algorithm === "ed25519" && i.revokedAt === undefined);
+  try {
+    const key = createPublicKey(i.publicKeyPem), sig = Buffer.from(s.signatureBase64, "base64");
+    requireValue(key.asymmetricKeyType === "ed25519" && sig.length === 64 && sig.toString("base64") === s.signatureBase64 && verify(null, Buffer.from([s.nodeId, s.timestamp, s.nonce, s.method, s.path, s.bodySha256].join("\n")), key, sig));
+  } catch (error) { if (ownErrors.has(error)) throw error; fail("PC_PAYLOAD_INVALID"); }
+  // Historical signatures are checked cryptographically, without current-time
+  // freshness/replay side effects or granting a new execution claim.
+}
+function incompatible(a, b) {
+  const x = a.observation, y = b.observation;
+  if (!same(x.payload, y.payload)) return true;
+  if (a.sourceNodeId === b.sourceNodeId && x.sequence === y.sequence && a.digest !== b.digest) return true;
+  const terminal = o => TERMINAL.includes(o.status);
+  if (a.sourceNodeId === b.sourceNodeId && x.sequence !== y.sequence) {
+    const [older, newer] = x.sequence < y.sequence ? [x, y] : [y, x];
+    if (newer.executionEpoch < older.executionEpoch || terminal(older) && (older.status !== newer.status || older.executionEpoch !== newer.executionEpoch || !same(older.result, newer.result))) return true;
+  }
+  if (x.executionEpoch !== y.executionEpoch) return a.sourceNodeId !== b.sourceNodeId && !!(x.claim || y.claim || x.result || y.result || terminal(x) || terminal(y));
+  if (x.claim && y.claim && (x.claim.owner !== y.claim.owner || x.claim.fencingToken !== y.claim.fencingToken)) return true;
+  if (x.result && y.result && !same(x.result, y.result)) return true;
+  if (x.claim && y.result && x.claim.owner !== y.result.nodeId || y.claim && x.result && y.claim.owner !== x.result.nodeId) return true;
+  if (terminal(x) && terminal(y) && x.status !== y.status) return true;
+  return a.sourceNodeId !== b.sourceNodeId && terminal(x) !== terminal(y) && !!(x.claim || y.claim);
+}
+function validateObservations(s) {
+  if (s === null) return;
+  requireValue(shape(s, ["version", "records", "savedAt"]) && s.version === 1 && date(s.savedAt) && Array.isArray(s.records) && s.records.length <= 64);
+  for (const r of s.records) {
+    requireValue(shape(r, ["recordId", "entityType", "version", "deviceId", "updatedAt", "clock", "syncState", "ownerTaskId", "verification", "value"]) && text(r.recordId) && r.entityType === "evidence" && r.deviceId === "pc-observation-adapter" && r.ownerTaskId === r.recordId && r.syncState === "pending-push" && date(r.updatedAt) && integer(r.version) && r.version > 0 && shape(r.clock, ["pc-observation-adapter"]) && r.clock["pc-observation-adapter"] === r.version && same(r.verification, { status: "unverified" }));
+    const b = r.value;
+    requireValue(shape(b, ["version", "taskId", "conflicted", "variants"]) && b.version === 1 && b.taskId === r.recordId && typeof b.conflicted === "boolean" && Array.isArray(b.variants) && b.variants.length > 0 && b.variants.length <= 16 && r.version === b.variants.length);
+    b.variants.forEach(v => validateVariant(v, r.recordId));
+    requireValue(new Set(b.variants.map(v => v.sourceNodeId + ":" + v.digest)).size === b.variants.length);
+    requireValue(b.conflicted || !b.variants.some((v, i) => b.variants.slice(i + 1).some(w => incompatible(v, w))));
+  }
+  requireValue(new Set(s.records.map(r => r.recordId)).size === s.records.length);
+}
+function pcSidecarSummary(s) {
+  return Object.freeze({ profile: PROFILE, taskFilePresent: s.tasks !== null, observationFilePresent: s.observations !== null, taskCount: s.tasks?.tasks.length ?? 0, observationCount: s.observations?.records.length ?? 0, variantCount: s.observations?.records.reduce((n, r) => n + r.value.variants.length, 0) ?? 0, coverage: COVERAGE });
+}
+function prefix(a, b) { return b.length >= a.length && a.every((v, i) => same(v, b[i])); }
+function taskProgress(a, b) {
+  if (Date.parse(b.updatedAt) < Date.parse(a.updatedAt) || b.attempts < a.attempts || b.executionEpoch < a.executionEpoch) return false;
+  if (TERMINAL.includes(a.status)) return same(a, b);
+  if (a.history.length === b.history.length) {
+    if (!same(omit(a, ["updatedAt", "leaseUntil"]), omit(b, ["updatedAt", "leaseUntil"]))) return false;
+    return a.leaseUntil === b.leaseUntil || ["leased", "running"].includes(a.status) && Date.parse(b.leaseUntil) >= Date.parse(a.leaseUntil);
+  }
+  const leases = b.history.slice(a.history.length).filter(e => e.to === "leased").length;
+  if (b.attempts - a.attempts !== leases || b.executionEpoch - a.executionEpoch !== leases) return false;
+  if (["leased", "running"].includes(a.status) && ["leased", "running"].includes(b.status) && leases === 0 && (a.leaseOwner !== b.leaseOwner || a.fencingToken !== b.fencingToken || Date.parse(b.leaseUntil) < Date.parse(a.leaseUntil))) return false;
+  return true;
+}
+function comparePcSidecarSnapshots(a, b) {
+  const reasons = [];
+  const bindingMatched = same(a.bound, b.bound);
+  const baselinePresenceMatched = (a.tasks !== null) === (a.bound.expectedTaskFile === "present") && (a.observations !== null) === (a.bound.expectedObservationFile === "present");
+  const taskFilesRetained = a.tasks === null || b.tasks !== null;
+  const observationFilesRetained = a.observations === null || b.observations !== null;
+  const oldTasks = a.tasks?.tasks ?? [], newTasks = b.tasks?.tasks ?? [], tm = new Map(newTasks.map(t => [t.id, t]));
+  const taskContractsPreserved = taskFilesRetained && oldTasks.every(t => tm.has(t.id) && same(omit(t, RUNTIME), omit(tm.get(t.id), RUNTIME)));
+  const taskHistoryPreserved = taskFilesRetained && oldTasks.every(t => tm.has(t.id) && prefix(t.history, tm.get(t.id).history));
+  const taskRuntimeValid = oldTasks.every(t => tm.has(t.id) && taskProgress(t, tm.get(t.id)));
+  const oldRecords = a.observations?.records ?? [], newRecords = b.observations?.records ?? [], rm = new Map(newRecords.map(r => [r.recordId, r]));
+  const observationProvenancePreserved = observationFilesRetained && oldRecords.every(r => {
+    const n = rm.get(r.recordId);
+    return n && same(omit(r, ["version", "updatedAt", "clock", "value"]), omit(n, ["version", "updatedAt", "clock", "value"])) && prefix(r.value.variants, n.value.variants) && (!r.value.conflicted || n.value.conflicted) && n.version >= r.version && Date.parse(n.updatedAt) >= Date.parse(r.updatedAt) && (n.version > r.version || same(r, n));
+  });
+  for (const [valid, code] of [[bindingMatched, "PC_BINDING_CHANGED"], [baselinePresenceMatched, "PC_BASELINE_PRESENCE_MISMATCH"], [taskContractsPreserved, "PC_TASK_CONTRACT_CHANGED"], [taskHistoryPreserved, "PC_TASK_HISTORY_LOST"], [taskRuntimeValid, "PC_TASK_RUNTIME_UNSUPPORTED"], [observationProvenancePreserved, "PC_OBSERVATION_PROVENANCE_CHANGED"]]) if (!valid) reasons.push(code);
+  const operationalChanges = Object.freeze({ tasksAdded: newTasks.filter(t => !oldTasks.some(o => o.id === t.id)).length, tasksAdvanced: oldTasks.filter(t => tm.has(t.id) && !same(t, tm.get(t.id))).length, recordsAdded: newRecords.filter(r => !oldRecords.some(o => o.recordId === r.recordId)).length, variantsAdded: newRecords.reduce((n, r) => n + Math.max(0, r.value.variants.length - (oldRecords.find(o => o.recordId === r.recordId)?.value.variants.length ?? 0)), 0) });
+  return Object.freeze({ status: reasons.length ? "FAIL" : "PASS", bindingMatched, taskContractsPreserved, taskHistoryPreserved, observationProvenancePreserved, operationalChanges, reasonCodes: Object.freeze(reasons), coverage: COVERAGE });
+}
+
+function project(path, options, input) {
+  requireValue(shape(input, ['tasksText', 'observationsText']));
+  const contents = (raw, expected) => {
+    if (raw === null) { requireValue(expected === 'absent'); return null; }
+    requireValue(typeof raw === 'string' && Buffer.byteLength(raw) > 0 && Buffer.byteLength(raw) <= MAX_BYTES);
+    return parse(raw, true);
+  };
+  const tasks = contents(input.tasksText, options.expectedTaskFile), observations = contents(input.observationsText, options.expectedObservationFile);
+  validateTasks(tasks); validateObservations(observations);
+  return {bound: {path, ...options}, tasks, observations};
+}
+return Object.freeze({project, summary: pcSidecarSummary, compare: comparePcSidecarSnapshots});
+})();
+const PROFILE = "jarvis-control-plane-sqlite-v1";
+const snapshots = new WeakMap(), observers = new WeakMap(), owners = new WeakMap();
+const ownErrors = new WeakSet();
+const MAX_JSON_BYTES = 32 * 1024 * 1024;
+const COVERAGE = Object.freeze({ fleetSqlite: true, workerPublicKeys: true, workerLifecycleHistory: true, retainedAudit: true, taskQueuePayloads: true, workerPrivateKeys: false, pcTaskSidecars: false, compassHistory: false, wholeR06: false });
+const TABLE_SQL = {
+  jarvis_state: "CREATE TABLE jarvis_state (id INTEGER PRIMARY KEY CHECK (id = 1), payload TEXT NOT NULL, updated_at TEXT NOT NULL) STRICT",
+  jarvis_worker_identity: "CREATE TABLE jarvis_worker_identity (node_id TEXT PRIMARY KEY, payload TEXT NOT NULL, updated_at TEXT NOT NULL) STRICT",
+  jarvis_worker_nonce: "CREATE TABLE jarvis_worker_nonce (node_id TEXT NOT NULL, nonce TEXT NOT NULL, expires_at INTEGER NOT NULL, PRIMARY KEY (node_id, nonce)) STRICT",
+};
+const SCHEMA = {
+  ...Object.fromEntries(Object.entries(TABLE_SQL).map(([name, sql]) => [name, { type: "table", table: name, sql }])),
+  jarvis_worker_nonce_expires_at: { type: "index", table: "jarvis_worker_nonce", sql: "CREATE INDEX jarvis_worker_nonce_expires_at ON jarvis_worker_nonce (expires_at)" },
+  sqlite_autoindex_jarvis_worker_identity_1: { type: "index", table: "jarvis_worker_identity", sql: null },
+  sqlite_autoindex_jarvis_worker_nonce_1: { type: "index", table: "jarvis_worker_nonce", sql: null },
+};
+const NODE_KEYS = ["id", "label", "kind", "status", "capabilities", "policy", "telemetry", "nodeContract", "pcAuthority", "enrollment", "fleetNumber", "group", "lastSeenAt"];
+const TELEMETRY_KEYS = ["remoteProtocol", "androidApi", "batteryPercent", "charging", "temperatureC", "freeStorageMb", "cpuLoadPercent", "gpuLoadPercent", "memoryAvailableMb", "cpuAvailable", "gpuAvailable", "onExternalPower", "thermalState", "dataLocalityKeys", "network", "deviceOwner", "adminActive", "accessibilityEnabled", "locked", "screenInteractive", "checkedAt"];
+const TASK_KEYS = ["id", "idempotencyKey", "type", "payload", "status", "requiredCapabilities", "preferredKinds", "resourceRequirements", "priority", "requiresOnline", "targetNodeId", "assignedNodeId", "leaseUntil", "dispatchBefore", "attempts", "maxAttempts", "createdAt", "updatedAt"];
+const TASK_RUNTIME = ["status", "assignedNodeId", "leaseUntil", "attempts", "updatedAt"];
+const KINDS = ["android", "ios", "windows", "macos", "linux", "cloud"];
+const CAPABILITIES = ["browser", "open-url", "open-app", "launch-settings", "device-status", "show-notification", "lock-device", "reboot", "device-owner", "ui-automation", "self-update", "filesystem", "windows-tooling", "camera", "gps", "bluetooth", "local-model", "speech-to-text", "text-to-speech", "gpu", "remote-view", "remote-control", "wake-device", "background-worker", "long-running"];
+
+function fail(code) {
+  const error = new Error(code);
+  error.code = code;
+  ownErrors.add(error);
+  throw error;
+}
+function requireValue(condition, code = "FLEET_PAYLOAD_INVALID") { if (!condition) fail(code); }
+function object(value) { return value !== null && typeof value === "object" && !Array.isArray(value); }
+function keys(value, allowed, required = []) {
+  return object(value) && Object.keys(value).every((key) => allowed.includes(key)) && required.every((key) => Object.hasOwn(value, key));
+}
+function string(value) { return typeof value === "string" && value.length > 0 && value.length <= 16_384; }
+function date(value) { return string(value) && Number.isFinite(Date.parse(value)); }
+function integer(value) { return Number.isSafeInteger(value) && value >= 0; }
+function strings(value, allowed) { return Array.isArray(value) && value.length <= 1000 && value.every((item) => string(item) && (!allowed || allowed.includes(item))) && new Set(value).size === value.length; }
+function canonical(value) {
+  if (Array.isArray(value)) return "[" + value.map(canonical).join(",") + "]";
+  if (object(value)) return "{" + Object.keys(value).sort().map((key) => JSON.stringify(key) + ":" + canonical(value[key])).join(",") + "}";
+  return JSON.stringify(value);
+}
+function same(left, right) { return canonical(left) === canonical(right); }
+function omit(value, excluded) { return Object.fromEntries(Object.entries(value).filter(([key]) => !excluded.includes(key))); }
+function jsonTree(value, depth = 0) {
+  requireValue(depth <= 40);
+  if (value === null || typeof value === "string" || typeof value === "boolean") return;
+  if (typeof value === "number") { requireValue(Number.isFinite(value)); return; }
+  requireValue(Array.isArray(value) || object(value));
+  for (const child of Object.values(value)) jsonTree(child, depth + 1);
+}
+function parsePayload(raw) {
+  requireValue(typeof raw === "string" && Buffer.byteLength(raw) <= MAX_JSON_BYTES);
+  let parsed;
+  try { parsed = JSON.parse(raw); } catch { fail("FLEET_PAYLOAD_INVALID"); }
+  // The canonical store writes JSON.stringify. Reject duplicate-key and unknown storage forms.
+  requireValue(JSON.stringify(parsed) === raw);
+  jsonTree(parsed);
+  return parsed;
+}
+function optional(value, key, predicate) { return !Object.hasOwn(value, key) || predicate(value[key]); }
+function uniqueIdArray(value, max) {
+  requireValue(Array.isArray(value) && value.length <= max);
+  requireValue(value.every((item) => object(item) && string(item.id)) && new Set(value.map((item) => item.id)).size === value.length);
+}
+function validateNode(node) {
+  requireValue(keys(node, NODE_KEYS, ["id", "label", "kind", "status", "capabilities", "policy", "telemetry", "enrollment", "lastSeenAt"]));
+  requireValue(string(node.label) && KINDS.includes(node.kind) && ["ready", "busy", "offline", "locked", "needs-human", "disabled"].includes(node.status));
+  requireValue(strings(node.capabilities, CAPABILITIES) && ["quick", "full"].includes(node.enrollment) && date(node.lastSeenAt));
+  const policy = node.policy;
+  const policyKeys = ["allowPaidServices", "allowDestructiveActions", "allowExternalPublication", "allowRemoteControl", "requireHumanForLockedDevice"];
+  requireValue(keys(policy, policyKeys, policyKeys) && policyKeys.every((key) => typeof policy[key] === "boolean") && policy.allowPaidServices === false);
+  requireValue(keys(node.telemetry, TELEMETRY_KEYS, ["checkedAt"]) && date(node.telemetry.checkedAt));
+  const booleanTelemetry = ["charging", "cpuAvailable", "gpuAvailable", "onExternalPower", "deviceOwner", "adminActive", "accessibilityEnabled", "locked", "screenInteractive"];
+  for (const [key, value] of Object.entries(node.telemetry)) {
+    if (key === "checkedAt") continue;
+    requireValue(booleanTelemetry.includes(key) ? typeof value === "boolean" : key === "dataLocalityKeys" ? strings(value) : key === "network" ? ["wifi", "cellular", "lan", "offline"].includes(value) : key === "thermalState" ? ["nominal", "fair", "serious", "critical"].includes(value) : typeof value === "number" && Number.isFinite(value));
+  }
+  requireValue(optional(node, "fleetNumber", integer) && optional(node, "group", string));
+  if (node.pcAuthority !== undefined) {
+    const a = node.pcAuthority;
+    requireValue(keys(a, ["version", "approvalIssue", "goalIssue", "roles", "capabilityCeiling"], ["version", "approvalIssue", "goalIssue", "roles", "capabilityCeiling"]) && a.version === 1 && integer(a.approvalIssue) && integer(a.goalIssue) && strings(a.roles, ["Executor", "Storage", "Verifier", "Coordinator"]) && strings(a.capabilityCeiling, CAPABILITIES));
+  }
+  if (node.nodeContract !== undefined) {
+    const c = node.nodeContract;
+    const fields = ["schemaVersion", "platform", "architecture", "executionModes", "networkRequirement", "persistence", "migration", "security", "constraints", "resources", "checkedAt"];
+    requireValue(keys(c, fields, fields) && c.schemaVersion === 1 && c.platform === "android" && (c.architecture === null || string(c.architecture)) && strings(c.executionModes, ["foreground", "background-scheduled", "deferred"]) && c.executionModes.length > 0 && c.networkRequirement === "offline-capable" && date(c.checkedAt));
+    for (const [key, fields] of [["persistence", ["localState", "checkpointResume", "offlineQueue"]], ["security", ["credentialIsolation", "taskScopedAuthorization"]], ["constraints", ["residentExecution", "lockedUiRequiresHuman"]]]) requireValue(keys(c[key], fields, fields) && fields.every((field) => typeof c[key][field] === "boolean"));
+    requireValue(keys(c.migration, ["supported", "checkpointResume", "sideEffectingFencing"], ["supported", "checkpointResume", "sideEffectingFencing"]) && strings(c.migration.supported, ["RESTARTABLE", "PINNED"]) && typeof c.migration.checkpointResume === "boolean" && typeof c.migration.sideEffectingFencing === "boolean");
+    requireValue(keys(c.resources, ["cpuCores", "memoryAvailableMb", "freeStorageMb", "batteryPercent", "charging", "network"]));
+    for (const [key, value] of Object.entries(c.resources)) requireValue(key === "charging" ? typeof value === "boolean" : key === "network" ? ["wifi", "cellular", "lan", "offline"].includes(value) : typeof value === "number" && Number.isFinite(value));
+  }
+}
+function validateState(state) {
+  const fields = ["generatedAt", "fleet", "tasks", "activeTakeovers", "audit", "stats"];
+  requireValue(keys(state, fields, fields) && date(state.generatedAt));
+  uniqueIdArray(state.fleet, 100); state.fleet.forEach(validateNode);
+  uniqueIdArray(state.tasks, 10_000);
+  for (const task of state.tasks) {
+    requireValue(keys(task, TASK_KEYS, ["id", "idempotencyKey", "type", "payload", "status", "requiredCapabilities", "priority", "requiresOnline", "attempts", "maxAttempts", "createdAt", "updatedAt"]));
+    requireValue(string(task.idempotencyKey) && string(task.type) && object(task.payload) && strings(task.requiredCapabilities, CAPABILITIES) && ["urgent", "high", "normal", "low", "background"].includes(task.priority) && typeof task.requiresOnline === "boolean");
+    requireValue(["queued", "leased", "running", "waiting-connectivity", "waiting-human", "completed", "failed", "cancelled"].includes(task.status) && integer(task.attempts) && integer(task.maxAttempts) && date(task.createdAt) && date(task.updatedAt));
+    requireValue(optional(task, "preferredKinds", (v) => strings(v, KINDS)) && optional(task, "targetNodeId", string) && optional(task, "assignedNodeId", string) && optional(task, "leaseUntil", date) && optional(task, "dispatchBefore", date));
+    if (task.resourceRequirements !== undefined) requireValue(object(task.resourceRequirements));
+  }
+  uniqueIdArray(state.audit, 1000);
+  for (const event of state.audit) requireValue(keys(event, ["id", "at", "actor", "action", "target", "detail"], ["id", "at", "actor", "action"]) && date(event.at) && string(event.actor) && string(event.action) && optional(event, "target", string) && optional(event, "detail", object));
+  uniqueIdArray(state.activeTakeovers, 10_000);
+  for (const session of state.activeTakeovers) requireValue(keys(session, ["id", "nodeId", "taskId", "status", "reason", "lastAction", "currentUrl", "appName", "screenshotRef", "createdAt", "updatedAt"], ["id", "nodeId", "status", "reason", "createdAt", "updatedAt"]) && string(session.nodeId) && string(session.reason) && ["requested", "active", "resolved", "cancelled"].includes(session.status) && date(session.createdAt) && date(session.updatedAt) && ["taskId", "lastAction", "currentUrl", "appName", "screenshotRef"].every((key) => optional(session, key, string)));
+  const stats = ["registered", "ready", "offline", "needsHuman", "queued", "running", "completed", "failed"];
+  requireValue(keys(state.stats, stats, stats) && stats.every((key) => integer(state.stats[key])));
+  const expected = { registered: state.fleet.length, ready: state.fleet.filter((n) => n.status === "ready").length, offline: state.fleet.filter((n) => n.status === "offline").length, needsHuman: state.fleet.filter((n) => ["needs-human", "locked"].includes(n.status)).length, queued: state.tasks.filter((task) => ["queued", "waiting-connectivity"].includes(task.status)).length, running: state.tasks.filter((task) => ["leased", "running"].includes(task.status)).length, completed: state.tasks.filter((task) => task.status === "completed").length, failed: state.tasks.filter((task) => task.status === "failed").length };
+  requireValue(same(state.stats, expected));
+}
+function validateIdentity(row) {
+  requireValue(string(row.node_id) && date(row.updated_at));
+  const identity = parsePayload(row.payload);
+  requireValue(keys(identity, ["nodeId", "publicKeyPem", "enrolledAt", "algorithm", "revokedAt"], ["nodeId", "publicKeyPem", "enrolledAt"]) && identity.nodeId === row.node_id && string(identity.publicKeyPem) && date(identity.enrolledAt) && optional(identity, "revokedAt", date));
+  const algorithm = identity.algorithm ?? "ed25519";
+  requireValue(["ed25519", "ecdsa-p256-sha256"].includes(algorithm));
+  requireValue(!identity.revokedAt || Date.parse(identity.revokedAt) >= Date.parse(identity.enrolledAt));
+  try {
+    const key = createPublicKey(identity.publicKeyPem);
+    requireValue(algorithm === "ed25519" ? key.asymmetricKeyType === "ed25519" : key.asymmetricKeyType === "ec" && key.asymmetricKeyDetails?.namedCurve === "prime256v1");
+  } catch { fail("FLEET_PAYLOAD_INVALID"); }
+  return { nodeId: row.node_id, payload: identity, updatedAt: row.updated_at };
+}
+function normalizeSql(sql) { return sql === null ? null : sql.toLowerCase().replace(/\s+/g, "").replace("ifnotexists", "").replace(/;$/, ""); }
+function boundOptions(path, options) {
+  const code = "FLEET_OPTIONS_INVALID";
+  const hex = (value, count) => typeof value === "string" && new RegExp(`^[a-f0-9]{${count}}$`).test(value);
+  requireValue(typeof path === "string" && isAbsolute(path) && keys(options, ["schemaProfile", "databaseBinding", "cohortAuthority", "timeoutMs", "pcSidecars"], ["schemaProfile", "databaseBinding", "cohortAuthority"]) && options.schemaProfile === PROFILE, code);
+  const binding = options.databaseBinding;
+  requireValue(keys(binding, ["path", "configSha256", "taskSha256", "releaseRevision"], ["path", "configSha256", "taskSha256", "releaseRevision"]) && typeof binding.path === "string" && isAbsolute(binding.path) && resolve(binding.path) === resolve(path) && hex(binding.configSha256, 64) && hex(binding.taskSha256, 64) && hex(binding.releaseRevision, 40), code);
+  const authority = options.cohortAuthority;
+  requireValue(keys(authority, ["kind", "approvalSha256", "expectedCount", "cohortSha256"], ["kind", "approvalSha256", "expectedCount"]) && ["approved-active-capture", "original-cohort-digest"].includes(authority.kind) && hex(authority.approvalSha256, 64) && Number.isSafeInteger(authority.expectedCount) && authority.expectedCount > 0 && authority.expectedCount <= 100, code);
+  requireValue(authority.kind === "original-cohort-digest" ? hex(authority.cohortSha256, 64) : !Object.hasOwn(authority, "cohortSha256"), code);
+  requireValue(options.timeoutMs === undefined || Number.isSafeInteger(options.timeoutMs) && options.timeoutMs > 0 && options.timeoutMs <= 5000, code);
+  if (options.pcSidecars !== undefined) requireValue(keys(options.pcSidecars, ["profile", "expectedTaskFile", "expectedObservationFile"], ["profile", "expectedTaskFile", "expectedObservationFile"]) && options.pcSidecars.profile === "jarvis-pc-sidecars-v1" && ["present", "absent"].includes(options.pcSidecars.expectedTaskFile) && ["present", "absent"].includes(options.pcSidecars.expectedObservationFile), code);
+  return { binding: { ...binding }, authority: { ...authority }, timeout: options.timeoutMs ?? 5000, pcSidecars: options.pcSidecars === undefined ? undefined : { ...options.pcSidecars } };
+}
+function data(handle) {
+  requireValue(object(handle) && snapshots.has(handle), "FLEET_HANDLE_INVALID");
+  return snapshots.get(handle);
+}
+
+function fleetSnapshotSummary(handle) {
+  const snapshot = data(handle);
+  return Object.freeze({ schemaProfile: PROFILE, fleetCount: snapshot.state.fleet.length, identityCount: snapshot.identities.length, revokedIdentityCount: snapshot.identities.filter((identity) => identity.payload.revokedAt).length, taskCount: snapshot.state.tasks.length, auditCount: snapshot.state.audit.length, nonceCount: snapshot.nonces.length, cohortAuthorityVerified: true, pcSidecars: snapshot.pc ? pc.summary(snapshot.pc) : null, coverage: snapshot.pc ? Object.freeze({ ...COVERAGE, pcTaskSidecars: true, pcObservationSidecars: true, crossStoreAtomicity: false }) : COVERAGE });
+}
+
+function fleetStable(node) {
+  const result = omit(node, ["status", "lastSeenAt", "telemetry"]);
+  if (result.nodeContract) result.nodeContract = omit(result.nodeContract, ["checkedAt", "resources"]);
+  return result;
+}
+function byId(values) { return new Map(values.map((value) => [value.id, value])); }
+function preserved(before, after, projection = (value) => value) {
+  const next = byId(after);
+  return before.every((value) => next.has(value.id) && same(projection(value), projection(next.get(value.id))));
+}
+function changes(before, after) {
+  const next = byId(after);
+  return before.filter((value) => !next.has(value.id) || !same(value, next.get(value.id))).length + after.filter((value) => !before.some((old) => old.id === value.id)).length;
+}
+
+function compareFleetSnapshots(beforeHandle, afterHandle) {
+  const before = data(beforeHandle), after = data(afterHandle);
+  const reasons = [];
+  const databaseBindingMatched = same(before.bound.binding, after.bound.binding) && same(before.file, after.file);
+  const cohortAuthorityVerified = same(before.bound.authority, after.bound.authority);
+  const baselineCohortPreserved = before.state.fleet.length === after.state.fleet.length && preserved(before.state.fleet, after.state.fleet, (node) => node.id);
+  const fleetMetadataPreserved = baselineCohortPreserved && preserved(before.state.fleet, after.state.fleet, fleetStable);
+  const oldIdentities = before.identities.map((row) => ({ id: row.nodeId, ...row }));
+  const newIdentities = after.identities.map((row) => ({ id: row.nodeId, ...row }));
+  const identitiesPreserved = oldIdentities.length === newIdentities.length && preserved(oldIdentities, newIdentities);
+  const keysPreserved = oldIdentities.length === newIdentities.length && preserved(oldIdentities, newIdentities, (row) => ({ id: row.id, publicKeyPem: row.payload.publicKeyPem, algorithm: row.payload.algorithm }));
+  const workerLifecycleHistoryPreserved = oldIdentities.length === newIdentities.length && preserved(oldIdentities, newIdentities, (row) => ({ id: row.id, enrolledAt: row.payload.enrolledAt, revokedAt: row.payload.revokedAt }));
+  const oldAudit = before.state.audit, newAudit = after.state.audit;
+  const auditRetainedHistoryPreserved = newAudit.length >= oldAudit.length && oldAudit.every((event, index) => same(event, newAudit[index]));
+  let auditRolled = false;
+  if (!auditRetainedHistoryPreserved && oldAudit.length === 1000 && newAudit.length === 1000) {
+    const shifted = oldAudit.findIndex((event) => event.id === newAudit[0].id);
+    auditRolled = shifted > 0 && oldAudit.slice(shifted).every((event, index) => same(event, newAudit[index]));
+    if (shifted < 0) auditRolled = !newAudit.some((event) => oldAudit.some((old) => old.id === event.id));
+  }
+  const afterTasks = byId(after.state.tasks);
+  const taskPayloadsPreserved = preserved(before.state.tasks, after.state.tasks, (task) => omit(task, TASK_RUNTIME)) && before.state.tasks.every((task) => afterTasks.get(task.id).attempts >= task.attempts && Date.parse(afterTasks.get(task.id).updatedAt) >= Date.parse(task.updatedAt));
+  const nonceKey = (nonce) => JSON.stringify([nonce.node_id, nonce.nonce]);
+  const afterNonces = new Map(after.nonces.map((nonce) => [nonceKey(nonce), nonce]));
+  const nonceProtectionPreserved = before.nonces.filter((nonce) => nonce.expires_at > after.capturedAt).every((nonce) => same(nonce, afterNonces.get(nonceKey(nonce))));
+  const takeoversPreserved = preserved(before.state.activeTakeovers.filter((session) => after.state.activeTakeovers.some((next) => next.id === session.id)), after.state.activeTakeovers, (session) => omit(session, ["status", "lastAction", "currentUrl", "appName", "screenshotRef", "updatedAt"]));
+  for (const [valid, code] of [[databaseBindingMatched, "FLEET_DATABASE_BINDING_CHANGED"], [cohortAuthorityVerified, "FLEET_COHORT_AUTHORITY_CHANGED"], [baselineCohortPreserved, "FLEET_COHORT_CHANGED"], [fleetMetadataPreserved, "FLEET_METADATA_CHANGED"], [identitiesPreserved, "FLEET_IDENTITIES_CHANGED"], [keysPreserved, "FLEET_KEYS_CHANGED"], [workerLifecycleHistoryPreserved, "FLEET_LIFECYCLE_CHANGED"], [taskPayloadsPreserved, "FLEET_TASK_PAYLOAD_CHANGED"], [nonceProtectionPreserved, "FLEET_LIVE_NONCE_LOST"], [takeoversPreserved, "FLEET_TAKEOVER_CHANGED"]]) if (!valid) reasons.push(code);
+  if (!auditRetainedHistoryPreserved) reasons.push(auditRolled ? "FLEET_AUDIT_WINDOW_ROLLED" : "FLEET_AUDIT_CHANGED");
+  let pcSidecars = null;
+  if (before.pc && after.pc) { pcSidecars = pc.compare(before.pc, after.pc); if (pcSidecars.status !== "PASS") reasons.push("FLEET_PC_SIDECARS_CHANGED"); }
+  else if (before.pc || after.pc) reasons.push("FLEET_PC_POLICY_CHANGED");
+  const status = reasons.length === 0 ? "PASS" : reasons.length === 1 && auditRolled ? "INCONCLUSIVE" : "FAIL";
+  return Object.freeze({ status, databaseBindingMatched, cohortAuthorityVerified, baselineCohortPreserved, fleetMetadataPreserved, identitiesPreserved, keysPreserved, workerLifecycleHistoryPreserved, auditRetainedHistoryPreserved, taskPayloadsPreserved, nonceProtectionPreserved, operationalChanges: Object.freeze({ fleet: changes(before.state.fleet, after.state.fleet), tasks: changes(before.state.tasks, after.state.tasks), nonces: before.nonces.filter((nonce) => !same(nonce, afterNonces.get(nonceKey(nonce)))).length + after.nonces.filter((nonce) => !before.nonces.some((old) => nonceKey(old) === nonceKey(nonce))).length, auditAppended: Math.max(0, newAudit.length - (auditRolled ? oldAudit.filter((event) => newAudit.some((next) => next.id === event.id)).length : oldAudit.length)), takeovers: changes(before.state.activeTakeovers, after.state.activeTakeovers) }), reasonCodes: Object.freeze(reasons), pcSidecars, coverage: pcSidecars ? Object.freeze({ ...COVERAGE, pcTaskSidecars: true, pcObservationSidecars: true, crossStoreAtomicity: false }) : COVERAGE });
+}
+
+const OUTPUT_PROFILE = 'goriq-guarded-preservation-data-v1';
+const reject = () => { throw new Error('ROTATION_CUTOVER_GUARDED_PRESERVATION_DATA_REJECTED'); };
+const wrap = value => frozenTree({profile: OUTPUT_PROFILE, nativeAuthority: false, actualCohortAuthorityVerified: false, freshnessVerified: false, effectCapability: false, ...value});
+function project(wire) {
+  try {
+    requireValue(arguments.length === 1 && typeof wire === 'string' && wire.length <= 64 * 1024 * 1024 && Buffer.byteLength(wire) <= 64 * 1024 * 1024);
+    const input = JSON.parse(wire);
+    requireValue(JSON.stringify(input) === wire); jsonTree(input);
+    requireValue(keys(input, ['profile', 'options', 'schema', 'file', 'stateRows', 'identityRows', 'nonceRows', 'pc', 'capturedAtMs'], ['profile', 'options', 'schema', 'file', 'stateRows', 'identityRows', 'nonceRows', 'pc', 'capturedAtMs']) && input.profile === 'goriq-guarded-preservation-rows-data-v1' && integer(input.capturedAtMs));
+    const file = input.file;
+    requireValue(keys(file, ['path', 'dev', 'ino', 'birthtime'], ['path', 'dev', 'ino', 'birthtime']) && string(file.path) && !file.path.includes('\0') && isAbsolute(file.path) && resolve(file.path) === file.path);
+    for (const key of ['dev', 'ino', 'birthtime']) requireValue(typeof file[key] === 'string' && /^(?:0|[1-9][0-9]{0,39})$/.test(file[key]));
+    const bound = boundOptions(file.path, input.options), schema = input.schema;
+    requireValue(keys(schema, ['objects', 'userVersion', 'applicationId', 'tableList'], ['objects', 'userVersion', 'applicationId', 'tableList']) && schema.userVersion === 0 && schema.applicationId === 0 && Array.isArray(schema.objects) && schema.objects.length === Object.keys(SCHEMA).length);
+    const names = new Set();
+    for (const row of schema.objects) {
+      requireValue(keys(row, ['type', 'name', 'tbl_name', 'sql'], ['type', 'name', 'tbl_name', 'sql']) && typeof row.name === 'string' && Object.hasOwn(SCHEMA, row.name) && !names.has(row.name)); names.add(row.name);
+      const expected = SCHEMA[row.name];
+      requireValue(row.type === expected.type && row.tbl_name === expected.table && normalizeSql(row.sql) === normalizeSql(expected.sql));
+    }
+    requireValue(Array.isArray(schema.tableList) && schema.tableList.length === 5); names.clear();
+    for (const row of schema.tableList) {
+      requireValue(keys(row, ['schema', 'name', 'type', 'ncol', 'wr', 'strict'], ['schema', 'name', 'type', 'ncol', 'wr', 'strict']) && typeof row.name === 'string' && !names.has(row.name)); names.add(row.name);
+      const application = Object.hasOwn(TABLE_SQL, row.name);
+      requireValue((application || ['sqlite_schema', 'sqlite_temp_schema'].includes(row.name)) && row.schema === (row.name === 'sqlite_temp_schema' ? 'temp' : 'main') && row.type === 'table' && row.ncol === (application ? 3 : 5) && row.wr === 0 && row.strict === (application ? 1 : 0));
+    }
+    requireValue(Array.isArray(input.stateRows) && input.stateRows.length === 1);
+    const row = input.stateRows[0];
+    requireValue(keys(row, ['id', 'payload', 'updated_at'], ['id', 'payload', 'updated_at']) && row.id === 1 && date(row.updated_at));
+    const state = parsePayload(row.payload); validateState(state);
+    requireValue(Array.isArray(input.identityRows) && input.identityRows.length <= 10000);
+    let bytes = 0; names.clear();
+    const identities = input.identityRows.map(identity => {
+      requireValue(keys(identity, ['node_id', 'payload', 'updated_at'], ['node_id', 'payload', 'updated_at']) && typeof identity.payload === 'string' && !names.has(identity.node_id)); names.add(identity.node_id);
+      bytes += Buffer.byteLength(identity.payload); requireValue(bytes <= MAX_JSON_BYTES);
+      return validateIdentity(identity);
+    });
+    const identityMap = new Map(identities.map(identity => [identity.nodeId, identity]));
+    requireValue(state.fleet.length === bound.authority.expectedCount && state.fleet.every(node => identityMap.has(node.id) && !identityMap.get(node.id).payload.revokedAt));
+    if (bound.authority.kind === 'original-cohort-digest') requireValue(createHash('sha256').update(JSON.stringify(state.fleet.map(node => node.id).sort())).digest('hex') === bound.authority.cohortSha256);
+    const nonces = input.nonceRows;
+    requireValue(Array.isArray(nonces) && nonces.length <= 100000); names.clear();
+    for (const nonce of nonces) {
+      requireValue(keys(nonce, ['node_id', 'nonce', 'expires_at'], ['node_id', 'nonce', 'expires_at']) && string(nonce.node_id) && string(nonce.nonce) && integer(nonce.expires_at));
+      const key = JSON.stringify([nonce.node_id, nonce.nonce]); requireValue(!names.has(key)); names.add(key);
+    }
+    requireValue(bound.pcSidecars ? input.pc !== null : input.pc === null);
+    const sidecars = bound.pcSidecars ? pc.project(file.path, bound.pcSidecars, input.pc) : null;
+    const handle = Object.freeze(Object.create(null));
+    snapshots.set(handle, {state, identities, nonces, bound, file, pc: sidecars, capturedAt: input.capturedAtMs}); return handle;
+  } catch { reject(); }
+}
+function summarize(handle) {
+  try { requireValue(arguments.length === 1); return wrap({summary: fleetSnapshotSummary(handle)}); } catch { reject(); }
+}
+function compare(before, after) {
+  try { requireValue(arguments.length === 2); return wrap({comparison: compareFleetSnapshots(before, after)}); } catch { reject(); }
+}
+const transitions = Object.freeze({
+  initial: {'capture-before-cutover': 'captured'},
+  captured: {'after-cutover': 'cutover-checked', 'after-rollback': 'restored'},
+  'cutover-checked': {'before-rotation': 'baseline', 'after-rollback': 'restored'},
+  baseline: {'before-commit': 'checked', 'after-rollback': 'restored'},
+  checked: {'before-planned-restore': 'planned', 'after-planned-restore': 'planned-restored', 'after-rollback': 'restored'},
+  planned: {'after-planned-restore': 'planned-restored'},
+  restored: {}, 'planned-restored': {}, terminal: {}
+});
+function createObserver() {
+  if (arguments.length !== 0) reject();
+  const token = Object.freeze(Object.create(null)); observers.set(token, {phase: 'initial', baseline: null, summary: null, comparison: null}); return token;
+}
+function accept(token, event, snapshot) {
+  let record, capture = false;
+  try {
+    requireValue(arguments.length === 3 && object(token) && (record = observers.get(token)) && typeof event === 'string' && Object.hasOwn(transitions[record.phase], event));
+    requireValue(!['before-rotation', 'before-commit', 'before-planned-restore'].includes(event) || record.comparison?.status === 'PASS');
+    capture = event === 'capture-before-cutover'; record.phase = transitions[record.phase][event]; record.comparison = null;
+    requireValue(object(snapshot) && !owners.has(snapshot));
+    const summary = fleetSnapshotSummary(snapshot); owners.set(snapshot, token);
+    if (capture) {
+      requireValue(record.baseline === null && summary.fleetCount === 38 && summary.schemaProfile === PROFILE && summary.pcSidecars?.profile === 'jarvis-pc-sidecars-v1' && compareFleetSnapshots(snapshot, snapshot).status === 'PASS');
+      record.baseline = snapshot; record.summary = summary;
+    } else { requireValue(record.baseline !== null); record.comparison = compareFleetSnapshots(record.baseline, snapshot); }
+    return wrap({event, requiredClockPhase: ['after-rollback', 'after-planned-restore'].includes(event) ? 'RECOVERY' : 'FORWARD', accepted: capture || record.comparison.status === 'PASS', summary: record.summary, comparison: record.comparison});
+  } catch { if (capture && record) record.phase = 'terminal'; reject(); }
+}
+return Object.freeze({project, summarize, compare, createObserver, accept});
+})();
+
+export const projectCutoverGuardedPreservationData = guardedPreservationData.project;
+export const summarizeCutoverGuardedPreservationData = guardedPreservationData.summarize;
+export const compareCutoverGuardedPreservationData = guardedPreservationData.compare;
+export const createCutoverGuardedPreservationObserver = guardedPreservationData.createObserver;
+export const acceptCutoverGuardedPreservationData = guardedPreservationData.accept;
 
 const peerRowFields=['pid','parentPid','creationTicks','sessionId','imagePath','imageSha256','imageIdentityKey','ownerSidSha256','signatureStatus','publisher'];
 const peerInt=value=>Number.isSafeInteger(value)&&value>0&&value<=2147483647;

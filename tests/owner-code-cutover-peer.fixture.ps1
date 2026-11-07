@@ -1,7 +1,11 @@
-param([string]$Root,[switch]$OwnedTransport,[switch]$ClosedChannel,[switch]$PlatformEnvironment,[switch]$AwaitResultTransport,[switch]$PipeDiagnostic,[switch]$WriteDiagnostic,[switch]$ManagedFlushTransport,[ValidateSet(0,1,2)][int]$TransportGroup=0,[ValidateSet('positive','wrong-parent')][string]$HostedAncestry,[string]$NodeExecutable)
+param([string]$Root,[switch]$OwnedTransport,[switch]$ClosedChannel,[switch]$PlatformEnvironment,[switch]$AwaitResultTransport,[switch]$PipeDiagnostic,[switch]$WriteDiagnostic,[switch]$ManagedFlushTransport,[switch]$HelloPreambleDiagnostic,[switch]$ProbeDiagnosticTransport,[switch]$HostedProbeDiagnostic,[ValidateSet(0,1,2)][int]$TransportGroup=0,[ValidateSet('positive','wrong-parent')][string]$HostedAncestry,[string]$NodeExecutable)
 $ErrorActionPreference='Stop';Set-StrictMode -Version Latest
 . (Join-Path $Root 'scripts/owner-code-rotation-native-1218.ps1')
 function Require([bool]$Value,[string]$Code){if(-not $Value){throw ('PEER_FIXTURE_'+$Code)}}
+function Get-PublicPeerReadState($Task){
+ if(-not $Task.IsCompleted){return 'PENDING'};if($Task.IsCanceled){return 'CANCELED'};if($Task.IsFaulted){return 'FAULT'}
+ try{$count=$Task.GetAwaiter().GetResult();if($count -isnot [int] -or $count -lt 0){return 'INVALID'};if($count -eq 0){return 'EOF'};return 'DATA'}catch{return 'FAULT'}
+}
 # Bounded public-only progress. Each owned fixture process has a separate
 # CreateNew file. Values contain closed phases and local elapsed time only.
 function Write-PublicPeerProgress([string]$Phase){
@@ -87,6 +91,33 @@ public static class GoriqPublicAwaitTask { public static Task<GoriqPublicAwaitRe
  Require ($leaked.Count -eq 0) 'WRITE_AWAIT_MUST_NOT_POLLUTE_JSON'
  @{pass=$true;actualHostedStatement=$true;jsonOnly=$true;actualNativeCalls=0;nativeAuthority=$false}|ConvertTo-Json -Compress;return
 }
+# Public managed StreamWriter preamble mechanism. Classification contains no
+# input bytes. Explicit encodings are controls; DEFAULT measures this runtime.
+if($HelloPreambleDiagnostic){
+ Require ([bool]$NodeExecutable -and -not $NodeExecutable.Contains('"')) 'PUBLIC_PREAMBLE_NODE'
+ $program=@'
+let input=Buffer.alloc(0),sent=false;const bom=Buffer.from([239,187,191]);setTimeout(()=>process.exit(9),3500);process.stdin.on('data',part=>{input=Buffer.concat([input,part]);if(input.length>128)process.exit(7);const at=input.indexOf(10);if(at<0||sent)return;let body=input.subarray(0,at),count=0;while(body.subarray(0,3).equals(bom)){count++;body=body.subarray(3);}const kind=at!==input.length-1||body.toString('utf8')!=='PUBLIC_HELLO'||count>2?3:count;sent=true;process.stdout.write(String(kind));});process.stdin.on('end',()=>process.exit(sent?0:7));
+'@
+ $rows=@()
+ foreach($mode in @('DEFAULT','UTF8_BOM','UTF8_NO_BOM')){
+  $process=[Diagnostics.Process]::new();$watch=[Diagnostics.Stopwatch]::StartNew()
+  try{
+   $info=[Diagnostics.ProcessStartInfo]::new();$info.FileName=$NodeExecutable;$info.Arguments='-e "'+$program+'"';$info.UseShellExecute=$false;$info.CreateNoWindow=$true;$info.RedirectStandardInput=$true;$info.RedirectStandardOutput=$true;$info.RedirectStandardError=$true
+   if($mode -ceq 'UTF8_BOM'){$info.StandardInputEncoding=[Text.UTF8Encoding]::new($true)}elseif($mode -ceq 'UTF8_NO_BOM'){$info.StandardInputEncoding=[Text.UTF8Encoding]::new($false)}
+   $process.StartInfo=$info;Require ($process.Start()) 'PUBLIC_PREAMBLE_START';$stream=$process.StandardInput.BaseStream;$preambleLength=$process.StandardInput.Encoding.GetPreamble().Length
+   $ackBytes=New-Object byte[] 1;$ack=$process.StandardOutput.BaseStream.ReadAsync($ackBytes,0,1);$errBytes=New-Object char[] 1;$err=$process.StandardError.ReadAsync($errBytes,0,1)
+   $bytes=[Text.Encoding]::UTF8.GetBytes('PUBLIC_HELLO'+[char]10);$preambleWrite=$stream.WriteAsync($bytes,0,$bytes.Length)
+   while(-not $preambleWrite.IsCompleted){Require (-not $process.HasExited -and -not $err.IsCompleted -and $watch.ElapsedMilliseconds -lt 4000) 'PUBLIC_PREAMBLE_WRITE_BOUND';[Threading.Thread]::Sleep(5)};$null=$preambleWrite.GetAwaiter().GetResult()
+   $action=[Delegate]::CreateDelegate([Action],$stream,'Flush');$flush=[Threading.Tasks.Task]::Run($action)
+   while(-not $flush.IsCompleted -or -not $ack.IsCompleted){Require (-not $process.HasExited -and -not $err.IsCompleted -and $watch.ElapsedMilliseconds -lt 4000) 'PUBLIC_PREAMBLE_ACK_BOUND';[Threading.Thread]::Sleep(5)};$null=$flush.GetAwaiter().GetResult()
+   Require ($ack.GetAwaiter().GetResult() -eq 1 -and $ackBytes[0] -in @(48,49,50,51) -and -not $process.HasExited -and -not $err.IsCompleted) 'PUBLIC_PREAMBLE_CLOSED_CLASS'
+   $kind=@('PLAIN','ONE_BOM','DOUBLE_BOM','INVALID')[$ackBytes[0]-48];$process.StandardInput.Close()
+   while(-not $process.HasExited){Require ($watch.ElapsedMilliseconds -lt 4000) 'PUBLIC_PREAMBLE_EXIT_BOUND';[Threading.Thread]::Sleep(5)};Require ($process.ExitCode -eq 0 -and $err.Wait(1000) -and $err.GetAwaiter().GetResult() -eq 0) 'PUBLIC_PREAMBLE_EXIT'
+   $rows+=@{mode=$mode;firstFrameClass=$kind;managedEncodingPreambleLength=$preambleLength;beforeEof=$true;childClosed=$true}
+  }finally{if(-not $process.HasExited){$process.Kill();$null=$process.WaitForExit(1000)};$process.Dispose()}
+ }
+ @{profile='goriq-public-stdin-preamble-diagnostic-v1';rows=$rows;windows=([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT);psMajor=[int]$PSVersionTable.PSVersion.Major;nativeAuthority=$false;actualOwnerTaskAccountDpapiCalls=0}|ConvertTo-Json -Depth 4 -Compress;return
+}
 # Frozen PUBLIC same-child write counterfactual. ACK is measured while stdin
 # remains open, first after WriteAsync alone, then after BaseStream.FlushAsync.
 if($WriteDiagnostic){
@@ -135,6 +166,45 @@ if($PipeDiagnostic){
  @{pass=$true;diagnosticOnly=$true;windows=([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT);psMajor=[int]$PSVersionTable.PSVersion.Major;rows=$rows;actualOwnerTaskAccountDpapiCalls=0;nativeAuthority=$false}|ConvertTo-Json -Depth 4 -Compress;return
 }
 
+# Separate public diagnostic capsule, authenticating the exact NativePS source.
+# Original helper12s / ownedNode13s / outer15s limits are unchanged.
+if($HostedProbeDiagnostic){
+ Require ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT -and $PSVersionTable.PSVersion.Major -eq 5 -and $env:GITHUB_ACTIONS -ceq 'true' -and $env:RUNNER_ENVIRONMENT -ceq 'github-hosted') 'DIAGNOSTIC_HOSTED_WINDOWS_REQUIRED'
+ $system=[Environment]::GetFolderPath('System');$shell=$system+'\WindowsPowerShell\v1.0\powershell.exe';$windows=[IO.Directory]::GetParent($system).FullName
+ $bootstrap=[Diagnostics.Process]::GetCurrentProcess();$node=[Diagnostics.Process]::new();$directory=$null;$watch=[Diagnostics.Stopwatch]::StartNew()
+ try{
+  Require ($bootstrap.MainModule.FileName.Equals($shell,[StringComparison]::OrdinalIgnoreCase) -and $NodeExecutable -and -not $NodeExecutable.Contains('"')) 'DIAGNOSTIC_FIXED_BOOTSTRAP'
+  Require ((Get-OwnerRotationEntryDigest ([IO.File]::ReadAllBytes($NodeExecutable))) -ceq '3602f2bb1a10f2cbab4c36886218a33c1ab3db87290e73b033c46c77147d0237') 'DIAGNOSTIC_PINNED_NODE'
+  $native=Join-Path $Root 'scripts/owner-code-rotation-native-1218.ps1';$nativeHash=Get-OwnerRotationEntryDigest ([IO.File]::ReadAllBytes($native))
+  $capsule='$ErrorActionPreference=''Stop'';Set-StrictMode -Version Latest;$p='''+$native.Replace("'","''")+''';$h='''+$nativeHash+''';$s=$null;try{$s=[IO.File]::OpenRead($p);if($s.Length -lt 1 -or $s.Length -gt 262144){throw ''PEER_SOURCE''};$b=New-Object byte[] ([int]$s.Length);$n=0;while($n -lt $b.Length){$c=$s.Read($b,$n,$b.Length-$n);if($c -le 0){throw ''PEER_SOURCE''};$n+=$c};$sha=[Security.Cryptography.SHA256]::Create();try{$d=([BitConverter]::ToString($sha.ComputeHash($b))).Replace(''-'','''').ToLowerInvariant()}finally{$sha.Dispose()};if($d -cne $h){throw ''PEER_SOURCE''};.([scriptblock]::Create(([Text.UTF8Encoding]::new($false,$true)).GetString($b)));$r=Get-OwnerCutoverPeerAncestryDiagnosticData;[Console]::Out.WriteLine(($r|Microsoft.PowerShell.Utility\ConvertTo-Json -Depth 4 -Compress))}catch{exit 1}finally{if($s){$s.Dispose()}}'
+  $encoded=[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($capsule));$shellLiteral=ConvertTo-Json -InputObject $shell -Compress;$rootLiteral=ConvertTo-Json -InputObject $Root -Compress
+ $diagnosticDriver=@'
+'use strict';
+const phases=new Set(['PLATFORM','ROW_READ','PROCESS_QUERY','PROCESS_OPEN','OWNER_QUERY','NATIVE_COMPILE','IMAGE_OPEN','IMAGE_IDENTITY','IMAGE_READ','IMAGE_RECHECK','SIGNATURE','ROW_SHAPE','ROW_BINDING','CHAIN_BINDING','COMPLETE']);
+function parseDiagnosticWire(bytes){
+ let last=null,rows=0,diagnostic=null;const rejected=()=>({wireState:'REJECTED',lastObservedEntered:last,progressRows:rows,diagnostic:null});if(bytes.length>8192)return rejected();let wire=bytes.toString('utf8').replace(/^\uFEFF/,'');const lines=wire.split('\n');const partial=lines.pop();
+ for(const lineWithCr of lines){const line=lineWithCr.replace(/\r$/,'');const match=/^GORIQ_PUBLIC_PEER_PROBE_PHASE ([A-Z_]+) ([0-2])$/.exec(line);if(match){if(diagnostic||!phases.has(match[1])||++rows>96)return rejected();last={phase:match[1],rowIndex:Number(match[2]),meaning:'LAST_OBSERVED_ENTERED_NOT_RETURNED_OR_CAUSE'};continue;}
+  try{const d=JSON.parse(line),fields=['profile','ancestryCompleted','lastEnteredPhase','rowIndex','exceptionClass','actualExceptionHResult','hresultMeaning','nativeAuthority','effectCapability'];if(diagnostic||!d||Object.keys(d).length!==fields.length||fields.some(k=>!Object.hasOwn(d,k))||d.profile!=='goriq-readonly-peer-probe-diagnostic-v1'||typeof d.ancestryCompleted!=='boolean'||!phases.has(d.lastEnteredPhase)||!Number.isInteger(d.rowIndex)||d.rowIndex<0||d.rowIndex>2||!['NONE','RUNTIME','METHOD_INVOCATION','CIM','IO','ACCESS','OTHER'].includes(d.exceptionClass)||(d.actualExceptionHResult!==null&&(!Number.isInteger(d.actualExceptionHResult)||d.actualExceptionHResult<-2147483648||d.actualExceptionHResult>2147483647))||d.hresultMeaning!=='ACTUAL_DOTNET_EXCEPTION_NOT_UNDERLYING_NATIVE_CAUSE'||d.nativeAuthority!==false||d.effectCapability!==false||(d.ancestryCompleted&&(d.lastEnteredPhase!=='COMPLETE'||d.exceptionClass!=='NONE'||d.actualExceptionHResult!==null)))throw 0;diagnostic=d;}catch{return rejected();}
+ }
+ return {wireState:diagnostic&&!partial?'COMPLETE':rows?'PARTIAL':'EMPTY',lastObservedEntered:last,progressRows:rows,diagnostic};
+}
+if(process.argv[1]==='PUBLIC_PARSER_CONTROLS'){
+ const check=(value)=>{if(!value)throw new Error('PUBLIC_DIAGNOSTIC_PARSER_CONTROL_REFUSED');};const phase='GORIQ_PUBLIC_PEER_PROBE_PHASE OWNER_QUERY 1\n';let r=parseDiagnosticWire(Buffer.from(phase));check(r.wireState==='PARTIAL'&&r.lastObservedEntered.phase==='OWNER_QUERY');r=parseDiagnosticWire(Buffer.from(phase+'GORIQ_PUBLIC_PEER_PROBE_PHASE SIGN'));check(r.progressRows===1&&r.lastObservedEntered.phase==='OWNER_QUERY');check(parseDiagnosticWire(Buffer.from('PRIVATE_CANARY C:\\PRIVATE S-1-5\n')).wireState==='REJECTED');check(parseDiagnosticWire(Buffer.from('GORIQ_PUBLIC_PEER_PROBE_PHASE PRIVATE_CANARY 1\n')).wireState==='REJECTED');check(parseDiagnosticWire(Buffer.from(phase.repeat(97))).wireState==='REJECTED');check(parseDiagnosticWire(Buffer.alloc(8193)).wireState==='REJECTED');check(parseDiagnosticWire(Buffer.from('{}\n')).wireState==='REJECTED');process.stdout.write(JSON.stringify({pass:true,controls:7,nativeAuthority:false})+'\n');
+}else{
+ const {spawn}=require('node:child_process'),shell=__SHELL__,root=__ROOT__,encoded='__CAPSULE__';let child,output=Buffer.alloc(0),stderr=false,oversize=false,timedOut=false,spawnError=false,done=false;
+ const finish=(code,signal)=>{if(done)return;done=true;clearTimeout(timer);const parsed=parseDiagnosticWire(output);const state=timedOut?'HELPER_TIMEOUT':spawnError?'SPAWN_ERROR':oversize?'OUTPUT_LIMIT':stderr?'STDERR_DATA':code===0&&parsed.wireState==='COMPLETE'?'CLOSED_DIAGNOSTIC':'HELPER_REFUSED';process.stdout.write(JSON.stringify({profile:'goriq-public-owned-probe-diagnostic-v1',capsuleKind:'EXPLICIT_DIAGNOSTIC_SOURCE_AUTHENTICATED',capsuleState:state,helperExitClass:signal?'SIGNAL':code===0?'ZERO':Number.isInteger(code)?'NONZERO':'UNKNOWN',helperStderrData:stderr,...parsed,nativeAuthority:false,actualOwnerTaskAccountDpapiCalls:0,localHelperLimitMs:12000})+'\n');};
+ const timer=setTimeout(()=>{timedOut=true;try{child.kill();}catch{finish(null,null);}},12000);try{child=spawn(shell,['-NoLogo','-NoProfile','-NonInteractive','-EncodedCommand',encoded],{cwd:root,windowsHide:true,stdio:['ignore','pipe','pipe'],env:{...process.env}});child.stdout.on('data',part=>{if(output.length+part.length>8192){oversize=true;try{child.kill();}catch{}}else output=Buffer.concat([output,part]);});child.stderr.on('data',()=>{stderr=true;try{child.kill();}catch{}});child.on('error',()=>{spawnError=true;finish(null,null);});child.on('close',finish);}catch{spawnError=true;finish(null,null);}
+}
+'@
+  $program=$diagnosticDriver.Replace('__SHELL__',$shellLiteral).Replace('__ROOT__',$rootLiteral).Replace('__CAPSULE__',$encoded)
+  $directory=Join-Path ([IO.Path]::GetTempPath()) ('public-peer-diagnostic-'+[IO.Path]::GetRandomFileName());$null=[IO.Directory]::CreateDirectory($directory);$programPath=Join-Path $directory 'public-diagnostic.cjs';Require (-not $programPath.Contains('"')) 'DIAGNOSTIC_PUBLIC_PATH';[IO.File]::WriteAllText($programPath,$program,[Text.UTF8Encoding]::new($false))
+  $info=[Diagnostics.ProcessStartInfo]::new();$info.FileName=$NodeExecutable;$info.Arguments='"'+$programPath+'"';$info.WorkingDirectory=$Root;$info.UseShellExecute=$false;$info.CreateNoWindow=$true;$info.RedirectStandardInput=$true;$info.RedirectStandardOutput=$true;$info.RedirectStandardError=$true;$info.EnvironmentVariables.Clear()
+  $envValues=@{SystemRoot=$windows;WINDIR=$windows;ComSpec=($system+'\cmd.exe');USERPROFILE=[Environment]::GetFolderPath('UserProfile');LOCALAPPDATA=[Environment]::GetFolderPath('LocalApplicationData');TEMP=[IO.Path]::GetTempPath().TrimEnd([char]92);TMP=[IO.Path]::GetTempPath().TrimEnd([char]92);PATH=([IO.Path]::GetDirectoryName($NodeExecutable)+';'+$system+';'+$windows);PATHEXT='.COM;.EXE;.BAT;.CMD';PSModulePath=($system+'\WindowsPowerShell\v1.0\Modules')};foreach($name in $envValues.Keys){Require ([bool]$envValues[$name]) 'DIAGNOSTIC_PLATFORM_VALUE';$info.EnvironmentVariables[$name]=$envValues[$name]}
+  $node.StartInfo=$info;Require ($node.Start()) 'DIAGNOSTIC_OWNED_NODE_START';$null=$node.Handle;$out=$node.StandardOutput.ReadToEndAsync();$err=$node.StandardError.ReadToEndAsync();$node.StandardInput.Close()
+  while(-not $node.HasExited){Require ($watch.ElapsedMilliseconds -lt 13000) 'DIAGNOSTIC_OWNED_NODE_BOUND';[Threading.Thread]::Sleep(5)};Require ($out.Wait(500) -and $err.Wait(500) -and $node.ExitCode -eq 0 -and $err.Result.Length -eq 0 -and $out.Result.Length -le 8192) 'DIAGNOSTIC_CLOSED_NODE_CHANNEL'
+  [Console]::Out.Write($out.Result);return
+ }finally{if($node){try{if(-not $node.HasExited){$node.Kill();$null=$node.WaitForExit(1000)}}catch{};$node.Dispose()};$bootstrap.Dispose();if($directory -and [IO.Directory]::Exists($directory)){[IO.Directory]::Delete($directory,$true)}}
+}
 # Hosted-only component evidence: real source-linked processes and readonly OS
 # observations. This test never creates a native admission or an actual grant.
 if($HostedAncestry){
@@ -177,7 +247,7 @@ if($HostedAncestry){
    while($null -eq $line){
     while(-not $stdoutTask.IsCompleted){
      $stderrDone=$stderrTask.IsCompleted;$childExited=$node.HasExited;$localBound=$watch.ElapsedMilliseconds -ge 13000
-     if($stderrDone -or $childExited -or $localBound){[Console]::Error.WriteLine('GORIQ_PUBLIC_PEER_REPLY_STATE '+(@{phase='REPLY_WAIT';stdoutCompleted=$stdoutTask.IsCompleted;stderrCompleted=$stderrDone;childExited=$childExited;localBound=$localBound;sessionPositive=($hello.sessionId -gt 0)}|ConvertTo-Json -Compress));if($stderrDone){Require $false 'REPLY_STDERR_COMPLETED'};if($childExited){Require $false 'REPLY_CHILD_EXITED'};Require $false 'REPLY_LOCAL_BOUND'}
+     if($stderrDone -or $childExited -or $localBound){[Console]::Error.WriteLine('GORIQ_PUBLIC_PEER_REPLY_STATE '+(@{phase='REPLY_WAIT';stdoutCompleted=$stdoutTask.IsCompleted;stderrCompleted=$stderrDone;stderrState=(Get-PublicPeerReadState $stderrTask);childExited=$childExited;localBound=$localBound;sessionPositive=($hello.sessionId -gt 0)}|ConvertTo-Json -Compress));if($stderrDone){Require $false 'REPLY_STDERR_COMPLETED'};if($childExited){Require $false 'REPLY_CHILD_EXITED'};Require $false 'REPLY_LOCAL_BOUND'}
      [Threading.Thread]::Sleep(5)
     }
     $n=$stdoutTask.GetAwaiter().GetResult();Require ($n -gt 0 -and $text.Length+$n -le 32768) 'BOUNDED_SINGLE_REPLY';$null=$text.Append($stdoutBuffer,0,$n);$value=$text.ToString();$end=$value.IndexOf([char]10)
@@ -211,7 +281,7 @@ if($OwnedTransport){
  Write-PublicPeerProgress 'SOURCE_BASE_DONE'
  $owned=[IO.Path]::Combine([IO.Path]::GetTempPath(),('public-owned-peer-'+[IO.Path]::GetRandomFileName()));$null=[IO.Directory]::CreateDirectory($owned);$childPath=[IO.Path]::Combine($owned,'public-peer.mjs')
  $js=@'
-import{closeSync}from'node:fs';let pending='';process.stdin.setEncoding('utf8');process.stdin.on('data',x=>{pending+=x;const end=pending.indexOf('\n');if(end<0)return;const first=pending.slice(0,end);pending='';if(first==='PUBLIC_TRIGGER_LATE_STDERR'){process.stderr.write('PUBLIC_LATE_STDERR');return;}if(first==='PUBLIC_TRIGGER_CLOSE_STDOUT'){closeSync(1);return;}if(first==='PUBLIC_TRIGGER_CLOSE_STDERR'){closeSync(2);return;}const h=JSON.parse(first);const row=(pid,parentPid,ticks,node)=>({pid,parentPid,creationTicks:ticks,sessionId:h.sessionId,imagePath:node?h.nodePath:'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe',imageSha256:node?'3602f2bb1a10f2cbab4c36886218a33c1ab3db87290e73b033c46c77147d0237':'a'.repeat(64),imageIdentityKey:node?h.nodeImageIdentityKey:'PUBLIC-SYSTEM-IMAGE',ownerSidSha256:h.ownerSidSha256,signatureStatus:node?'NOT_REQUIRED':'Valid',publisher:node?'':'Microsoft Corporation'});const ancestry={profile:'goriq-owned-node-peer-ancestry-data-v1',effectCapability:false,helper:row(h.nodePid+1000,h.nodePid,String(BigInt(h.nodeCreationTicks)+1n),false),node:row(h.nodePid,h.bootstrapPid,h.nodeCreationTicks,true),bootstrap:row(h.bootstrapPid,3000,h.bootstrapCreationTicks,false)};const reply={schemaVersion:1,kind:'GORIQ_OWNED_NODE_PEER_OS_DATA',sequence:1,sourceRevision:h.sourceRevision,originalGrantSha256:h.originalGrantSha256,nativeMjsSha256:h.nativeMjsSha256,nativePsSha256:h.nativePsSha256,ancestry};const mode=process.env.GORIQ_PUBLIC_PEER_CASE;if(mode==='pid')reply.ancestry.node.pid++;if(mode==='source')reply.nativePsSha256='e'.repeat(64);if(mode==='source-array')reply.nativePsSha256=[reply.nativePsSha256];if(mode==='stderr')process.stderr.write('PUBLIC_ONLY_UNEXPECTED_STDERR');let wire=JSON.stringify(reply);if(mode==='duplicate')wire=wire.replace('"sequence":1','"sequence":2,"sequence":1');process.stdout.write(wire+'\n'+(mode==='extra'?'PUBLIC_EXTRA_FRAME\n':''));});
+import{closeSync}from'node:fs';let pending='';process.stdin.setEncoding('utf8');process.stdin.on('data',x=>{pending+=x;const end=pending.indexOf('\n');if(end<0)return;const first=pending.slice(0,end);pending='';if(first==='PUBLIC_TRIGGER_LATE_STDERR'){process.stderr.write('PUBLIC_LATE_STDERR');return;}if(first==='PUBLIC_TRIGGER_CLOSE_STDOUT'){closeSync(1);return;}if(first==='PUBLIC_TRIGGER_CLOSE_STDERR'){closeSync(2);return;}const h=JSON.parse(first.replace(/^\uFEFF/,''));const row=(pid,parentPid,ticks,node)=>({pid,parentPid,creationTicks:ticks,sessionId:h.sessionId,imagePath:node?h.nodePath:'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe',imageSha256:node?'3602f2bb1a10f2cbab4c36886218a33c1ab3db87290e73b033c46c77147d0237':'a'.repeat(64),imageIdentityKey:node?h.nodeImageIdentityKey:'PUBLIC-SYSTEM-IMAGE',ownerSidSha256:h.ownerSidSha256,signatureStatus:node?'NOT_REQUIRED':'Valid',publisher:node?'':'Microsoft Corporation'});const ancestry={profile:'goriq-owned-node-peer-ancestry-data-v1',effectCapability:false,helper:row(h.nodePid+1000,h.nodePid,String(BigInt(h.nodeCreationTicks)+1n),false),node:row(h.nodePid,h.bootstrapPid,h.nodeCreationTicks,true),bootstrap:row(h.bootstrapPid,3000,h.bootstrapCreationTicks,false)};const reply={schemaVersion:1,kind:'GORIQ_OWNED_NODE_PEER_OS_DATA',sequence:1,sourceRevision:h.sourceRevision,originalGrantSha256:h.originalGrantSha256,nativeMjsSha256:h.nativeMjsSha256,nativePsSha256:h.nativePsSha256,ancestry};const mode=process.env.GORIQ_PUBLIC_PEER_CASE;if(mode==='pid')reply.ancestry.node.pid++;if(mode==='source')reply.nativePsSha256='e'.repeat(64);if(mode==='source-array')reply.nativePsSha256=[reply.nativePsSha256];if(mode==='stderr')process.stderr.write('PUBLIC_ONLY_UNEXPECTED_STDERR');let wire=JSON.stringify(reply);if(mode==='duplicate')wire=wire.replace('"sequence":1','"sequence":2,"sequence":1');process.stdout.write(wire+'\n'+(mode==='extra'?'PUBLIC_EXTRA_FRAME\n':''));});
 '@
  [IO.File]::WriteAllText($childPath,$js,[Text.UTF8Encoding]::new($false));$rows=@();$index=3000;$startedCount=0
  try{$groups=@(@('success','pid','source','source-array'),@('duplicate','stderr','extra','foreign-factory'),@('journal-throw','start-expiry','node-binding-missing','late-stderr'));if($ClosedChannel){$groups=@(@('late-stdout-eof'),@('late-stderr-eof'),@('success'))};if($PlatformEnvironment){$groups=@(@('success'),@('success'),@('success'))};foreach($which in $groups[$TransportGroup]){$phaseCase='CASE_'+$which.ToUpperInvariant().Replace('-','_');Write-PublicPeerProgress ($phaseCase+'_BEGIN');$index++;$dir=PrivateSetup $index;$module=$null;try{
@@ -269,6 +339,33 @@ function Read-OwnerCutoverPeerProcessData {
  [void]$script:peerTrace.Add($Id);if($script:peerCase -ceq 'expiry' -and $script:peerTrace.Count -eq 1){$script:peerElapsed=10001}
  $isNode=$Id -eq 3102;$row=[pscustomobject][ordered]@{pid=$Id;parentPid=$(if($Id -eq 3101){3102}elseif($Id -eq 3102){3103}else{3000});creationTicks=$(if($Id -eq 3101){'639000000000000003'}elseif($Id -eq 3102){'639000000000000002'}else{'639000000000000001'});sessionId=2;imagePath=$(if($isNode){'C:\Users\Owner\JARVIS\tools\node-v24.19.0-win-x64\node.exe'}else{'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe'});imageSha256=$(if($isNode){'3602f2bb1a10f2cbab4c36886218a33c1ab3db87290e73b033c46c77147d0237'}else{'a'*64});imageIdentityKey=('public-file-'+$Id);ownerSidSha256=('b'*64);signatureStatus=$(if($isNode){'NOT_REQUIRED'}else{'Valid'});publisher=$(if($isNode){''}else{'Microsoft Corporation'})}
  if($script:peerCase -ceq 'cycle' -and $Id -eq 3102){$row.parentPid=3101};if($script:peerCase -ceq 'owner' -and $Id -eq 3103){$row.ownerSidSha256='c'*64};if($script:peerCase -ceq 'session' -and $Id -eq 3102){$row.sessionId=3};if($script:peerCase -ceq 'node-hash' -and $isNode){$row.imageSha256='d'*64};if($script:peerCase -ceq 'signature' -and -not $isNode){$row.signatureStatus='UnknownError'};if($script:peerCase -ceq 'image' -and -not $isNode){$row.imagePath='C:\Other\powershell.exe'};if($script:peerCase -ceq 'numeric'){$row.pid=[string]$row.pid};if($script:peerCase -ceq 'creation'){$row.creationTicks=[double]639000000000000003};if($script:peerCase -ceq 'newer-parent' -and $Id -eq 3103){$row.creationTicks='639000000000000009'};if($script:peerCase -ceq 'extra'){$row|Add-Member -NotePropertyName trusted -NotePropertyValue $true};return $row
+}
+if($ProbeDiagnosticTransport){
+ $diagnosticRows=@();$originalConsoleOut=[Console]::Out;$capture=[IO.StringWriter]::new()
+ try{[Console]::SetOut($capture);$script:peerCase='success';$null=Get-OwnerCutoverPeerAncestryData}finally{[Console]::SetOut($originalConsoleOut)};Require ($capture.ToString().Length -eq 0) 'DIAGNOSTIC_DEFAULT_NO_PROGRESS';$capture.Dispose()
+ foreach($which in @('success','numeric','expiry','raw-error','extra-argument')){
+  $script:peerCase=$which;$script:peerTrace.Clear();$script:peerElapsed=0
+  if($which -ceq 'raw-error'){
+   function Read-OwnerCutoverPeerProcessData {throw [IO.IOException]::new('PRIVATE_CANARY C:\PRIVATE S-1-5-21-111 pid=777')}
+  }
+  if($which -ceq 'extra-argument'){$refused=$false;try{$null=Get-OwnerCutoverPeerAncestryDiagnosticData 'PRIVATE_CANARY'}catch{$refused=$true};Require $refused 'DIAGNOSTIC_EXTRA_ARGUMENT_REFUSED';continue}
+  $capture=[IO.StringWriter]::new();try{[Console]::SetOut($capture);$value=Get-OwnerCutoverPeerAncestryDiagnosticData}finally{[Console]::SetOut($originalConsoleOut)}
+  $progress=@($capture.ToString().Split([char]10)|Where-Object {$_});$capture.Dispose();Require ($progress.Count -gt 0 -and $progress.Count -le 96) 'DIAGNOSTIC_BOUNDED_PROGRESS'
+  foreach($line in $progress){Require ($line.TrimEnd([char]13) -cmatch '^GORIQ_PUBLIC_PEER_PROBE_PHASE (?:PLATFORM|ROW_READ|PROCESS_QUERY|PROCESS_OPEN|OWNER_QUERY|NATIVE_COMPILE|IMAGE_OPEN|IMAGE_IDENTITY|IMAGE_READ|IMAGE_RECHECK|SIGNATURE|ROW_SHAPE|ROW_BINDING|CHAIN_BINDING|COMPLETE) [0-2]$') 'DIAGNOSTIC_CLOSED_PROGRESS'}
+  Require ($value.profile -ceq 'goriq-readonly-peer-probe-diagnostic-v1' -and -not $value.nativeAuthority -and -not $value.effectCapability -and $value.rowIndex -ge 0 -and $value.rowIndex -le 2) 'DIAGNOSTIC_CLOSED_SHAPE'
+  if($which -ceq 'success'){Require ($value.ancestryCompleted -and $value.lastEnteredPhase -ceq 'COMPLETE' -and $value.exceptionClass -ceq 'NONE' -and $null -eq $value.actualExceptionHResult) 'DIAGNOSTIC_SUCCESS'}
+  elseif($which -ceq 'raw-error'){Require (-not $value.ancestryCompleted -and $value.lastEnteredPhase -ceq 'ROW_READ' -and $value.exceptionClass -ceq 'IO' -and $value.actualExceptionHResult -eq [IO.IOException]::new().HResult) 'DIAGNOSTIC_ACTUAL_IO_HRESULT'}
+  else{Require (-not $value.ancestryCompleted -and $value.exceptionClass -ceq 'RUNTIME' -and $value.actualExceptionHResult -is [int]) 'DIAGNOSTIC_REFUSAL';if($which -ceq 'expiry'){Require ($script:peerTrace.Count -eq 1) 'DIAGNOSTIC_NO_IO_AFTER_EXPIRY'}}
+  $diagnosticRows+=,$value
+ }
+ foreach($cut in @('malformed','overflow','expiry','repeat')){
+  $script:peerElapsed=0;$state=$script:ownerCutoverPeerProbeState;$state.diagnosticProgress=$true;$state.phase='ROW_READ';$state.index=0;$state.lastProgress='';$state.progressRows=0;$state.progressBytes=0
+  if($cut -ceq 'malformed'){$state.phase='PRIVATE_CANARY'}elseif($cut -ceq 'overflow'){$state.progressRows=96}elseif($cut -ceq 'expiry'){$script:peerElapsed=10001}else{$state.lastProgress='ROW_READ 0'}
+  $capture=[IO.StringWriter]::new();$refused=$false;try{[Console]::SetOut($capture);try{Write-OwnerCutoverPeerProbeDiagnosticProgress}catch{$refused=$_.Exception.Message -ceq 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}}finally{[Console]::SetOut($originalConsoleOut)}
+  Require ($capture.ToString().Length -eq 0 -and $refused -eq ($cut -cne 'repeat')) 'DIAGNOSTIC_PROGRESS_CUT_NO_OUTPUT';$capture.Dispose()
+ }
+ Require (($diagnosticRows|ConvertTo-Json -Depth 4 -Compress) -cnotmatch 'PRIVATE_CANARY|S-1-|C:\\PRIVATE') 'DIAGNOSTIC_NO_RAW_ERROR'
+ @{pass=$true;diagnosticCases=5;nativeAuthority=$false;actualNativeCalls=0}|ConvertTo-Json -Compress;return
 }
 $cases=@('success','cycle','owner','session','node-hash','signature','image','numeric','creation','newer-parent','extra','expiry');$rows=@()
 foreach($which in $cases){$script:peerCase=$which;$script:peerTrace.Clear();$script:peerElapsed=0
