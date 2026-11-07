@@ -1,4 +1,4 @@
-param([ValidateSet('kernel','clock','scope','default','denials','stage','node','archive','configuration','validator-child','journal','entry','kernel-producers','startup-policy','compiled-policy','fallback','compiled-os','all')][string]$Scenario='kernel',[string]$FixtureInput='')
+param([ValidateSet('kernel','clock','scope','default','denials','stage','node','archive','configuration','validator-child','journal','entry','kernel-producers','startup-policy','compiled-policy','fallback','compiled-os','owned-workspace','all')][string]$Scenario='kernel',[string]$FixtureInput='')
 $ErrorActionPreference='Stop';Set-StrictMode -Version Latest
 $root=Split-Path $PSScriptRoot;$script:fixtureSourceRoot=$root;. (Join-Path $root 'scripts/owner-code-rotation-native-1218.ps1')
 if(-not (Get-Command Get-OwnerCutoverPublicReadiness -ErrorAction SilentlyContinue)){throw 'CUTOVER_PUBLIC_READINESS_MISSING'}
@@ -20,7 +20,17 @@ function Get-OwnerCutoverBootstrapPublicResource([string]$Uri){
  else{throw 'UNEXPECTED_PUBLIC_URL'}
  return ,[Text.Encoding]::UTF8.GetBytes(($value|ConvertTo-Json -Depth 8 -Compress))
 }
-function Setup([int]$Index){$script:utc=$script:baseNow;$script:stamp=[long]10000000;$script:frequency=[long]1000;$script:run=[long](12345000+$Index);$script:case='';$script:calls.Clear();$script:grant=ConvertFrom-OwnerRotationEntryJson ([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($inputData.encoded)));$dir=[IO.Path]::Combine([IO.Path]::GetTempPath(),('public-bootstrap-'+[IO.Path]::GetRandomFileName()));$script:stage=[IO.Path]::Combine($dir,('owner-native-'+$script:run+'-1'));$null=[IO.Directory]::CreateDirectory($script:stage);foreach($path in @($script:grant.sourceHashes.PSObject.Properties.Name)+@('.github/workflows/gai-zbook-diagnostic-1218.yml')){$target=Join-Path $script:stage $path;$null=[IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($target));[IO.File]::Copy((Join-Path $root $path),$target)};foreach($property in $inputData.environment.PSObject.Properties){[Environment]::SetEnvironmentVariable($property.Name,[string]$property.Value)};$env:GITHUB_RUN_ID=[string]$script:run;$env:GITHUB_WORKSPACE=$dir;$env:GORIQ_OWNER_ROTATION_SCOPE_BASE64=$inputData.encoded;$env:JARVIS_PRODUCTION_CONFIG='';Push-Location $script:stage;return $dir}
+# Public test storage only; no readiness/authority comes from either environment path.
+function Get-CutoverPublicFixtureBase49 {
+ $base=[IO.Path]::GetFullPath([IO.Path]::GetTempPath());$separators=[char[]]@([IO.Path]::DirectorySeparatorChar)
+ if($env:RUNNER_TEMP){Require ([IO.Path]::IsPathRooted($env:RUNNER_TEMP)) 'PUBLIC_RUNNER_BASE_ROOTED';$runner=[IO.Path]::GetFullPath($env:RUNNER_TEMP);if($runner.Split($separators,[StringSplitOptions]::RemoveEmptyEntries).Length -lt $base.Split($separators,[StringSplitOptions]::RemoveEmptyEntries).Length){$base=$runner}}
+ $safe=Get-OwnerRotationEntrySafePath $base;Require ([IO.Directory]::Exists($safe)) 'PUBLIC_OWNED_BASE_DIRECTORY';return $safe
+}
+function New-CutoverPublicFixtureWorkspace49 {
+ $path=Join-Path (Get-CutoverPublicFixtureBase49) ('public-bootstrap-'+[IO.Path]::GetRandomFileName());if([IO.File]::Exists($path) -or [IO.Directory]::Exists($path)){throw 'PUBLIC_WORKSPACE_COLLISION'}
+ $created=Microsoft.PowerShell.Management\New-Item -ItemType Directory -Path $path -ErrorAction Stop;return $created.FullName
+}
+function Setup([int]$Index){$script:utc=$script:baseNow;$script:stamp=[long]10000000;$script:frequency=[long]1000;$script:run=[long](12345000+$Index);$script:case='';$script:calls.Clear();$script:grant=ConvertFrom-OwnerRotationEntryJson ([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($inputData.encoded)));$dir=New-CutoverPublicFixtureWorkspace49;$script:stage=[IO.Path]::Combine($dir,('owner-native-'+$script:run+'-1'));$null=[IO.Directory]::CreateDirectory($script:stage);foreach($path in @($script:grant.sourceHashes.PSObject.Properties.Name)+@('.github/workflows/gai-zbook-diagnostic-1218.yml')){$target=Join-Path $script:stage $path;$null=[IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($target));[IO.File]::Copy((Join-Path $root $path),$target)};foreach($property in $inputData.environment.PSObject.Properties){[Environment]::SetEnvironmentVariable($property.Name,[string]$property.Value)};$env:GITHUB_RUN_ID=[string]$script:run;$env:GITHUB_WORKSPACE=$dir;$env:GORIQ_OWNER_ROTATION_SCOPE_BASE64=$inputData.encoded;$env:JARVIS_PRODUCTION_CONFIG='';Push-Location $script:stage;return $dir}
 function Refused([scriptblock]$Action){$caught=$false;try{&$Action|Out-Null}catch{$caught=$true};Require $caught 'EXPECTED_REFUSAL'}
 function Close([string]$Dir){Pop-Location;[IO.Directory]::Delete($Dir,$true)}
 
@@ -143,6 +153,22 @@ function InstallFixtureConfiguration($Module){
 }
 
 
+
+if($Scenario -ceq 'owned-workspace'){
+ $owned=Join-Path (Get-CutoverPublicFixtureBase49) ('public-deep-workspace-'+[IO.Path]::GetRandomFileName());$null=Microsoft.PowerShell.Management\New-Item -ItemType Directory -Path $owned -ErrorAction Stop;$link=$null;$contexts=@()
+ try{
+  $deep=Join-Path $owned 'one/two/three/four/five/six/seven/eight';$null=[IO.Directory]::CreateDirectory($deep);$file=Join-Path $deep 'public-fixture.ps1';[IO.File]::WriteAllBytes($file,[Text.Encoding]::UTF8.GetBytes('PUBLIC_PATH_DATA_ONLY'));Require ((Get-OwnerRotationEntrySafePath $file) -ceq [IO.Path]::GetFullPath($file)) 'REAL_DEEP_ANCESTOR_POSITIVE'
+  $target=Join-Path $owned 'owned-target';$null=[IO.Directory]::CreateDirectory($target);[IO.File]::WriteAllText((Join-Path $target 'public-fixture.ps1'),'PUBLIC_TARGET_DATA_ONLY');$link=Join-Path $deep 'owned-link';$kind=if([IO.Path]::DirectorySeparatorChar -eq [char]92){'Junction'}else{'SymbolicLink'};$null=Microsoft.PowerShell.Management\New-Item -ItemType $kind -Path $link -Target $target -ErrorAction Stop;Refused {Get-OwnerRotationEntrySafePath (Join-Path $link 'public-fixture.ps1')};[IO.Directory]::Delete($link);$link=$null
+  foreach($index in @(4001,4002)){$dir=PrivateSetup $index;try{
+   $public=Get-OwnerCutoverPublicReadiness;$private=New-OwnerCutoverPrivateBackend -PublicToken $public;$state=$null;$record=$null;Require ($script:ownerCutoverPublicLifetimes.tokens.TryGetValue($public,[ref]$state)) 'ACTUAL_PUBLIC_REFERENCE';Require ($script:ownerCutoverPrivateLifetimes.tokens.TryGetValue($private,[ref]$record)) 'ACTUAL_PRIVATE_REFERENCE'
+   $status=Get-OwnerCutoverPrivateBackendStatus $private;Require (-not $status.effectCapability -and -not $status.privateContextVerified) 'STORAGE_BASE_IS_NOT_AUTHORITY';$contexts+=@{public=$public;private=$private;state=$state;module=$record.module;grant=$state.grant}
+   if($index -eq 4001){$firstHash=$script:grant.sourceHashes.PSObject.Properties.Name[0];$script:grant.sourceHashes.$firstHash='f'*64;$script:grant.knownRecoveryTask.allowedOperations[0]='PUBLIC_CHANGED';$env:GITHUB_ACTOR='PUBLIC_CHANGED'}
+   else{Require ($script:grant.sourceHashes.$firstHash -cne ('f'*64) -and $script:grant.knownRecoveryTask.allowedOperations[0] -ceq 'preflight') 'NO_NESTED_CASE_POLLUTION';Require ($env:GITHUB_ACTOR -ceq [string]$inputData.environment.GITHUB_ACTOR) 'CASE_ENVIRONMENT_RESET'}
+  }finally{Close $dir}}
+  foreach($key in @('public','private','state','module','grant')){Require (-not [object]::ReferenceEquals($contexts[0][$key],$contexts[1][$key])) ('FRESH_'+$key)};Require (-not [object]::ReferenceEquals($contexts[0].grant.sourceHashes,$contexts[1].grant.sourceHashes)) 'FRESH_NESTED_ACTUAL_GRANTS'
+  @{pass=$true;deepPathChecked=$true;deepReparseRefused=$true;publicTokensDistinct=$true;originalClockStatesDistinct=$true;privateContextsDistinct=$true;nestedInputsIndependent=$true;environmentReset=$true;cachedContextCount=0;actualTaskAccountDpapiCalls=0;authority=$false}|ConvertTo-Json -Compress
+ }finally{if($link -and [IO.Directory]::Exists($link)){[IO.Directory]::Delete($link)};[IO.Directory]::Delete($owned,$true)};return
+}
 
 if($Scenario -eq 'kernel-producers'){
  Add-Type @'

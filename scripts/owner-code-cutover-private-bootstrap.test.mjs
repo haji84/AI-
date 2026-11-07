@@ -43,3 +43,9 @@ test('public phase reader bounds bytes and admits only fixed ordered phase-time 
  const directory=mkdtempSync(join(tmpdir(),'goriq-public-cutover-phase-'));const path=join(directory,'phase.txt');
  try{for(const [wire,expected] of [['BATCH_BEGIN:0\nBATCH_DONE:123\n',['BATCH_BEGIN:0','BATCH_DONE:123']],['BATCH_BEGIN:2\nBATCH_DONE:1\n',['PROGRESS_REJECTED']],['BATCH_BEGIN:60001\n',['PROGRESS_REJECTED']],['UNKNOWN:2\n',['PROGRESS_REJECTED']],['BATCH_BEGIN:NaN\n',['PROGRESS_REJECTED']],['BATCH_BEGIN:0:PRIVATE_CANARY\n',['PROGRESS_REJECTED']],['x'.repeat(8193),['PROGRESS_REJECTED']]]){writeFileSync(path,wire);assert.deepEqual(readPublicProgress(path),expected);}}finally{rmSync(directory,{recursive:true,force:true});}
 });
+
+test('short public workspaces preserve real deep-ancestor refusal and fresh independent source clock and private contexts',()=>{
+ const g=grant();for(const name of Object.keys(g.sourceHashes))g.sourceHashes[name]=createHash('sha256').update(readFileSync(name)).digest('hex');
+ const child=spawnSync(shell,['-NoLogo','-NoProfile','-NonInteractive','-File','tests/owner-code-cutover-private-bootstrap.fixture.ps1','-Scenario','owned-workspace'],{input:JSON.stringify({encoded:encode(g),environment,now:new Date(now).toISOString(),nodeExecutable:process.execPath}),encoding:'utf8',timeout:15000,maxBuffer:16384});
+ assert.equal(child.error,undefined);assert.equal(child.status,0,child.stdout+child.stderr);assert.equal(child.stderr,'');const result=JSON.parse(child.stdout);for(const name of ['pass','deepPathChecked','deepReparseRefused','publicTokensDistinct','originalClockStatesDistinct','privateContextsDistinct','nestedInputsIndependent','environmentReset'])assert.equal(result[name],true);assert.equal(result.cachedContextCount,0);assert.equal(result.actualTaskAccountDpapiCalls,0);assert.equal(result.authority,false);
+});
