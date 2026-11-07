@@ -45,6 +45,132 @@ jobs:
         run: pnpm lint
       - name: Test
         run: pnpm test
+      - name: Collect bounded public test runtime facts
+        if: always()
+        timeout-minutes: 1
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          # Read-only public diagnostic DATA. Test outcome and authority stay separate.
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import re
+          import resource
+          import selectors
+          import shutil
+          import stat
+          import subprocess
+          import time
+
+
+          def probe_runtime(binary):
+              probe = '[Console]::Out.WriteLine($PSVersionTable.PSVersion.ToString());[Console]::Out.WriteLine([Runtime.InteropServices.RuntimeInformation]::FrameworkDescription);[Console]::Out.WriteLine($ExecutionContext.SessionState.LanguageMode.ToString())'
+              child = None
+              streams = None
+              try:
+                  deadline = time.monotonic() + 14
+                  child = subprocess.Popen([str(binary), '-NoLogo', '-NoProfile', '-NonInteractive', '-Command', probe], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                  streams = selectors.DefaultSelector()
+                  output = {'stdout': bytearray(), 'stderr': bytearray()}
+                  for name, pipe in (('stdout', child.stdout), ('stderr', child.stderr)):
+                      os.set_blocking(pipe.fileno(), False)
+                      streams.register(pipe, selectors.EVENT_READ, name)
+                  while streams.get_map():
+                      remaining = deadline - time.monotonic()
+                      if remaining <= 0:
+                          return {'state': 'INCONCLUSIVE_TIMEOUT'}
+                      for key, _ in streams.select(min(remaining, 0.1)):
+                          data = os.read(key.fileobj.fileno(), 4097)
+                          if not data:
+                              streams.unregister(key.fileobj)
+                          elif len(output[key.data]) + len(data) > 4096:
+                              return {'state': 'INCONCLUSIVE_OUTPUT_BOUND'}
+                          else:
+                              output[key.data].extend(data)
+                  status = child.wait(timeout=max(0, deadline - time.monotonic()))
+                  lines = bytes(output['stdout']).decode('utf-8', errors='strict').splitlines()
+                  if status == 0 and not output['stderr'] and len(lines) == 3 and re.fullmatch(r'[0-9]{1,4}\.[0-9]{1,4}\.[0-9]{1,4}', lines[0]) and re.fullmatch(r'\.NET(?: Core)? [0-9.]{1,32}', lines[1]) and lines[2] in ('FullLanguage', 'ConstrainedLanguage', 'NoLanguage', 'RestrictedLanguage'):
+                      return {'state': 'CLOSED_VALID_FACTS', 'version': lines[0], 'framework': lines[1], 'languageMode': lines[2]}
+                  return {'state': 'INCONCLUSIVE_CLOSED_PROBE'}
+              except subprocess.TimeoutExpired:
+                  return {'state': 'INCONCLUSIVE_TIMEOUT'}
+              except (OSError, ValueError, UnicodeError):
+                  return {'state': 'INCONCLUSIVE_IO'}
+              finally:
+                  cleanup_failed = False
+                  if streams is not None:
+                      try:
+                          streams.close()
+                      except OSError:
+                          cleanup_failed = True
+                  if child is not None:
+                      try:
+                          running = child.poll() is None
+                      except OSError:
+                          cleanup_failed = True
+                          running = True
+                      if running:
+                          try:
+                              child.kill()
+                          except OSError:
+                              cleanup_failed = True
+                      try:
+                          child.wait(timeout=1)
+                      except (OSError, subprocess.TimeoutExpired):
+                          cleanup_failed = True
+                      for pipe in (child.stdout, child.stderr):
+                          if pipe is not None:
+                              try:
+                                  pipe.close()
+                              except OSError:
+                                  cleanup_failed = True
+                  if cleanup_failed:
+                      # Any unconfirmed owned cleanup overrides positive facts.
+                      return {'state': 'INCONCLUSIVE_CLEANUP'}
+
+
+          def collect_facts():
+              facts = {'purpose': 'PUBLIC_TEST_RUNTIME_DIAGNOSTIC_ONLY', 'authority': False}
+              try:
+                  limits = resource.getrlimit(resource.RLIMIT_STACK)
+                  facts['stackLimit'] = {'state': 'OBSERVED_BYTES', 'soft': limits[0], 'hard': limits[1]} if len(limits) == 2 and all(type(n) is int and -1 <= n <= 9223372036854775807 for n in limits) else {'state': 'INCONCLUSIVE_RANGE'}
+              except (OSError, ValueError):
+                  facts['stackLimit'] = {'state': 'INCONCLUSIVE_IO'}
+              for name in ('DOTNET_DefaultStackSize', 'COMPlus_DefaultStackSize'):
+                  value = os.environ.get(name)
+                  item = {'state': 'ABSENT' if value is None else 'INCONCLUSIVE_NONCANONICAL'}
+                  if value is not None and re.fullmatch(r'(?:0[xX])?[0-9a-fA-F]{1,8}', value):
+                      number = int(value, 16)
+                      if 65536 <= number <= 67108864:
+                          item = {'state': 'CANONICAL_BOUNDED_HEX_BYTES', 'bytes': number}
+                  facts[name] = item
+              try:
+                  executable = shutil.which('pwsh')
+                  if executable is None:
+                      facts['pwsh'] = {'state': 'INCONCLUSIVE_MISSING'}
+                  else:
+                      binary = Path(executable).resolve(strict=True)
+                      descriptor = os.open(binary, os.O_RDONLY | os.O_NONBLOCK | os.O_CLOEXEC)
+                      with os.fdopen(descriptor, 'rb') as stream:
+                          info = os.fstat(stream.fileno())
+                          if not stat.S_ISREG(info.st_mode) or not 0 < info.st_size <= 16777216:
+                              facts['pwsh'] = {'state': 'INCONCLUSIVE_BINARY_BOUND'}
+                              return facts
+                          data = stream.read(16777217)
+                      if len(data) != info.st_size:
+                          facts['pwsh'] = {'state': 'INCONCLUSIVE_BINARY_BOUND'}
+                      else:
+                          facts['pwsh'] = probe_runtime(binary)
+                          facts['pwsh']['binarySha256'] = hashlib.sha256(data).hexdigest()
+              except (OSError, ValueError, RuntimeError):
+                  facts['pwsh'] = {'state': 'INCONCLUSIVE_IO'}
+              return facts
+
+
+          print(json.dumps(collect_facts(), sort_keys=True))
+          PY
       - name: P8 Security Regression Suite
         run: pnpm test:p8-security
       - name: Windows ACL repair decision fixtures

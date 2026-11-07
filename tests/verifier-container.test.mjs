@@ -353,7 +353,7 @@ test("private original outer eligibility is sticky after monotonic reversal even
 
 test("private final executable-resolution delay cannot launch after the original cut or keep an earlier larger allowance",async()=>{
  for(const delay of [1800001,5000]){let active=false;const m=hostedPrivateModel({resolveExecutable:c=>{if(active){c.mono+=BigInt(delay)*1000000n;c.utc+=delay;}}}),r=await m.ready();m.api.bindHostedCiRequest(r.token,r.req);active=true;
-  if(delay===5000)m.advance(1800000-619000-16000);
+  if(delay===5000)m.advance(1800000-379000-16000);
   const result=await m.api.runHostedCiContainer(r.token,r.req,"lint",m.api.expected(r.token,"lint"),r.options),launched=m.calls.filter(x=>x.kind==="process"&&x.args[0]==="run");
   if(delay===1800001){assert.equal(launched.length,0,"No child after delayed executable resolution crosses the original cut");assert.ok(result.error);}else{assert.equal(launched.length,1);assert.ok(launched[0].options.timeoutMs<=11000,"Final allowance must be recomputed after synchronous executable resolution");}
  }
@@ -408,7 +408,7 @@ test("private registered safeGit throw and reversal stay terminal while genuine 
 // Less than the fixed reserve plus child tail never becomes a 1ms child grant.
 test("private hosted no-budget wrong-order cross-request and weakened resource vectors launch nothing",async()=>{
  for(const mode of ["no-budget","wrong-order","copy-request","weaken-memory"]){const m=hostedPrivateModel(),r=await m.ready();m.api.bindHostedCiRequest(r.token,r.req);let args=m.api.expected(r.token,"lint");
-  if(mode==="no-budget"){const b=m.api.observeHostedCiBudget(r.token,"SETUP");m.advance(b.remainingMs-619000);}
+  if(mode==="no-budget"){const b=m.api.observeHostedCiBudget(r.token,"SETUP");m.advance(b.remainingMs-379000);}
   if(mode==="weaken-memory")args=args.map(x=>x==="--memory=2g"?"--memory=4g":x);
   await assert.rejects(m.api.runHostedCiContainer(r.token,mode==="copy-request"?{...r.req}:r.req,mode==="wrong-order"?"unit":"lint",args,r.options),/HOSTED_CI_/);assert.equal(m.calls.filter(c=>c.kind==="process").length,0);
  }
@@ -567,4 +567,69 @@ test("private pending settle cannot replay or replace strict in-progress identit
   if(status==="in_progress"){const entry=await first;assert.ok(Object.isFrozen(entry.token));}else await assert.rejects(first,error=>{assert.equal(error.code,"HOSTED_CI_OFFICIAL_RUN_MISMATCH");assert.equal(error.message,"HOSTED_CI_OFFICIAL_RUN_MISMATCH:RUN_IDENTITY_V1:0001000000000");return true;});
   assert.equal(m.calls.filter(x=>x.kind==="settle").length,1);assert.equal(m.calls.filter(x=>x.kind==="GET").length,2);assert.equal(m.calls.filter(x=>x.kind==="process").length,0);await assert.rejects(m.api.beginHostedCiEntry(),/ENTRY_REFUSED/);
  }
+});
+
+// R66 prospective fixed hosted reserve amendment. Source65 remains historical
+// FAIL; these snapshots compare child admission only, not check completion.
+test("R66 frozen Source65 admission snapshots use the prospectively adopted reserve",async()=>{
+ for(const row of [{name:"integration",remaining:1142289,old:523289,expected:600000},{name:"security",remaining:632931,old:13931,expected:180000}]){
+  const m=hostedPrivateModel(),r=await m.ready();m.api.bindHostedCiRequest(r.token,r.req);
+  for(const name of r.req.requiredChecks.slice(0,r.req.requiredChecks.indexOf(row.name))){const result=await m.api.runHostedCiContainer(r.token,r.req,name,m.api.expected(r.token,name),r.options);assert.equal(result.status,0);}
+  const before=m.api.observeHostedCiBudget(r.token,"SETUP");m.advance(before.remainingMs-row.remaining);
+  assert.equal(m.api.observeHostedCiBudget(r.token,"SETUP").remainingMs,row.remaining);
+  assert.equal(Math.min(["unit","integration"].includes(row.name)?600000:180000,row.remaining-600000-19000),row.old);
+  const result=await m.api.runHostedCiContainer(r.token,r.req,row.name,m.api.expected(r.token,row.name),r.options);
+  const launched=m.calls.filter(c=>c.kind==="process"&&c.args[0]==="run").at(-1);
+  assert.equal(result.error,undefined);assert.equal(launched.options.timeoutMs,row.expected,row.name);
+  assert.equal(result.hostedBudget.reserveMs,360000);
+ }
+});
+
+test("R66 zero and genuine1ms boundary final resolution retain the original admission cut",async()=>{
+ for(const row of [{remaining:379000,delay:0,launch:false},{remaining:379001,delay:0,launch:true},{remaining:379001,delay:1,launch:false}]){
+  let active=false,resolutions=0;const m=hostedPrivateModel({resolveExecutable:c=>{if(active){resolutions++;c.mono+=BigInt(row.delay)*1000000n;c.utc+=row.delay;}}}),r=await m.ready();m.api.bindHostedCiRequest(r.token,r.req);
+  const before=m.api.observeHostedCiBudget(r.token,"SETUP");m.advance(before.remainingMs-row.remaining);active=true;
+  let result;try{result=await m.api.runHostedCiContainer(r.token,r.req,"lint",m.api.expected(r.token,"lint"),r.options);}catch(error){result={error};}
+  const launched=m.calls.filter(c=>c.kind==="process"&&c.args[0]==="run");
+  assert.equal(launched.length,row.launch?1:0,JSON.stringify(row));
+  if(row.launch){assert.equal(launched[0].options.timeoutMs,1);assert.equal(result.error,undefined);}else{assert.ok(result.error);assert.throws(()=>m.api.observeHostedCiBudget(r.token,"SIGN_BEFORE"),/TERMINAL/);}
+  if(row.remaining===379000)assert.equal(resolutions,0,"No executable resolution without genuine allowance");
+ }
+});
+
+function r66RuntimeFactsSource(){
+ const workflow=readFileSync(".github/workflows/ci.yml","utf8"),marker="      - name: Collect bounded public test runtime facts\n        if: always()\n        timeout-minutes: 1\n        shell: bash\n        run: |\n          python3 - <<'PY'\n";
+ const start=workflow.indexOf(marker);assert.ok(start>=0,"The bounded always-after-Test runtime facts step must exist");
+ const end=workflow.indexOf("          PY\n",start+marker.length);assert.ok(end>start);
+ const source=workflow.slice(start+marker.length,end).split("\n").map(line=>{assert.ok(!line||line.startsWith("          "));return line.slice(10);}).join("\n");
+ assert.ok(workflow.indexOf("      - name: Test\n        run: pnpm test\n")<start);
+ return {source,workflow,addition:workflow.slice(start,end+"          PY\n".length)};
+}
+
+test("R66 runtime facts preserves the entire prior workflow outside one after-Test diagnostic",()=>{
+ const {source,workflow,addition}=r66RuntimeFactsSource();
+ assert.equal(createHash("sha256").update(workflow.replace(addition,"")).digest("hex"),"e5cd90e8c3d25858d85eb44959f11206db46bd850ee7e6e2e0dc7dc4f7286c26");
+ assert.ok(source.includes("PUBLIC_TEST_RUNTIME_DIAGNOSTIC_ONLY"));assert.ok(source.includes("INCONCLUSIVE_IO"));
+ for(const forbidden of ["os.environ.items", "os.environ.copy", "check_output", "shell=True", "resource.setrlimit", "SetMinThreads", "continue-on-error"])assert.equal(source.includes(forbidden),false,forbidden);
+});
+
+test("R66 runtime facts closes IO errors and hostile settings without raw values",{skip:process.platform!=="linux"},()=>{
+ const {source}=r66RuntimeFactsSource(),body=source.slice(0,source.lastIndexOf("print(json.dumps(collect_facts()"));assert.ok(body.length>0);
+ const harness=body+`\nfrom unittest.mock import patch\nsecret='PRIVATE_DO_NOT_PRINT'\nresults=[]\nwith patch('shutil.which',side_effect=OSError(secret)):\n results.append(collect_facts())\nwith patch('shutil.which',return_value=None),patch('resource.getrlimit',side_effect=OSError(secret)),patch.dict(os.environ,{'DOTNET_DefaultStackSize':secret,'COMPlus_DefaultStackSize':'0x100000'}):\n results.append(collect_facts())\nfor value in ['1','FFFFFFFF','10000\\x00','0x10000\\n',secret]:\n with patch('shutil.which',return_value=None),patch('os.environ',{'DOTNET_DefaultStackSize':value}):\n  results.append(collect_facts())\nwith patch('shutil.which',return_value='/missing/'+secret):\n results.append(collect_facts())\nprint(json.dumps(results,sort_keys=True))\n`;
+ const result=childProcess.spawnSync("python3",["-"],{input:harness,encoding:"utf8",timeout:5000,maxBuffer:65536});assert.equal(result.status,0);assert.equal(result.stderr,"");assert.equal(result.stdout.includes("PRIVATE_DO_NOT_PRINT"),false);
+ const rows=JSON.parse(result.stdout);assert.equal(rows.length,8);assert.equal(rows[0].pwsh.state,"INCONCLUSIVE_IO");assert.equal(rows[1].stackLimit.state,"INCONCLUSIVE_IO");assert.deepEqual(rows[1].COMPlus_DefaultStackSize,{state:"CANONICAL_BOUNDED_HEX_BYTES",bytes:1048576});
+ for(const row of rows.slice(1,7))assert.equal(row.DOTNET_DefaultStackSize.state,"INCONCLUSIVE_NONCANONICAL");assert.equal(rows.at(-1).pwsh.state,"INCONCLUSIVE_IO");
+});
+
+test("R66 runtime facts real local pwsh observation stays bounded public DATA",{skip:process.platform!=="linux"},()=>{
+ const {source}=r66RuntimeFactsSource();const result=childProcess.spawnSync("python3",["-"],{input:source,encoding:"utf8",timeout:18000,maxBuffer:16384});assert.equal(result.status,0);assert.equal(result.stderr,"");
+ const facts=JSON.parse(result.stdout);assert.equal(facts.purpose,"PUBLIC_TEST_RUNTIME_DIAGNOSTIC_ONLY");assert.equal(facts.authority,false);
+ assert.equal(facts.pwsh.state,"CLOSED_VALID_FACTS");assert.match(facts.pwsh.binarySha256,/^[a-f0-9]{64}$/);assert.match(facts.pwsh.version,/^[0-9]+\.[0-9]+\.[0-9]+$/);assert.ok(["FullLanguage","ConstrainedLanguage","NoLanguage","RestrictedLanguage"].includes(facts.pwsh.languageMode));
+});
+
+test("R66 fixed runtime probe caps bytes and retains error timeout and cleanup uncertainty",{skip:process.platform!=="linux"},()=>{
+ const {source}=r66RuntimeFactsSource(),body=source.slice(0,source.lastIndexOf("print(json.dumps(collect_facts()"));
+ const harness=body+`\nfrom unittest.mock import patch\nfrom io import BytesIO\nclass Pipe:\n def __init__(self,n):self.n=n\n def fileno(self):return self.n\n def close(self):pass\nclass Child:\n def __init__(self,status=0,cleanup=False):self.stdout=Pipe(1);self.stderr=Pipe(2);self.status=status;self.cleanup=cleanup;self.killed=False;self.args=None\n def poll(self):return self.status\n def wait(self,timeout=None):\n  if self.cleanup:raise subprocess.TimeoutExpired('fixed',1)\n  return self.status\n def kill(self):self.killed=True\nclass Selector:\n def __init__(self):self.map={}\n def register(self,p,event,name):self.map[p.n]=type('Key',(),{'fileobj':p,'data':name})()\n def get_map(self):return self.map\n def unregister(self,p):del self.map[p.n]\n def select(self,timeout):return [(v,1) for v in list(self.map.values())]\n def close(self):pass\nresults=[]\nfor mode in ['valid','stderr','nonzero','malformed','overflow','timeout','cleanup','spawn-io','pipe-io']:\n child=Child(7 if mode=='nonzero' else 0,mode=='cleanup')\n chunks={1:[b'7.5.4\\n.NET 9.0.10\\nFullLanguage\\n',b''],2:[b'']}\n if mode=='stderr':chunks[2]=[b'PRIVATE_DO_NOT_PRINT',b'']\n if mode=='malformed':chunks[1]=[b'PRIVATE_DO_NOT_PRINT',b'']\n if mode=='overflow':chunks[1]=[b'X'*4097]\n def read(fd,n):\n  if mode=='pipe-io':raise OSError('PRIVATE_DO_NOT_PRINT')\n  return chunks[fd].pop(0)\n def popen(args,**kwargs):\n  assert args==['/fixed/pwsh','-NoLogo','-NoProfile','-NonInteractive','-Command','[Console]::Out.WriteLine($PSVersionTable.PSVersion.ToString());[Console]::Out.WriteLine([Runtime.InteropServices.RuntimeInformation]::FrameworkDescription);[Console]::Out.WriteLine($ExecutionContext.SessionState.LanguageMode.ToString())']\n  assert kwargs=={'stdout':subprocess.PIPE,'stderr':subprocess.PIPE}\n  if mode=='spawn-io':raise OSError('PRIVATE_DO_NOT_PRINT')\n  return child\n times=iter([0,15] if mode=='timeout' else [0]+[0]*100)\n with patch('subprocess.Popen',side_effect=popen),patch('selectors.DefaultSelector',Selector),patch('os.set_blocking'),patch('os.read',side_effect=read),patch('time.monotonic',side_effect=lambda:next(times)):\n  results.append(probe_runtime('/fixed/pwsh'))\nprint(json.dumps(results,sort_keys=True))\n`;
+ const result=childProcess.spawnSync("python3",["-"],{input:harness,encoding:"utf8",timeout:5000,maxBuffer:65536});assert.equal(result.status,0);assert.equal(result.stderr,"");assert.equal(result.stdout.includes("PRIVATE_DO_NOT_PRINT"),false);
+ assert.deepEqual(JSON.parse(result.stdout).map(r=>r.state),["CLOSED_VALID_FACTS","INCONCLUSIVE_CLOSED_PROBE","INCONCLUSIVE_CLOSED_PROBE","INCONCLUSIVE_CLOSED_PROBE","INCONCLUSIVE_OUTPUT_BOUND","INCONCLUSIVE_TIMEOUT","INCONCLUSIVE_CLEANUP","INCONCLUSIVE_IO","INCONCLUSIVE_IO"]);
 });

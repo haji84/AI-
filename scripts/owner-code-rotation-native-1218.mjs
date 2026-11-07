@@ -711,6 +711,30 @@ export function validateCutoverPeerHelloData(value,self){
   return frozenTree({effectCapability:false,hello:{...value}});
  }catch{fail('ROTATION_CUTOVER_PEER_PROOF_REJECTED');}
 }
+// Fixed private owned-peer clock DATA; never exported as an authority/API.
+const peerClockEndpointFields=['schemaVersion','profile','sourceRevision','originalGrantSha256','workflowRunId','officialJobId','originUtcTicks','originStamp','frequency','sampleUtcTicks','sampleStamp','hardEndUtcTicks','hardStampEndpoint','forwardStampEndpoint','remainingHardTicks','remainingForwardTicks','nativeAuthority','effectCapability','qpcAssociationVerified'];
+function cutoverPeerClockBinding(hello){
+ const binding={sourceRevision:hello.sourceRevision,originalGrantSha256:hello.originalGrantSha256,attemptId:hello.attemptId,workflowRunId:hello.workflowRunId,officialJobId:hello.officialJobId,parentPid:hello.bootstrapPid,parentCreationTicks:hello.bootstrapCreationTicks,nodePid:hello.nodePid,nodeCreationTicks:hello.nodeCreationTicks,ownerSidSha256:hello.ownerSidSha256,sessionId:hello.sessionId,nodeImageSha256:cutoverNode.nodeSha256,nativeMjsSha256:hello.nativeMjsSha256,nativePsSha256:hello.nativePsSha256};cutoverQpcBinding(binding);return frozenTree(binding);
+}
+function cutoverPeerClockProjection(endpoint,binding,initial=null,previous=null){
+ if(!exact(endpoint,peerClockEndpointFields)||endpoint.schemaVersion!==1||endpoint.profile!=='goriq-original-clock-endpoints-data-v1'||endpoint.nativeAuthority!==false||endpoint.effectCapability!==false||endpoint.qpcAssociationVerified!==false||['sourceRevision','originalGrantSha256','workflowRunId','officialJobId'].some(k=>endpoint[k]!==binding[k]))throw 0;
+ const n={};for(const k of ['originUtcTicks','sampleUtcTicks','hardEndUtcTicks'])n[k]=cutoverDecimal(endpoint[k],3155378975999999999n,true);for(const k of ['originStamp','sampleStamp','hardStampEndpoint','forwardStampEndpoint','remainingHardTicks','remainingForwardTicks'])n[k]=cutoverDecimal(endpoint[k],cutoverSigned64Max,true);const f=cutoverDecimal(endpoint.frequency,cutoverSigned64Max),o=n.originStamp,h=n.hardStampEndpoint,s=n.sampleStamp,H=n.hardEndUtcTicks,Fms=H/10000n,r=H-10000n*Fms,reserve=120n*f;
+ if(n.sampleUtcTicks<n.originUtcTicks||H<=n.sampleUtcTicks||H<=n.originUtcTicks||H-n.originUtcTicks>9000000000n||s<o||h<=s||h>o+(H-n.originUtcTicks)*f/10000000n||n.forwardStampEndpoint!==(h>reserve?h-reserve:0n)||n.remainingHardTicks!==h-s||n.remainingForwardTicks!==(n.forwardStampEndpoint>s?n.forwardStampEndpoint-s:0n))throw 0;
+ let hard=h-(r*f+9999999n)/10000000n;
+ if(initial!==null||previous!==null){if(!initial||!previous||initial.originUtcTicks!==endpoint.originUtcTicks||previous.originUtcTicks!==initial.originUtcTicks||H>BigInt(previous.hardEndUtcTicks)||BigInt(previous.hardEndUtcTicks)>BigInt(initial.hardEndUtcTicks)||initial.originQpc!==endpoint.originStamp||initial.frequencyQpc!==endpoint.frequency||previous.originQpc!==initial.originQpc||previous.frequencyQpc!==initial.frequencyQpc||Fms>BigInt(previous.fms)||BigInt(previous.hardQpc)>BigInt(initial.hardQpc))throw 0;const cap=BigInt(initial.hardQpc)-((BigInt(initial.fms)-Fms)*f+999n)/1000n;hard=hard<BigInt(previous.hardQpc)?hard:BigInt(previous.hardQpc);hard=hard<cap?hard:cap;}
+ if(hard<=s||hard<0n||hard>cutoverSigned64Max)throw 0;
+ // Only the final exact calendar serialization uses Number, never a budget.
+ const hardEndUtc=new Date(Number(Fms-62135596800000n)).toISOString();if(cutoverUtc(hardEndUtc)!==Fms)throw 0;
+ const forward=hard>reserve?hard-reserve:0n;
+ if(initial===null&&(hard<=o+reserve||forward===0n))throw 0;
+ return frozenTree({originUtcTicks:endpoint.originUtcTicks,hardEndUtcTicks:endpoint.hardEndUtcTicks,originQpc:endpoint.originStamp,frequencyQpc:endpoint.frequency,hardQpc:String(hard),forwardQpc:String(forward),hardEndUtc,fms:String(Fms)});
+}
+function cutoverPeerClockData(frame,binding,initial,hrBefore,hrAfter){
+ if(!exact(frame,['schemaVersion','kind','sequence','binding','endpoint','qpcBefore','qpcAfter','frequencyQpc','stopwatchFrequency','stopwatchHighResolution'])||frame.schemaVersion!==1||frame.kind!=='GORIQ_OWNED_NODE_PEER_CLOCK_DATA'||frame.sequence!==4)throw 0;
+ cutoverQpcBinding(frame.binding);if(qpcBindingFields.some(k=>frame.binding[k]!==binding[k]))throw 0;
+ const current=cutoverPeerClockProjection(frame.endpoint,binding,initial,initial);
+ return validateCutoverOriginalQpcData({profile:'goriq-original-qpc-association-data-v1',platform:process.platform,architecture:process.arch,nodeVersion:process.versions.node,binding:frame.binding,frequencyQpc:frame.frequencyQpc,stopwatchFrequency:frame.stopwatchFrequency,stopwatchHighResolution:frame.stopwatchHighResolution,nodeHrBefore:hrBefore,nodeHrAfter:hrAfter,qpcBefore:frame.qpcBefore,stopwatchSample:frame.endpoint.sampleStamp,qpcAfter:frame.qpcAfter,originQpc:current.originQpc,forwardQpc:current.forwardQpc,hardQpc:current.hardQpc,hardEndUtc:current.hardEndUtc,originalClockState:'VALID'},{binding,originQpc:initial.originQpc,frequencyQpc:initial.frequencyQpc,originalForwardQpc:initial.forwardQpc,originalHardQpc:initial.hardQpc,originalHardEndUtc:initial.hardEndUtc,previousForwardQpc:initial.forwardQpc,previousHardQpc:initial.hardQpc,previousHardEndUtc:initial.hardEndUtc,previousNodeHrtime:'0'});
+}
 function ownedPeerMetadataEnvironment(){
  const env={};for(const name of cleanPlatformFields){const value=process.env[name];if(typeof value!=='string'||!value||/[\r\n\0]/.test(value))fail('ROTATION_CUTOVER_PEER_PROOF_REJECTED');env[name]=value;}env.WINDIR=env.SystemRoot;return env;
 }
@@ -722,17 +746,26 @@ async function runOwnedCutoverPeer(){
   if(!peerPath(shell))throw 0;
   const self={pid:process.pid,parentPid:process.ppid,nodePath:process.execPath,nodeSha256:hash(regular(process.execPath,134217728)),nativeMjsSha256:hash(regular(mjsPath)),nativePsSha256:hash(regular(nativePath,262144))};
   await new Promise((resolve,reject)=>{
-   let input=Buffer.alloc(0),started=false,settled=false;
+   let input=Buffer.alloc(0),phase='HELLO',settled=false,clockBinding=null,clockInitial=null,clockHrBefore=null;
    const stop=()=>{if(helper){try{helper.kill();}catch{}}};
    const refuse=()=>{if(settled)return;settled=true;stop();reject(new Error('ROTATION_CUTOVER_PEER_PROOF_REJECTED'));};
    process.stdin.on('error',refuse);process.stdin.on('end',refuse);
    process.stdin.on('data',chunk=>{
-    if(settled)return;if(started){refuse();return;}
+    if(settled)return;if(!['HELLO','AWAIT_ARM','AWAIT_DATA'].includes(phase)){refuse();return;}
     input=Buffer.concat([input,chunk]);if(input.length>32768){refuse();return;}const end=input.indexOf(10);if(end<0)return;if(end!==input.length-1){refuse();return;}
-    started=true;
+    const enteredPhase=phase,clockHrAfter=enteredPhase==='AWAIT_DATA'?process.hrtime.bigint():null;phase='PROCESSING';
     void (async()=>{
-     let frame=input.subarray(0,end);if(frame.length&&frame.at(-1)===13)frame=frame.subarray(0,-1);if(frame.subarray(0,3).equals(Buffer.from([239,187,191])))frame=frame.subarray(3);
-     const hello=validateCutoverPeerHelloData(proofMetadata(frame),self).hello;input=Buffer.alloc(0);
+     let frame=input.subarray(0,end);if(frame.length&&frame.at(-1)===13)frame=frame.subarray(0,-1);if(frame.subarray(0,3).equals(Buffer.from([239,187,191]))){if(enteredPhase!=='HELLO')throw 0;frame=frame.subarray(3);}input=Buffer.alloc(0);
+     if(enteredPhase==='AWAIT_ARM'){
+      const arm=proofMetadata(frame);if(!exact(arm,['schemaVersion','kind','sequence','binding','endpoint'])||arm.schemaVersion!==1||arm.kind!=='GORIQ_OWNED_NODE_PEER_CLOCK_ARM'||arm.sequence!==2)throw 0;cutoverQpcBinding(arm.binding);if(qpcBindingFields.some(k=>arm.binding[k]!==clockBinding[k]))throw 0;clockInitial=cutoverPeerClockProjection(arm.endpoint,clockBinding);
+      const request=JSON.stringify({schemaVersion:1,kind:'GORIQ_OWNED_NODE_PEER_CLOCK_REQUEST',sequence:3,binding:clockBinding})+'\n';if(Buffer.byteLength(request)>32768)throw 0;
+      phase='AWAIT_DATA';clockHrBefore=process.hrtime.bigint();await new Promise((done,failed)=>process.stdout.write(request,error=>error?failed(error):done()));return;
+     }
+     if(enteredPhase==='AWAIT_DATA'){
+      const data=proofMetadata(frame);cutoverPeerClockData(data,clockBinding,clockInitial,String(clockHrBefore),String(clockHrAfter));
+      const ack=JSON.stringify({schemaVersion:1,kind:'GORIQ_OWNED_NODE_PEER_CLOCK_ACK',sequence:5,binding:clockBinding,dataSha256:hash(frame),nodeHrBefore:String(clockHrBefore),nodeHrAfter:String(clockHrAfter),associationDataMatched:true,nativeAuthority:false,originalClockAuthorityVerified:false})+'\n';if(Buffer.byteLength(ack)>32768)throw 0;phase='HELD';await new Promise((done,failed)=>process.stdout.write(ack,error=>error?failed(error):done()));return;
+     }
+     const hello=validateCutoverPeerHelloData(proofMetadata(frame),self).hello;clockBinding=cutoverPeerClockBinding(hello);
      const quote=value=>"'"+value.replaceAll("'","''")+"'";
      // Fixed readonly leaf; retain and execute the exact authenticated bytes.
      const capsule="$ProgressPreference='SilentlyContinue';$ErrorActionPreference='Stop';Set-StrictMode -Version Latest;$p="+quote(nativePath)+";$h="+quote(self.nativePsSha256)+";$s=$null;try{$s=[IO.File]::OpenRead($p);if($s.Length -lt 1 -or $s.Length -gt 262144){throw 'PEER_SOURCE'};$b=[byte[]]::new([int]$s.Length);$n=0;while($n -lt $b.Length){$c=$s.Read($b,$n,$b.Length-$n);if($c -le 0){throw 'PEER_SOURCE'};$n+=$c};$sha=[Security.Cryptography.SHA256]::Create();try{$d=([BitConverter]::ToString($sha.ComputeHash($b))).Replace('-','').ToLowerInvariant()}finally{$sha.Dispose()};if($d -cne $h){throw 'PEER_SOURCE'};.([scriptblock]::Create(([Text.UTF8Encoding]::new($false,$true)).GetString($b)));$r=Get-OwnerCutoverPeerAncestryData;[Console]::Out.WriteLine(($r|Microsoft.PowerShell.Utility\\ConvertTo-Json -Depth 5 -Compress))}catch{exit 1}finally{if($s){$s.Dispose()}}";
@@ -744,9 +777,8 @@ async function runOwnedCutoverPeer(){
      });
      if(settled)throw 0;
      const reply={schemaVersion:1,kind:'GORIQ_OWNED_NODE_PEER_OS_DATA',sequence:1,sourceRevision:hello.sourceRevision,originalGrantSha256:hello.originalGrantSha256,nativeMjsSha256:hello.nativeMjsSha256,nativePsSha256:hello.nativePsSha256,ancestry};const wire=JSON.stringify(reply)+'\n';if(Buffer.byteLength(wire)>32768)throw 0;
-     await new Promise((done,failed)=>process.stdout.write(wire,error=>error?failed(error):done()));
-     // Held, parent-owned channel. Further commands are not implemented and
-     // therefore refuse; this initial handshake creates no native authority.
+     phase='AWAIT_ARM';await new Promise((done,failed)=>process.stdout.write(wire,error=>error?failed(error):done()));
+     // Optional fixed private DATA transaction only; all other commands refuse.
     })().catch(refuse);
    });
   });
