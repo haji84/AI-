@@ -1,4 +1,4 @@
-param([string]$Root,[switch]$OwnedTransport,[switch]$ClosedChannel,[switch]$PlatformEnvironment,[switch]$AwaitResultTransport,[switch]$PipeDiagnostic,[switch]$WriteDiagnostic,[switch]$ManagedFlushTransport,[switch]$SourceBufferTransport,[switch]$HelloPreambleDiagnostic,[switch]$PreambleCleanupDiagnostic,[switch]$ProbeDiagnosticTransport,[switch]$HostedProbeDiagnostic,[ValidateSet(0,1,2)][int]$TransportGroup=0,[ValidateSet('positive','wrong-parent')][string]$HostedAncestry,[string]$NodeExecutable)
+param([string]$Root,[switch]$ClockEndpointData,[switch]$OwnedTransport,[switch]$ClosedChannel,[switch]$PlatformEnvironment,[switch]$AwaitResultTransport,[switch]$PipeDiagnostic,[switch]$WriteDiagnostic,[switch]$ManagedFlushTransport,[switch]$SourceBufferTransport,[switch]$HelloPreambleDiagnostic,[switch]$PreambleCleanupDiagnostic,[switch]$ProbeDiagnosticTransport,[switch]$HostedProbeDiagnostic,[ValidateSet(0,1,2)][int]$TransportGroup=0,[ValidateSet('positive','wrong-parent')][string]$HostedAncestry,[string]$NodeExecutable)
 $ErrorActionPreference='Stop';Set-StrictMode -Version Latest
 . (Join-Path $Root 'scripts/owner-code-rotation-native-1218.ps1')
 function Require([bool]$Value,[string]$Code){if(-not $Value){throw ('PEER_FIXTURE_'+$Code)}}
@@ -29,6 +29,164 @@ if($SourceBufferTransport){
 function Get-PublicPeerReadState($Task){
  if(-not $Task.IsCompleted){return 'PENDING'};if($Task.IsCanceled){return 'CANCELED'};if($Task.IsFaulted){return 'FAULT'}
  try{$count=$Task.GetAwaiter().GetResult();if($count -isnot [int] -or $count -lt 0){return 'INVALID'};if($count -eq 0){return 'EOF'};return 'DATA'}catch{return 'FAULT'}
+}
+
+# PUBLIC exact endpoint corpus. Original registration is always issued by the
+# actual unchanged readiness constructor through these fixed metadata fakes.
+if($ClockEndpointData){
+ Require ($null -ne (Get-Command Get-OwnerCutoverOriginalClockEndpointData -ErrorAction SilentlyContinue)) 'RAW_ENDPOINT_API_REQUIRED'
+ $inputData=[Console]::In.ReadToEnd()|ConvertFrom-Json;$root=$Root;$script:epIndex=7000;$script:baseNow=[datetimeoffset]::Parse($inputData.now);$script:case='';$script:calls=[Collections.Generic.List[string]]::new();$script:epQueues=$null;$script:epProviderCalls=@{utc=0;stamp=0;frequency=0}
+ function Get-OwnerCutoverUtcNow {$script:epProviderCalls.utc++;if($script:epTerminalDuringRead -and $script:epProviderCalls.utc -eq 2){$script:epMutationState.terminal='ROTATION_CUTOVER_CLOCK_INVALID'};if($script:epQueues -and $script:epQueues.utc.Count){return $script:epQueues.utc.Dequeue()};return $script:utc}
+ function Get-OwnerCutoverMonotonicStamp {$script:epProviderCalls.stamp++;if($script:epQueues -and $script:epQueues.stamp.Count){return $script:epQueues.stamp.Dequeue()};return $script:stamp}
+ function Get-OwnerCutoverMonotonicFrequency {$script:epProviderCalls.frequency++;if($script:epQueues -and $script:epQueues.frequency.Count){return $script:epQueues.frequency.Dequeue()};return $script:frequency}
+ function Ep-Date([string]$Ticks){return [datetimeoffset]::new([datetime]::new([long]$Ticks,[DateTimeKind]::Utc))}
+ function Ep-Counts {return ($script:epProviderCalls|ConvertTo-Json -Compress)}
+ function Ep-ResetCounts {$script:epProviderCalls=@{utc=0;stamp=0;frequency=0}}
+ function Ep-Setup($Vector){
+  $script:epIndex++;$script:run=[long](12345000+$script:epIndex);$script:epQueues=$null;$script:epTerminalDuringRead=$false;$script:epMutationState=$null;$script:utc=Ep-Date $Vector.originUtc;$script:stamp=[long]::Parse($Vector.origin);$script:frequency=[long]::Parse($Vector.frequency);$script:baseNow=$script:utc;$script:case='';$script:calls.Clear();$script:epJobStart=[datetimeoffset]::Parse($script:utc.ToString('yyyy-MM-ddTHH:mm:ss.fffZ'));if($Vector.id -cin @('official-older-start-880','one-utc-tick-fraction')){$script:epJobStart=$script:epJobStart.AddSeconds(-20)}
+  $script:grant=ConvertFrom-OwnerRotationEntryJson ([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($inputData.encoded)))
+  $dir=[IO.Path]::Combine([IO.Path]::GetTempPath(),('public-endpoint-'+[IO.Path]::GetRandomFileName()));$script:stage=[IO.Path]::Combine($dir,('owner-native-'+$script:run+'-1'));$null=[IO.Directory]::CreateDirectory($script:stage)
+  foreach($path in @($script:grant.sourceHashes.PSObject.Properties.Name)+@('.github/workflows/gai-zbook-diagnostic-1218.yml')){$target=Join-Path $script:stage $path;$null=[IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($target));[IO.File]::Copy((Join-Path $root $path),$target)}
+  foreach($property in $inputData.environment.PSObject.Properties){[Environment]::SetEnvironmentVariable($property.Name,[string]$property.Value)};$env:GITHUB_RUN_ID=[string]$script:run;$env:GITHUB_WORKSPACE=$dir;$env:GORIQ_OWNER_ROTATION_SCOPE_BASE64=$inputData.encoded;$env:JARVIS_PRODUCTION_CONFIG='';Push-Location $script:stage
+  try{$token=Get-OwnerCutoverPublicReadiness;$state=$null;Require ($script:ownerCutoverPublicLifetimes.tokens.TryGetValue($token,[ref]$state)) 'ACTUAL_READINESS_TOKEN';$registered=$null;Require ($script:ownerCutoverPublicLifetimes.states.TryGetValue($state,[ref]$registered) -and [object]::ReferenceEquals($registered,$state)) 'ACTUAL_READINESS_STATE';return @{dir=$dir;token=$token;state=$state}}catch{Pop-Location;[IO.Directory]::Delete($dir,$true);throw}
+ }
+ function Ep-Close($Owned){Pop-Location;[IO.Directory]::Delete($Owned.dir,$true)}
+ function Ep-Pair($State,$Vector){
+  $script:epQueues=@{utc=[Collections.Generic.Queue[object]]::new();stamp=[Collections.Generic.Queue[object]]::new();frequency=[Collections.Generic.Queue[object]]::new()}
+  $firstUtc=$State.lastUtc;$firstStamp=[long]$State.lastStamp;if($Vector.PSObject.Properties['id'] -and $Vector.id -cin @('sampling-delay-conservative-before-utc','sampling-delay-new-only-cut')){$firstUtc=(Ep-Date $Vector.originUtc).AddSeconds(1);$firstStamp=[long]1000};$script:epQueues.utc.Enqueue($firstUtc);$script:epQueues.utc.Enqueue((Ep-Date $Vector.sampleUtc));$script:epQueues.stamp.Enqueue($firstStamp);$script:epQueues.stamp.Enqueue([long]::Parse($Vector.pre));$script:epQueues.stamp.Enqueue([long]::Parse($Vector.sample));$script:epQueues.frequency.Enqueue($script:frequency);$script:epQueues.frequency.Enqueue($script:frequency);$script:utc=Ep-Date $Vector.sampleUtc;$script:stamp=[long]::Parse($Vector.sample)
+ }
+ function Ep-Refused([scriptblock]$Call){$message=$null;try{&$Call|Out-Null}catch{$message=$_.Exception.Message};Require ($message -ceq 'ROTATION_CUTOVER_CLOCK_ENDPOINT_DATA_REJECTED') 'FIXED_ENDPOINT_REFUSAL'}
+ function Get-OwnerCutoverBootstrapPublicResource([string]$Uri){
+ [void]$script:calls.Add($Uri);if($script:case -eq 'transport'){throw 'PUBLIC_FAKE_PRIVATE_TRANSPORT_CANARY'};if($script:case -eq 'slow'){$script:stamp+=880000};if($script:case -eq 'provisional' -and $script:calls.Count -le 2){$script:stamp+=2000;$script:utc=$script:utc.AddSeconds(2)}
+ $prefix='https://api.github.com/repos/haji84/AI-/'
+ if($Uri -ceq ($prefix+'actions/runs/'+$script:run)){$value=@{id=$script:run;run_attempt=1;name='GORIQ Owner Code 1218 Bounded Native Acceptance';path='.github/workflows/gai-zbook-diagnostic-1218.yml';event='workflow_dispatch';head_sha=('a'*40);head_branch='main';status='in_progress';conclusion=$null;repository=@{full_name='haji84/AI-'};actor=@{login='haji84'}};if($script:case -eq 'native-event'){$value.event='push'};if($script:case -eq 'attempt'){$value.run_attempt=2}}
+ elseif($Uri -ceq ($prefix+'actions/runs/'+$script:run+'/attempts/1/jobs?per_page=100')){$job=@{id=(50000+$script:run);run_id=$script:run;run_attempt=1;name='inspect';head_sha=('a'*40);status='in_progress';conclusion=$null;labels=@('self-hosted','Windows','X64');started_at=$script:epJobStart.ToString('yyyy-MM-ddTHH:mm:ss.fffZ');completed_at=$null};if($script:case -eq 'provisional'){$job.started_at=$script:baseNow.AddSeconds(1).ToString('yyyy-MM-ddTHH:mm:ssZ')};if($script:case -eq 'future-start'){$job.started_at=$script:baseNow.AddSeconds(20).ToString('yyyy-MM-ddTHH:mm:ssZ')};if($script:case -eq 'labels'){$job.labels=@('ubuntu-latest')};$value=@{total_count=$(if($script:case -eq 'job-count'){2}else{1});jobs=@($job)}}
+ elseif($Uri -ceq ($prefix+'git/ref/heads/main')){$value=@{object=@{sha=$(if($script:case -eq 'main'){'f'*40}else{'a'*40})}}}
+ elseif($Uri -ceq ($prefix+'actions/runs/1001')){$value=@{id=1001;run_attempt=1;name='CI';path='.github/workflows/ci.yml';event=$(if($script:case -eq 'ci-event'){'workflow_dispatch'}else{'push'});head_sha=('a'*40);head_branch='main';status='completed';conclusion='success'}}
+ elseif($Uri -ceq ($prefix+'actions/runs/1001/attempts/1/jobs?per_page=100')){$jobs=@(foreach($n in @('repository-guard','project-checks','independent-verifier-container','windows-runtime-byte-fixtures')){@{name=$n;status='completed';conclusion='success'}});if($script:case -eq 'ci-job'){$jobs[0].conclusion='failure'};$value=@{total_count=$(if($script:case -eq 'ci-count'){5}else{4});jobs=$jobs}}
+ elseif($Uri.StartsWith(('https://raw.githubusercontent.com/haji84/AI-/'+('a'*40)+'/'))){$path=$Uri.Substring(('https://raw.githubusercontent.com/haji84/AI-/'+('a'*40)+'/').Length);Require ($path -cin @($script:grant.sourceHashes.PSObject.Properties.Name)+@('.github/workflows/gai-zbook-diagnostic-1218.yml')) 'FIXED_SOURCE_URL';if($script:case -eq 'source-oversize'){return ,(New-Object byte[] 1048577)};$b=[IO.File]::ReadAllBytes((Join-Path $root $path));if($script:case -eq 'remote-source'){$b=[Text.Encoding]::UTF8.GetBytes('PUBLIC_SOURCE_MISMATCH')};return ,$b}
+ else{throw 'UNEXPECTED_PUBLIC_URL'}
+ return ,[Text.Encoding]::UTF8.GetBytes(($value|ConvertTo-Json -Depth 8 -Compress))
+}
+
+ $rows=@();foreach($v in $inputData.vectors){$owned=Ep-Setup $v;try{
+  if($v.id -ceq 'previous-utc-cap-cannot-increase-after-stall'){$prime=[pscustomobject]@{sampleUtc=$v.sampleUtc;pre='1000';sample='5000'};Ep-Pair $owned.state $prime;$null=Get-OwnerCutoverOriginalClockEndpointData -PublicToken $owned.token}
+  $owned.state.hardEnd=Ep-Date $v.hardEnd;Ep-Pair $owned.state $v;Ep-ResetCounts
+  if($v.expected.kind -ceq 'DATA'){$value=Get-OwnerCutoverOriginalClockEndpointData -PublicToken $owned.token;Require ($null -eq (Get-Command Resolve-OwnerCutoverClockEndpointState -ErrorAction SilentlyContinue) -and $null -eq (Get-Command Get-OwnerCutoverClockEndpointPins -ErrorAction SilentlyContinue) -and $null -eq (Get-Command Test-OwnerCutoverClockEndpointPins -ErrorAction SilentlyContinue)) 'NO_ADDITIONAL_STATE_OR_PIN_API';Require ($script:epProviderCalls.utc -eq 2 -and $script:epProviderCalls.stamp -eq 3 -and $script:epProviderCalls.frequency -eq 2) 'EXACT_TWO_READER_ONE_PRESTAMP_CALLS';$rows+=@{id=$v.id;value=$value}}
+  else{Ep-Refused {Get-OwnerCutoverOriginalClockEndpointData -PublicToken $owned.token};$naturalEquality=$v.id -ceq 'fractional-floor-deadline-equality-refuses';Require ([bool]$owned.state.terminal -eq $naturalEquality) ('ORIGINAL_VS_NEW_ONLY_TAXONOMY_'+$v.id);$before=Ep-Counts;Ep-Refused {Get-OwnerCutoverOriginalClockEndpointData -PublicToken $owned.token};Require ((Ep-Counts) -ceq $before) 'NEW_ONLY_STICKY_NO_MORE_SAMPLES';$failedRow=@{id=$v.id;refused=$true;originalTerminal=$naturalEquality};if($v.id -ceq 'sampling-delay-new-only-cut'){$oldClock=Read-OwnerCutoverClock $owned.state;Require ($oldClock.remainingHardMs -eq 50000 -and -not $owned.state.terminal) 'UNCHANGED_ORIGINAL_STILL_POSITIVE_AFTER_NEW_CUT';$failedRow.originalHardMsAfterConservativeRefusal=$oldClock.remainingHardMs};$rows+=$failedRow}
+ }finally{Ep-Close $owned}}
+ $base=$inputData.vectors[0];$negative=@();foreach($kind in @('null-token','copied-token','output-token','foreign-state-token','missing-token-store','missing-state-store','mismatched-state-registration','wrong-allocation','state-token-mismatch','source-drift','grant-drift','job-drift','origin-drift','frequency-drift','utc-backward','stamp-backward','provider-frequency-change','pre-stamp-backward','pre-stamp-malformed','second-before-pre','hard-expiry','hardend-extension','endpoint-bookkeeping','bookkeeping-hardend','bookkeeping-sample','bookkeeping-pin-write','bookkeeping-forged-pins','extra-positional','extra-named','extra-common','output-mutation','terminal-during-second-read','ambient-id-change')){
+  $owned=Ep-Setup $base;try{
+   $state=$owned.state;$token=$owned.token;$proof=Get-OwnerCutoverOriginalClockEndpointData -PublicToken $token;Require ($proof.remainingHardTicks -ne '0') 'PRIMED_ORIGINAL'
+   Ep-ResetCounts;$originalExpected=$false;$noSamples=$false;$registry=$false
+   switch($kind){
+    'null-token'{$token=$null;$noSamples=$true;$registry=$true}
+    'copied-token'{$token=[pscustomobject]@{};$noSamples=$true;$registry=$true}
+    'output-token'{$token=$proof;$noSamples=$true;$registry=$true}
+    'foreign-state-token'{$token=$state;$noSamples=$true;$registry=$true}
+    'missing-token-store'{$script:ownerCutoverPublicLifetimes.tokens.Remove($token)|Out-Null;$noSamples=$true;$registry=$true}
+    'missing-state-store'{$script:ownerCutoverPublicLifetimes.states.Remove($state)|Out-Null;$noSamples=$true;$registry=$true}
+    'mismatched-state-registration'{$script:ownerCutoverPublicLifetimes.states.Remove($state)|Out-Null;$script:ownerCutoverPublicLifetimes.states.Add($state,[object]::new());$noSamples=$true;$registry=$true}
+    'wrong-allocation'{$key='haji84/AI-|haji84/AI-/.github/workflows/gai-zbook-diagnostic-1218.yml@refs/heads/main|'+$state.workflowRunId+'|1|inspect';$script:ownerCutoverPublicLifetimes.allocations[$key]=[object]::new();$noSamples=$true;$registry=$true}
+    'state-token-mismatch'{$state.token=[object]::new();$noSamples=$true;$registry=$true}
+    'source-drift'{$state.sourceRevision='b'*40;$originalExpected=$true;$noSamples=$true}
+    'grant-drift'{$state.grant.maxDurationSeconds=899;$originalExpected=$true;$noSamples=$true}
+    'job-drift'{$state.jobId='999';$originalExpected=$true;$noSamples=$true}
+    'origin-drift'{$state.originStamp++;$originalExpected=$true;$noSamples=$true}
+    'frequency-drift'{$state.frequency++;$originalExpected=$true;$noSamples=$true}
+    'utc-backward'{$script:utc=$state.lastUtc.AddTicks(-1);$originalExpected=$true}
+    'stamp-backward'{$script:stamp=$state.lastStamp-1;$originalExpected=$true}
+    'provider-frequency-change'{$script:frequency++;$originalExpected=$true}
+    'pre-stamp-backward'{$v=[pscustomobject]@{sampleUtc=[string]$state.lastUtc.UtcDateTime.Ticks;pre=[string]($state.lastStamp-1);sample=[string]$state.lastStamp};Ep-Pair $state $v;$originalExpected=$true}
+    'pre-stamp-malformed'{$v=[pscustomobject]@{sampleUtc=[string]$state.lastUtc.UtcDateTime.Ticks;pre=[string]$state.lastStamp;sample=[string]$state.lastStamp};Ep-Pair $state $v;$script:epQueues.stamp.Clear();$script:epQueues.stamp.Enqueue($state.lastStamp);$script:epQueues.stamp.Enqueue('PRIVATE_BAD_STAMP');$originalExpected=$true}
+    'second-before-pre'{$v=[pscustomobject]@{sampleUtc=[string]$state.lastUtc.UtcDateTime.Ticks;pre=[string]($state.lastStamp+2);sample=[string]($state.lastStamp+1)};Ep-Pair $state $v;$originalExpected=$true}
+    'hard-expiry'{$script:utc=$state.hardEnd;$originalExpected=$true}
+    'hardend-extension'{$state.hardEnd=$state.hardEnd.AddTicks(1);$originalExpected=$true;$noSamples=$true}
+    'endpoint-bookkeeping'{$record=$null;Require ($script:ownerCutoverClockEndpointRecords.TryGetValue($state,[ref]$record)) 'PRIVATE_ENDPOINT_RECORD_EXISTS';$record.Item2.previousForward=[long]0;$noSamples=$true}
+    'bookkeeping-hardend'{$r=$null;$null=$script:ownerCutoverClockEndpointRecords.TryGetValue($state,[ref]$r);$r.Item2.previousHardEnd=[long]($state.hardEnd.UtcDateTime.Ticks-1);$noSamples=$true}
+    'bookkeeping-sample'{$r=$null;$null=$script:ownerCutoverClockEndpointRecords.TryGetValue($state,[ref]$r);$r.Item2.lastStamp=[long]($state.lastStamp+1);$noSamples=$true}
+    'bookkeeping-pin-write'{$r=$null;$null=$script:ownerCutoverClockEndpointRecords.TryGetValue($state,[ref]$r);$refused=$false;try{$r.Item1.Item2[0]='PUBLIC_FORGED_PIN'}catch{$refused=$true};Require $refused 'PIN_COLLECTION_READONLY';$refused=$false;try{$r.Item1=[object]::new()}catch{$refused=$true};Require $refused 'PIN_TUPLE_READONLY';$value=Get-OwnerCutoverOriginalClockEndpointData -PublicToken $token;Require (-not $state.terminal -and $value.remainingHardTicks -ne '0') 'PIN_WRITE_REFUSED_WITHOUT_STATE_POISON';$negative+=@{id=$kind;immutablePins=$true};continue}
+    'bookkeeping-forged-pins'{$r=$null;$null=$script:ownerCutoverClockEndpointRecords.TryGetValue($state,[ref]$r);$wrong=[object[]]@($r.Item1.Item2);$wrong[5]='PUBLIC_FALSE_JOB_PIN';$fakePins=[Tuple[object,object,object]]::new($r.Item1.Item1,[Array]::AsReadOnly($wrong),$r.Item1.Item3);$script:ownerCutoverClockEndpointRecords.Remove($state)|Out-Null;$script:ownerCutoverClockEndpointRecords.Add($state,[Tuple[object,object]]::new($fakePins,$r.Item2));$noSamples=$true}
+    'extra-positional'{$noSamples=$true;$registry=$true}
+    'extra-named'{$noSamples=$true;$registry=$true}
+    'extra-common'{$noSamples=$true;$registry=$true}
+    'output-mutation'{$proof.hardStampEndpoint='0';$proof.sourceRevision='PUBLIC_CHANGED_OUTPUT';$again=Get-OwnerCutoverOriginalClockEndpointData -PublicToken $token;Require ($again.hardStampEndpoint -ne '0' -and $again.sourceRevision -ceq $state.sourceRevision -and -not [object]::ReferenceEquals($proof,$again)) 'OUTPUT_IS_FRESH_DATA_NO_STATE_ALIAS';$negative+=@{id=$kind;freshOutput=$true};continue}
+    'terminal-during-second-read'{$script:epTerminalDuringRead=$true;$script:epMutationState=$state;$originalExpected=$true}
+    'ambient-id-change'{$env:GITHUB_RUN_ID='999999';$env:GITHUB_REPOSITORY='PUBLIC_FOREIGN_AMBIENT';$value=Get-OwnerCutoverOriginalClockEndpointData -PublicToken $token;Require ($value.workflowRunId -ceq $state.workflowRunId) 'ORIGINAL_ALLOCATION_NOT_AMBIENT';$negative+=@{id=$kind;acceptedOriginal=$true};continue}
+   }
+   if($kind -cin @('ambient-id-change','bookkeeping-pin-write','output-mutation')){continue}
+   if($kind -like 'extra-*'){switch($kind){'extra-positional'{Ep-Refused {Get-OwnerCutoverOriginalClockEndpointData -PublicToken $token 'PUBLIC_EXTRA'}}'extra-named'{Ep-Refused {Get-OwnerCutoverOriginalClockEndpointData -PublicToken $token -Foreign 'PUBLIC_EXTRA'}}'extra-common'{Ep-Refused {Get-OwnerCutoverOriginalClockEndpointData -PublicToken $token -Verbose}}};Require ((Ep-Counts) -ceq '{"utc":0,"stamp":0,"frequency":0}' -or ($script:epProviderCalls.utc -eq 0 -and $script:epProviderCalls.stamp -eq 0 -and $script:epProviderCalls.frequency -eq 0)) 'EXTRA_ARGUMENT_NO_PROVIDER';Require (-not $state.terminal) 'EXTRA_ARGUMENT_NO_ORIGINAL_POISON';$again=Get-OwnerCutoverOriginalClockEndpointData -PublicToken $token;Require ($again.nativeAuthority -eq $false) 'EXTRA_ARGUMENT_DOES_NOT_CONSUME_GENUINE_PRODUCER';$negative+=@{id=$kind;refusedBeforeSampling=$true};continue}
+   Ep-Refused {Get-OwnerCutoverOriginalClockEndpointData -PublicToken $token};Require ([bool]$state.terminal -eq $originalExpected) ('ORIGINAL_TERMINAL_TAXONOMY_'+$kind)
+   if($noSamples){Require ($script:epProviderCalls.utc -eq 0 -and $script:epProviderCalls.stamp -eq 0 -and $script:epProviderCalls.frequency -eq 0) ('NO_PROVIDER_'+$kind)}
+   if(-not $registry){$before=Ep-Counts;$script:utc=$state.lastUtc;$script:stamp=$state.lastStamp;$script:frequency=$state.frequency;Ep-Refused {Get-OwnerCutoverOriginalClockEndpointData -PublicToken $owned.token};Require ((Ep-Counts) -ceq $before) ('STICKY_'+$kind)}
+   $negative+=@{id=$kind;refused=$true;originalTerminal=$originalExpected;noSampleExpected=$noSamples}
+  }finally{Ep-Close $owned}
+ }
+ # Same original accepted state: UTC-forward tightening then a monotonic stall
+ # and a later legitimate hardEnd tightening cannot increase either endpoint.
+ $owned=Ep-Setup $base;try{
+  $v=[pscustomobject]@{sampleUtc=[string]([long]$base.originUtc+1000000000L);pre=[string]([long]$base.origin+10000000L);sample=[string]([long]$base.origin+50000000L)};Ep-Pair $owned.state $v;$first=Get-OwnerCutoverOriginalClockEndpointData -PublicToken $owned.token
+  $v.pre=[string]([long]$base.origin+200000000L);$v.sample=$v.pre;Ep-Pair $owned.state $v;$stall=Get-OwnerCutoverOriginalClockEndpointData -PublicToken $owned.token;Require ($stall.hardStampEndpoint -ceq $first.hardStampEndpoint -and $stall.forwardStampEndpoint -ceq $first.forwardStampEndpoint) 'UTC_STALL_RETAINED_MINIMA'
+  $owned.state.hardEnd=$owned.state.hardEnd.AddSeconds(-10);Ep-Pair $owned.state $v;$tight=Get-OwnerCutoverOriginalClockEndpointData -PublicToken $owned.token;Require ([long]$tight.hardStampEndpoint -le [long]$stall.hardStampEndpoint) 'AUTHENTICATED_HARDEND_ONLY_TIGHTENS'
+ }finally{Ep-Close $owned}
+ # Independent review regressions: each starts from genuine unchanged readiness,
+ # UTC+800s and F1000, whose accepted hard101000/forward0 must never renew.
+ $reviewRegressions=@();foreach($kind in @('null-previous-hard','null-all-minima','coherent-larger-hard-forward-zero','fresh-lifetime-same-genuine-pins','clear-terminal-after-bookkeeping-refusal','first-reader-terminal')){
+  $reviewVector=[pscustomobject]@{id='review-bookkeeping';originUtc=$base.originUtc;origin='0';frequency='1000'};$owned=Ep-Setup $reviewVector;try{
+   $state=$owned.state;$pair=[pscustomobject]@{sampleUtc=[string]([long]$base.originUtc+8000000000L);pre='1000';sample='1000'};Ep-Pair $state $pair;$prime=Get-OwnerCutoverOriginalClockEndpointData -PublicToken $owned.token
+   Require ($prime.hardStampEndpoint -ceq '101000' -and $prime.forwardStampEndpoint -ceq '0') 'REVIEW_PRIME_FORWARD_ZERO'
+   $issuedLifetime=$null;Require ($script:ownerCutoverClockEndpointRecords.TryGetValue($state,[ref]$issuedLifetime)) 'REVIEW_ISSUED_LIFETIME'
+   $accepted=@{};foreach($name in @('previousHard','previousForward','previousHardEnd','lastUtc','lastStamp')){$accepted[$name]=$issuedLifetime.Item2[$name]}
+   switch($kind){
+    'null-previous-hard'{$issuedLifetime.Item2.previousHard=$null}
+    'null-all-minima'{foreach($name in $accepted.Keys){$issuedLifetime.Item2[$name]=$null}}
+    'coherent-larger-hard-forward-zero'{$issuedLifetime.Item2.previousHard=[long]102000}
+    'fresh-lifetime-same-genuine-pins'{$replacement=@{terminal=$false;previousHard=$null;previousForward=$null;previousHardEnd=$null;lastUtc=$null;lastStamp=$null};$script:ownerCutoverClockEndpointRecords.Remove($state)|Out-Null;$script:ownerCutoverClockEndpointRecords.Add($state,[Tuple[object,object]]::new($issuedLifetime.Item1,$replacement))}
+    'clear-terminal-after-bookkeeping-refusal'{$issuedLifetime.Item2.previousHard='PUBLIC_BAD';Ep-Refused {Get-OwnerCutoverOriginalClockEndpointData -PublicToken $owned.token};$issuedLifetime.Item2.previousHard=[long]101000;$issuedLifetime.Item2.terminal=$false}
+   }
+   $pair.pre='2000';$pair.sample='2000';Ep-Pair $state $pair;Ep-ResetCounts;$utcSeed=0
+   if($kind -ceq 'first-reader-terminal'){$script:epTerminalDuringRead=$true;$script:epMutationState=$state;$script:epProviderCalls.utc=1;$utcSeed=1}
+   $message=$null;$second=$null;try{$second=Get-OwnerCutoverOriginalClockEndpointData -PublicToken $owned.token}catch{$message=$_.Exception.Message}
+   $observed=@{id=$kind;firstHard=$prime.hardStampEndpoint;firstForward=$prime.forwardStampEndpoint;refused=($message -ceq 'ROTATION_CUTOVER_CLOCK_ENDPOINT_DATA_REJECTED');utcSamples=($script:epProviderCalls.utc-$utcSeed);stampSamples=$script:epProviderCalls.stamp;frequencySamples=$script:epProviderCalls.frequency;originalTerminal=[bool]$state.terminal}
+   if($second){$observed.secondHard=$second.hardStampEndpoint;$observed.secondForward=$second.forwardStampEndpoint}
+   # Repair only the mutable mirror/current-record slot. An issued refusal must
+   # remain sticky even when every visible bookkeeping field looks valid again.
+   foreach($name in $accepted.Keys){$issuedLifetime.Item2[$name]=$accepted[$name]};$issuedLifetime.Item2.terminal=$false
+   if($kind -ceq 'fresh-lifetime-same-genuine-pins'){$script:ownerCutoverClockEndpointRecords.Remove($state)|Out-Null;$script:ownerCutoverClockEndpointRecords.Add($state,$issuedLifetime)}
+   $before=Ep-Counts;$repairMessage=$null;try{Get-OwnerCutoverOriginalClockEndpointData -PublicToken $owned.token|Out-Null}catch{$repairMessage=$_.Exception.Message};$observed.stickyAfterRepair=($repairMessage -ceq 'ROTATION_CUTOVER_CLOCK_ENDPOINT_DATA_REJECTED' -and (Ep-Counts) -ceq $before)
+   $registered=$null;$allocation='haji84/AI-|haji84/AI-/.github/workflows/gai-zbook-diagnostic-1218.yml@refs/heads/main|'+$state.workflowRunId+'|1|inspect';Require ($script:ownerCutoverPublicLifetimes.tokens.TryGetValue($owned.token,[ref]$registered) -and [object]::ReferenceEquals($registered,$state) -and [object]::ReferenceEquals($script:ownerCutoverPublicLifetimes.allocations[$allocation],$state)) 'REVIEW_ORIGINAL_REGISTRATION_UNCHANGED'
+   $reviewRegressions+=$observed
+  }finally{Ep-Close $owned}
+ }
+ @{pass=$true;vectors=$rows;negative=$negative;reviewRegressions=$reviewRegressions;minimaPreserved=$true;actualOriginalRegistration=$true;originalReadClockUnchanged=$true;actualNativeCalls=0;nativeAuthority=$false;qpcAssociationVerified=$false}|ConvertTo-Json -Depth 10 -Compress;return
+}
+
+
+# Test-only insertion plan. The original PUBLIC source and every original
+# statement remain present; the helper verifies exact removal before execution.
+function New-PublicPeerEntryCounterfactual([string]$Source){
+ Require ($Source -and [Text.Encoding]::UTF8.GetByteCount($Source) -le 262144) 'ENTRY_CF_SOURCE_BOUND'
+ $steps=[Collections.Generic.List[object]]::new()
+ function Add-EntryInsertion([string]$Anchor,[int]$Offset,[string]$Text){$at=$Source.IndexOf($Anchor,[StringComparison]::Ordinal);Require ($at -ge 0 -and $at -eq $Source.LastIndexOf($Anchor,[StringComparison]::Ordinal) -and $Offset -ge 0 -and $Offset -le $Anchor.Length) 'ENTRY_CF_UNIQUE_ORIGINAL_ANCHOR';$steps.Add(@{offset=($at+$Offset);text=$Text})}
+ function Get-EntryMarker([string]$Phase){return ('[Console]::Out.WriteLine(''GORIQ_PUBLIC_PEER_CAPSULE_PHASE '+$Phase+' 0'');[Console]::Out.Flush();')}
+ $wrapper='function Get-OwnerCutoverPeerAncestryDiagnosticData {';Add-EntryInsertion $wrapper $wrapper.Length ((Get-EntryMarker 'DIAGNOSTIC_WRAPPER_ENTER'))
+ $initial='$script:ownerCutoverPeerProbeState=@{stopwatch=';Add-EntryInsertion $initial 0 ((Get-EntryMarker 'PRODUCER_STATE_INIT_ENTER'))
+ $stopwatch=$initial+'[Diagnostics.Stopwatch]::StartNew()';Add-EntryInsertion $stopwatch $initial.Length '$(<#PUBLIC_ENTRY_CF_STOPWATCH#>';Add-EntryInsertion $stopwatch $stopwatch.Length (';'+(Get-EntryMarker 'PRODUCER_STOPWATCH_RETURN')+')')
+ $flag='([bool](Get-Variable ownerCutoverPeerProbeDiagnosticRequest -Scope Script -ValueOnly -ErrorAction SilentlyContinue))';Add-EntryInsertion $flag 0 ('$(<#PUBLIC_ENTRY_CF_FLAG#>'+(Get-EntryMarker 'DIAGNOSTIC_FLAG_READ_ENTER'));Add-EntryInsertion $flag $flag.Length (';'+(Get-EntryMarker 'DIAGNOSTIC_FLAG_READ_RETURN')+')')
+ $ready="lastProgress='';progressRows=0;progressBytes=0}";Add-EntryInsertion $ready $ready.Length (';'+(Get-EntryMarker 'PRODUCER_STATE_READY'))
+ $returned='$null=Get-OwnerCutoverPeerAncestryData;$completed=$true';Add-EntryInsertion $returned ('$null=Get-OwnerCutoverPeerAncestryData;'.Length) ((Get-EntryMarker 'DIAGNOSTIC_PRODUCER_RETURN'))
+ $caught='}catch{}finally{Remove-Variable ownerCutoverPeerProbeDiagnosticRequest';Add-EntryInsertion $caught ('}catch{'.Length) ((Get-EntryMarker 'DIAGNOSTIC_PRODUCER_THROW'))
+ $cleanup='Remove-Variable ownerCutoverPeerProbeDiagnosticRequest -Scope Script -ErrorAction SilentlyContinue';Add-EntryInsertion $cleanup 0 ((Get-EntryMarker 'DIAGNOSTIC_CLEANUP_ENTER'));Add-EntryInsertion $cleanup $cleanup.Length (';'+(Get-EntryMarker 'DIAGNOSTIC_CLEANUP_RETURN'))
+ # The fixed plan has no provider, cmdlet, callback or warmup before the cold
+ # original calls. Insert descending, then remove ascending at original offsets.
+ $ordered=$steps.ToArray();for($i=0;$i -lt $ordered.Length;$i++){for($j=$i+1;$j -lt $ordered.Length;$j++){if($ordered[$j].offset -lt $ordered[$i].offset){$swap=$ordered[$i];$ordered[$i]=$ordered[$j];$ordered[$j]=$swap}}}
+ $instrumented=$Source;$fragment='$counterfactualSource=([Text.UTF8Encoding]::new($false,$true)).GetString($b);$originalCounterfactualSource=$counterfactualSource;'
+ for($i=$ordered.Length-1;$i -ge 0;$i--){$step=$ordered[$i];$instrumented=$instrumented.Insert($step.offset,$step.text);$fragment+='$counterfactualSource=$counterfactualSource.Insert('+[string]$step.offset+','''+$step.text.Replace("'","''")+''');'}
+ $restored=$instrumented;$fragment+='$restoredCounterfactualSource=$counterfactualSource;'
+ foreach($step in $ordered){$restored=$restored.Remove($step.offset,$step.text.Length);$fragment+='$restoredCounterfactualSource=$restoredCounterfactualSource.Remove('+[string]$step.offset+','+[string]$step.text.Length+');'}
+ Require ([string]::Equals($restored,$Source,[StringComparison]::Ordinal)) 'ENTRY_CF_EXACT_INSERTION_REMOVAL_IDENTITY'
+ $fragment+='if(-not [string]::Equals($restoredCounterfactualSource,$originalCounterfactualSource,[StringComparison]::Ordinal)){throw ''PUBLIC_ENTRY_COUNTERFACTUAL_IDENTITY''};'
+ return @{source=$instrumented;fragment=$fragment;insertions=$ordered.Length;markerCount=10;restored=$restored}
 }
 # Bounded public-only progress. Each owned fixture process has a separate
 # CreateNew file. Values contain closed phases and local elapsed time only.
@@ -224,14 +382,18 @@ if($HostedProbeDiagnostic){
   Require ((Get-OwnerRotationEntryDigest ([IO.File]::ReadAllBytes($NodeExecutable))) -ceq '3602f2bb1a10f2cbab4c36886218a33c1ab3db87290e73b033c46c77147d0237') 'DIAGNOSTIC_PINNED_NODE'
   $native=Join-Path $Root 'scripts/owner-code-rotation-native-1218.ps1';$nativeHash=Get-OwnerRotationEntryDigest ([IO.File]::ReadAllBytes($native))
   $capsule='[Console]::Out.WriteLine(''GORIQ_PUBLIC_PEER_CAPSULE_PHASE CAPSULE_ENTER 0'');[Console]::Out.Flush();$ErrorActionPreference=''Stop'';Set-StrictMode -Version Latest;$p='''+$native.Replace("'","''")+''';$h='''+$nativeHash+''';$s=$null;try{[Console]::Out.WriteLine(''GORIQ_PUBLIC_PEER_CAPSULE_PHASE SOURCE_OPEN_ENTER 0'');[Console]::Out.Flush();$s=[IO.File]::OpenRead($p);if($s.Length -lt 1 -or $s.Length -gt 262144){throw ''PEER_SOURCE''};[Console]::Out.WriteLine(''GORIQ_PUBLIC_PEER_CAPSULE_PHASE SOURCE_READ_ENTER 0'');[Console]::Out.Flush();$b=[byte[]]::new([int]$s.Length);[Console]::Out.WriteLine(''GORIQ_PUBLIC_PEER_CAPSULE_PHASE SOURCE_ALLOC_RETURN 0'');[Console]::Out.Flush();$n=0;[Console]::Out.WriteLine(''GORIQ_PUBLIC_PEER_CAPSULE_PHASE SOURCE_READ_LOOP_ENTER 0'');[Console]::Out.Flush();while($n -lt $b.Length){$c=$s.Read($b,$n,$b.Length-$n);if($c -le 0){throw ''PEER_SOURCE''};$n+=$c};[Console]::Out.WriteLine(''GORIQ_PUBLIC_PEER_CAPSULE_PHASE SOURCE_HASH_ENTER 0'');[Console]::Out.Flush();$sha=[Security.Cryptography.SHA256]::Create();try{$d=([BitConverter]::ToString($sha.ComputeHash($b))).Replace(''-'','''').ToLowerInvariant()}finally{$sha.Dispose()};if($d -cne $h){throw ''PEER_SOURCE''};[Console]::Out.WriteLine(''GORIQ_PUBLIC_PEER_CAPSULE_PHASE SOURCE_DOTSOURCE_ENTER 0'');[Console]::Out.Flush();.([scriptblock]::Create(([Text.UTF8Encoding]::new($false,$true)).GetString($b)));[Console]::Out.WriteLine(''GORIQ_PUBLIC_PEER_CAPSULE_PHASE DIAGNOSTIC_ENTRY_ENTER 0'');[Console]::Out.Flush();$r=Get-OwnerCutoverPeerAncestryDiagnosticData;[Console]::Out.WriteLine(($r|Microsoft.PowerShell.Utility\ConvertTo-Json -Depth 4 -Compress))}catch{exit 1}finally{if($s){$s.Dispose()}}'
-  $encoded=[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($capsule));$shellLiteral=ConvertTo-Json -InputObject $shell -Compress;$rootLiteral=ConvertTo-Json -InputObject $Root -Compress
+  $entryPlan=New-PublicPeerEntryCounterfactual (([Text.UTF8Encoding]::new($false,$true)).GetString([IO.File]::ReadAllBytes($native)))
+  $originalDotSource='.([scriptblock]::Create(([Text.UTF8Encoding]::new($false,$true)).GetString($b)))';Require ($capsule.IndexOf($originalDotSource,[StringComparison]::Ordinal) -eq $capsule.LastIndexOf($originalDotSource,[StringComparison]::Ordinal) -and $capsule.Contains($originalDotSource)) 'ENTRY_CF_SINGLE_DOTSOURCE'
+  $entryCounterfactualCapsule=$capsule.Replace($originalDotSource,($entryPlan.fragment+'.([scriptblock]::Create($counterfactualSource))'))
+  $encoded=[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($entryCounterfactualCapsule));$shellLiteral=ConvertTo-Json -InputObject $shell -Compress;$rootLiteral=ConvertTo-Json -InputObject $Root -Compress
  $diagnosticDriver=@'
 'use strict';
 const phases=new Set(['PLATFORM','ROW_READ','PROCESS_QUERY','PROCESS_OPEN','OWNER_QUERY','NATIVE_COMPILE','IMAGE_OPEN','IMAGE_IDENTITY','IMAGE_READ','IMAGE_RECHECK','SIGNATURE','ROW_SHAPE','ROW_BINDING','CHAIN_BINDING','COMPLETE']);
 const capsulePhases=new Set(['CAPSULE_ENTER','SOURCE_OPEN_ENTER','SOURCE_READ_ENTER','SOURCE_ALLOC_RETURN','SOURCE_READ_LOOP_ENTER','SOURCE_HASH_ENTER','SOURCE_DOTSOURCE_ENTER','DIAGNOSTIC_ENTRY_ENTER']);
+const entryCounterfactualPhases=new Set(['DIAGNOSTIC_WRAPPER_ENTER','PRODUCER_STATE_INIT_ENTER','PRODUCER_STOPWATCH_RETURN','DIAGNOSTIC_FLAG_READ_ENTER','DIAGNOSTIC_FLAG_READ_RETURN','PRODUCER_STATE_READY','DIAGNOSTIC_PRODUCER_RETURN','DIAGNOSTIC_PRODUCER_THROW','DIAGNOSTIC_CLEANUP_ENTER','DIAGNOSTIC_CLEANUP_RETURN']);
 function parseDiagnosticWire(bytes){
  let last=null,lastCapsule=null,rows=0,diagnostic=null;const rejected=()=>({wireState:'REJECTED',lastObservedEntered:last,lastObservedCapsuleEntered:lastCapsule,progressRows:rows,diagnostic:null});if(bytes.length>8192)return rejected();let wire=bytes.toString('utf8').replace(/^\uFEFF/,'');const lines=wire.split('\n');const partial=lines.pop();
- for(const lineWithCr of lines){const line=lineWithCr.replace(/\r$/,'');const capsule=/^GORIQ_PUBLIC_PEER_CAPSULE_PHASE ([A-Z_]+) 0$/.exec(line);if(capsule){if(diagnostic||!capsulePhases.has(capsule[1])||++rows>96)return rejected();lastCapsule={phase:capsule[1],rowIndex:0,meaning:capsule[1]==='SOURCE_ALLOC_RETURN'?'ALLOCATION_RETURN_OBSERVED_NOT_FAILURE_CAUSE':'LAST_OBSERVED_ENTERED_NOT_RETURNED_OR_CAUSE'};continue;}const match=/^GORIQ_PUBLIC_PEER_PROBE_PHASE ([A-Z_]+) ([0-2])$/.exec(line);if(match){if(diagnostic||!phases.has(match[1])||++rows>96)return rejected();last={phase:match[1],rowIndex:Number(match[2]),meaning:'LAST_OBSERVED_ENTERED_NOT_RETURNED_OR_CAUSE'};continue;}
+ for(const lineWithCr of lines){const line=lineWithCr.replace(/\r$/,'');const capsule=/^GORIQ_PUBLIC_PEER_CAPSULE_PHASE ([A-Z_]+) 0$/.exec(line);if(capsule){if(diagnostic||(!capsulePhases.has(capsule[1])&&!entryCounterfactualPhases.has(capsule[1]))||++rows>96)return rejected();lastCapsule={phase:capsule[1],rowIndex:0,meaning:entryCounterfactualPhases.has(capsule[1])?'SOURCE_AUTHENTICATED_COUNTERFACTUAL_ENTERED_NOT_CAUSE':capsule[1]==='SOURCE_ALLOC_RETURN'?'ALLOCATION_RETURN_OBSERVED_NOT_FAILURE_CAUSE':'LAST_OBSERVED_ENTERED_NOT_RETURNED_OR_CAUSE'};continue;}const match=/^GORIQ_PUBLIC_PEER_PROBE_PHASE ([A-Z_]+) ([0-2])$/.exec(line);if(match){if(diagnostic||!phases.has(match[1])||++rows>96)return rejected();last={phase:match[1],rowIndex:Number(match[2]),meaning:'LAST_OBSERVED_ENTERED_NOT_RETURNED_OR_CAUSE'};continue;}
   try{const d=JSON.parse(line),fields=['profile','ancestryCompleted','lastEnteredPhase','rowIndex','exceptionClass','actualExceptionHResult','hresultMeaning','nativeAuthority','effectCapability'];if(diagnostic||!d||Object.keys(d).length!==fields.length||fields.some(k=>!Object.hasOwn(d,k))||d.profile!=='goriq-readonly-peer-probe-diagnostic-v1'||typeof d.ancestryCompleted!=='boolean'||!phases.has(d.lastEnteredPhase)||!Number.isInteger(d.rowIndex)||d.rowIndex<0||d.rowIndex>2||!['NONE','RUNTIME','METHOD_INVOCATION','CIM','IO','ACCESS','OTHER'].includes(d.exceptionClass)||(d.actualExceptionHResult!==null&&(!Number.isInteger(d.actualExceptionHResult)||d.actualExceptionHResult<-2147483648||d.actualExceptionHResult>2147483647))||d.hresultMeaning!=='ACTUAL_DOTNET_EXCEPTION_NOT_UNDERLYING_NATIVE_CAUSE'||d.nativeAuthority!==false||d.effectCapability!==false||(d.ancestryCompleted&&(d.lastEnteredPhase!=='COMPLETE'||d.exceptionClass!=='NONE'||d.actualExceptionHResult!==null)))throw 0;diagnostic=d;}catch{return rejected();}
  }
  return {wireState:diagnostic&&!partial?'COMPLETE':rows?'PARTIAL':'EMPTY',lastObservedEntered:last,lastObservedCapsuleEntered:lastCapsule,progressRows:rows,diagnostic};
@@ -240,7 +402,7 @@ if(process.argv[1]==='PUBLIC_PARSER_CONTROLS'){
  const check=(value)=>{if(!value)throw new Error('PUBLIC_DIAGNOSTIC_PARSER_CONTROL_REFUSED');};const phase='GORIQ_PUBLIC_PEER_PROBE_PHASE OWNER_QUERY 1\n';let r=parseDiagnosticWire(Buffer.from(phase));check(r.wireState==='PARTIAL'&&r.lastObservedEntered.phase==='OWNER_QUERY');r=parseDiagnosticWire(Buffer.from(phase+'GORIQ_PUBLIC_PEER_PROBE_PHASE SIGN'));check(r.progressRows===1&&r.lastObservedEntered.phase==='OWNER_QUERY');check(parseDiagnosticWire(Buffer.from('PRIVATE_CANARY C:\\PRIVATE S-1-5\n')).wireState==='REJECTED');check(parseDiagnosticWire(Buffer.from('GORIQ_PUBLIC_PEER_PROBE_PHASE PRIVATE_CANARY 1\n')).wireState==='REJECTED');check(parseDiagnosticWire(Buffer.from(phase.repeat(97))).wireState==='REJECTED');check(parseDiagnosticWire(Buffer.alloc(8193)).wireState==='REJECTED');check(parseDiagnosticWire(Buffer.from('{}\n')).wireState==='REJECTED');process.stdout.write(JSON.stringify({pass:true,controls:7,nativeAuthority:false})+'\n');
 }else{
  const {spawn}=require('node:child_process'),shell=__SHELL__,root=__ROOT__,encoded='__CAPSULE__';let child,output=Buffer.alloc(0),stderr=false,oversize=false,timedOut=false,spawnError=false,done=false,spawnAttempted=false,startObserved=false,closeObserved=false;
- const finish=(code,signal)=>{if(done)return;done=true;clearTimeout(timer);const parsed=parseDiagnosticWire(output);const state=timedOut?'HELPER_TIMEOUT':spawnError?'SPAWN_ERROR':oversize?'OUTPUT_LIMIT':stderr?'STDERR_DATA':code===0&&parsed.wireState==='COMPLETE'?'CLOSED_DIAGNOSTIC':'HELPER_REFUSED';process.stdout.write(JSON.stringify({profile:'goriq-public-owned-probe-diagnostic-v1',capsuleKind:'EXPLICIT_DIAGNOSTIC_SOURCE_AUTHENTICATED',capsuleState:state,helperExitClass:signal?'SIGNAL':code===0?'ZERO':Number.isInteger(code)?'NONZERO':'UNKNOWN',helperStderrData:stderr,helperSpawnAttempted:spawnAttempted,helperStartObserved:startObserved,helperCloseObserved:closeObserved,...parsed,nativeAuthority:false,actualOwnerTaskAccountDpapiCalls:0,localHelperLimitMs:12000})+'\n');};
+ const finish=(code,signal)=>{if(done)return;done=true;clearTimeout(timer);const parsed=parseDiagnosticWire(output);const state=timedOut?'HELPER_TIMEOUT':spawnError?'SPAWN_ERROR':oversize?'OUTPUT_LIMIT':stderr?'STDERR_DATA':code===0&&parsed.wireState==='COMPLETE'?'CLOSED_DIAGNOSTIC':'HELPER_REFUSED';process.stdout.write(JSON.stringify({profile:'goriq-public-owned-probe-diagnostic-v1',capsuleKind:'EXPLICIT_DIAGNOSTIC_SOURCE_AUTHENTICATED',executionMeaning:'PUBLIC_SOURCE_AUTHENTICATED_COUNTERFACTUAL',capsuleState:state,helperExitClass:signal?'SIGNAL':code===0?'ZERO':Number.isInteger(code)?'NONZERO':'UNKNOWN',helperStderrData:stderr,helperSpawnAttempted:spawnAttempted,helperStartObserved:startObserved,helperCloseObserved:closeObserved,...parsed,nativeAuthority:false,actualOwnerTaskAccountDpapiCalls:0,localHelperLimitMs:12000})+'\n');};
  const timer=setTimeout(()=>{timedOut=true;try{child.kill();}catch{finish(null,null);}},12000);try{spawnAttempted=true;child=spawn(shell,['-NoLogo','-NoProfile','-NonInteractive','-EncodedCommand',encoded],{cwd:root,windowsHide:true,stdio:['ignore','pipe','pipe'],env:{...process.env}});child.stdout.on('data',part=>{if(output.length+part.length>8192){oversize=true;try{child.kill();}catch{}}else output=Buffer.concat([output,part]);});child.stderr.on('data',()=>{stderr=true;try{child.kill();}catch{}});child.on('error',()=>{spawnError=true;finish(null,null);});child.on('spawn',()=>{startObserved=true;});child.on('close',(code,signal)=>{closeObserved=true;finish(code,signal);});}catch{spawnError=true;finish(null,null);}
 }
 '@
@@ -389,6 +551,7 @@ function Read-OwnerCutoverPeerProcessData {
  if($script:peerCase -ceq 'cycle' -and $Id -eq 3102){$row.parentPid=3101};if($script:peerCase -ceq 'owner' -and $Id -eq 3103){$row.ownerSidSha256='c'*64};if($script:peerCase -ceq 'session' -and $Id -eq 3102){$row.sessionId=3};if($script:peerCase -ceq 'node-hash' -and $isNode){$row.imageSha256='d'*64};if($script:peerCase -ceq 'signature' -and -not $isNode){$row.signatureStatus='UnknownError'};if($script:peerCase -ceq 'image' -and -not $isNode){$row.imagePath='C:\Other\powershell.exe'};if($script:peerCase -ceq 'numeric'){$row.pid=[string]$row.pid};if($script:peerCase -ceq 'creation'){$row.creationTicks=[double]639000000000000003};if($script:peerCase -ceq 'newer-parent' -and $Id -eq 3103){$row.creationTicks='639000000000000009'};if($script:peerCase -ceq 'extra'){$row|Add-Member -NotePropertyName trusted -NotePropertyValue $true};return $row
 }
 if($ProbeDiagnosticTransport){
+ $entryAdapters=@{};foreach($name in @('Get-OwnerCutoverPeerProbePlatform','Get-OwnerCutoverPeerProbeSelfId','Get-OwnerCutoverPeerProbeElapsedMs','Read-OwnerCutoverPeerProcessData')){$entryAdapters[$name]=(Get-Command $name -CommandType Function).ScriptBlock}
  $diagnosticRows=@();$originalConsoleOut=[Console]::Out;$capture=[IO.StringWriter]::new()
  try{[Console]::SetOut($capture);$script:peerCase='success';$null=Get-OwnerCutoverPeerAncestryData}finally{[Console]::SetOut($originalConsoleOut)};Require ($capture.ToString().Length -eq 0) 'DIAGNOSTIC_DEFAULT_NO_PROGRESS';$capture.Dispose()
  foreach($which in @('success','numeric','expiry','raw-error','extra-argument')){
@@ -413,6 +576,31 @@ if($ProbeDiagnosticTransport){
   Require ($capture.ToString().Length -eq 0 -and $refused -eq ($cut -cne 'repeat')) 'DIAGNOSTIC_PROGRESS_CUT_NO_OUTPUT';$capture.Dispose()
  }
  Require (($diagnosticRows|ConvertTo-Json -Depth 4 -Compress) -cnotmatch 'PRIVATE_CANARY|S-1-|C:\\PRIVATE') 'DIAGNOSTIC_NO_RAW_ERROR'
+ # Portable controls execute the real original functions and their insertion-
+ # only counterpart with the same existing TEST-only OS observation adapters.
+ # Get-Variable, Remove-Variable and Stopwatch remain original calls in both.
+ $entryOriginal=([Text.UTF8Encoding]::new($false,$true)).GetString([IO.File]::ReadAllBytes((Join-Path $Root 'scripts/owner-code-rotation-native-1218.ps1')));$entryPlan=New-PublicPeerEntryCounterfactual $entryOriginal
+ Require ($entryPlan.markerCount -eq 10 -and $entryPlan.insertions -eq 11 -and $entryPlan.restored -ceq $entryOriginal) 'ENTRY_CF_EXACT_INSERTION_REMOVAL_IDENTITY'
+ $entryReplay=&{param($Fragment,$Bytes) $b=$Bytes;.([scriptblock]::Create($Fragment));return $counterfactualSource} $entryPlan.fragment ([Text.Encoding]::UTF8.GetBytes($entryOriginal));Require ($entryReplay -ceq $entryPlan.source) 'ENTRY_CF_HELPER_FRAGMENT_EXACT'
+ $fragmentTokens=$null;$fragmentErrors=$null;$fragmentAst=[Management.Automation.Language.Parser]::ParseInput($entryPlan.fragment,[ref]$fragmentTokens,[ref]$fragmentErrors);Require ($fragmentErrors.Count -eq 0 -and @($fragmentAst.FindAll({param($a) $a -is [Management.Automation.Language.CommandAst]},$true)).Count -eq 0) 'ENTRY_CF_NO_CMDLET_PROVIDER_OR_WARMUP_IN_HELPER_FRAGMENT'
+ foreach($badSource in @('',($entryOriginal+'Remove-Variable ownerCutoverPeerProbeDiagnosticRequest -Scope Script -ErrorAction SilentlyContinue'),$entryOriginal.Replace('([bool](Get-Variable ownerCutoverPeerProbeDiagnosticRequest -Scope Script -ValueOnly -ErrorAction SilentlyContinue))','PUBLIC_CHANGED_FLAG_ANCHOR'))){$closed=$false;try{$null=New-PublicPeerEntryCounterfactual $badSource}catch{$closed=$true};Require $closed 'ENTRY_CF_CHANGED_SOURCE_ANCHOR_REFUSED'}
+ $entryAsts=@();foreach($text in @($entryOriginal,$entryPlan.source)){$tokens=$null;$parseErrors=$null;$ast=[Management.Automation.Language.Parser]::ParseInput($text,[ref]$tokens,[ref]$parseErrors);Require ($parseErrors.Count -eq 0) 'ENTRY_CF_PARSE';$entryAsts+=,$ast}
+ foreach($name in @('Get-OwnerCutoverPeerAncestryData','Get-OwnerCutoverPeerAncestryDiagnosticData')){
+  $inventories=@();foreach($ast in $entryAsts){$f=@($ast.FindAll({param($a) $a -is [Management.Automation.Language.FunctionDefinitionAst] -and $a.Name -ceq $name},$true));Require ($f.Count -eq 1) 'ENTRY_CF_ONE_ORIGINAL_FUNCTION';$inventory=@($f[0].FindAll({param($a) $a -is [Management.Automation.Language.CommandAst]},$true)|ForEach-Object {$_.GetCommandName()}|Sort-Object);$inventories+=,($inventory -join '|');if($name -ceq 'Get-OwnerCutoverPeerAncestryData'){Require (@($inventory|Where-Object {$_ -ceq 'Get-Variable'}).Count -eq 1 -and @($f[0].FindAll({param($a) $a -is [Management.Automation.Language.InvokeMemberExpressionAst] -and $a.Expression.Extent.Text -ceq '[Diagnostics.Stopwatch]' -and $a.Member.Extent.Text -ceq 'StartNew'},$true)).Count -eq 1) 'ENTRY_CF_ORIGINAL_COMMAND_CALL_COUNTS'}else{Require (@($inventory|Where-Object {$_ -ceq 'Remove-Variable'}).Count -eq 1 -and @($inventory|Where-Object {$_ -ceq 'Get-OwnerCutoverPeerAncestryData'}).Count -eq 1) 'ENTRY_CF_ORIGINAL_COMMAND_CALL_COUNTS'}}
+  Require ($inventories[0] -ceq $inventories[1]) 'ENTRY_CF_COMMAND_CLOSURE_EXACT'
+ }
+ foreach($entryCase in @('success','numeric','expiry','raw-error')){
+  $observations=@();foreach($text in @($entryOriginal,$entryPlan.source)){
+   $script:peerCase=$entryCase;$script:peerTrace.Clear();$script:peerElapsed=0;$capture=[IO.StringWriter]::new()
+   try{[Console]::SetOut($capture);$value=&{param($Source,$Adapters,$Case)
+    .([scriptblock]::Create($Source));foreach($name in $Adapters.Keys){Set-Item -Path ('function:'+ $name) -Value $Adapters[$name]}
+    if($Case -ceq 'raw-error'){function Read-OwnerCutoverPeerProcessData {throw [IO.IOException]::new('PRIVATE_CANARY C:\PRIVATE S-1-5-21-111 pid=777')}}
+    $result=Get-OwnerCutoverPeerAncestryDiagnosticData;Require ($null -eq (Get-Variable ownerCutoverPeerProbeDiagnosticRequest -Scope Script -ErrorAction SilentlyContinue)) 'ENTRY_CF_CLEANUP_ORIGINAL_CALL';return $result
+   } $text $entryAdapters $entryCase}finally{[Console]::SetOut($originalConsoleOut)}
+   $lines=@($capture.ToString().Split([char]10)|Where-Object {$_});$plain=@($lines|Where-Object {-not $_.StartsWith('GORIQ_PUBLIC_PEER_CAPSULE_PHASE ')}) -join "`n";$capture.Dispose();$observations+=@{json=($value|ConvertTo-Json -Depth 4 -Compress);trace=($script:peerTrace -join ',');plain=$plain;markers=@($lines|Where-Object {$_.StartsWith('GORIQ_PUBLIC_PEER_CAPSULE_PHASE ')})}
+  }
+  Require ($observations[0].json -ceq $observations[1].json -and $observations[0].trace -ceq $observations[1].trace -and $observations[0].plain -ceq $observations[1].plain -and $observations[0].markers.Count -eq 0 -and $observations[1].markers.Count -eq 9) 'ENTRY_CF_DIFFERENTIAL_OBSERVATIONS'
+ }
  @{pass=$true;diagnosticCases=5;nativeAuthority=$false;actualNativeCalls=0}|ConvertTo-Json -Compress;return
 }
 $cases=@('success','cycle','owner','session','node-hash','signature','image','numeric','creation','newer-parent','extra','expiry');$rows=@()

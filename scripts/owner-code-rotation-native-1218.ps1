@@ -524,6 +524,117 @@ function Read-OwnerCutoverClock($State){
   return @{remainingHardMs=[long][Math]::Floor($remaining);remainingForwardMs=[long][Math]::Max(0,[Math]::Floor($remaining-120000))}
  }catch{$State.terminal='ROTATION_CUTOVER_CLOCK_INVALID';throw 'ROTATION_CUTOVER_CLOCK_INVALID'}
 }
+# Original registered-clock endpoint DATA only. No QPC association, phase,
+# channel, native capability or live capture is created by these functions.
+function Get-OwnerCutoverOriginalClockEndpointData {
+ param([object]$PublicToken)
+function Resolve-OwnerCutoverClockEndpointState($Token){
+ $storeVariable=Get-Variable -Name ownerCutoverPublicLifetimes -Scope Script -ErrorAction SilentlyContinue
+ if(-not $storeVariable -or $null -eq $Token){throw 'ENDPOINT_REGISTRATION_REQUIRED'}
+ $store=$storeVariable.Value
+ if($store -isnot [hashtable] -or $store.tokens -isnot [Runtime.CompilerServices.ConditionalWeakTable[object,object]] -or $store.states -isnot [Runtime.CompilerServices.ConditionalWeakTable[object,object]] -or $store.allocations -isnot [hashtable]){throw 'ENDPOINT_REGISTRATION_REQUIRED'}
+ $state=$null;$registered=$null
+ if(-not $store.tokens.TryGetValue($Token,[ref]$state) -or $state -isnot [hashtable] -or -not $store.states.TryGetValue($state,[ref]$registered) -or -not [object]::ReferenceEquals($state,$registered) -or -not [object]::ReferenceEquals($Token,$state.token) -or $state.workflowRunId -isnot [string] -or $state.workflowRunId -cnotmatch '^[1-9][0-9]{0,19}$'){throw 'ENDPOINT_REGISTRATION_REQUIRED'}
+ $allocation='haji84/AI-|haji84/AI-/.github/workflows/gai-zbook-diagnostic-1218.yml@refs/heads/main|'+$state.workflowRunId+'|1|inspect'
+ if(-not $store.allocations.ContainsKey($allocation) -or -not [object]::ReferenceEquals($store.allocations[$allocation],$state)){throw 'ENDPOINT_REGISTRATION_REQUIRED'}
+ return $state
+}
+function Get-OwnerCutoverClockEndpointPins($State){
+ if($State.phase -cne 'PUBLIC_SOURCE_BOUND' -or $State.originUtc -isnot [datetimeoffset] -or $State.lastUtc -isnot [datetimeoffset] -or $State.hardEnd -isnot [datetimeoffset]){throw 'ENDPOINT_BINDING_REQUIRED'}
+ foreach($name in @('originStamp','lastStamp','frequency')){if(($State[$name] -isnot [long] -and $State[$name] -isnot [int]) -or $State[$name] -lt 0){throw 'ENDPOINT_BINDING_REQUIRED'}}
+ if($State.frequency -le 0 -or $State.lastStamp -lt $State.originStamp -or $State.lastUtc -lt $State.originUtc -or $State.hardEnd -le $State.originUtc -or ($State.hardEnd-$State.originUtc).Ticks -gt 9000000000L){throw 'ENDPOINT_BINDING_REQUIRED'}
+ if($State.grant -isnot [pscustomobject] -or $State.sourceFiles -isnot [hashtable] -or $State.sourceRevision -isnot [string] -or $State.sourceRevision -cnotmatch '^[a-f0-9]{40}$' -or $State.grantHash -isnot [string] -or $State.grantHash -cnotmatch '^[a-f0-9]{64}$' -or $State.workflowHash -isnot [string] -or $State.workflowHash -cnotmatch '^[a-f0-9]{64}$' -or $State.jobId -isnot [string] -or $State.jobId -cnotmatch '^[1-9][0-9]{0,19}$' -or $State.jobStartedAt -isnot [string]){throw 'ENDPOINT_BINDING_REQUIRED'}
+ $job=[datetimeoffset]::MinValue;$expiry=[datetimeoffset]::MinValue
+ if(-not [datetimeoffset]::TryParseExact($State.jobStartedAt,'yyyy-MM-ddTHH:mm:ss.fffZ',[Globalization.CultureInfo]::InvariantCulture,[Globalization.DateTimeStyles]::AssumeUniversal,[ref]$job) -or -not [datetimeoffset]::TryParseExact($State.grant.expiresAt,'yyyy-MM-ddTHH:mm:ss.fffZ',[Globalization.CultureInfo]::InvariantCulture,[Globalization.DateTimeStyles]::AssumeUniversal,[ref]$expiry)){throw 'ENDPOINT_BINDING_REQUIRED'}
+ if($job -gt $State.lastUtc -or $State.hardEnd -gt $job.AddSeconds(900) -or $State.hardEnd -gt $expiry -or $State.grant.maxDurationSeconds -ne 900 -or $State.grant.recoveryReserveSeconds -ne 120 -or $State.grant.sourceRevision -cne $State.sourceRevision -or (Get-OwnerRotationEntryDigest ([Text.Encoding]::UTF8.GetBytes((ConvertTo-OwnerRotationEntryJson $State.grant)))) -cne $State.grantHash){throw 'ENDPOINT_BINDING_REQUIRED'}
+ $references=[Array]::AsReadOnly([object[]]@($State.grant,$State.grant.sourceHashes,$State.sourceFiles));$values=[Array]::AsReadOnly([object[]]@($State.root,$State.sourceRevision,$State.grantHash,$State.workflowRunId,$State.workflowHash,$State.jobId,$State.jobStartedAt,$State.originUtc.UtcDateTime.Ticks,[long]$State.originStamp,[long]$State.frequency));$providers=[Array]::AsReadOnly([object[]]@((Get-Command Read-OwnerCutoverClock -CommandType Function).ScriptBlock,(Get-Command Get-OwnerCutoverUtcNow -CommandType Function).ScriptBlock,(Get-Command Get-OwnerCutoverMonotonicStamp -CommandType Function).ScriptBlock,(Get-Command Get-OwnerCutoverMonotonicFrequency -CommandType Function).ScriptBlock));return [Tuple[object,object,object]]::new($references,$values,$providers)
+}
+function Test-OwnerCutoverClockEndpointPins($Before,$After){
+ if($Before -isnot [Tuple[object,object,object]] -or $After -isnot [Tuple[object,object,object]]){return $false}
+ foreach($name in @('Item1','Item2','Item3')){if($Before.$name -isnot [Collections.ObjectModel.ReadOnlyCollection[object]] -or $After.$name -isnot [Collections.ObjectModel.ReadOnlyCollection[object]] -or $Before.$name.Count -ne $After.$name.Count){return $false};for($i=0;$i -lt $Before.$name.Count;$i++){if($name -ceq 'Item2'){if(-not [object]::Equals($Before.$name[$i],$After.$name[$i])){return $false}}elseif(-not [object]::ReferenceEquals($Before.$name[$i],$After.$name[$i])){return $false}}};return $true
+}
+function Test-OwnerCutoverClockEndpointBookkeeping($Lifetime,$History){
+ if($Lifetime -isnot [Tuple[object,object]] -or $History -isnot [Tuple[object,object,bool]] -or -not [object]::ReferenceEquals($Lifetime,$History.Item1) -or $History.Item3){return $false}
+ $mirror=$Lifetime.Item2;$names=@('previousHard','previousForward','previousHardEnd','lastUtc','lastStamp')
+ if($mirror -isnot [hashtable] -or $mirror.Count -ne 6 -or -not $mirror.ContainsKey('terminal') -or $mirror.terminal -isnot [bool] -or $mirror.terminal){return $false}
+ if($null -ne $History.Item2 -and $History.Item2 -isnot [Tuple[long,long,long,long,long]]){return $false}
+ for($i=0;$i -lt $names.Count;$i++){$name=$names[$i];if(-not $mirror.ContainsKey($name)){return $false};if($null -eq $History.Item2){if($null -ne $mirror[$name]){return $false}}else{$item='Item'+($i+1);if($mirror[$name] -isnot [long] -or -not [object]::Equals($mirror[$name],$History.Item2.$item)){return $false}}};return $true
+}
+ $state=$null;$record=$null;$lifetime=$null;$history=$null;$originalPins=$null;$latchOriginal=$false
+ try{
+  if($args.Count -ne 0 -or $PSBoundParameters.Count -ne 1 -or -not $PSBoundParameters.ContainsKey('PublicToken')){throw 'ENDPOINT_REGISTRATION_REQUIRED'}
+  $state=Resolve-OwnerCutoverClockEndpointState $PublicToken
+  $storeVariable=Get-Variable -Name ownerCutoverClockEndpointRecords -Scope Script -ErrorAction SilentlyContinue
+  if(-not $storeVariable){
+   if((Get-Variable -Name ownerCutoverClockEndpointPins -Scope Script -ErrorAction SilentlyContinue) -or (Get-Variable -Name ownerCutoverClockEndpointHistory -Scope Script -ErrorAction SilentlyContinue)){throw 'ENDPOINT_BOOKKEEPING_REQUIRED'}
+   $script:ownerCutoverClockEndpointRecords=[Runtime.CompilerServices.ConditionalWeakTable[object,object]]::new();$script:ownerCutoverClockEndpointPins=[Runtime.CompilerServices.ConditionalWeakTable[object,object]]::new();$script:ownerCutoverClockEndpointHistory=[Runtime.CompilerServices.ConditionalWeakTable[object,object]]::new()
+  }
+  $pinStore=Get-Variable -Name ownerCutoverClockEndpointPins -Scope Script -ErrorAction SilentlyContinue
+  $historyStore=Get-Variable -Name ownerCutoverClockEndpointHistory -Scope Script -ErrorAction SilentlyContinue
+  if($script:ownerCutoverClockEndpointRecords -isnot [Runtime.CompilerServices.ConditionalWeakTable[object,object]] -or -not $pinStore -or $pinStore.Value -isnot [Runtime.CompilerServices.ConditionalWeakTable[object,object]] -or -not $historyStore -or $historyStore.Value -isnot [Runtime.CompilerServices.ConditionalWeakTable[object,object]]){throw 'ENDPOINT_BOOKKEEPING_REQUIRED'}
+  $hasHistory=$script:ownerCutoverClockEndpointHistory.TryGetValue($state,[ref]$history)
+  if(-not $script:ownerCutoverClockEndpointRecords.TryGetValue($state,[ref]$lifetime)){
+   $orphanPins=$null;if($hasHistory -or $script:ownerCutoverClockEndpointPins.TryGetValue($state,[ref]$orphanPins)){throw 'ENDPOINT_BOOKKEEPING_REQUIRED'}
+   $record=@{terminal=$false;previousHard=$null;previousForward=$null;previousHardEnd=$null;lastUtc=$null;lastStamp=$null};$initialPins=$null
+   try{$initialPins=Get-OwnerCutoverClockEndpointPins $state}catch{$record.terminal=$true}
+   $lifetime=[Tuple[object,object]]::new($initialPins,$record);$history=[Tuple[object,object,bool]]::new($lifetime,$null,[bool]$record.terminal);$script:ownerCutoverClockEndpointRecords.Add($state,$lifetime);$script:ownerCutoverClockEndpointHistory.Add($state,$history);if($initialPins){$script:ownerCutoverClockEndpointPins.Add($state,$initialPins)}
+  }
+  # Issued lifetime, accepted minima and terminal history are immutable and
+  # separate from the mutable mirror. Null/replaced bookkeeping is never first use.
+  if(-not (Test-OwnerCutoverClockEndpointBookkeeping $lifetime $history) -or $lifetime.Item1 -isnot [Tuple[object,object,object]]){throw 'ENDPOINT_BOOKKEEPING_REQUIRED'}
+  $record=$lifetime.Item2;$originalPins=$lifetime.Item1
+  $accepted=$history.Item2
+  $issuedPins=$null;if(-not $script:ownerCutoverClockEndpointPins.TryGetValue($state,[ref]$issuedPins) -or -not [object]::ReferenceEquals($issuedPins,$originalPins)){throw 'ENDPOINT_BOOKKEEPING_REQUIRED'}
+  if($state.terminal){throw 'ENDPOINT_ORIGINAL_INVALID'}
+  try{$pins=Get-OwnerCutoverClockEndpointPins $state}catch{$latchOriginal=$true;throw}
+  if(-not (Test-OwnerCutoverClockEndpointPins $originalPins $pins)){$latchOriginal=$true;throw 'ENDPOINT_BINDING_CHANGED'}
+  if($null -ne $accepted){
+   $reserve=[System.Numerics.BigInteger]::Multiply([System.Numerics.BigInteger]120,[System.Numerics.BigInteger]$state.frequency);$expectedForward=[System.Numerics.BigInteger]::Max([System.Numerics.BigInteger]::Zero,[System.Numerics.BigInteger]::Subtract([System.Numerics.BigInteger]$accepted.Item1,$reserve))
+   if([System.Numerics.BigInteger]$accepted.Item2 -ne $expectedForward){throw 'ENDPOINT_BOOKKEEPING_REQUIRED'}
+   if($state.hardEnd.UtcDateTime.Ticks -gt $accepted.Item3 -or $state.lastUtc.UtcDateTime.Ticks -lt $accepted.Item4 -or $state.lastStamp -lt $accepted.Item5){throw 'ENDPOINT_BOOKKEEPING_REQUIRED'}
+  }
+  $null=Read-OwnerCutoverClock $state
+  $stillRegistered=Resolve-OwnerCutoverClockEndpointState $PublicToken;if(-not [object]::ReferenceEquals($stillRegistered,$state)){throw 'ENDPOINT_REGISTRATION_REQUIRED'}
+  if($state.terminal){throw 'ENDPOINT_ORIGINAL_INVALID'}
+  $firstUtc=$state.lastUtc;$firstStamp=[long]$state.lastStamp
+  $firstHardEnd=$state.hardEnd
+  $samplePins=Get-OwnerCutoverClockEndpointPins $state
+  if(-not (Test-OwnerCutoverClockEndpointPins $pins $samplePins)){$latchOriginal=$true;throw 'ENDPOINT_BINDING_CHANGED'}
+  # A genuine same-provider monotonic observation BEFORE the second UTC read.
+  $pre=Get-OwnerCutoverMonotonicStamp
+  if(($pre -isnot [long] -and $pre -isnot [int]) -or $pre -lt $firstStamp){$latchOriginal=$true;throw 'ENDPOINT_ORIGINAL_OBSERVATION_INVALID'}
+  $null=Read-OwnerCutoverClock $state
+  if($state.hardEnd -gt $firstHardEnd){throw 'ENDPOINT_BOOKKEEPING_REQUIRED'}
+  if($state.lastStamp -lt $pre -or $state.lastUtc -lt $firstUtc){$latchOriginal=$true;throw 'ENDPOINT_ORIGINAL_OBSERVATION_INVALID'}
+  if($state.terminal){throw 'ENDPOINT_ORIGINAL_INVALID'}
+  $afterPins=Get-OwnerCutoverClockEndpointPins $state
+  if(-not (Test-OwnerCutoverClockEndpointPins $pins $afterPins)){$latchOriginal=$true;throw 'ENDPOINT_BINDING_CHANGED'}
+  $stillRegistered=Resolve-OwnerCutoverClockEndpointState $PublicToken;if(-not [object]::ReferenceEquals($stillRegistered,$state)){throw 'ENDPOINT_REGISTRATION_REQUIRED'}
+  $currentLifetime=$null;$currentHistory=$null;if(-not $script:ownerCutoverClockEndpointRecords.TryGetValue($state,[ref]$currentLifetime) -or -not $script:ownerCutoverClockEndpointHistory.TryGetValue($state,[ref]$currentHistory) -or -not [object]::ReferenceEquals($currentLifetime,$lifetime) -or -not [object]::ReferenceEquals($currentHistory,$history) -or -not (Test-OwnerCutoverClockEndpointBookkeeping $lifetime $history)){throw 'ENDPOINT_BOOKKEEPING_REQUIRED'}
+  $o=[System.Numerics.BigInteger]$state.originUtc.UtcDateTime.Ticks;$h=[System.Numerics.BigInteger]$state.hardEnd.UtcDateTime.Ticks;$u=[System.Numerics.BigInteger]$state.lastUtc.UtcDateTime.Ticks;$p=[System.Numerics.BigInteger]$state.originStamp;$f=[System.Numerics.BigInteger]$state.frequency;$s=[System.Numerics.BigInteger]$state.lastStamp;$b=[System.Numerics.BigInteger]$pre;$t=[System.Numerics.BigInteger]10000000;$limit=[System.Numerics.BigInteger][long]::MaxValue
+  $duration=[System.Numerics.BigInteger]::Subtract($h,$o);$utcRemaining=[System.Numerics.BigInteger]::Subtract($h,$u)
+  if($duration -le 0 -or $duration -gt 9000000000L -or $utcRemaining -le 0){throw 'ENDPOINT_RANGE_REQUIRED'}
+  $nominal=[System.Numerics.BigInteger]::Add($p,[System.Numerics.BigInteger]::Divide([System.Numerics.BigInteger]::Multiply($duration,$f),$t))
+  if($nominal -lt 0 -or $nominal -gt $limit){throw 'ENDPOINT_RANGE_REQUIRED'}
+  $utcCap=[System.Numerics.BigInteger]::Add($b,[System.Numerics.BigInteger]::Divide([System.Numerics.BigInteger]::Multiply($utcRemaining,$f),$t));$hard=[System.Numerics.BigInteger]::Min($nominal,$utcCap)
+  if($null -ne $accepted){$hard=[System.Numerics.BigInteger]::Min($hard,[System.Numerics.BigInteger]$accepted.Item1)}
+  $reserve=[System.Numerics.BigInteger]::Multiply([System.Numerics.BigInteger]120,$f);$forward=[System.Numerics.BigInteger]::Max([System.Numerics.BigInteger]::Zero,[System.Numerics.BigInteger]::Subtract($hard,$reserve));$remainingHard=[System.Numerics.BigInteger]::Subtract($hard,$s);$remainingForward=[System.Numerics.BigInteger]::Max([System.Numerics.BigInteger]::Zero,[System.Numerics.BigInteger]::Subtract($forward,$s))
+  if($remainingHard -le 0){throw 'ENDPOINT_CONSERVATIVE_CUT_REACHED'}
+  foreach($value in @($hard,$forward,$remainingHard,$remainingForward)){if($value -lt 0 -or $value -gt $limit){throw 'ENDPOINT_RANGE_REQUIRED'}}
+  if($null -ne $accepted -and $forward -gt [System.Numerics.BigInteger]$accepted.Item2){throw 'ENDPOINT_BOOKKEEPING_REQUIRED'}
+  $record.previousHard=[long]$hard;$record.previousForward=[long]$forward;$record.previousHardEnd=[long]$h;$record.lastUtc=[long]$u;$record.lastStamp=[long]$s
+  $nextAccepted=[Tuple[long,long,long,long,long]]::new([long]$hard,[long]$forward,[long]$h,[long]$u,[long]$s);$null=$script:ownerCutoverClockEndpointHistory.Remove($state);$script:ownerCutoverClockEndpointHistory.Add($state,[Tuple[object,object,bool]]::new($lifetime,$nextAccepted,$false))
+  $culture=[Globalization.CultureInfo]::InvariantCulture
+  return [pscustomobject][ordered]@{schemaVersion=1;profile='goriq-original-clock-endpoints-data-v1';sourceRevision=$state.sourceRevision;originalGrantSha256=$state.grantHash;workflowRunId=$state.workflowRunId;officialJobId=$state.jobId;originUtcTicks=$o.ToString($culture);originStamp=$p.ToString($culture);frequency=$f.ToString($culture);sampleUtcTicks=$u.ToString($culture);sampleStamp=$s.ToString($culture);hardEndUtcTicks=$h.ToString($culture);hardStampEndpoint=$hard.ToString($culture);forwardStampEndpoint=$forward.ToString($culture);remainingHardTicks=$remainingHard.ToString($culture);remainingForwardTicks=$remainingForward.ToString($culture);nativeAuthority=$false;effectCapability=$false;qpcAssociationVerified=$false}
+ }catch{
+  # Refusal history cannot be cleared by repairing/replacing the mutable mirror.
+  if($state){try{$terminalStore=Get-Variable -Name ownerCutoverClockEndpointHistory -Scope Script -ErrorAction SilentlyContinue;$terminalHistory=$null;if($terminalStore -and $terminalStore.Value -is [Runtime.CompilerServices.ConditionalWeakTable[object,object]] -and $terminalStore.Value.TryGetValue($state,[ref]$terminalHistory) -and $terminalHistory -is [Tuple[object,object,bool]]){$null=$terminalStore.Value.Remove($state);$terminalStore.Value.Add($state,[Tuple[object,object,bool]]::new($terminalHistory.Item1,$terminalHistory.Item2,$true))}}catch{}}
+  # Re-resolve all genuine registrations before any additional original latch.
+  if($latchOriginal -and $state){try{$recognized=Resolve-OwnerCutoverClockEndpointState $PublicToken;if([object]::ReferenceEquals($recognized,$state)){$issued=$null;$current=$null;if($script:ownerCutoverClockEndpointPins.TryGetValue($state,[ref]$issued) -and $script:ownerCutoverClockEndpointRecords.TryGetValue($state,[ref]$current) -and $current -is [Tuple[object,object]] -and [object]::ReferenceEquals($issued,$originalPins) -and [object]::ReferenceEquals($current.Item1,$issued)){$state.terminal='ROTATION_CUTOVER_CLOCK_INVALID'}}}catch{}}
+  throw 'ROTATION_CUTOVER_CLOCK_ENDPOINT_DATA_REJECTED'
+ }
+}
+
 function Assert-OwnerCutoverPublicBudget($State){$clock=Read-OwnerCutoverClock $State;if($clock.remainingForwardMs -le 0){throw 'ROTATION_CUTOVER_FORWARD_RESERVE'}}
 function Read-OwnerCutoverPublicBytes($State,[string]$Uri){
  Assert-OwnerCutoverPublicBudget $State
