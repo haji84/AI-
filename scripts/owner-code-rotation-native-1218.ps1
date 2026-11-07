@@ -99,7 +99,7 @@ function Get-OwnerCutoverPeerAncestryData {
  $script:ownerCutoverPeerProbeState=@{stopwatch=[Diagnostics.Stopwatch]::StartNew();lastElapsed=[long]0;cursor=$null;index=0;phase='PLATFORM';exceptionClass='NONE';actualExceptionHResult=$null;diagnosticProgress=([bool](Microsoft.PowerShell.Utility\Get-Variable ownerCutoverPeerProbeDiagnosticRequest -Scope Script -ValueOnly -ErrorAction SilentlyContinue));lastProgress='';progressRows=0;progressBytes=0}
  try{
   Write-OwnerCutoverPeerProbeDiagnosticProgress;Assert-OwnerCutoverPeerProbeBudget;$platform=Get-OwnerCutoverPeerProbePlatform;Assert-OwnerCutoverPeerProbeBudget
-  if($platform.windows -isnot [bool] -or -not $platform.windows -or $platform.major -isnot [int] -or $platform.major -ne 5 -or $platform.nativeSystem -isnot [string] -or $platform.nativeSystem -cnotmatch '^[A-Za-z]:\\[^:\r\n\0]+\\System32$'){throw 'REFUSE'}
+  if($platform.windows -isnot [bool] -or -not $platform.windows -or $platform.major -isnot [int] -or $platform.major -ne 5 -or $platform.nativeSystem -isnot [string] -or $platform.nativeSystem -notmatch '^[A-Za-z]:\\[^:\r\n\0]+\\System32$'){throw 'REFUSE'}
   $script:ownerCutoverPeerProbeState.cursor=Get-OwnerCutoverPeerProbeSelfId;Assert-OwnerCutoverPeerProbeBudget;$rows=@();$seen=@{}
   for($index=0;$index -lt 3;$index++){
    $id=$script:ownerCutoverPeerProbeState.cursor;if($id -isnot [int] -or $id -le 0 -or $seen.ContainsKey($id)){throw 'REFUSE'};$seen[$id]=$true;$script:ownerCutoverPeerProbeState.index=$index
