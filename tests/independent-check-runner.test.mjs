@@ -60,3 +60,10 @@ test("no privileged signer may run without separate-principal and offline image 
     if(b===undefined)delete process.env.GORIQ_VERIFIER_CONTAINER_IMAGE;else process.env.GORIQ_VERIFIER_CONTAINER_IMAGE=b;
   }
 });
+
+
+test("ordinary ignored request fields remain compatible while explicit hosted token forgery never activates a budget", async()=>{
+ const req={...request(),hostedBudget:{unit:600000},timeoutMs:600001};assert.equal(validateVerifierRunRequest(req),req);
+ await assert.rejects(runIndependentVerifier(request(),{hostedCiLifetime:{}}),/HOSTED_CI_/);
+ await assert.rejects(runIndependentVerifier(request(),{signerTransport:{},hostedCiLifetime:{}}),/HOSTED_CI_|SIGNER_TRANSPORT_INVALID/);
+});

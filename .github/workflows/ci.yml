@@ -91,7 +91,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: independent-verifier-container-${{ github.sha }}
-          path: ${{ runner.temp }}/goriq-verifier-live-evidence/
+          path: |
+            ${{ runner.temp }}/goriq-verifier-live-evidence/
+            ${{ job.status != 'success' && format('!{0}/goriq-verifier-live-evidence/receipt.json', runner.temp) || '' }}
           if-no-files-found: error
           retention-days: 14
 

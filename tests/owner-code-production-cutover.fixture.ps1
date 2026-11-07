@@ -1,6 +1,10 @@
-param([ValidateSet('matrix','native-variant','preloaded-type','clock-boundary','journal-boundary','xml-boundary','clock-kernel-expiry','readonly-com-transport','guarded-c3','guarded-c3-boundaries','guarded-c3-protocol','guarded-c3-http','validator-default-environment','guarded-c3-restoration-reporting','guarded-c3-fractional-clock')][string]$Scenario='matrix')
+param([ValidateSet('matrix','native-variant','preloaded-type','clock-boundary','journal-boundary','xml-boundary','clock-kernel-expiry','readonly-com-transport','guarded-c3','guarded-c3-boundaries','guarded-c3-boundaries-0','guarded-c3-boundaries-1','guarded-c3-boundaries-2','guarded-c3-boundaries-3','guarded-c3-protocol','guarded-c3-http','validator-default-environment','guarded-c3-restoration-reporting','guarded-c3-fractional-clock')][string]$Scenario='matrix')
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
+$c3BoundaryPart=$null
+switch -CaseSensitive ($Scenario){'guarded-c3-boundaries-0'{$c3BoundaryPart=0};'guarded-c3-boundaries-1'{$c3BoundaryPart=1};'guarded-c3-boundaries-2'{$c3BoundaryPart=2};'guarded-c3-boundaries-3'{$c3BoundaryPart=3}}
+if($Scenario -like 'guarded-c3-boundaries-*' -and $null -eq $c3BoundaryPart){throw 'PUBLIC_C3_PARTITION_SCENARIO_REQUIRED'}
+if($null -ne $c3BoundaryPart){$Scenario='guarded-c3-boundaries'}
 if($Scenario -eq 'readonly-com-transport'){
  # Fresh process, actual unchanged helper binding, no fixture types/providers.
  # Root-folder reads only: never GetTask/enumeration/registration/task effects.
@@ -335,6 +339,7 @@ if($Scenario -like 'guarded-c3*'){
  $ids=@('authority-observations','context-allocation','confirmation-ui','result-ui','candidate-validator','restart-last-run','restart-stop','restart-stopping-loop','restart-start','restart-running-loop','login-sleep-and-task','login-post','runtime-health','runtime-config-db','attempt-record','credential-candidate','candidate-acl-hashes','forward-replace','forward-checkpoints','rollback-replace','rollback-runtime','candidate-cleanup','planned-restore','exercise-entry','exercise-protocol')
  if($Scenario -cin @('guarded-c3','guarded-c3-boundaries','guarded-c3-protocol','guarded-c3-http')){
  if($Scenario -ceq 'guarded-c3-protocol'){$ids=@('planned-restore')}elseif($Scenario -ceq 'guarded-c3-http'){$ids=@('candidate-cleanup')}elseif($Scenario -ceq 'guarded-c3-boundaries'){$ids=@($ids|Where-Object {$_ -cnotin @('planned-restore','candidate-cleanup')})}
+ if($null -ne $c3BoundaryPart){switch($c3BoundaryPart){0{$ids=@($ids[0..5])};1{$ids=@($ids[6..11]);$script:c3Index+=12};2{$ids=@($ids[12..17]);$script:c3Index+=24};3{$ids=@($ids[18..22]);$script:c3Index+=36}};$summary.partIndex=$c3BoundaryPart}
  $count=0;foreach($id in $ids){foreach($when in @('pre','post')){C3-Setup;if($id -ceq 'rollback-replace'){$script:c3.crossForward=119};$script:c3.cutBoundary=$id;$script:c3.cutWhen=$when;$value=C3-Run;Require ($script:c3.cutSeen -and -not $value.complete -and $script:c3.afterExpiry -eq 0 -and @($script:c3.resources|Where-Object {-not $_.disposed}).Count -eq 0) ('C3_EXPIRY_'+$id+'_'+$when);$summary.hardExpiryNextProtectedCalls+=$script:c3.afterExpiry;$count++}}
  $summary.boundaryIds=$ids;$summary.expiryCases=$count
  }

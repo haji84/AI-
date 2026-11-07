@@ -132,3 +132,65 @@ test("running the live CI entry point locally fails visibly before doing setup",
   assert.equal(run.status, 1);
   assert.match(run.stderr, /LIVE_HOSTED_RUNNER_REQUIRED/);
 });
+
+
+import { copyFileSync, existsSync } from "node:fs";
+import { createRequire } from "node:module";
+import { runInNewContext } from "node:vm";
+test("otherwise valid six-pass receipt is never public when global owned cleanup is unconfirmed", t => {
+ const f=fixture(t);assert.equal(auditLiveVerifierReceipt(f.input).containerExecutionVerified,true);
+ const evidenceDirectory=join(f.receiptFile+".logs","public-evidence");mkdirSync(evidenceDirectory);
+ const source=readFileSync("scripts/jarvis-verifier-live-ci.mjs","utf8"),ts=createRequire(import.meta.url)("typescript"),ast=ts.createSourceFile("live.mjs",source,ts.ScriptTarget.Latest,true,ts.ScriptKind.JS);
+ const promotion=ast.statements.find(x=>ts.isFunctionDeclaration(x)&&x.name?.text==="publishHostedCiReceipt");
+ if(promotion){const context={Buffer,Error,join,writeFileSync,rmSync,hash:sha,observeHostedCiBudget:()=>{throw Error("HOSTED_CI_FINAL_CUT_REFUSED");}};runInNewContext(promotion.getText(ast)+";globalThis.promote=publishHostedCiReceipt;",context);assert.throws(()=>context.promote({},f.input.request,readFileSync(f.receiptFile),evidenceDirectory,false),/LIVE_|HOSTED_CI_/);}
+ else {const entry=ast.statements.find(x=>ts.isFunctionDeclaration(x)&&x.name?.text==="executeHostedCI"),outer=entry.body.statements.find(x=>ts.isTryStatement(x));const legacy=outer.finallyBlock.statements.find(x=>ts.isTryStatement(x)&&x.getText(ast).includes("copyFileSync(receiptFile"));assert.ok(legacy);runInNewContext(legacy.getText(ast),{receiptFile:f.receiptFile,evidenceDirectory,existsSync,copyFileSync,join,mkdirSync,CHECKS:[],cleanupErrors:[]});}
+ assert.equal(existsSync(join(evidenceDirectory,"receipt.json")),false,"Failed cleanup must not leave an otherwise-valid six-pass signature in artifacts");
+});
+
+
+test("private cleanup model attempts both original worktrees and root after the first removal throws",()=>{
+ const source=readFileSync("scripts/jarvis-verifier-live-ci.mjs","utf8"),start=source.indexOf("    try {\n      if(root){"),end=source.indexOf("    for(const [key,value] of Object.entries(savedEnv))",start);assert.ok(start>=0&&end>start);
+ const root="/public/temp/goriq-verifier-live-owned",candidate=root+"/candidate",runner=root+"/runner",calls=[],cleanupErrors=[];let removed=false;
+ const scope={root,candidate,runner,candidateAttempted:true,runnerAttempted:true,temporary:"/public/temp",cleanupErrors,assert,dirname:p=>p.slice(0,p.lastIndexOf("/")),basename:p=>p.slice(p.lastIndexOf("/")+1),realpathSync:p=>p,existsSync:p=>p===root?!removed:true,
+  observeHostedCiBudget:()=>({remainingMs:100000}),token:{},gitCall:args=>{calls.push(args.at(-1));if(args.at(-1)===candidate)throw Error("PUBLIC_FIRST_REMOVAL_FAILED");},rmSync:p=>{calls.push(p);removed=true;}};
+ runInNewContext(source.slice(start,end),scope);assert.deepEqual(calls,[candidate,runner,root]);assert.ok(cleanupErrors.length>0);
+});
+
+test("private receipt post-write cut failure with refused deletion retains counterexample under the failed-job artifact boundary",t=>{
+ const f=fixture(t),dir=join(f.receiptFile+".logs","late-public-evidence");mkdirSync(dir);
+ const source=readFileSync("scripts/jarvis-verifier-live-ci.mjs","utf8"),ts=createRequire(import.meta.url)("typescript"),ast=ts.createSourceFile("live.mjs",source,ts.ScriptTarget.Latest,true,ts.ScriptKind.JS),fn=ast.statements.find(x=>ts.isFunctionDeclaration(x)&&x.name?.text==="publishHostedCiReceipt");assert.ok(fn);
+ let observations=0;const context={Buffer,Error,join,writeFileSync,rmSync:()=>{throw Error("PUBLIC_DELETE_FAILED");},hash:sha,observeHostedCiBudget:()=>{if(++observations>1)throw Error("HOSTED_CI_FINAL_CUT_REFUSED");}};
+ runInNewContext(fn.getText(ast)+";globalThis.promote=publishHostedCiReceipt;",context);assert.throws(()=>context.promote({},f.input.request,readFileSync(f.receiptFile),dir,true));
+ assert.equal(existsSync(join(dir,"receipt.json")),true,"Retain the physical-deletion limit: artifact selection, not unlink, is the adopted failure boundary");
+ assert.equal(sha(readFileSync(join(dir,"receipt.json"))),sha(readFileSync(f.receiptFile)));
+});
+
+
+function hostedArtifactPolicy(){
+ const source=readFileSync(".github/workflows/ci.yml","utf8"),start=source.indexOf("      - name: Retain hosted-container evidence"),end=source.indexOf("\n      - name:",start+1);assert.ok(start>0&&end>start);
+ const step=source.slice(start,end);assert.match(step,/if: always\(\)/);assert.match(step,/uses: actions\/upload-artifact@v4/);assert.match(step,/retention-days: 14/);assert.match(step,/if-no-files-found: error/);
+ const expected="          path: |\n            ${{ runner.temp }}/goriq-verifier-live-evidence/\n            ${{ job.status != 'success' && format('!{0}/goriq-verifier-live-evidence/receipt.json', runner.temp) || '' }}";
+ assert.ok(step.includes(expected),"Only authentic job.status==success may select the root receipt");assert.doesNotMatch(source,/continue-on-error:/);return step;
+}
+test("hosted evidence selection uses only authentic job status, fails closed for nonsuccess and preserves existing uploader",()=>{
+ const step=hostedArtifactPolicy();assert.doesNotMatch(step,/result\.json|env\.|steps\.|outputs\./);
+ const source=readFileSync("scripts/jarvis-verifier-container.mjs","utf8");assert.ok(source.includes('"../.github/workflows/ci.yml"'),"The exact workflow bytes are part of the retained host source pins");
+});
+
+test("private actual finalization faults exit failure before artifact selection even when signed receipt deletion is refused",t=>{
+ const source=readFileSync("scripts/jarvis-verifier-live-ci.mjs","utf8"),ts=createRequire(import.meta.url)("typescript"),ast=ts.createSourceFile("live.mjs",source,ts.ScriptTarget.Latest,true,ts.ScriptKind.JS);
+ const fn=ast.statements.find(x=>ts.isFunctionDeclaration(x)&&x.name?.text==="publishHostedCiReceipt"),entry=ast.statements.find(x=>ts.isFunctionDeclaration(x)&&x.name?.text==="executeHostedCI"),outer=entry.body.statements.find(x=>ts.isTryStatement(x));
+ const finalTry=outer.finallyBlock.statements.find(x=>ts.isTryStatement(x)&&x.getText(ast).includes("GLOBAL_CLEANUP_CONFIRMED")),writeDecl=entry.body.statements.find(x=>ts.isVariableStatement(x)&&x.getText(ast).startsWith("const writeEvidence="));assert.ok(fn&&finalTry&&writeDecl);
+ hostedArtifactPolicy();
+ for(const fault of ["FINAL_CHECK","result-write","result-return","FINAL_AFTER"]){
+  const f=fixture(t),dir=join(f.receiptFile+".logs","fault-"+fault);mkdirSync(dir);const bytes=readFileSync(f.receiptFile),receiptHash=sha(bytes);let stdout="",faulted=false;
+  const scope={Buffer,Error,JSON,assert,join,hash:sha,token:{},boundRequest:f.input.request,evidenceDirectory:dir,pendingOutcome:{containerExecutionVerified:true,receiptSha256:receiptHash},privateReceipt:Buffer.from(bytes),cleanupErrors:[],outcome:{status:"FAILED"},
+   process:{stdout:{write:b=>{stdout+=b;}}},rmSync:()=>{throw Error("PUBLIC_DELETE_REFUSED");},writeFileSync:(file,data,options)=>{if(fault==="result-write"&&file===join(dir,"result.json")&&!faulted){faulted=true;throw Error("PUBLIC_RESULT_WRITE_REFUSED");}writeFileSync(file,data,options);},
+   observeHostedCiBudget:(_token,stage)=>{if(stage===fault||(fault==="result-return"&&stage==="EVIDENCE_AFTER")){faulted=true;throw Error("HOSTED_CI_FIXED_CUT_REFUSED");}return {remainingMs:1000};}};
+  runInNewContext(fn.getText(ast)+writeDecl.getText(ast)+finalTry.getText(ast)+';globalThis.failedOutcome=outcome;',scope);
+  assert.equal(scope.failedOutcome.status,"FAILED");assert.equal(scope.failedOutcome.receiptRemovalUnconfirmed,true);assert.equal(sha(readFileSync(join(dir,"receipt.json"))),receiptHash);assert.equal(stdout,"");
+  assert.throws(()=>assert.equal(scope.failedOutcome.status,"PASSED","LIVE_VERIFIER_CI_FAILED"),/LIVE_VERIFIER_CI_FAILED/);
+  const selectedDiagnostics=readFileSync(join(dir,"result.json"),"utf8");assert.equal(selectedDiagnostics.includes(JSON.parse(bytes).signatureBase64),false);assert.ok(faulted);
+ }
+ assert.match(source,/catch \(error\) \{ process\.stderr\.write\([\s\S]*process\.exitCode = 1/);
+});
