@@ -62,10 +62,28 @@ def annotate_fixture(source):
       "[Console]::Error.WriteLine('CLOCK_EXITED|'+$(if($script:r2HeldProof.HasExited){'YES'}else{'NO'}));"
       "[Console]::Error.WriteLine('CLOCK_WATCH|'+$(if(-not $script:ownedPeerCleanupCertificate.Item4.Item1.IsRunning){'YES'}else{'NO'}));"
     )
-    source=once(source,guard,indicators+guard)
+    identityFlags=(
+      "$clockOwner=Get-OwnerCutoverOwnedPeerJobCleanupOwner;"
+      "[Console]::Error.WriteLine('CLOCK_JOB_OWNER|'+$(if($null -ne $clockOwner){'YES'}else{'NO'}));"
+      "[Console]::Error.WriteLine('CLOCK_JOB_CLOSED|'+$(if($script:ownedPeerJobCloseState -ceq 'RETURNED_CONFIRMED'){'YES'}else{'NO'}));"
+      "[Console]::Error.WriteLine('CLOCK_OWNER_CLOSED|'+$(if($clockOwner -and $clockOwner.CloseConfirmed){'YES'}else{'NO'}));"
+      "[Console]::Error.WriteLine('CLOCK_STARTED|'+$(if($script:ownedPeerCleanupStarted -is [Tuple[object,IntPtr,long]]){'YES'}else{'NO'}));"
+      "[Console]::Error.WriteLine('CLOCK_CERT_CLOSED|'+$(if([object]::ReferenceEquals($script:ownedPeerCleanupClosed,$script:ownedPeerCleanupCertificate)){'YES'}else{'NO'}));"
+      "[Console]::Error.WriteLine('CLOCK_PIPE_CLOSED|'+$(if($script:ownedPeerJobPipeState -ceq 'CLOSED'){'YES'}else{'NO'}));"
+    )
+    source=once(source,guard,indicators+identityFlags+guard)
     jobMarker="$held=$script:jobDataAssignFailureProof;Require ("
     jobIndicators=(
       "$held=$script:jobDataAssignFailureProof;"
+      "$jobResolved=Get-OwnerCutoverOwnedPeerJobCleanupOwner;"
+      "$jobCanonical=Microsoft.PowerShell.Utility\\Get-Variable -Name ownedPeerJobCanonicalPipes -Scope Script -ErrorAction SilentlyContinue;"
+      "[Console]::Error.WriteLine('JOB_OWNER_RESOLVED|'+$(if($null -ne $jobResolved){'YES'}else{'NO'}));"
+      "[Console]::Error.WriteLine('JOB_CANONICAL_PRESENT|'+$(if($jobCanonical -and ($jobCanonical.Options -band [Management.Automation.ScopedItemOptions]::Constant)){'YES'}else{'NO'}));"
+      "[Console]::Error.WriteLine('JOB_STARTED_PRESENT|'+$(if($script:ownedPeerCleanupStarted -is [Tuple[object,IntPtr,long]]){'YES'}else{'NO'}));"
+      "[Console]::Error.WriteLine('JOB_OWNER_CLOSED|'+$(if($jobResolved -and $jobResolved.CloseConfirmed){'YES'}else{'NO'}));"
+      "[Console]::Error.WriteLine('JOB_PIPE0_CLOSED|'+$(if($script:jobDataAssignFailurePipes[0].IsClosed){'YES'}else{'NO'}));"
+      "[Console]::Error.WriteLine('JOB_PIPE1_CLOSED|'+$(if($script:jobDataAssignFailurePipes[1].IsClosed){'YES'}else{'NO'}));"
+      "[Console]::Error.WriteLine('JOB_PIPE2_CLOSED|'+$(if($script:jobDataAssignFailurePipes[2].IsClosed){'YES'}else{'NO'}));"
       "[Console]::Error.WriteLine('JOB_SAME_HANDLE|'+$(if($held.Item1.Handle -eq $held.Item2){'YES'}else{'NO'}));"
       "[Console]::Error.WriteLine('JOB_SAME_BIRTH|'+$(if($held.Item1.StartTime.ToUniversalTime().Ticks -eq $held.Item3){'YES'}else{'NO'}));"
       "[Console]::Error.WriteLine('JOB_ACTOR_EXITED|'+$(if($held.Item1.HasExited){'YES'}else{'NO'}));"
@@ -302,7 +320,7 @@ def main():
             if mark>=0:
                 try: rows.extend(json.loads(line[mark+13:]))
                 except (ValueError,TypeError): pass
-        fixed=re.findall(r'(?:CLOCK_(?:MARK|CONTAINMENT|EXITED|WATCH)|JOB_(?:SAME_HANDLE|SAME_BIRTH|ACTOR_EXITED|PIPES_CLOSED|STATE_CLOSED))\|(?:YES|NO|BEFORE|AFTER)',r.stdout+'\n'+r.stderr)
+        fixed=re.findall(r'(?:CLOCK_(?:MARK|CONTAINMENT|EXITED|WATCH|JOB_OWNER|JOB_CLOSED|OWNER_CLOSED|STARTED|CERT_CLOSED|PIPE_CLOSED)|JOB_(?:SAME_HANDLE|SAME_BIRTH|ACTOR_EXITED|PIPES_CLOSED|STATE_CLOSED|OWNER_RESOLVED|CANONICAL_PRESENT|STARTED_PRESENT|OWNER_CLOSED|PIPE[012]_CLOSED))\|(?:YES|NO|BEFORE|AFTER)',r.stdout+'\n'+r.stderr)
         report['cleanup']={'exit':r.returncode,'seconds':round(time.monotonic()-start,3),
             'fixed_stage_rows':rows[:100], 'fixed_predicates':sorted(set(fixed))[:30],
             'original_native_hash_pinned':True}
