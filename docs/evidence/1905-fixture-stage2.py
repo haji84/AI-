@@ -49,6 +49,12 @@ def decoder(fixture,out):
     a='$bytes=New-Bytes $width ([ulong[]]@(4,8,12));$result=$type::Decode($bytes,$bytes.Length,$width,0,[ulong]4);'
     b="$bytes=New-Bytes $width ([ulong[]]@(4,8,12));[Console]::Out.WriteLine('DEC_VECTOR|'+$width+'|'+$bytes.Length+'|'+$bytes.GetType().FullName);$result=$type::Decode($bytes,$bytes.Length,$width,0,[ulong]4);[Console]::Out.WriteLine('DEC_RETURN|'+$width+'|'+$result.Count);"
     body=once(body,a,b)
+    body=once(body,'$t=$null;$e=$null;$ast=',"[Console]::Out.WriteLine('DEC_SCRIPT_ENTER');$t=$null;$e=$null;$ast=")
+    body=once(body,'$source=Get-PublicWindowsEofActorSource',"$source=Get-PublicWindowsEofActorSource;[Console]::Out.WriteLine('DEC_SOURCE_OK')")
+    body=once(body,"$type='PublicEofOwnHandleSnapshot' -as [type];", "[Console]::Out.WriteLine('DEC_TYPE_BEGIN');$type='PublicEofOwnHandleSnapshot' -as [type];")
+    body=once(body,'$rows=@();$bad=@()',"[Console]::Out.WriteLine('DEC_FUNCTIONS_READY');$rows=@();$bad=@()")
+    body=once(body,'foreach($width in @(4,8)){',"[Console]::Out.WriteLine('DEC_LOOP_READY');foreach($width in @(4,8)){[Console]::Out.WriteLine('DEC_LOOP_ENTER|'+$width);")
+
     # Read-only public probe only: emit fixed stage names before the failing
     # width-4 source-vector builder; no inner exception, handle or path values.
     body=once(body,'function Put-Pointer([byte[]]$Buffer,[int]$Offset,[ulong]$Value,[int]$Width){',
