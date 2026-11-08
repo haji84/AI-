@@ -26,21 +26,36 @@ def unique(source, old, new):
         raise ValueError("BOUNDED_SOURCE_ANCHOR_INVALID")
     return source.replace(old, new, 1)
 
-def run_selected(pattern, fixture_text, test_text):
+def run_selected(pattern, fixture_text, test_text, progress=False):
     FIXTURE.write_text(fixture_text, encoding="utf-8")
     TEST.write_text(test_text, encoding="utf-8")
+    progress_root = None
+    run_env = None
+    if progress:
+        progress_root = Path(os.environ["RUNNER_TEMP"])/"pr1905-job2-progress"
+        progress_root.mkdir(exist_ok=False)
+        run_env = os.environ.copy()
+        run_env["GORIQ_PUBLIC_PEER_PROGRESS_DIRECTORY"] = str(progress_root)
+    def phases():
+        if progress_root is None: return []
+        f = progress_root/"OWNED_2.txt"
+        if not f.is_file(): return []
+        allowed = re.compile(
+            r"(?:GROUP_(?:BEGIN|DONE)|SOURCE_BASE_(?:BEGIN|DONE)|CASE_SUCCESS_(?:BEGIN|KERNEL_DONE|SOURCE_DONE|NODE_DONE|CONFIGURATION_DONE|JOURNAL_DONE|FALLBACK_DONE|PEER_DONE|END)):[0-9]{1,9}")
+        return [v for v in f.read_text(encoding="utf-8", errors="replace").splitlines()
+                if allowed.fullmatch(v)][-24:]
     try:
         cp = subprocess.run(
             ["node", "--test", "--test-concurrency=1",
              "--test-name-pattern=" + pattern, str(TEST)],
             capture_output=True, text=True, encoding="utf-8",
-            errors="replace", timeout=48, check=False,
+            errors="replace", timeout=48, check=False, env=run_env,
         )
         return {"status": "RETURNED", "exit": cp.returncode,
-                "stdout": cp.stdout, "stderr": cp.stderr}
+                "stdout": cp.stdout, "stderr": cp.stderr, "progress": phases()}
     except subprocess.TimeoutExpired:
         return {"status": "DIAGNOSTIC_TIMEOUT", "exit": None,
-                "stdout": "", "stderr": ""}
+                "stdout": "", "stderr": "", "progress": phases()}
 
 def group2_diagnostic(fixture, test):
     fixed = """
@@ -62,7 +77,7 @@ $g2Cert=Microsoft.PowerShell.Utility\\Get-Variable -Name ownedPeerJobCanonicalPi
     modified_test = test[:start] + chunk + test[end:]
     cp = run_selected(
         "^private original-State owned Job finite policy and cleanup group2 is DATA only$",
-        modified_fixture, modified_test,
+        modified_fixture, modified_test, progress=True,
     )
     found = re.findall(r"JOB_GROUP2_FLAGS (\[[^\r\n]{1,800}\])", cp["stdout"])
     vals = json.loads(found[-1]) if found else []
@@ -75,7 +90,8 @@ $g2Cert=Microsoft.PowerShell.Utility\\Get-Variable -Name ownedPeerJobCanonicalPi
             phases.append(item)
     return {"run_status": cp["status"], "original_assertions_exit": cp["exit"],
             "powershell_timeout": timeout[-1] if timeout else "UNKNOWN",
-            "predicate_rows": phases, "acceptance": "NOT_ASSESSED"}
+            "predicate_rows": phases, "progress_tail": cp.get("progress", []),
+            "acceptance": "NOT_ASSESSED"}
 
 def real_windows_diagnostic(fixture, test):
     start = test.index(REAL_TEST)
@@ -90,18 +106,36 @@ def real_windows_diagnostic(fixture, test):
               "r[k]===false?'NO':'UNKNOWN']))));"
               "assert.equal(r.pass,true);")
     chunk = unique(chunk, anchor, before)
+    # The original case may reject before JSON parsing. Expose only the
+    # original public/closed fixture reason code, never paths or raw stderr.
+    fixtureCatch = "}catch{$script:jobWindowsResult=@{pass=$false;status='INCONCLUSIVE';code='PUBLIC_PRIVATE_JOB_WINDOWS_PROOF_UNCONFIRMED';nativeAuthority=$false}}"
+    fixtureProbe = """}catch{
+ $reason='UNKNOWN';$value=[string]$_.Exception.GetBaseException().Message
+ if($value -cmatch '\\A(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE)_[A-Z0-9_]{2,100}\\z'){$reason=$value}
+ [Console]::Error.WriteLine('JOB_REAL_STAGE|'+$reason)
+ $script:jobWindowsResult=@{pass=$false;status='INCONCLUSIVE';code='PUBLIC_PRIVATE_JOB_WINDOWS_PROOF_UNCONFIRMED';nativeAuthority=$false}
+}"""
+    modified_fixture = unique(fixture, fixtureCatch, fixtureProbe)
+    begin = "assert.equal(child.error,undefined);"
+    stageCode = r"""const stages=(child.stderr||'').split(/\r?\n/).filter(x=>/^JOB_REAL_STAGE\|(?:UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE)_[A-Z0-9_]{2,100})$/.test(x));console.log('JOB_REAL_STAGE_CODES '+JSON.stringify(stages.slice(-5)));"""
+    chunk = unique(chunk, begin, stageCode + begin)
     modified_test = test[:start] + chunk + test[end:]
     cp = run_selected(
         "^Windows private original-State Job contains held Node helper and manager death while outside control survives$",
-        fixture, modified_test,
+        modified_fixture, modified_test,
     )
+    stage = re.findall(r"JOB_REAL_STAGE_CODES (\\[[^\\r\\n]{1,1000}\\])", cp["stdout"])
+    stage_codes = json.loads(stage[-1]) if stage else []
+    stage_codes = [x for x in stage_codes
+                   if isinstance(x,str) and re.fullmatch(
+                     r"JOB_REAL_STAGE\\|(?:UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE)_[A-Z0-9_]{2,100})",x)]
     found = re.findall(r"JOB_REAL_FLAGS (\{[^\r\n]{1,1800}\})", cp["stdout"])
     flags = json.loads(found[-1]) if found else {}
     filtered = {k:flags[k] for k in FLAGS
                 if flags.get(k) in ("YES", "NO", "UNKNOWN")}
     return {"run_status":cp["status"], "original_assertions_exit":cp["exit"],
             "flags":filtered, "capture_complete":len(filtered)==len(FLAGS),
-            "acceptance":"NOT_ASSESSED"}
+            "stage_codes":stage_codes[-5:], "acceptance":"NOT_ASSESSED"}
 
 def main():
     if sys.argv[1:] != ["--run"] or os.name != "nt" or \
