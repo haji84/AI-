@@ -37,18 +37,34 @@ def annotate_native(source):
     return source[:begin]+block+source[end:]
 
 
+def cleanup_wrapper_candidate(native):
+    # The original CWT/job/certificate checks are not removed. Any extra
+    # disposal is of the original, already-exited Process's own wrappers only.
+    marker="    $all=$true;foreach($pair in $refs){try{if($pair -isnot"
+    if native.count(marker)!=1: raise ValueError('PIPE_ORIGINAL_ANCHOR_REQUIRED')
+    extra=("    $all=$true;"
+           "if($c.Item2 -isnot [Diagnostics.Process] -or -not $c.Item2.HasExited){return};"
+           "foreach($wrapper in @($c.Item2.StandardInput,$c.Item2.StandardOutput,$c.Item2.StandardError)){"
+           "try{$wrapper.Dispose()}catch{$all=$false}};"
+           "foreach($pair in $refs){try{if($pair -isnot")
+    return native.replace(marker,extra,1)
+
 def annotate_fixture(source):
     a="}catch{$script:jobWindowsResult=@{pass=$false;status='INCONCLUSIVE';code='PUBLIC_PRIVATE_JOB_WINDOWS_PROOF_UNCONFIRMED';nativeAuthority=$false}}"
     b="""}catch{$publicStageReason='UNKNOWN';$publicMessage=$_.Exception.GetBaseException().Message;if($publicMessage -cmatch '\\A(?:PEER_FIXTURE|CUTOVER_BOOTSTRAP_FIXTURE)_[A-Z0-9_]{1,150}\\z'){$publicStageReason=$publicMessage};[Console]::Error.WriteLine('JOB_NATIVE_STAGE|'+$publicStageReason+'|'+$_.Exception.GetBaseException().GetType().Name);$script:jobWindowsResult=@{pass=$false;status='INCONCLUSIVE';code='PUBLIC_PRIVATE_JOB_WINDOWS_PROOF_UNCONFIRMED';nativeAuthority=$false}}"""
     return once(source,a,b)
 
 
-def decoder(fixture,out,explicit_values=False):
+def decoder(fixture,out,explicit_values=False,renamed=False):
     match=re.search(r"\$snapshotContract=\[Text.Encoding\]::UTF8.GetString\(\[Convert\]::FromBase64String\('([^']+)'\)\)",fixture)
     body=base64.b64decode(match[1],validate=True).decode()
     a='$bytes=New-Bytes $width ([ulong[]]@(4,8,12));$result=$type::Decode($bytes,$bytes.Length,$width,0,[ulong]4);'
     b="$bytes=New-Bytes $width ([ulong[]]@(4,8,12));[Console]::Out.WriteLine('DEC_VECTOR|'+$width+'|'+$bytes.Length+'|'+$bytes.GetType().FullName);$result=$type::Decode($bytes,$bytes.Length,$width,0,[ulong]4);[Console]::Out.WriteLine('DEC_RETURN|'+$width+'|'+$result.Count);"
     body=once(body,a,b)
+    if renamed:
+        # Keep the same vectors/constraints, check whether the helper name itself
+        # alters PowerShell 5.1 command binding. Experiment in disposable workspace.
+        body=body.replace('New-Bytes','New-PublicSnapshotBytes')
     if explicit_values:
         body=once(body,'$bytes=New-Bytes $width ([ulong[]]@(4,8,12))',
             '$publicValues=[ulong[]]@([ulong]4,[ulong]8,[ulong]12);$bytes=New-Bytes -Width $width -Values $publicValues')
@@ -107,6 +123,7 @@ def main():
     try:
         report['decoder']=decoder(data[FIXTURE].decode(),out)
         report['decoder_explicit_values']=decoder(data[FIXTURE].decode(),out,True)
+        report['decoder_renamed']=decoder(data[FIXTURE].decode(),out,False,True)
         Path(NATIVE).write_bytes(annotate_native(data[NATIVE].decode()).encode())
         Path(FIXTURE).write_bytes(annotate_fixture(data[FIXTURE].decode()).encode())
         source=data[TEST].decode()
@@ -121,6 +138,16 @@ def main():
                 try: rows.extend(json.loads(line[mark+13:]))
                 except (ValueError,TypeError): pass
         report['cleanup']={'exit':r.returncode,'seconds':round(time.monotonic()-start,3),'fixed_stage_rows':rows[:100]}
+        # Run the exact failed public fixture in a fresh isolated test process
+        # with only original ownership checks plus original wrapper disposal.
+        for p,b in data.items(): Path(p).write_bytes(b)
+        Path(NATIVE).write_bytes(cleanup_wrapper_candidate(data[NATIVE].decode()).encode())
+        pattern='^(private original-State owned Job finite policy and cleanup group2|clock R2 refusal cleans|Windows private original-State Job contains|private owned Job thrown close)'
+        start=time.monotonic()
+        v=subprocess.run(['node','--test','--test-concurrency=1','--test-name-pattern='+pattern,TEST],
+                          capture_output=True,text=True,encoding='utf8',errors='replace',timeout=125)
+        markers=sorted(set(re.findall(r'(?:CUTOVER_BOOTSTRAP_FIXTURE|PEER_FIXTURE|PUBLIC_CLOCK|JOB_WINDOWS)_[A-Z0-9_]{1,120}',v.stdout+v.stderr)))
+        report['candidate_pipe_wrappers']={'exit':v.returncode,'seconds':round(time.monotonic()-start,3),'failure_codes':markers[:25]}
     finally:
         for p,b in data.items(): Path(p).write_bytes(b)
         (out/'report.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2))
