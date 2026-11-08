@@ -11,7 +11,7 @@ import time
 NATIVE='scripts/owner-code-rotation-native-1218.ps1'
 FIXTURE='tests/owner-code-cutover-peer.fixture.ps1'
 TEST='scripts/owner-code-cutover-peer.test.mjs'
-EXPECTED={NATIVE:'d2fb7ab5af7f5f18d2463bd21a32a80fcf9f1678',FIXTURE:'2fb58be1e83ad9a9b19a6ec6ecf432e81f170b88',TEST:'af332cb501682da7ffede47eb560dec4ce9b41a4'}
+EXPECTED={NATIVE:'d2fb7ab5af7f5f18d2463bd21a32a80fcf9f1678',FIXTURE:'046c3253209cbbb9787c16314286f6254db7fcf1',TEST:'af332cb501682da7ffede47eb560dec4ce9b41a4'}
 
 
 def once(s,a,b):
@@ -74,6 +74,12 @@ def decoder(fixture,out,explicit_values=False,renamed=False):
     body=once(body,'$rows=@();$bad=@()',"[Console]::Out.WriteLine('DEC_FUNCTIONS_READY');$rows=@();$bad=@()")
     body=once(body,'foreach($width in @(4,8)){',"[Console]::Out.WriteLine('DEC_LOOP_READY');foreach($width in @(4,8)){[Console]::Out.WriteLine('DEC_LOOP_ENTER|'+$width);")
 
+    if not explicit_values and not renamed:
+        # Distinguish a parameter conversion problem, missing function,
+        # and actual decoder invocation with finite non-secret status.
+        body=once(body,'$bytes=New-Bytes $width ([ulong[]]@(4,8,12));',
+            "$publicArray=[ulong[]]@(4,8,12);[Console]::Out.WriteLine('DEC_CAST_COMPLETE|'+$publicArray.Length);[Console]::Out.WriteLine('DEC_COMMAND_VISIBLE|'+([bool](Get-Command -Name New-Bytes -CommandType Function -ErrorAction SilentlyContinue)));$bytes=New-Bytes $width $publicArray;")
+
     # Read-only public probe only: emit fixed stage names before the failing
     # width-4 source-vector builder; no inner exception, handle or path values.
     body=once(body,'function Put-Pointer([byte[]]$Buffer,[int]$Offset,[ulong]$Value,[int]$Width){',
@@ -103,7 +109,7 @@ try{
  [Console]::Out.WriteLine('DEC_COMPLETE')
 }catch{
  $type=$_.Exception.GetBaseException().GetType().Name;$known=@('ArgumentException','RuntimeException','MethodException','MethodInvocationException','PSInvalidCastException','InvalidCastException','OverflowException','InvalidOperationException','MissingMethodException');if($known -cnotcontains $type){$type='OTHER'}
- $code='UNKNOWN';foreach($k in @('MethodNotFound','MethodCountCouldNotFindBest','MethodArgumentConversionInvalidCastArgument','InvalidCastFromStringToInteger')){if($_.FullyQualifiedErrorId.StartsWith($k)){$code=$k}}
+ $code='UNKNOWN';$fqid=[string]$_.FullyQualifiedErrorId;if($fqid -match '\A[A-Za-z][A-Za-z0-9_]{0,71}\z'){$code=$fqid}
  [Console]::Out.WriteLine('DEC_FAILURE|'+$stage+'|'+$type+'|'+$code+'|'+[int]$_.Exception.GetBaseException().HResult)
  exit 1
 }

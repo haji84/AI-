@@ -879,6 +879,25 @@ public static class PublicEofOwnHandleSnapshot {
   }catch(Exception error){failure=DiagnosticFailure(error);json=Data(stdout,"UNKNOWN",0,0,0,false);}finally{if(bytes!=null)Array.Clear(bytes,0,bytes.Length);}
   try{byte[] data=new UTF8Encoding(false,true).GetBytes(Report(json,phase,failure,query,extent));if(data.Length<1||data.Length>2048||writer.Position!=0||writer.Length!=0)return;writer.Write(data,0,data.Length);writer.Flush();}catch{}
  }
+ [DefaultDllImportSearchPaths(DllImportSearchPath.System32)] [DllImport("kernel32.dll",ExactSpelling=true)] [return:MarshalAs(UnmanagedType.Bool)] private static extern bool CloseHandle(IntPtr h);
+ internal static bool CloseOwnAliases(IntPtr h){
+  byte[] bytes=new byte[65536];
+  try{
+   if(h==IntPtr.Zero||h==new IntPtr(-1))return false;
+   uint len;int status=NtQueryInformationProcess(new IntPtr(-1),51,bytes,(uint)bytes.Length,out len);
+   if(status!=0||len<2*IntPtr.Size||len>bytes.Length)return false;
+   ulong own=IntPtr.Size==4?(ulong)unchecked((uint)h.ToInt32()):unchecked((ulong)h.ToInt64());
+   var found=Decode(bytes,(int)len,IntPtr.Size,status,own);int closed=0;
+   foreach(ulong raw in found){
+    if(raw==own)continue;
+    IntPtr alias=IntPtr.Size==4?new IntPtr(unchecked((int)(uint)raw)):new IntPtr(unchecked((long)raw));
+    if(CompareObjectHandles(h,alias)){
+     if(++closed>8||!CompareObjectHandles(h,alias)||!CloseHandle(alias))return false;
+    }
+   }
+   return true;
+  }catch{return false;}finally{Array.Clear(bytes,0,bytes.Length);}
+ }
  static void Refuse(){throw new ArgumentException("PUBLIC_OWN_HANDLE_SNAPSHOT_REQUIRED");}
  static ulong Pointer(byte[] bytes,int offset,int width){return width==4?(ulong)BitConverter.ToUInt32(bytes,offset):BitConverter.ToUInt64(bytes,offset);}
  public static System.Collections.ObjectModel.ReadOnlyCollection<ulong> Decode(byte[] bytes,int returnedLength,int width,int status,ulong reference){
@@ -913,7 +932,7 @@ public static class PublicWindowsEofActor {
   string root=Path.GetFullPath(Environment.CurrentDirectory).TrimEnd(Path.DirectorySeparatorChar,Path.AltDirectorySeparatorChar),name=Path.GetFileName(root),prefix="public-owned-peer-";DirectoryInfo directory=new DirectoryInfo(root);if(!directory.Exists||(directory.Attributes&FileAttributes.ReparsePoint)!=0||!name.StartsWith(prefix,StringComparison.Ordinal))throw new InvalidOperationException("PUBLIC_EOF_STAGE_SCOPE");string suffix=name.Substring(prefix.Length);if(suffix.Length!=12||suffix[8]!='.')throw new InvalidOperationException("PUBLIC_EOF_STAGE_SCOPE");for(int i=0;i<suffix.Length;i++){char c=suffix[i];if(i!=8&&!((c>='a'&&c<='z')||(c>='A'&&c<='Z')||(c>='0'&&c<='9')))throw new InvalidOperationException("PUBLIC_EOF_STAGE_SCOPE");}
   string path=Path.Combine(root,"public-eof-actor-stage.txt");FileInfo file=new FileInfo(path);if(!file.Exists||file.Length>64||(file.Attributes&(FileAttributes.Directory|FileAttributes.ReparsePoint))!=0)throw new InvalidOperationException("PUBLIC_EOF_STAGE_FILE");byte[] bytes=Encoding.ASCII.GetBytes(stage);using(FileStream stream=File.Open(path,FileMode.Open,FileAccess.Write,FileShare.ReadWrite)){stream.SetLength(0);stream.Write(bytes,0,bytes.Length);stream.Flush();}
  }
- public static int Main(string[] args){try{if(args.Length!=0)return 76;string mode=Environment.GetEnvironmentVariable("GORIQ_PUBLIC_PEER_CASE");bool stdout=mode=="late-stdout-eof";if(!stdout&&mode!="late-stderr-eof")return 76;PublicEofOwnHandleSnapshot.Prepare(stdout);using(StreamReader reader=new StreamReader(Console.OpenStandardInput(),new UTF8Encoding(false,true),true,4096)){string hello=Line(reader,32768);WriteStage("HELLO_READ");WriteStdout(RenderReply(hello));WriteStage("REPLY_WRITTEN");bool closed=false;for(;;){if(!closed)WriteStage("TRIGGER_WAIT");string line=Line(reader,64);if(line==null)return 0;WriteStage("TRIGGER_READ");if(closed||line!=(stdout?"PUBLIC_TRIGGER_CLOSE_STDOUT":"PUBLIC_TRIGGER_CLOSE_STDERR"))return 76;IntPtr handle=GetStdHandle(stdout?-11:-12);if(handle==IntPtr.Zero||handle==new IntPtr(-1))return 76;WriteStage("HANDLE_ACQUIRED");PublicEofOwnHandleSnapshot.Capture(stdout,handle);if(!CloseHandle(handle))return 76;WriteStage("HANDLE_CLOSED");closed=true;}}}catch{return 76;}}
+ public static int Main(string[] args){try{if(args.Length!=0)return 76;string mode=Environment.GetEnvironmentVariable("GORIQ_PUBLIC_PEER_CASE");bool stdout=mode=="late-stdout-eof";if(!stdout&&mode!="late-stderr-eof")return 76;PublicEofOwnHandleSnapshot.Prepare(stdout);using(StreamReader reader=new StreamReader(Console.OpenStandardInput(),new UTF8Encoding(false,true),true,4096)){string hello=Line(reader,32768);WriteStage("HELLO_READ");WriteStdout(RenderReply(hello));WriteStage("REPLY_WRITTEN");bool closed=false;for(;;){if(!closed)WriteStage("TRIGGER_WAIT");string line=Line(reader,64);if(line==null)return 0;WriteStage("TRIGGER_READ");if(closed||line!=(stdout?"PUBLIC_TRIGGER_CLOSE_STDOUT":"PUBLIC_TRIGGER_CLOSE_STDERR"))return 76;IntPtr handle=GetStdHandle(stdout?-11:-12);if(handle==IntPtr.Zero||handle==new IntPtr(-1))return 76;WriteStage("HANDLE_ACQUIRED");PublicEofOwnHandleSnapshot.Capture(stdout,handle);if(!PublicEofOwnHandleSnapshot.CloseOwnAliases(handle))return 76;if(!CloseHandle(handle))return 76;WriteStage("HANDLE_CLOSED");closed=true;}}}catch{return 76;}}
 }
 '@
 }
