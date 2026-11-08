@@ -131,6 +131,19 @@ def writer_parent(fixture, test_source, out, exact_load=False):
     expected="if($writer -isnot [IO.FileStream] -or $writer.Name -cne $path -or $writer.Length -ne 0){throw 'ACTUAL_SOURCE_CREATE_NEW_REQUIRED'}"
     observed="""$isWriter=($writer -is [IO.FileStream]);$strictPath=$false;$loosePath=$false;$empty=$false
  $sameDirectory=$false;$baseClass='NONE';if($isWriter){$strictPath=([string]::Equals($writer.Name,$path,[StringComparison]::Ordinal));$loosePath=([string]::Equals($writer.Name,$path,[StringComparison]::OrdinalIgnoreCase));$empty=($writer.Length -eq 0);$sameDirectory=[string]::Equals([IO.Path]::GetDirectoryName($writer.Name),[IO.Path]::GetDirectoryName($path),[StringComparison]::OrdinalIgnoreCase);$basename=[IO.Path]::GetFileName($writer.Name);if($basename -ceq 'actor-stdout-observation.json'){$baseClass='STDOUT'}elseif($basename -ceq 'actor-stderr-observation.json'){$baseClass='STDERR'}else{$baseClass='OTHER'}}
+ $writerDir=if($isWriter){[IO.Path]::GetDirectoryName($writer.Name)}else{''}
+ $typeLocation=try{[IO.Path]::GetDirectoryName($type.Assembly.Location)}catch{''}
+ $typeCodeBase=try{[IO.Path]::GetDirectoryName(([Uri]$type.Assembly.CodeBase).LocalPath)}catch{''}
+ $actorLocation=try{[IO.Path]::GetDirectoryName([PublicWindowsEofActor].Assembly.Location)}catch{''}
+ $eq=[StringComparison]::OrdinalIgnoreCase
+ $matchesWriterLocation=$isWriter -and [string]::Equals($writerDir,$typeLocation,$eq)
+ $matchesWriterCodebase=$isWriter -and [string]::Equals($writerDir,$typeCodeBase,$eq)
+ $matchesExpectedLocation=[string]::Equals([IO.Path]::GetDirectoryName($path),$typeLocation,$eq)
+ $matchesExpectedCodebase=[string]::Equals([IO.Path]::GetDirectoryName($path),$typeCodeBase,$eq)
+ $matchesExpectedActor=[string]::Equals([IO.Path]::GetDirectoryName($path),$actorLocation,$eq)
+ $expectedExists=[IO.File]::Exists($path)
+ $actualExists=$isWriter -and [IO.File]::Exists($writer.Name)
+ foreach($diag in @(@('LOCATION_WRITER',$matchesWriterLocation),@('CODEBASE_WRITER',$matchesWriterCodebase),@('LOCATION_EXPECTED',$matchesExpectedLocation),@('CODEBASE_EXPECTED',$matchesExpectedCodebase),@('ACTOR_EXPECTED',$matchesExpectedActor),@('EXPECTED_EXISTS',$expectedExists),@('ACTUAL_EXISTS',$actualExists))){[Console]::Out.WriteLine('WRITER_'+$diag[0]+'|'+$(if($diag[1]){'YES'}else{'NO'}))}
  [Console]::Out.WriteLine('WRITER_TYPE|'+$(if($isWriter){'YES'}else{'NO'}));[Console]::Out.WriteLine('WRITER_PATH|'+$(if($strictPath){'YES'}else{'NO'}));[Console]::Out.WriteLine('WRITER_PATH_CASELESS|'+$(if($loosePath){'YES'}else{'NO'}));[Console]::Out.WriteLine('WRITER_EMPTY|'+$(if($empty){'YES'}else{'NO'}));[Console]::Out.WriteLine('WRITER_DIRECTORY|'+$(if($sameDirectory){'YES'}else{'NO'}));[Console]::Out.WriteLine('WRITER_BASENAME|'+$baseClass)
  """+expected
     revised=once(original,expected,observed)
@@ -141,13 +154,13 @@ def writer_parent(fixture, test_source, out, exact_load=False):
     controls=once(controls,embedded.group(0),embedded.group(0).replace(embedded.group(1),base64.b64encode(revised.encode()).decode()))
     updated_fixture=once(fixture,outer.group(0),outer.group(0).replace(outer.group(1),controls))
     marker="if(child.error!==undefined||child.status!==0||child.stderr!=='')console.log('GORIQ_PUBLIC_EOF_DATA_CONTROL_FAILURE '"
-    prelude="if(child.stdout){const safe=child.stdout.split(/\\r?\\n/).filter(v=>/^WRITER_(?:TYPE|PATH|PATH_CASELESS|EMPTY|DIRECTORY|BASENAME)[|](?:YES|NO|STDOUT|STDERR|OTHER|NONE)$/.test(v));if(safe.length)console.log('WRITER_SAFE_STAGES '+JSON.stringify(safe))}"
+    prelude="if(child.stdout){const safe=child.stdout.split(/\\r?\\n/).filter(v=>/^WRITER_(?:TYPE|PATH|PATH_CASELESS|EMPTY|DIRECTORY|BASENAME|LOCATION_WRITER|CODEBASE_WRITER|LOCATION_EXPECTED|CODEBASE_EXPECTED|ACTOR_EXPECTED|EXPECTED_EXISTS|ACTUAL_EXISTS)[|](?:YES|NO|STDOUT|STDERR|OTHER|NONE)$/.test(v));if(safe.length)console.log('WRITER_SAFE_STAGES '+JSON.stringify(safe))}"
     updated_test=once(test_source,marker,prelude+marker)
     Path(FIXTURE).write_text(updated_fixture,encoding='utf8')
     Path(TEST).write_text(updated_test,encoding='utf8')
     r=subprocess.run(['node','--test','--test-concurrency=1','--test-name-pattern=^public Windows EOF actor compiles as data',TEST],
         capture_output=True,text=True,encoding='utf8',errors='replace',timeout=40)
-    matches=re.findall(r'WRITER_(?:TYPE|PATH|PATH_CASELESS|EMPTY|DIRECTORY|BASENAME)\|(?:YES|NO|STDOUT|STDERR|OTHER|NONE)',r.stdout)
+    matches=re.findall(r'WRITER_(?:TYPE|PATH|PATH_CASELESS|EMPTY|DIRECTORY|BASENAME|LOCATION_WRITER|CODEBASE_WRITER|LOCATION_EXPECTED|CODEBASE_EXPECTED|ACTOR_EXPECTED|EXPECTED_EXISTS|ACTUAL_EXISTS)\|(?:YES|NO|STDOUT|STDERR|OTHER|NONE)',r.stdout)
     return {'exit':r.returncode,'predicates':sorted(set(matches)), 'observed_predicate_count':len(matches)}
 
 
