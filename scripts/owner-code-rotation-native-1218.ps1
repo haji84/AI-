@@ -76,7 +76,6 @@ public static class GoriqCutoverPeerFileNative {
  Assert-OwnerCutoverPeerProbeBudget;$script:ownerCutoverPeerFileNativeType='GoriqCutoverPeerFileNative' -as [type];if(-not $script:ownerCutoverPeerFileNativeType){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}
 }
 function Read-OwnerCutoverPeerProcessData {
- # No PID parameter: only the original own-derived, validated chain cursor.
  Assert-OwnerCutoverPeerProbeBudget;$id=$script:ownerCutoverPeerProbeState.cursor
  if($id -isnot [int] -or $id -le 0){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}
  $process=$null;$stream=$null;$hash=[Security.Cryptography.SHA256]::Create()
@@ -119,7 +118,6 @@ function Get-OwnerCutoverPeerAncestryData {
  }catch{$exception=$_.Exception;$script:ownerCutoverPeerProbeState.actualExceptionHResult=[int]$exception.HResult;$script:ownerCutoverPeerProbeState.exceptionClass=switch($exception.GetType().FullName){'System.Management.Automation.RuntimeException'{'RUNTIME'};'System.Management.Automation.MethodInvocationException'{'METHOD_INVOCATION'};'Microsoft.Management.Infrastructure.CimException'{'CIM'};'System.IO.IOException'{'IO'};'System.UnauthorizedAccessException'{'ACCESS'};default{'OTHER'}};throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}finally{$script:ownerCutoverPeerProbeState.stopwatch.Stop()}
 }
 
-# Explicit readonly diagnostic DATA. This invokes the same no-input producer;
 # it never returns process facts, exception text, or a native capability.
 function Get-OwnerCutoverPeerAncestryDiagnosticData {
  if($args.Count -ne 0){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}
@@ -191,8 +189,6 @@ function Assert-OwnerRotationEntryScope {
  elseif ($cohort.kind -ceq 'original-cohort-digest') { Assert-OwnerRotationEntryShape $cohort @('kind','expectedCount','cohortSha256');if ($cohort.cohortSha256 -isnot [string] -or $cohort.cohortSha256 -cnotmatch '^[a-f0-9]{64}$') { throw 'ROTATION_ENTRY_SCOPE_REQUIRED' } }
  else { throw 'ROTATION_ENTRY_SCOPE_REQUIRED' }
 }
-# Check every existing component before reading bytes, including the checkout root.
-# The original protected-path guard is imported only from this verified snapshot.
 function Get-OwnerRotationEntrySafePath([string]$Path) {
  if ([string]::IsNullOrWhiteSpace($Path) -or $Path -match '[\r\n\0]' -or $Path -match '^[\\/]{2}' -or -not [IO.Path]::IsPathRooted($Path)) { throw 'ROTATION_ENTRY_SOURCE_REJECTED' }
  $full=[IO.Path]::GetFullPath($Path);$pathRoot=[IO.Path]::GetPathRoot($full);$currentPath=$pathRoot
@@ -216,7 +212,6 @@ function Get-OwnerRotationEntrySourceSnapshot($Root,$Scope) {
  return $snapshot
 }
 function Assert-OwnerRotationEntryProtectedPath([string]$Path,[string]$OwnerSid) {
- # Omit OwnerProfile deliberately: the unchanged guard must walk all ancestors.
  try { Assert-OwnerRotationProtectedPath -Path $Path -OwnerSid $OwnerSid -NativeMetadata } catch { throw 'ROTATION_ENTRY_SOURCE_REJECTED' }
 }
 function Get-OwnerRotationEntryNode($Scope) {
@@ -289,8 +284,6 @@ function Assert-OwnerRotationPublicSource($Grant,[string]$Root) {
  }
 }
 
-# The public boundary never accepts the private scope. Paths and runtime hashes
-# below are acquired only from this same host, then retained in protected objects.
 function Assert-OwnerRotationEntrySingleLink([string]$Path,[long]$Limit=1048576) {
  $safe=Get-OwnerRotationEntrySafePath $Path;$stream=$null;$other=$null
  try {
@@ -308,7 +301,6 @@ function Get-OwnerRotationPublicAdmission {
  try{$bytes=[Convert]::FromBase64String($encoded);if([Convert]::ToBase64String($bytes) -cne $encoded -or $bytes.Length -gt 65536){throw 'ROTATION_ENTRY_SCOPE_REQUIRED'};$grant=ConvertFrom-OwnerRotationEntryJson ([Text.UTF8Encoding]::new($false,$true).GetString($bytes))}catch{throw 'ROTATION_ENTRY_SCOPE_REQUIRED'}
  if($grant.kind -cne 'NONSECRET_ORIGINAL_ROTATION_GRANT' -or $grant.profile -cne 'jarvis-owner-production-v1' -or $grant.operation -cne 'rotate-verify-restore-verify-original'){throw 'ROTATION_ENTRY_SCOPE_REQUIRED'}
  $root=[IO.Path]::GetDirectoryName($PSScriptRoot)
- # Authenticate public source against official current-main CI before importing code.
  Assert-OwnerRotationPublicSource -Grant $grant -Root $root
  $snapshot=Get-OwnerRotationEntrySourceSnapshot -Root $root -Scope $grant
  . ([scriptblock]::Create([Text.UTF8Encoding]::new($false,$true).GetString($snapshot['scripts/rotate-jarvis-owner-code-windows.ps1']))) -Apply:$false -AuthorizationPath ''
@@ -322,8 +314,6 @@ function Get-OwnerRotationPublicAdmission {
  foreach($candidate in @([IO.Path]::Combine($profile,('.goriq-owner-rotation-1218-'+$grant.approvalId)),([IO.Path]::Combine($profile,('.goriq-owner-rotation-1218-'+$grant.approvalId))+'.claim'))){try{$null=[IO.File]::GetAttributes($candidate);throw 'ROTATION_ENTRY_ATTEMPT_CONSUMED'}catch [IO.FileNotFoundException]{}catch [IO.DirectoryNotFoundException]{}}
  Assert-OwnerRotationEntryProtectedPath -Path $profile -OwnerSid $kernel.ownerSid
  foreach($file in @((Get-OwnerRotationEntrySources))+@('scripts/owner-code-rotation-native-1218.mjs','scripts/owner-code-rotation-native-1218.ps1','scripts/owner-code-launcher-binding-inspection-1218.ps1','scripts/owner-code-rotation-exercise.mjs','scripts/owner-code-rotation-exercise.ps1')){Assert-OwnerRotationEntryProtectedPath -Path ([IO.Path]::Combine($root,$file)) -OwnerSid $kernel.ownerSid}
- # No alternate executable is selected. The PATH interpreter must be the actual
- # parent Node executable, independently protected before any configuration read.
  $command=@(Get-Command node.exe -CommandType Application -ErrorAction Stop)
  if($command.Count -ne 1 -or [string]$command[0].CommandType -cne 'Application'){throw 'ROTATION_ENTRY_NODE_REJECTED'}
  $node=Get-OwnerRotationEntrySafePath $command[0].Source
@@ -334,8 +324,6 @@ function Get-OwnerRotationPublicAdmission {
  $self=CimCmdlets\Get-CimInstance Win32_Process -Filter ('ProcessId='+$PID) -ErrorAction Stop
  $parent=CimCmdlets\Get-CimInstance Win32_Process -Filter ('ProcessId='+$self.ParentProcessId) -ErrorAction Stop
  if(-not $parent.ExecutablePath -or [IO.Path]::GetFullPath([string]$parent.ExecutablePath) -ine $node){throw 'ROTATION_ENTRY_NODE_REJECTED'}
- # Execute only already protected exact public source. This independently checks
- # closed/canonical grant, actual workflow context and official current-main CI.
  $env:GORIQ_OWNER_ROTATION_DESCRIPTOR_SHA256=Get-OwnerRotationEntryDigest $bytes
  $entry=[IO.Path]::Combine($root,'scripts','owner-code-rotation-native-1218.mjs')
  $entryBytes=[IO.File]::ReadAllBytes((Get-OwnerRotationEntrySafePath $entry))
@@ -376,7 +364,6 @@ function New-OwnerRotationLocalScope {
   Assert-OwnerRotationRuntimeConfiguration -Authorization $scope -Context $context -Configuration $configuration
   Assert-OwnerRotationDatabase -Authorization $scope -Context $context
   $release=Get-OwnerRotationEntrySafePath ([string]$configuration.releaseRoot);Assert-OwnerRotationEntryProtectedPath -Path $release -OwnerSid $kernel.ownerSid
-  # Capture must not silently bind a mixed context across decryption or task I/O.
   if((Get-OwnerRotationHash $config) -cne $configHash -or (Get-OwnerRotationTaskHash (Get-OwnerRotationHostTask)) -cne $taskHash -or (Get-OwnerRotationHash $node) -cne $nodeHash){throw 'ROTATION_ENTRY_CONTEXT_REQUIRED'}
   foreach($pair in @(@('.pc-tasks.json','expectedTaskFile'),@('.pc-observations.json','expectedObservationFile'))){$exists=[IO.File]::Exists($db+$pair[0]);if($exists -ne ($scope.pcSidecars.($pair[1]) -ceq 'present')){throw 'ROTATION_ENTRY_CONTEXT_REQUIRED'}}
   $environment=[pscustomobject]@{GITHUB_ACTOR=$env:GITHUB_ACTOR;GITHUB_REPOSITORY=$env:GITHUB_REPOSITORY;GITHUB_REF=$env:GITHUB_REF;GITHUB_SHA=$env:GITHUB_SHA;GITHUB_RUN_ID=$env:GITHUB_RUN_ID;GITHUB_RUN_ATTEMPT=$env:GITHUB_RUN_ATTEMPT}
@@ -399,7 +386,6 @@ function Initialize-OwnerRotationEntryStage {
     $data=[IO.File]::ReadAllBytes($source);if($data.Length -gt 1048576 -or (Get-OwnerRotationEntryDigest $data) -cne $admission.publicGrant.sourceHashes.$extra){throw 'ROTATION_ENTRY_SOURCE_REJECTED'};$snapshot[$extra]=$data
    }
   }
-  # Import the exact verified bytes, avoiding a second unbound read before import.
   $ownerProfile=Get-OwnerRotationEntrySafePath $admission.profile
   Assert-OwnerRotationEntryProtectedPath -Path $ownerProfile -OwnerSid $scope.ownerSid
   foreach ($file in (Get-OwnerRotationEntrySources)) { Assert-OwnerRotationEntryProtectedPath -Path ([IO.Path]::Combine($admission.root,$file)) -OwnerSid $scope.ownerSid }
@@ -410,7 +396,6 @@ function Initialize-OwnerRotationEntryStage {
   if ([IO.File]::Exists($stage) -or [IO.Directory]::Exists($stage)) { throw 'ROTATION_ENTRY_ATTEMPT_CONSUMED' }
   $security=[Security.AccessControl.DirectorySecurity]::new();$security.SetAccessRuleProtection($true,$false);$security.SetOwner([Security.Principal.SecurityIdentifier]::new($scope.ownerSid))
   foreach ($sid in @($scope.ownerSid,'S-1-5-18','S-1-5-32-544')) { $security.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new([Security.Principal.SecurityIdentifier]::new($sid),[Security.AccessControl.FileSystemRights]::FullControl,([Security.AccessControl.InheritanceFlags]::ContainerInherit -bor [Security.AccessControl.InheritanceFlags]::ObjectInherit),[Security.AccessControl.PropagationFlags]::None,[Security.AccessControl.AccessControlType]::Allow)) }
-  # Create with security at creation; never repair or update an existing DACL.
   ([IO.DirectoryInfo]::new($stage)).Create($security)
   Assert-OwnerRotationEntryProtectedPath -Path $stage -OwnerSid $scope.ownerSid
   $null=[IO.Directory]::CreateDirectory([IO.Path]::Combine($stage,'scripts'));$null=[IO.Directory]::CreateDirectory([IO.Path]::Combine($stage,'.gai-results'))
@@ -433,7 +418,6 @@ function Initialize-OwnerRotationEntryStage {
 }
 function Get-OwnerRotationProfileSelection {
  param([object]$Encoded,$Environment,[datetimeoffset]$Now=[datetimeoffset]::UtcNow)
- # DATA selector only. It performs no OS identity/config/Node/API operation.
  if($Encoded -isnot [string] -or -not $Encoded -or $Encoded.Length -gt 87384 -or $Encoded -cnotmatch '^[A-Za-z0-9+/]+={0,2}$'){throw 'ROTATION_ENTRY_SCOPE_REQUIRED'}
  try{$bytes=[Convert]::FromBase64String($Encoded);if($bytes.Length -gt 65536 -or [Convert]::ToBase64String($bytes) -cne $Encoded){throw 'ROTATION_ENTRY_SCOPE_REQUIRED'};$text=[Text.UTF8Encoding]::new($false,$true).GetString($bytes);$g=ConvertFrom-OwnerRotationEntryJson $text;if((ConvertTo-OwnerRotationEntryJson $g) -cne $text){throw 'ROTATION_ENTRY_SCOPE_REQUIRED'}}catch{throw 'ROTATION_ENTRY_SCOPE_REQUIRED'}
  $flags=@('credentialRotationApproval','existingTaskRestartApproval','configPersistenceApproval','normalLoopbackCookieApproval','confirmationApproval','automationConfirmationApproval','fleetReadOnlyApproval','pcSidecarReadOnlyApproval')
@@ -468,7 +452,6 @@ function Get-OwnerRotationProfileSelection {
  return [pscustomobject][ordered]@{schemaVersion=1;profile=$(if($cutover){'CUTOVER_V1'}else{'OLD_V1'});originalGrantSha256=(Get-OwnerRotationEntryDigest $bytes);sourceRevision=$g.sourceRevision;effectCapability=$false;nativeCalls=0}
 }
 
-# Public-source/job observations are process-private DATA, never native effects.
 function Get-OwnerCutoverUtcNow {[datetimeoffset]::UtcNow}
 function Get-OwnerCutoverMonotonicStamp {[Diagnostics.Stopwatch]::GetTimestamp()}
 function Get-OwnerCutoverMonotonicFrequency {[Diagnostics.Stopwatch]::Frequency}
@@ -501,8 +484,6 @@ function Get-OwnerCutoverBootstrapPublicResource([string]$Uri,$State){
   }
   Assert-OwnerCutoverPublicBudget $State;return ,$memory.ToArray()
  }finally{
-  # Close only this owned transport. Abort prevents draining unread bodies after
-  # expiry; no later response read or protected Owner operation is permitted.
   if($request){try{$request.Abort()}catch{}};if($stream){try{$stream.Dispose()}catch{}};if($response){try{$response.Dispose()}catch{}};$memory.Dispose()
  }
 }
@@ -525,8 +506,6 @@ function Read-OwnerCutoverClock($State){
   return @{remainingHardMs=[long][Math]::Floor($remaining);remainingForwardMs=[long][Math]::Max(0,[Math]::Floor($remaining-120000))}
  }catch{$State.terminal='ROTATION_CUTOVER_CLOCK_INVALID';throw 'ROTATION_CUTOVER_CLOCK_INVALID'}
 }
-# Original registered-clock endpoint DATA only. No QPC association, phase,
-# channel, native capability or live capture is created by these functions.
 function Get-OwnerCutoverOriginalClockEndpointData {
  param([object]$PublicToken)
 function Resolve-OwnerCutoverClockEndpointState($Token){
@@ -580,8 +559,6 @@ function Test-OwnerCutoverClockEndpointBookkeeping($Lifetime,$History){
    try{$initialPins=Get-OwnerCutoverClockEndpointPins $state}catch{$record.terminal=$true}
    $lifetime=[Tuple[object,object]]::new($initialPins,$record);$history=[Tuple[object,object,bool]]::new($lifetime,$null,[bool]$record.terminal);$script:ownerCutoverClockEndpointRecords.Add($state,$lifetime);$script:ownerCutoverClockEndpointHistory.Add($state,$history);if($initialPins){$script:ownerCutoverClockEndpointPins.Add($state,$initialPins)}
   }
-  # Issued lifetime, accepted minima and terminal history are immutable and
-  # separate from the mutable mirror. Null/replaced bookkeeping is never first use.
   if(-not (Test-OwnerCutoverClockEndpointBookkeeping $lifetime $history) -or $lifetime.Item1 -isnot [Tuple[object,object,object]]){throw 'ENDPOINT_BOOKKEEPING_REQUIRED'}
   $record=$lifetime.Item2;$originalPins=$lifetime.Item1
   $accepted=$history.Item2
@@ -601,7 +578,6 @@ function Test-OwnerCutoverClockEndpointBookkeeping($Lifetime,$History){
   $firstHardEnd=$state.hardEnd
   $samplePins=Get-OwnerCutoverClockEndpointPins $state
   if(-not (Test-OwnerCutoverClockEndpointPins $pins $samplePins)){$latchOriginal=$true;throw 'ENDPOINT_BINDING_CHANGED'}
-  # A genuine same-provider monotonic observation BEFORE the second UTC read.
   $pre=Get-OwnerCutoverMonotonicStamp
   if(($pre -isnot [long] -and $pre -isnot [int]) -or $pre -lt $firstStamp){$latchOriginal=$true;throw 'ENDPOINT_ORIGINAL_OBSERVATION_INVALID'}
   $null=Read-OwnerCutoverClock $state
@@ -628,9 +604,7 @@ function Test-OwnerCutoverClockEndpointBookkeeping($Lifetime,$History){
   $culture=[Globalization.CultureInfo]::InvariantCulture
   return [pscustomobject][ordered]@{schemaVersion=1;profile='goriq-original-clock-endpoints-data-v1';sourceRevision=$state.sourceRevision;originalGrantSha256=$state.grantHash;workflowRunId=$state.workflowRunId;officialJobId=$state.jobId;originUtcTicks=$o.ToString($culture);originStamp=$p.ToString($culture);frequency=$f.ToString($culture);sampleUtcTicks=$u.ToString($culture);sampleStamp=$s.ToString($culture);hardEndUtcTicks=$h.ToString($culture);hardStampEndpoint=$hard.ToString($culture);forwardStampEndpoint=$forward.ToString($culture);remainingHardTicks=$remainingHard.ToString($culture);remainingForwardTicks=$remainingForward.ToString($culture);nativeAuthority=$false;effectCapability=$false;qpcAssociationVerified=$false}
  }catch{
-  # Refusal history cannot be cleared by repairing/replacing the mutable mirror.
   if($state){try{$terminalStore=Get-Variable -Name ownerCutoverClockEndpointHistory -Scope Script -ErrorAction SilentlyContinue;$terminalHistory=$null;if($terminalStore -and $terminalStore.Value -is [Runtime.CompilerServices.ConditionalWeakTable[object,object]] -and $terminalStore.Value.TryGetValue($state,[ref]$terminalHistory) -and $terminalHistory -is [Tuple[object,object,bool]]){$null=$terminalStore.Value.Remove($state);$terminalStore.Value.Add($state,[Tuple[object,object,bool]]::new($terminalHistory.Item1,$terminalHistory.Item2,$true))}}catch{}}
-  # Re-resolve all genuine registrations before any additional original latch.
   if($latchOriginal -and $state){try{$recognized=Resolve-OwnerCutoverClockEndpointState $PublicToken;if([object]::ReferenceEquals($recognized,$state)){$issued=$null;$current=$null;if($script:ownerCutoverClockEndpointPins.TryGetValue($state,[ref]$issued) -and $script:ownerCutoverClockEndpointRecords.TryGetValue($state,[ref]$current) -and $current -is [Tuple[object,object]] -and [object]::ReferenceEquals($issued,$originalPins) -and [object]::ReferenceEquals($current.Item1,$issued)){$state.terminal='ROTATION_CUTOVER_CLOCK_INVALID'}}}catch{}}
   throw 'ROTATION_CUTOVER_CLOCK_ENDPOINT_DATA_REJECTED'
  }
@@ -699,8 +673,6 @@ function Get-OwnerCutoverPublicReadinessStatus {
  return [pscustomobject][ordered]@{schemaVersion=1;phase='PUBLIC_SOURCE_BOUND';sourceRevision=$state.sourceRevision;originalGrantSha256=$state.grantHash;sourceFilesVerified=$state.sourceFiles.Count;nativeWorkflowSha256=$state.workflowHash;officialJobId=$state.jobId;officialJobStartedAt=$state.jobStartedAt;hardEndUtc=$state.hardEnd.ToString('yyyy-MM-ddTHH:mm:ss.fffZ');remainingHardMs=$clock.remainingHardMs;remainingForwardMs=$clock.remainingForwardMs;effectCapability=$false;privateContextVerified=$false;claimConsumed=$false;protectedStageBound=$false}
 }
 
-# Private kernel DATA is retained in a closed module, never reconstructed from
-# a status object. Only the original public-token reference supplies its clock.
 function New-OwnerCutoverPrivateModule($State){
  Assert-OwnerCutoverPublicBudget $State
  $clock=(Get-Command Read-OwnerCutoverClock -CommandType Function -ErrorAction Stop).ScriptBlock
@@ -818,7 +790,6 @@ function New-OwnerCutoverPrivateModule($State){
    $profile=$script:kernelBaseline.profile;Assert-OwnerCutoverPrivateProtectedPath $profile
    $stage=$profile+'\.goriq-owner-rotation-1218-'+$script:originalState.grant.approvalId;$claim=$stage+'.claim'
    foreach($path in @($stage,$claim)){Assert-OwnerCutoverPrivateClock;$before=Get-OwnerCutoverPathObservation $path;Assert-OwnerCutoverPrivateClock;if($before.exists -isnot [bool] -or $before.exists){throw 'ROTATION_ENTRY_ATTEMPT_CONSUMED'}}
-   # Reservation is consumed before CreateNew: an ambiguous throw cannot mint a
    # second claim/module or retry the original attempt.
    $script:claimConsumed=$true
    try{
@@ -873,7 +844,6 @@ function New-OwnerCutoverPrivateModule($State){
     $path=$profile+'\'+$relative;Assert-OwnerCutoverPrivateClock;$before=Get-OwnerCutoverPathObservation $path;Assert-OwnerCutoverPrivateClock
     if($before.exists -isnot [bool]){throw 'ROTATION_CUTOVER_PRIVATE_CONTEXT_REJECTED'};if($before.exists){if($before.directory -isnot [bool] -or -not $before.directory){throw 'ROTATION_CUTOVER_PRIVATE_CONTEXT_REJECTED'};Assert-OwnerCutoverPrivateProtectedPath $path}else{New-OwnerCutoverPrivateDirectory $path}
    }
-   # Only this exact public image is copied, using protected CreateNew. Other
    # ZIP entries are data and never extracted, installed or executed.
    $archiveBytes=Read-OwnerCutoverNodeArchive;Copy-OwnerCutoverFixedNodeArchive $archiveBytes
   }
@@ -908,7 +878,6 @@ function New-OwnerCutoverPrivateModule($State){
     Assert-OwnerCutoverPrivateProtectedPath $path;$facts=Get-OwnerCutoverNodeImageFacts $path;Assert-OwnerCutoverPrivateClock
     if(($facts.length -isnot [int] -and $facts.length -isnot [long]) -or $facts.length -ne 92825416 -or $facts.sha256 -isnot [string] -or $facts.sha256 -cne $script:originalState.grant.protectedNodeBootstrap.nodeSha256 -or $facts.machine -isnot [int] -or $facts.machine -ne 34404 -or $facts.magic -isnot [int] -or $facts.magic -ne 523 -or $facts.singleLink -isnot [bool] -or -not $facts.singleLink){throw 'ROTATION_CUTOVER_PRIVATE_CONTEXT_REJECTED'}
     $signature=Get-OwnerCutoverNodeSignature $path;Assert-OwnerCutoverPrivateClock
-    # Normal WinTrust decides timestamp/chain/revocation; certificate NotAfter is
     # not independently substituted for that policy and no trust is added.
     if($signature.status -isnot [string] -or $signature.status -cne 'Valid' -or $signature.certificateSha256 -isnot [string] -or $signature.certificateSha256 -cne $script:originalState.grant.protectedNodeBootstrap.signerCertificateSha256 -or $signature.subject -isnot [string] -or $signature.subject -notmatch '(?:^|,\s*)O=OpenJS Foundation(?:,|$)'){throw 'ROTATION_CUTOVER_PRIVATE_CONTEXT_REJECTED'}
     $script:nodePath=$path;return [pscustomobject]@{phase='PROTECTED_NODE_BOUND';retainedDependency=$true;effectCapability=$false;privateContextVerified=$false}
@@ -916,10 +885,8 @@ function New-OwnerCutoverPrivateModule($State){
   }
   # Unknown compiled/default crypto inputs refuse BEFORE starting Node or
   # decrypting configuration for a Node consumer. The fixed-path observer
-  # retains actual protected ancestry identities for this controller lifetime.
   $script:nodeStartupPolicyLifetime=@{token=$null;record=$null;terminal=$false;records=[System.Runtime.CompilerServices.ConditionalWeakTable[object,object]]::new()}
   # This role is limited to the official image's literal compiled-default
-  # ancestry. It never changes the generic Owner/source/config trust policy.
   $script:compiledDefaultBindings=@{};$script:compiledDefaultFingerprint=$null
   function Assert-OwnerCutoverCompiledDefaultPath([string]$Path){
    if($Path -cnotin @('C:\','C:\Program Files','C:\Program Files\Common Files','C:\Program Files\Common Files\SSL','C:\Program Files\Common Files\SSL\openssl.cnf')){throw 'ROTATION_CUTOVER_NODE_STARTUP_POLICY_REQUIRED'}
@@ -1032,7 +999,6 @@ function New-OwnerCutoverPrivateModule($State){
   function Invoke-OwnerCutoverConfigurationValidator([string]$Json,[string]$ReleaseRoot,[string]$StateRoot){
    Initialize-OwnerCutoverNodeStartupPolicy;Assert-OwnerCutoverNodeStartupPolicy;Assert-OwnerCutoverPrivateClock;$windows=Get-OwnerCutoverWindowsDirectory;Assert-OwnerCutoverPrivateClock;Assert-OwnerCutoverKernelPath $windows
    $info=[Diagnostics.ProcessStartInfo]::new();$info.FileName=$script:nodePath;$validatorPath=[IO.Path]::Combine($script:stagePath,'scripts','validate-jarvis-production-config.mjs');$info.Arguments='"'+$validatorPath+'" "'+$ReleaseRoot+'" "'+$StateRoot+'"';$info.WorkingDirectory=$script:stagePath;$info.UseShellExecute=$false;$info.CreateNoWindow=$true;$info.RedirectStandardInput=$true;$info.RedirectStandardOutput=$true;$info.RedirectStandardError=$true
-   # This owned validation child receives a minimal environment. This does not
    # assert anything about Scheduler's cached target environment.
    $info.EnvironmentVariables.Clear();$info.EnvironmentVariables['SystemRoot']=$windows;$info.EnvironmentVariables['USERPROFILE']=$script:kernelBaseline.profile;$info.EnvironmentVariables['LOCALAPPDATA']=$script:kernelBaseline.localAppData;$info.EnvironmentVariables['PATH']=(Get-OwnerCutoverParentPath $script:nodePath)+';'+(Get-OwnerCutoverParentPath $script:kernelBaseline.processPath)
    $process=$null;$started=$false;$inputClosed=$false;$outText=[Text.StringBuilder]::new();$errText=[Text.StringBuilder]::new()
@@ -1054,7 +1020,6 @@ function New-OwnerCutoverPrivateModule($State){
     $exitCode=$process.ExitCode;Assert-OwnerCutoverPrivateClock
     if($exitCode -ne 0 -or $outText.ToString().Trim() -cne 'Production configuration structure: PASS' -or $errText.Length -ne 0){throw 'ROTATION_CUTOVER_PRIVATE_CONTEXT_REJECTED'}
    }catch{throw 'ROTATION_CUTOVER_PRIVATE_CONTEXT_REJECTED'}finally{
-    # Cancel only this owned validator child, like aborting an owned HTTP stream.
     # This never queries, stops or starts the production host/task.
     if($process){try{if($started -and -not $process.HasExited){$process.Kill();$null=$process.WaitForExit(1000)}}catch{};$process.Dispose()};$Json=$null
    }
