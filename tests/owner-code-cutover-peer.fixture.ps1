@@ -879,32 +879,6 @@ public static class PublicEofOwnHandleSnapshot {
   }catch(Exception error){failure=DiagnosticFailure(error);json=Data(stdout,"UNKNOWN",0,0,0,false);}finally{if(bytes!=null)Array.Clear(bytes,0,bytes.Length);}
   try{byte[] data=new UTF8Encoding(false,true).GetBytes(Report(json,phase,failure,query,extent));if(data.Length<1||data.Length>2048||writer.Position!=0||writer.Length!=0)return;writer.Write(data,0,data.Length);writer.Flush();}catch{}
  }
- // Disposable test actor only. A non-atomic *observation* cannot certify
- // EOF. Re-query the current process, compare the actual same-object aliases
- // against the still-open original standard handle, then close ONLY those
- // exact aliases before the original. Never close unrelated handles or claim
- // a positive test unless the parent's real pending read completes.
- internal static bool CloseOwnPipeAliases(IntPtr original,Func<IntPtr,bool> close){
-  if(close==null||original==IntPtr.Zero||original==new IntPtr(-1))return false;
-  byte[] bytes=new byte[65536];
-  try{
-   uint returned;int status=NtQueryInformationProcess(new IntPtr(-1),51,bytes,(uint)bytes.Length,out returned);
-   if(status!=0||returned<2*IntPtr.Size||returned>bytes.Length)return false;
-   ulong reference=IntPtr.Size==4?(ulong)unchecked((uint)original.ToInt32()):unchecked((ulong)original.ToInt64());
-   var handles=Decode(bytes,(int)returned,IntPtr.Size,status,reference);
-   System.Collections.Generic.List<IntPtr> aliases=new System.Collections.Generic.List<IntPtr>();
-   foreach(ulong value in handles){
-    if(value==reference)continue;
-    IntPtr candidate=IntPtr.Size==4?new IntPtr(unchecked((int)(uint)value)):new IntPtr(unchecked((long)value));
-    if(CompareObjectHandles(original,candidate)){aliases.Add(candidate);if(aliases.Count>8)return false;}
-   }
-   if(aliases.Count<1)return false;
-   foreach(IntPtr candidate in aliases){
-    if(!CompareObjectHandles(original,candidate)||!close(candidate))return false;
-   }
-   return true;
-  }catch{return false;}finally{Array.Clear(bytes,0,bytes.Length);}
- }
  static void Refuse(){throw new ArgumentException("PUBLIC_OWN_HANDLE_SNAPSHOT_REQUIRED");}
  static ulong Pointer(byte[] bytes,int offset,int width){return width==4?(ulong)BitConverter.ToUInt32(bytes,offset):BitConverter.ToUInt64(bytes,offset);}
  public static System.Collections.ObjectModel.ReadOnlyCollection<ulong> Decode(byte[] bytes,int returnedLength,int width,int status,ulong reference){
@@ -939,7 +913,7 @@ public static class PublicWindowsEofActor {
   string root=Path.GetFullPath(Environment.CurrentDirectory).TrimEnd(Path.DirectorySeparatorChar,Path.AltDirectorySeparatorChar),name=Path.GetFileName(root),prefix="public-owned-peer-";DirectoryInfo directory=new DirectoryInfo(root);if(!directory.Exists||(directory.Attributes&FileAttributes.ReparsePoint)!=0||!name.StartsWith(prefix,StringComparison.Ordinal))throw new InvalidOperationException("PUBLIC_EOF_STAGE_SCOPE");string suffix=name.Substring(prefix.Length);if(suffix.Length!=12||suffix[8]!='.')throw new InvalidOperationException("PUBLIC_EOF_STAGE_SCOPE");for(int i=0;i<suffix.Length;i++){char c=suffix[i];if(i!=8&&!((c>='a'&&c<='z')||(c>='A'&&c<='Z')||(c>='0'&&c<='9')))throw new InvalidOperationException("PUBLIC_EOF_STAGE_SCOPE");}
   string path=Path.Combine(root,"public-eof-actor-stage.txt");FileInfo file=new FileInfo(path);if(!file.Exists||file.Length>64||(file.Attributes&(FileAttributes.Directory|FileAttributes.ReparsePoint))!=0)throw new InvalidOperationException("PUBLIC_EOF_STAGE_FILE");byte[] bytes=Encoding.ASCII.GetBytes(stage);using(FileStream stream=File.Open(path,FileMode.Open,FileAccess.Write,FileShare.ReadWrite)){stream.SetLength(0);stream.Write(bytes,0,bytes.Length);stream.Flush();}
  }
- public static int Main(string[] args){try{if(args.Length!=0)return 76;string mode=Environment.GetEnvironmentVariable("GORIQ_PUBLIC_PEER_CASE");bool stdout=mode=="late-stdout-eof";if(!stdout&&mode!="late-stderr-eof")return 76;PublicEofOwnHandleSnapshot.Prepare(stdout);using(StreamReader reader=new StreamReader(Console.OpenStandardInput(),new UTF8Encoding(false,true),true,4096)){string hello=Line(reader,32768);WriteStage("HELLO_READ");WriteStdout(RenderReply(hello));WriteStage("REPLY_WRITTEN");bool closed=false;for(;;){if(!closed)WriteStage("TRIGGER_WAIT");string line=Line(reader,64);if(line==null)return 0;WriteStage("TRIGGER_READ");if(closed||line!=(stdout?"PUBLIC_TRIGGER_CLOSE_STDOUT":"PUBLIC_TRIGGER_CLOSE_STDERR"))return 76;IntPtr handle=GetStdHandle(stdout?-11:-12);if(handle==IntPtr.Zero||handle==new IntPtr(-1))return 76;WriteStage("HANDLE_ACQUIRED");PublicEofOwnHandleSnapshot.Capture(stdout,handle);if(!PublicEofOwnHandleSnapshot.CloseOwnPipeAliases(handle,CloseHandle))return 76;if(!CloseHandle(handle))return 76;WriteStage("HANDLE_CLOSED");closed=true;}}}catch{return 76;}}
+ public static int Main(string[] args){try{if(args.Length!=0)return 76;string mode=Environment.GetEnvironmentVariable("GORIQ_PUBLIC_PEER_CASE");bool stdout=mode=="late-stdout-eof";if(!stdout&&mode!="late-stderr-eof")return 76;PublicEofOwnHandleSnapshot.Prepare(stdout);using(StreamReader reader=new StreamReader(Console.OpenStandardInput(),new UTF8Encoding(false,true),true,4096)){string hello=Line(reader,32768);WriteStage("HELLO_READ");WriteStdout(RenderReply(hello));WriteStage("REPLY_WRITTEN");bool closed=false;for(;;){if(!closed)WriteStage("TRIGGER_WAIT");string line=Line(reader,64);if(line==null)return 0;WriteStage("TRIGGER_READ");if(closed||line!=(stdout?"PUBLIC_TRIGGER_CLOSE_STDOUT":"PUBLIC_TRIGGER_CLOSE_STDERR"))return 76;IntPtr handle=GetStdHandle(stdout?-11:-12);if(handle==IntPtr.Zero||handle==new IntPtr(-1))return 76;WriteStage("HANDLE_ACQUIRED");PublicEofOwnHandleSnapshot.Capture(stdout,handle);if(!CloseHandle(handle))return 76;WriteStage("HANDLE_CLOSED");closed=true;}}}catch{return 76;}}
 }
 '@
 }
