@@ -54,7 +54,7 @@ def run_selected(pattern, fixture_text, test_text, progress=False, native_phase=
             f=phase_root/("NESTED_"+group+".txt")
             if f.is_file():
                 result[group]=[v for v in f.read_text(encoding="ascii",errors="replace").splitlines()
-                               if v in ("BEGIN","INPUT_READY","BEFORE_BASE","AFTER_BASE","TRAP","BASE_FAIL")][-20:]
+                               if v in ("BEGIN","CONTEXT_OK","JOB_OPTIONS_OK","NATIVE_READY","INPUT_BEFORE","INPUT_READY","BEFORE_BASE","AFTER_BASE","TRAP","BASE_FAIL")][-20:]
         return result
     def phases():
         if progress_root is None: return []
@@ -222,6 +222,7 @@ trap {
   if($value -cmatch '\A(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE|PEER_FIXTURE|ROTATION_CUTOVER)_[A-Z0-9_]{2,100}\z'){$tag=$value}
   [Console]::Error.WriteLine('JOB_DRIVER_TRAP|'+$tag)
  }
+ Emit-PublicNestedStage 'TRAP'
  break
 }
 # BEGIN_COMPOSED_PRIVATE_TEST_MODE"""
@@ -233,7 +234,7 @@ function Emit-PublicNestedStage([string]$Label) {
  if(-not $OwnedJobWindows -or $TransportGroup -notin @(1,2) -or
     $env:GITHUB_REPOSITORY -cne 'haji84/AI-' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
     [string]::IsNullOrWhiteSpace($env:GORIQ_PR1905_PHASE_DIR)){return}
- if($Label -notin @('BEGIN','INPUT_READY','BEFORE_BASE','AFTER_BASE','TRAP','BASE_FAIL')){return}
+ if($Label -notin @('BEGIN','CONTEXT_OK','JOB_OPTIONS_OK','NATIVE_READY','INPUT_BEFORE','INPUT_READY','BEFORE_BASE','AFTER_BASE','TRAP','BASE_FAIL')){return}
  try{
   $root=$env:GORIQ_PR1905_PHASE_DIR
   if([IO.Directory]::Exists($root)){
@@ -246,6 +247,18 @@ Emit-PublicNestedStage 'BEGIN'
 """
     modified_fixture = unique(modified_fixture,"# BEGIN_COMPOSED_PRIVATE_TEST_MODE",
         "# BEGIN_COMPOSED_PRIVATE_TEST_MODE\n"+stageFunction)
+    # Three fixed checkpoints before the private bootstrap. A blocked startup
+    # check is not a Job protocol failure, so no assertion is bypassed.
+    modified_fixture = unique(modified_fixture, "# END_COMPOSED_PRIVATE_TEST_MODE",
+        "Emit-PublicNestedStage 'CONTEXT_OK'\n# END_COMPOSED_PRIVATE_TEST_MODE")
+    modified_fixture = unique(modified_fixture, "# TEST batch selection only;",
+        "Emit-PublicNestedStage 'JOB_OPTIONS_OK'\n# TEST batch selection only;")
+    nativeLoad=". (Join-Path $Root 'scripts/owner-code-rotation-native-1218.ps1')"
+    modified_fixture = unique(modified_fixture,nativeLoad,
+        nativeLoad+";Emit-PublicNestedStage 'NATIVE_READY'")
+    inputLine="$publicInput=if($OwnedJobWindows -and $TransportGroup -in @(1,2))"
+    modified_fixture = unique(modified_fixture,inputLine,
+        "Emit-PublicNestedStage 'INPUT_BEFORE';"+inputLine)
     # The nested manager was observed to exit between SOURCE_BASE_BEGIN and
     # SOURCE_BASE_DONE. Capture the original failing contract code before the
     # child ends. Strictly bounded fixed enum, not exception text or file data.
