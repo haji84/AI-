@@ -120,8 +120,12 @@ try{
     return {'exit':r.returncode,'rows':[x for x in r.stdout.splitlines() if re.fullmatch(r'DEC_[A-Z_]+(?:\|[A-Za-z0-9_.\[\]-]{1,80})*',x)]}
 
 
-def writer_parent(fixture, test_source, out, exact_load=False):
-    """Classify only the three existing CreateNew assertions; no acceptance changes."""
+def writer_parent(fixture, test_source, out, exact_load=False, snapshot_origin=False):
+    """Classify original CreateNew and a temporary actor-local type-origin candidate."""
+    if snapshot_origin:
+        fixture=once(fixture,
+            'typeof(PublicWindowsEofActor).Assembly.Location',
+            'typeof(PublicEofOwnHandleSnapshot).Assembly.Location')
     outer=re.search(r" \$publicWindowsEofActorControls=@'\r?\n([\s\S]*?)\r?\n'@",fixture)
     if outer is None: raise ValueError('PUBLIC_CONTROLS_ANCHOR_REQUIRED')
     controls=outer.group(1)
@@ -177,6 +181,8 @@ def main():
         report['writer_parent']=writer_parent(data[FIXTURE].decode(),data[TEST].decode(),out)
         for p,b in data.items(): Path(p).write_bytes(b)
         report['writer_parent_exact_load']=writer_parent(data[FIXTURE].decode(),data[TEST].decode(),out,True)
+        for p,b in data.items(): Path(p).write_bytes(b)
+        report['writer_parent_snapshot_origin']=writer_parent(data[FIXTURE].decode(),data[TEST].decode(),out,False,True)
         for p,b in data.items(): Path(p).write_bytes(b)
         Path(NATIVE).write_bytes(annotate_native(data[NATIVE].decode()).encode())
         Path(FIXTURE).write_bytes(annotate_fixture(data[FIXTURE].decode()).encode())
