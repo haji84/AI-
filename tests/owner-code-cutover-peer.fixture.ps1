@@ -1414,6 +1414,18 @@ return $result
  $entryScopeRoot=Join-Path ([IO.Path]::GetTempPath()) ('public-entry-scope-'+[IO.Path]::GetRandomFileName());Require (-not [IO.Directory]::Exists($entryScopeRoot)) 'ENTRY_CF_OWNED_SCRIPT_SCOPE';$entryScopeDirectory=[IO.Directory]::CreateDirectory($entryScopeRoot);$entryScopeBirth=$entryScopeDirectory.CreationTimeUtc.Ticks;$entryScopePath=Join-Path $entryScopeRoot 'diagnostic-scope.ps1';$entryScopeStream=$null;$entryScopeCreated=$false
  try{
  $entryScopeBytes=([Text.UTF8Encoding]::new($false)).GetBytes($entryScopeWrapper);Require ($entryScopeBytes.Length -le 8192) 'ENTRY_CF_WRAPPER_LIMIT';$entryScopeStream=[IO.FileStream]::new($entryScopePath,[IO.FileMode]::CreateNew,[IO.FileAccess]::ReadWrite,[IO.FileShare]::Read);$entryScopeCreated=$true;$entryScopeStream.Write($entryScopeBytes,0,$entryScopeBytes.Length);$entryScopeStream.Flush()
+ # Public fixture only: seal its own CreateNew script before executing it on Windows.
+ # Retain a read-only share handle while checking the exact bytes and original root.
+ $entryScopeStream.Dispose();$entryScopeStream=$null
+ $entryScopeFile=[IO.FileInfo]::new($entryScopePath);$entryScopeFile.Refresh()
+ Require ($entryScopeFile.Exists -and -not ($entryScopeFile.Attributes -band [IO.FileAttributes]::ReparsePoint) -and $entryScopeFile.Length -eq $entryScopeBytes.Length) 'ENTRY_CF_SEALED_FILE_REQUIRED'
+ $entryScopeBirthFile=$entryScopeFile.CreationTimeUtc.Ticks
+ $entryScopeStream=[IO.FileStream]::new($entryScopePath,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
+ $entryScopeRead=[byte[]]::new($entryScopeBytes.Length);$entryScopeOffset=0
+ while($entryScopeOffset -lt $entryScopeRead.Length){$n=$entryScopeStream.Read($entryScopeRead,$entryScopeOffset,$entryScopeRead.Length-$entryScopeOffset);Require ($n -gt 0) 'ENTRY_CF_SEALED_READ_REQUIRED';$entryScopeOffset+=$n}
+ $entryScopeFile.Refresh()
+ Require ($entryScopeStream.ReadByte() -eq -1 -and $entryScopeFile.CreationTimeUtc.Ticks -eq $entryScopeBirthFile -and -not ($entryScopeFile.Attributes -band [IO.FileAttributes]::ReparsePoint) -and [Convert]::ToBase64String($entryScopeRead) -ceq [Convert]::ToBase64String($entryScopeBytes)) 'ENTRY_CF_SEALED_BYTES_REQUIRED'
+ $entryScopeStream.Position=0
  foreach($entryVersion in @(@{original=$v1Source;plan=$v1Plan},@{original=$v2Source;plan=$v2Plan})){
  foreach($entryCase in @('success','numeric','expiry','raw-error')){
   $observations=@();foreach($text in @($entryVersion.original,$entryVersion.plan.source)){
