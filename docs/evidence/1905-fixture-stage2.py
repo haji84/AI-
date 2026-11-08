@@ -52,7 +52,7 @@ def cleanup_wrapper_candidate(native):
            "foreach($pair in $refs){try{if($pair -isnot")
     return native.replace(marker,extra,1)
 
-def annotate_fixture(source):
+def annotate_fixture(source, module_api_candidate=False):
     a="}catch{$script:jobWindowsResult=@{pass=$false;status='INCONCLUSIVE';code='PUBLIC_PRIVATE_JOB_WINDOWS_PROOF_UNCONFIRMED';nativeAuthority=$false}}"
     b="""}catch{$publicStageReason='UNKNOWN';$publicMessage=$_.Exception.GetBaseException().Message;if($publicMessage -cmatch '\\A(?:PEER_FIXTURE|CUTOVER_BOOTSTRAP_FIXTURE)_[A-Z0-9_]{1,150}\\z'){$publicStageReason=$publicMessage};[Console]::Error.WriteLine('JOB_NATIVE_STAGE|'+$publicStageReason+'|'+$_.Exception.GetBaseException().GetType().Name);$script:jobWindowsResult=@{pass=$false;status='INCONCLUSIVE';code='PUBLIC_PRIVATE_JOB_WINDOWS_PROOF_UNCONFIRMED';nativeAuthority=$false}}"""
     source=once(source,a,b)
@@ -188,6 +188,25 @@ catch{$all=$false;[Console]::Error.WriteLine('PIPE_ITEM_EXCEPTION|'+$_.Exception
    }
   }
 """
+    if module_api_candidate:
+        # Test-only alternative: attach a CONSTANT PSVariable to the exact
+        # original ModuleInfo already bound by the original CWT owner guard.
+        # Do not relax any original owner, stream or lifecycle assertion.
+        original_line="$body=$body.Replace($newVar,$newVarDiagnostic.Replace('ORIGINAL_NEW_VAR',$newVar.Replace('([Tuple[object,object,object]]::new($c,$refs,$origin.Value))','$canonicalTuple')))"
+        candidate=r"""$apiNative=@'
+try{
+ $pipeCert=[Tuple[object,object,object]]::new($c,$refs,$origin.Value)
+ $targetModule=$origin.Value.Item3
+ if($targetModule -isnot [Management.Automation.PSModuleInfo]){throw 'PIPE_TARGET_NOT_MODULE'}
+ $pipeVar=[Management.Automation.PSVariable]::new('ownedPeerJobCanonicalPipes',$pipeCert,[Management.Automation.ScopedItemOptions]::Constant)
+ $targetModule.SessionState.PSVariable.Set($pipeVar)
+ $stored=$targetModule.SessionState.PSVariable.Get('ownedPeerJobCanonicalPipes')
+ if(-not $stored -or -not [object]::ReferenceEquals($stored.Value,$pipeCert) -or (($stored.Options -band [Management.Automation.ScopedItemOptions]::Constant) -eq 0)){throw 'PIPE_CONST_NOT_BOUND'}
+ [Console]::Error.WriteLine('PIPE_API|PASS')
+}catch{[Console]::Error.WriteLine('PIPE_API|'+$_.Exception.GetBaseException().GetType().Name);throw}
+'@
+    $body=$body.Replace($newVar,$apiNative)"""
+        install=once(install,original_line,candidate)
     source=once(source,"  Write-PublicPeerProgress ($phaseCase+'_KERNEL_DONE')",install+"\n  Write-PublicPeerProgress ($phaseCase+'_KERNEL_DONE')")
     return source
 
@@ -407,7 +426,7 @@ def main():
         Path(NATIVE).write_bytes(data[NATIVE])
         Path(FIXTURE).write_bytes(annotate_fixture(data[FIXTURE].decode()).encode())
         source=data[TEST].decode()
-        source=source.replace("assert.equal(child.error,undefined);assert.equal(child.status,0", "if(child.stderr){const safe=child.stderr.split(/\\r?\\n/).filter(x=>/^(?:PIPE_(?:ENTER|OWNER|BEFORE_REFS|ITEM_EXCEPTION|ALL|REFS3|NEWVAR|NEWVAR_REASON|NEWVAR_FQID|PRE_SCRIPT|PRE_LOCAL|PRE_GLOBAL|PRE_UP[123]|TUPLE|UNIQUE|OUTER|INMEMORY_INSTALLED)|JOB_NATIVE_STAGE|CLOCK_(?:MARK|CONTAINMENT|EXITED|WATCH|JOB_OWNER|JOB_CLOSED|OWNER_CLOSED|STARTED|CERT_CLOSED|PIPE_CLOSED|OWNER_CHECK)|JOB_(?:SAME_HANDLE|SAME_BIRTH|ACTOR_EXITED|PIPES_CLOSED|STATE_CLOSED|OWNER_RESOLVED|CANONICAL_PRESENT|CANONICAL_EXISTS|STARTED_PRESENT|OWNER_CLOSED|ORIGIN_EXISTS|ORIGIN_CONSTANT|ORIGIN_TUPLE|ORIGIN_MODULE|REF_STREAMS|REF_HANDLES|REF_DISTINCT|REF_HELD[012]|PIPE[012]_CLOSED|REFS_3|REFS_EMPTY|CONSTRUCTOR|STARTED_SAME|STARTINFO_SAME|CERT_HANDLE|CERT_BIRTH))(?:\\|[A-Za-z0-9_-]{1,180})*$/.test(x));if(safe.length)console.log('CLOSED_STAGE '+JSON.stringify(safe.slice(-45)));}assert.equal(child.error,undefined);assert.equal(child.status,0")
+        source=source.replace("assert.equal(child.error,undefined);assert.equal(child.status,0", "if(child.stderr){const safe=child.stderr.split(/\\r?\\n/).filter(x=>/^(?:PIPE_(?:ENTER|OWNER|BEFORE_REFS|ITEM_EXCEPTION|ALL|REFS3|NEWVAR|NEWVAR_REASON|NEWVAR_FQID|PRE_SCRIPT|PRE_LOCAL|PRE_GLOBAL|PRE_UP[123]|TUPLE|UNIQUE|API|OUTER|INMEMORY_INSTALLED)|JOB_NATIVE_STAGE|CLOCK_(?:MARK|CONTAINMENT|EXITED|WATCH|JOB_OWNER|JOB_CLOSED|OWNER_CLOSED|STARTED|CERT_CLOSED|PIPE_CLOSED|OWNER_CHECK)|JOB_(?:SAME_HANDLE|SAME_BIRTH|ACTOR_EXITED|PIPES_CLOSED|STATE_CLOSED|OWNER_RESOLVED|CANONICAL_PRESENT|CANONICAL_EXISTS|STARTED_PRESENT|OWNER_CLOSED|ORIGIN_EXISTS|ORIGIN_CONSTANT|ORIGIN_TUPLE|ORIGIN_MODULE|REF_STREAMS|REF_HANDLES|REF_DISTINCT|REF_HELD[012]|PIPE[012]_CLOSED|REFS_3|REFS_EMPTY|CONSTRUCTOR|STARTED_SAME|STARTINFO_SAME|CERT_HANDLE|CERT_BIRTH))(?:\\|[A-Za-z0-9_-]{1,180})*$/.test(x));if(safe.length)console.log('CLOSED_STAGE '+JSON.stringify(safe.slice(-45)));}assert.equal(child.error,undefined);assert.equal(child.status,0")
         Path(TEST).write_bytes(source.encode())
         pattern='^(clock R2 refusal cleans|private original-State owned Job finite policy and cleanup group2|Windows private original-State Job contains|private owned Job thrown close)'
         start=time.monotonic();r=subprocess.run(['node','--test','--test-concurrency=1','--test-name-pattern='+pattern,TEST],capture_output=True,text=True,encoding='utf8',errors='replace',timeout=120)
@@ -431,6 +450,19 @@ def main():
                           capture_output=True,text=True,encoding='utf8',errors='replace',timeout=125)
         markers=sorted(set(re.findall(r'(?:CUTOVER_BOOTSTRAP_FIXTURE|PEER_FIXTURE|PUBLIC_CLOCK|JOB_WINDOWS)_[A-Z0-9_]{1,120}',v.stdout+v.stderr)))
         report['candidate_pipe_wrappers']={'exit':v.returncode,'seconds':round(time.monotonic()-start,3),'failure_codes':markers[:25]}
+        # Candidate never changes native script files, actual credentials or
+        # acceptance assertions; it is a bounded temporary module operation.
+        for p,b in data.items(): Path(p).write_bytes(b)
+        Path(FIXTURE).write_bytes(annotate_fixture(data[FIXTURE].decode(),True).encode())
+        Path(TEST).write_bytes(source.encode())
+        start=time.monotonic()
+        a=subprocess.run(['node','--test','--test-concurrency=1','--test-name-pattern='+pattern,TEST],
+                         capture_output=True,text=True,encoding='utf8',errors='replace',timeout=120)
+        api=re.findall(r'PIPE_API\\|(?:PASS|[A-Za-z]{3,45})',a.stdout+'\\n'+a.stderr)
+        detail=re.findall(r'(?:CUTOVER_BOOTSTRAP_FIXTURE|PUBLIC_CLOCK|JOB_WINDOWS)_[A-Z0-9_]{1,120}',a.stdout+'\\n'+a.stderr)
+        report['module_api_candidate']={'exit':a.returncode,'seconds':round(time.monotonic()-start,3),
+            'api_states':sorted(set(api))[:12], 'failure_codes':sorted(set(detail))[:15],
+            'original_native_unchanged':True,'production_accepted':False}
     finally:
         for p,b in data.items(): Path(p).write_bytes(b)
         (out/'report.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2))
