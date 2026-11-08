@@ -541,8 +541,8 @@ def main():
           'Windows private original-State Job contains','private owned Job thrown close')
         outcomes={}
         for case in public_cases:
-            failed=bool(re.search(r'(?m)^.*(?:✖|not ok [0-9]+ -)\\s*'+re.escape(case),early_result.stdout))
-            passed=bool(re.search(r'(?m)^.*(?:✔|ok [0-9]+ -)\\s*'+re.escape(case),early_result.stdout))
+            failed=bool(re.search(r'(?m)^.*(?:✖|not ok [0-9]+ -)\s*'+re.escape(case),early_result.stdout))
+            passed=bool(re.search(r'(?m)^.*(?:✔|ok [0-9]+ -)\s*'+re.escape(case),early_result.stdout))
             outcomes[case]='FAIL' if failed else 'PASS' if passed else 'UNKNOWN'
         report['early_cert_candidate']={'exit':early_result.returncode,'seconds':round(time.monotonic()-started,3),
           'stages':early_rows[-24:],'failure_codes':failure_codes[:15],'case_outcomes':outcomes, 'production_accepted':False}
