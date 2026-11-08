@@ -131,13 +131,13 @@ def writer_parent(fixture, test_source, out):
     expected="if($writer -isnot [IO.FileStream] -or $writer.Name -cne $path -or $writer.Length -ne 0){throw 'ACTUAL_SOURCE_CREATE_NEW_REQUIRED'}"
     observed="""$isWriter=($writer -is [IO.FileStream]);$strictPath=$false;$loosePath=$false;$empty=$false
  if($isWriter){$strictPath=([string]::Equals($writer.Name,$path,[StringComparison]::Ordinal));$loosePath=([string]::Equals($writer.Name,$path,[StringComparison]::OrdinalIgnoreCase));$empty=($writer.Length -eq 0)}
- foreach($pair in @(@('TYPE',$isWriter),@('PATH',$strictPath),@('PATH_CASELESS',$loosePath),@('EMPTY',$empty))){[Console]::Out.WriteLine('WRITER_'+$pair[0]+'|'+$(if($pair[1]){'YES'}else{'NO'}))}
+ [Console]::Out.WriteLine('WRITER_TYPE|'+$(if($isWriter){'YES'}else{'NO'}));[Console]::Out.WriteLine('WRITER_PATH|'+$(if($strictPath){'YES'}else{'NO'}));[Console]::Out.WriteLine('WRITER_PATH_CASELESS|'+$(if($loosePath){'YES'}else{'NO'}));[Console]::Out.WriteLine('WRITER_EMPTY|'+$(if($empty){'YES'}else{'NO'}))
  """+expected
     revised=once(original,expected,observed)
     controls=once(controls,embedded.group(0),embedded.group(0).replace(embedded.group(1),base64.b64encode(revised.encode()).decode()))
     updated_fixture=once(fixture,outer.group(0),outer.group(0).replace(outer.group(1),controls))
     marker="if(child.error!==undefined||child.status!==0||child.stderr!=='')console.log('GORIQ_PUBLIC_EOF_DATA_CONTROL_FAILURE '"
-    prelude="if(child.stdout){const safe=child.stdout.split(/\\r?\\n/).filter(v=>/^WRITER_(?:TYPE|PATH|PATH_CASELESS|EMPTY)\\\\|(?:YES|NO)$/.test(v));if(safe.length)console.log('WRITER_SAFE_STAGES '+JSON.stringify(safe))}"
+    prelude="if(child.stdout){const safe=child.stdout.split(/\\r?\\n/).filter(v=>/^WRITER_(?:TYPE|PATH|PATH_CASELESS|EMPTY)[|](?:YES|NO)$/.test(v));if(safe.length)console.log('WRITER_SAFE_STAGES '+JSON.stringify(safe))}"
     updated_test=once(test_source,marker,prelude+marker)
     Path(FIXTURE).write_text(updated_fixture,encoding='utf8')
     Path(TEST).write_text(updated_test,encoding='utf8')
