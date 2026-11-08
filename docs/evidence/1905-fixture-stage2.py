@@ -11,7 +11,7 @@ import time
 NATIVE='scripts/owner-code-rotation-native-1218.ps1'
 FIXTURE='tests/owner-code-cutover-peer.fixture.ps1'
 TEST='scripts/owner-code-cutover-peer.test.mjs'
-EXPECTED={NATIVE:'d2fb7ab5af7f5f18d2463bd21a32a80fcf9f1678',FIXTURE:'c628cd155cfc298451eec172f97815477925b992',TEST:'af332cb501682da7ffede47eb560dec4ce9b41a4'}
+EXPECTED={NATIVE:'243269c23ed178d5962d38e41fe4b999365cf4c2',FIXTURE:'c628cd155cfc298451eec172f97815477925b992',TEST:'af332cb501682da7ffede47eb560dec4ce9b41a4'}
 
 
 def once(s,a,b):
@@ -533,7 +533,10 @@ def main():
             'api_states':sorted(set(api))[:12], 'api_proof_rows':api_proof[-80:], 'failure_codes':sorted(set(detail))[:15],
             'original_native_unchanged':True,'production_accepted':False}
         for p,b in data.items(): Path(p).write_bytes(b)
-        Path(FIXTURE).write_bytes(annotate_fixture(data[FIXTURE].decode(),early_cert_candidate=True).encode())
+        on_branch="EARLY_CERT_ORIGIN" in data[NATIVE].decode()
+        # Once this source is under test, run original unmodified assertions.
+        # Never falsely count a second injected helper as original behavior.
+        Path(FIXTURE).write_bytes(data[FIXTURE] if on_branch else annotate_fixture(data[FIXTURE].decode(),early_cert_candidate=True).encode())
         # The candidate is checked by the byte-for-byte ORIGINAL Node tests.
         # Do not hide any runtime stderr; candidate emits none when successful.
         Path(TEST).write_bytes(data[TEST])
@@ -552,7 +555,7 @@ def main():
             passed=bool(re.search(r'(?m)^.*(?:✔|ok [0-9]+ -)\s*'+re.escape(case),early_result.stdout))
             outcomes[case]='FAIL' if failed else 'PASS' if passed else 'UNKNOWN'
         report['early_cert_candidate']={'exit':early_result.returncode,'seconds':round(time.monotonic()-started,3),
-          'stages':early_rows[-24:],'failure_codes':failure_codes[:15],'case_outcomes':outcomes, 'production_accepted':False}
+          'stages':early_rows[-24:],'failure_codes':failure_codes[:15],'case_outcomes':outcomes,'original_source_under_test':on_branch, 'production_accepted':False}
     finally:
         for p,b in data.items(): Path(p).write_bytes(b)
         (out/'report.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2))

@@ -1543,7 +1543,31 @@ public static class GoriqOriginalPeerQpcNative1218 {
     $native=$script:stagePath+'\scripts\owner-code-rotation-native-1218.mjs';$system=Get-OwnerCutoverWindowsDirectory;Assert-OwnerCutoverPrivateClock
     $info=[Diagnostics.ProcessStartInfo]::new();$info.FileName=$script:nodePath;$info.Arguments='"'+$native+'" --owned-cutover-peer';$info.WorkingDirectory=$script:stagePath;$info.UseShellExecute=$false;$info.CreateNoWindow=$true;$info.RedirectStandardInput=$true;$info.RedirectStandardOutput=$true;$info.RedirectStandardError=$true;$info.EnvironmentVariables.Clear()
     $values=@{SystemRoot=$system;WINDIR=$system;ComSpec=($system+'\System32\cmd.exe');USERPROFILE=$script:kernelBaseline.profile;LOCALAPPDATA=$script:kernelBaseline.localAppData;TEMP=($script:stagePath+'\.gai-results');TMP=($script:stagePath+'\.gai-results');PATH=([IO.Path]::GetDirectoryName($script:nodePath)+';'+[IO.Path]::Combine($system,'System32')+';'+$system);PATHEXT='.COM;.EXE;.BAT;.CMD';PSModulePath=([IO.Path]::Combine($system,'System32','WindowsPowerShell','v1.0','Modules'))};foreach($key in $values.Keys){$info.EnvironmentVariables[$key]=$values[$key]}
-    $process=New-OwnerCutoverOwnedPeerProcess $info;$allocation=$null;if($process -isnot [Diagnostics.Process] -or -not $script:ownedPeerLifetime.allocations.TryGetValue($process,[ref]$allocation) -or -not [object]::ReferenceEquals($allocation.state,$script:originalState) -or -not [object]::ReferenceEquals($allocation.info,$info) -or -not [object]::ReferenceEquals($allocation.info,$process.StartInfo)){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'};$script:ownedPeerLifetime.process=$process;Initialize-OwnerCutoverOwnedPeerJob;Assert-OwnerCutoverPrivateClock;if(-not $process.Start()){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'};Assert-OwnerCutoverPrivateClock;Confirm-OwnerCutoverOwnedPeerCleanupIdentity;Assign-OwnerCutoverOwnedPeerJob
+    $process=New-OwnerCutoverOwnedPeerProcess $info;$allocation=$null;if($process -isnot [Diagnostics.Process] -or -not $script:ownedPeerLifetime.allocations.TryGetValue($process,[ref]$allocation) -or -not [object]::ReferenceEquals($allocation.state,$script:originalState) -or -not [object]::ReferenceEquals($allocation.info,$info) -or -not [object]::ReferenceEquals($allocation.info,$process.StartInfo)){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'};$script:ownedPeerLifetime.process=$process;Initialize-OwnerCutoverOwnedPeerJob;Assert-OwnerCutoverPrivateClock;if(-not $process.Start()){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'};Assert-OwnerCutoverPrivateClock;
+   try{
+ $owner=Get-OwnerCutoverOwnedPeerJobCleanupOwner
+ $cert=if($owner){$owner.OriginalConstructor}else{$null}
+ $original=Microsoft.PowerShell.Utility\Get-Variable -Name ownedPeerJobOriginalBinding -Scope Script -ErrorAction SilentlyContinue
+ if($cert -isnot [Tuple[object,object,object,object]] -or $null -eq $original -or (($original.Options -band [Management.Automation.ScopedItemOptions]::Constant) -eq 0) -or -not [object]::ReferenceEquals($cert.Item2,$process) -or -not [object]::ReferenceEquals($cert.Item3,$process.StartInfo) -or -not [object]::ReferenceEquals($original.Value.Item3,$ExecutionContext.SessionState.Module) -or $process.HasExited){throw 'EARLY_CERT_ORIGIN'}
+ $handle=$process.Handle;$born=$process.StartTime.ToUniversalTime().Ticks
+ if($handle -eq [IntPtr]::Zero -or $handle -eq [IntPtr]::new(-1) -or $born -le 0){throw 'EARLY_CERT_BIRTH'}
+ $pairs=[Collections.Generic.List[object]]::new()
+ foreach($kind in @('INPUT','OUTPUT','ERROR')){
+  $stream=switch($kind){'INPUT'{$process.StandardInput.BaseStream};'OUTPUT'{$process.StandardOutput.BaseStream};'ERROR'{$process.StandardError.BaseStream}}
+  $safe=if($stream -is [IO.FileStream]){$stream.SafeFileHandle}elseif($stream -is [IO.Pipes.PipeStream]){$stream.SafePipeHandle}else{throw 'EARLY_CERT_STREAM'}
+  if($safe -isnot [Runtime.InteropServices.SafeHandle] -or $safe.IsClosed){throw 'EARLY_CERT_HANDLE'}
+  foreach($prior in $pairs){if([object]::ReferenceEquals($prior.Item1,$stream) -or [object]::ReferenceEquals($prior.Item2,$safe)){throw 'EARLY_CERT_DUPLICATE'}}
+  $pairs.Add([Tuple[object,object]]::new($stream,$safe))
+ }
+ if($pairs.Count -ne 3 -or (Microsoft.PowerShell.Utility\Get-Variable -Name ownedPeerJobCanonicalPipes -Scope Script -ErrorAction SilentlyContinue)){throw 'EARLY_CERT_COUNT'}
+ $refs=[Collections.ObjectModel.ReadOnlyCollection[object]]::new($pairs)
+ $value=[Tuple[object,object,object]]::new($cert,$refs,$original.Value)
+ Microsoft.PowerShell.Utility\New-Variable -Name ownedPeerJobCanonicalPipes -Scope Script -Option Constant -Value $value -ErrorAction Stop
+ $stored=Microsoft.PowerShell.Utility\Get-Variable -Name ownedPeerJobCanonicalPipes -Scope Script -ErrorAction Stop
+ if((($stored.Options -band [Management.Automation.ScopedItemOptions]::Constant) -eq 0) -or -not [object]::ReferenceEquals($stored.Value,$value)){throw 'EARLY_CERT_READBACK'}
+ 
+}catch{throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}
+    Confirm-OwnerCutoverOwnedPeerCleanupIdentity;Assign-OwnerCutoverOwnedPeerJob
     $observed=Get-OwnerCutoverOwnedPeerProcessObservation $process;Assert-OwnerCutoverPeerProcessObservation $observed;if($observed.imagePath -ine $script:nodePath -or $observed.sessionId -ne $script:kernelBaseline.sessionId){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}
     $hello=[ordered]@{schemaVersion=1;kind='GORIQ_OWNED_NODE_PEER_HELLO';sequence=1;sourceRevision=$script:originalState.sourceRevision;originalGrantSha256=$script:originalState.grantHash;attemptId=$script:originalState.grant.approvalId;workflowRunId=$script:originalState.workflowRunId;officialJobId=$script:originalState.jobId;nativeMjsSha256=$script:originalState.grant.sourceHashes.'scripts/owner-code-rotation-native-1218.mjs';nativePsSha256=$script:originalState.grant.sourceHashes.'scripts/owner-code-rotation-native-1218.ps1';bootstrapPid=$script:kernelBaseline.pid;bootstrapCreationTicks=$script:kernelBaseline.creationTicks;ownerSidSha256=$script:originalState.grant.ownerSidSha256;sessionId=$script:kernelBaseline.sessionId;nodePid=$observed.pid;nodeCreationTicks=$observed.creationTicks;nodePath=$script:nodePath;nodeImageIdentityKey=$script:nodeIdentity.key}
     $wire=[Text.Encoding]::UTF8.GetBytes(($hello|Microsoft.PowerShell.Utility\ConvertTo-Json -Compress)+[char]10);if($wire.Length -gt 32768){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}
