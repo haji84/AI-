@@ -134,6 +134,53 @@ $g2Cert=Microsoft.PowerShell.Utility\\Get-Variable -Name ownedPeerJobCanonicalPi
             "progress_files":cp.get("progress_files", []),
             "acceptance": "NOT_ASSESSED"}
 
+def group2_single_case_diagnostics(fixture, test):
+    """One case per disposable process, original 15s per-process clock retained.
+
+    The original six-row assertion intentionally FAILS for a one-row experiment.
+    This is never a replacement for or PASS of the six-case group2 test.
+    """
+    modes = ("assigned-close", "assign-fail", "create-unknown",
+             "close-fail", "mirror-cleanup", "duplicate-close")
+    group = "@('assigned-close','assign-fail','create-unknown','close-fail','mirror-cleanup','duplicate-close')"
+    if fixture.count(group) != 1:
+        raise ValueError("GROUP2_SOURCE_SHAPE_CHANGED")
+    start = test.index(GROUP_TEST)
+    end = test.index("\ntest(", start + len(GROUP_TEST))
+    chunk = test[start:end]
+    anchor = "assert.equal(child.error,undefined);assert.equal(child.status,0"
+    capture = """if(group===2){let accepted=false,number=0;
+try{const v=JSON.parse(child.stdout);number=Array.isArray(v.rows)?v.rows.length:0;
+accepted=number===1&&v.rows[0]?.pass===true&&v.rows[0]?.id===process.env.GORIQ_SUBCASE;}catch{}
+console.log('JOB_SUBCASE_OBS '+JSON.stringify({timeout:child.error?.code==='ETIMEDOUT',
+exit:child.status===0?'ZERO':child.status===null?'NULL':'NONZERO',
+oneCase:accepted,rows:number,stderr:child.stderr?.length>0}));}"""
+    one_test = test[:start] + unique(chunk, anchor, capture + anchor) + test[end:]
+    cases=[]
+    for name in modes:
+        altered=fixture.replace(group, "@('" + name + "')")
+        os.environ["GORIQ_SUBCASE"] = name
+        import time
+        started=time.monotonic()
+        cp=run_selected(
+            "^private original-State owned Job finite policy and cleanup group2 is DATA only$",
+            altered, one_test,
+        )
+        elapsed=round(time.monotonic()-started,2)
+        observations=re.findall(r"JOB_SUBCASE_OBS (\{[^\r\n]{1,350}\})", cp["stdout"])
+        obj=json.loads(observations[-1]) if observations else {}
+        cases.append({"case":name, "elapsed_seconds":elapsed,
+                      "diagnostic_process_exit":cp["exit"],
+                      "timeout":obj.get("timeout",None),
+                      "inner_exit":obj.get("exit","UNKNOWN"),
+                      "one_case_completed":obj.get("oneCase",False),
+                      "rows":obj.get("rows",None),
+                      "stderr_nonempty":obj.get("stderr",None)})
+    os.environ.pop("GORIQ_SUBCASE",None)
+    return {"cases":cases, "replaces_original_tests":False,
+            "acceptance":"NOT_ASSESSED"}
+
+
 def real_windows_diagnostic(fixture, test, explicit_driver_target=False):
     start = test.index(REAL_TEST)
     end = test.index("\ntest(", start + len(REAL_TEST))
@@ -380,6 +427,8 @@ def main():
              "exit":original["exit"],"powershell_timeout":
              "YES" if "ETIMEDOUT" in original["stdout"] else "NO",
              "acceptance":"NOT_ASSESSED"}
+        report["group2_single_case_diagnostics"] = group2_single_case_diagnostics(
+            original_fixture.decode("utf-8"), original_test.decode("utf-8"))
         FIXTURE.write_bytes(original_fixture)
         TEST.write_bytes(original_test)
         report["windows_real_job"] = real_windows_diagnostic(
