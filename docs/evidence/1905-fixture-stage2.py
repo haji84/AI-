@@ -11,7 +11,7 @@ import time
 NATIVE='scripts/owner-code-rotation-native-1218.ps1'
 FIXTURE='tests/owner-code-cutover-peer.fixture.ps1'
 TEST='scripts/owner-code-cutover-peer.test.mjs'
-EXPECTED={NATIVE:'d2fb7ab5af7f5f18d2463bd21a32a80fcf9f1678',FIXTURE:'ce0bf8392b34cc931df3b584143a7217da1139fb',TEST:'af332cb501682da7ffede47eb560dec4ce9b41a4'}
+EXPECTED={NATIVE:'d2fb7ab5af7f5f18d2463bd21a32a80fcf9f1678',FIXTURE:'2fb58be1e83ad9a9b19a6ec6ecf432e81f170b88',TEST:'af332cb501682da7ffede47eb560dec4ce9b41a4'}
 
 
 def once(s,a,b):
@@ -49,6 +49,18 @@ def decoder(fixture,out):
     a='$bytes=New-Bytes $width ([ulong[]]@(4,8,12));$result=$type::Decode($bytes,$bytes.Length,$width,0,[ulong]4);'
     b="$bytes=New-Bytes $width ([ulong[]]@(4,8,12));[Console]::Out.WriteLine('DEC_VECTOR|'+$width+'|'+$bytes.Length+'|'+$bytes.GetType().FullName);$result=$type::Decode($bytes,$bytes.Length,$width,0,[ulong]4);[Console]::Out.WriteLine('DEC_RETURN|'+$width+'|'+$result.Count);"
     body=once(body,a,b)
+    # Read-only public probe only: emit fixed stage names before the failing
+    # width-4 source-vector builder; no inner exception, handle or path values.
+    body=once(body,'function Put-Pointer([byte[]]$Buffer,[int]$Offset,[ulong]$Value,[int]$Width){',
+        "function Put-Pointer([byte[]]$Buffer,[int]$Offset,[ulong]$Value,[int]$Width){[Console]::Out.WriteLine('DEC_PUT_ENTER|'+$Width);")
+    body=once(body,'[Buffer]::BlockCopy($data,0,$Buffer,$Offset,$Width)}',
+        "[Console]::Out.WriteLine('DEC_BEFORE_COPY|'+$Width);[Buffer]::BlockCopy($data,0,$Buffer,$Offset,$Width);[Console]::Out.WriteLine('DEC_AFTER_COPY|'+$Width)}")
+    body=once(body,'function New-Bytes([int]$Width,[ulong[]]$Values){',
+        "function New-Bytes([int]$Width,[ulong[]]$Values){[Console]::Out.WriteLine('DEC_NEW_ENTER|'+$Width);")
+    body=once(body,'Put-Pointer $buffer 0 ([ulong]$Values.Count) $Width;',
+        "[Console]::Out.WriteLine('DEC_BEFORE_COUNT|'+$Width);Put-Pointer $buffer 0 ([ulong]$Values.Count) $Width;[Console]::Out.WriteLine('DEC_AFTER_COUNT|'+$Width);")
+    body=once(body,'Put-Pointer $buffer ($header+$stride*$i) $Values[$i] $Width',
+        "[Console]::Out.WriteLine('DEC_BEFORE_ITEM|'+$Width);Put-Pointer $buffer ($header+$stride*$i) $Values[$i] $Width;[Console]::Out.WriteLine('DEC_AFTER_ITEM|'+$Width)")
     script=r'''param([string]$Fixture)
 $ErrorActionPreference='Stop';Set-StrictMode -Version Latest
 $stage='PARSE'
