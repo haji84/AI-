@@ -1,5 +1,6 @@
 [CmdletBinding()]
 param([switch]$Prepare,[switch]$PreparePublic,[switch]$BootstrapPublicCutover,[switch]$StartOnly)
+if((Microsoft.PowerShell.Utility\Get-Variable ownerCutoverPrivateOrigin75 -Scope Script -ErrorAction SilentlyContinue)-or(Microsoft.PowerShell.Utility\Get-Variable ownerCutoverPrivateIssuer75 -Scope Script -ErrorAction SilentlyContinue)){throw 'ROTATION_CUTOVER_PRIVATE_CONTEXT_REJECTED'}
 
 # This entry defines only preparation capabilities. Default invocation is inert.
 $script:ownerRotationEntryCodec=$null
@@ -713,7 +714,7 @@ function New-OwnerCutoverPrivateModule($State){
  $store=$script:ownerCutoverPublicLifetimes;$tokenState=$null;$registered=$null;$allocation='haji84/AI-|haji84/AI-/.github/workflows/gai-zbook-diagnostic-1218.yml@refs/heads/main|'+$State.workflowRunId+'|1|inspect'
  if($null -eq $State.token -or -not $store.tokens.TryGetValue($State.token,[ref]$tokenState) -or -not [object]::ReferenceEquals($tokenState,$State) -or -not $store.states.TryGetValue($State,[ref]$registered) -or -not [object]::ReferenceEquals($registered,$State) -or -not $store.allocations.ContainsKey($allocation) -or -not [object]::ReferenceEquals($store.allocations[$allocation],$State)){throw 'ROTATION_CUTOVER_PRIVATE_CONTEXT_REJECTED'}
  $refs=[Array]::AsReadOnly([object[]]@($State,$State.token,$store.tokens,$store.states,$store.allocations,$State.grant,$State.sourceFiles,$State.grant.sourceHashes,$clock,$endpointReader,(Get-Command Get-OwnerCutoverUtcNow -CommandType Function).ScriptBlock,(Get-Command Get-OwnerCutoverMonotonicStamp -CommandType Function).ScriptBlock,(Get-Command Get-OwnerCutoverMonotonicFrequency -CommandType Function).ScriptBlock));$values=[Array]::AsReadOnly([object[]]@($allocation,$State.sourceRevision,$State.grantHash,$State.workflowRunId,$State.jobId,$State.grant.approvalId,$State.grant.ownerSidSha256,$State.grant.sourceHashes.'scripts/owner-code-rotation-native-1218.mjs',$State.grant.sourceHashes.'scripts/owner-code-rotation-native-1218.ps1',$State.originUtc.UtcDateTime.Ticks,$State.originStamp,$State.frequency,$State.phase,$State.root,$State.workflowHash,$State.jobStartedAt));$registration=[Tuple[object,object]]::new($refs,$values)
- $module=New-Module -ArgumentList $State,$clock,$sources,$endpointReader,$registration -ScriptBlock {
+ $module=Microsoft.PowerShell.Core\New-Module -ArgumentList $State,$clock,$sources,$endpointReader,$registration -ScriptBlock {
   param($OriginalState,$ClockReader,$Sources,$EndpointReader,$Registration)
   $script:originalState=$OriginalState;$script:originalClockReader=$ClockReader;$script:originalEndpointReader=$EndpointReader;$script:originalPublicToken=$Registration.Item1[1];$script:originalClockRegistration=$Registration;$script:kernelBaseline=$null
   . ([scriptblock]::Create($Sources['scripts/rotate-jarvis-owner-code-windows.ps1'])) -Apply:$false -AuthorizationPath ''
@@ -1172,10 +1173,156 @@ function New-OwnerCutoverPrivateModule($State){
    if($handle -isnot [IntPtr] -or $handle -eq [IntPtr]::Zero -or $handle -eq [IntPtr]::new(-1) -or $birth -isnot [long] -or $birth -le 0){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}
    if($script:ownedPeerCleanupStarted){if($script:ownedPeerCleanupStarted -isnot [Tuple[object,IntPtr,long]] -or -not [object]::ReferenceEquals($script:ownedPeerCleanupStarted.Item1,$certificate) -or $script:ownedPeerCleanupStarted.Item2 -ne $handle -or $script:ownedPeerCleanupStarted.Item3 -ne $birth){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}}else{$script:ownedPeerCleanupStarted=[Tuple[object,IntPtr,long]]::new($certificate,$handle,$birth)}
   }
+  # Private owned Job issuance. Public CLR objects and metadata issue no authority.
+  Microsoft.PowerShell.Utility\New-Variable -Name ownedPeerJobOriginalBinding -Scope Script -Option Constant -Value ([Tuple[object,object,object]]::new($OriginalState,$Registration,$ExecutionContext.SessionState.Module))
+  $script:ownedPeerJobNativeIssued=$null;$script:ownedPeerJobNativeAnchor=$null;$script:ownedPeerJobIssued=$null;$script:ownedPeerJobClosed=$null
+  $script:ownedPeerJobAcquisitions=[Collections.Generic.List[object]]::new();$script:ownedPeerJobStores=[Tuple[object,object]]::new($script:originalState,$script:ownedPeerJobAcquisitions);$script:ownedPeerJobCloseState='NOT_ISSUED';$script:ownedPeerJobPipeState='NOT_ATTEMPTED';$script:ownedPeerJobCompilationState='NOT_ENTERED'
+  function Get-OwnerCutoverOwnedPeerJobNativeSource {return @'
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
+using Microsoft.Win32.SafeHandles;
+public sealed class GoriqOriginalOwnedPeerJobHandle1218:SafeHandleZeroOrMinusOneIsInvalid {
+ bool entered,returned,confirmed;int error;
+ public GoriqOriginalOwnedPeerJobHandle1218():base(true){}
+ [DllImport("kernel32.dll",SetLastError=true)][return:MarshalAs(UnmanagedType.Bool)]static extern bool CloseHandle(IntPtr value);
+ public bool CloseEntered{get{return entered;}}public bool CloseReturned{get{return returned;}}public bool CloseConfirmed{get{return confirmed;}}public int Error{get{return error;}}
+ public bool CloseOnce(){if(entered)return confirmed;entered=true;bool ok=CloseHandle(handle);error=ok?0:Marshal.GetLastWin32Error();returned=true;confirmed=ok;if(ok)SetHandleAsInvalid();return ok;}
+ protected override bool ReleaseHandle(){return CloseHandle(handle);}
+}
+public sealed class GoriqOriginalOwnedPeerJob1218 {
+ [StructLayout(LayoutKind.Sequential)]struct Basic{public long ProcessTime,JobTime;public uint Flags;public UIntPtr MinWork,MaxWork;public uint Active;public UIntPtr Affinity;public uint Priority,Schedule;}
+ [StructLayout(LayoutKind.Sequential)]struct Io{public ulong ReadOps,WriteOps,OtherOps,ReadBytes,WriteBytes,OtherBytes;}
+ [StructLayout(LayoutKind.Sequential)]struct Extended{public Basic Basic;public Io Io;public UIntPtr ProcessMemory,JobMemory,PeakProcess,PeakJob;}
+ [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true)]static extern GoriqOriginalOwnedPeerJobHandle1218 CreateJobObjectW(IntPtr attributes,string name);
+ [DllImport("kernel32.dll",SetLastError=true)][return:MarshalAs(UnmanagedType.Bool)]static extern bool SetInformationJobObject(GoriqOriginalOwnedPeerJobHandle1218 job,int kind,ref Extended value,uint size);
+ [DllImport("kernel32.dll",SetLastError=true)][return:MarshalAs(UnmanagedType.Bool)]static extern bool GetHandleInformation(GoriqOriginalOwnedPeerJobHandle1218 job,out uint flags);
+ [DllImport("kernel32.dll",SetLastError=true)][return:MarshalAs(UnmanagedType.Bool)]static extern bool AssignProcessToJobObject(GoriqOriginalOwnedPeerJobHandle1218 job,IntPtr process);
+ [DllImport("kernel32.dll",SetLastError=true)][return:MarshalAs(UnmanagedType.Bool)]static extern bool IsProcessInJob(IntPtr process,GoriqOriginalOwnedPeerJobHandle1218 job,[MarshalAs(UnmanagedType.Bool)]out bool member);
+ static readonly ConditionalWeakTable<object,GoriqOriginalOwnedPeerJob1218> owners=new ConditionalWeakTable<object,GoriqOriginalOwnedPeerJob1218>();
+ readonly object originalState,originalConstructor,originalRegistration,originalWatch;
+ readonly Process process;readonly ProcessStartInfo info;readonly string image,args,cwd;readonly Dictionary<string,string> environment=new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase);
+ GoriqOriginalOwnedPeerJobHandle1218 job;IntPtr handle;long birth;bool createEntered,createReturned,acquired,limited,nonInherited,bound,assignEntered,assignReturned,assigned,member,closeEntered,closeReturned,closeConfirmed;string stage="ALLOCATED";int error;readonly List<string> stages=new List<string>(new string[]{"ALLOCATED"});void Mark(string value){stage=value;stages.Add(value);}
+ public GoriqOriginalOwnedPeerJob1218(Process value,object state,object constructor,object registration,object watch){if(value==null||state==null||registration==null)Refuse();Tuple<object,object,object,object> c=constructor as Tuple<object,object,object,object>;Tuple<object,long,long,long,object> i=c==null?null:c.Item4 as Tuple<object,long,long,long,object>;Tuple<object,object> r=registration as Tuple<object,object>;IList refs=r==null?null:r.Item1 as IList;if(c==null||i==null||refs==null||refs.Count<1||!Object.ReferenceEquals(c.Item1,state)||!Object.ReferenceEquals(c.Item2,value)||!Object.ReferenceEquals(c.Item3,value.StartInfo)||!Object.ReferenceEquals(i.Item1,watch)||!Object.ReferenceEquals(i.Item5,state)||!Object.ReferenceEquals(refs[0],state))Refuse();originalState=state;originalConstructor=constructor;originalRegistration=registration;originalWatch=watch;process=value;info=value.StartInfo;if(info==null||info.UseShellExecute||!String.IsNullOrEmpty(info.UserName)||!info.RedirectStandardInput||!info.RedirectStandardOutput||!info.RedirectStandardError)Refuse();image=info.FileName;args=info.Arguments;cwd=info.WorkingDirectory;foreach(DictionaryEntry pair in info.EnvironmentVariables)environment.Add((string)pair.Key,(string)pair.Value);owners.Add(state,this);}
+ public object OriginalState{get{return originalState;}}public object OriginalConstructor{get{return originalConstructor;}}public object OriginalRegistration{get{return originalRegistration;}}public object OriginalWatch{get{return originalWatch;}}
+ public static GoriqOriginalOwnedPeerJob1218 ResolveOriginal(object state,object registration){GoriqOriginalOwnedPeerJob1218 owner;if(state==null||registration==null||!owners.TryGetValue(state,out owner)||!Object.ReferenceEquals(owner.originalRegistration,registration))return null;return owner;}
+ static void Refuse(){throw new InvalidOperationException("ROTATION_CUTOVER_PEER_PROOF_REJECTED");}
+ static void Windows(){if(Environment.OSVersion.Platform!=PlatformID.Win32NT||IntPtr.Size!=8)Refuse();}
+ void Active(){if(closeEntered)Refuse();}
+ void NativeFailed(){error=Marshal.GetLastWin32Error();Refuse();}
+ public string[] StageHistory{get{return stages.ToArray();}}public string Stage{get{return stage;}}public int LastNativeError{get{return error;}}
+ public bool CreateEntered{get{return createEntered;}}public bool CreateReturned{get{return createReturned;}}public bool Acquired{get{return acquired;}}public bool Limited{get{return limited;}}public bool NonInherited{get{return nonInherited;}}public bool Bound{get{return bound;}}public bool AssignEntered{get{return assignEntered;}}public bool AssignReturned{get{return assignReturned;}}public bool Assigned{get{return assigned;}}public bool MembershipVerified{get{return member;}}public bool CloseEntered{get{return closeEntered;}}public bool CloseReturned{get{return closeReturned;}}public bool CloseConfirmed{get{return closeConfirmed;}}
+ public bool OriginalReference(Process value){return Object.ReferenceEquals(process,value);}
+ public bool OriginalMatches(){try{if(!Object.ReferenceEquals(process.StartInfo,info)||info.UseShellExecute||!String.IsNullOrEmpty(info.UserName)||!info.CreateNoWindow||!info.RedirectStandardInput||!info.RedirectStandardOutput||!info.RedirectStandardError||info.FileName!=image||info.Arguments!=args||info.WorkingDirectory!=cwd||info.EnvironmentVariables.Count!=environment.Count)return false;foreach(KeyValuePair<string,string> pair in environment)if(info.EnvironmentVariables[pair.Key]!=pair.Value)return false;return !bound||(process.Handle==handle&&process.StartTime.ToUniversalTime().Ticks==birth);}catch{return false;}}
+ public void Create(){Active();Windows();if(createEntered||!OriginalMatches())Refuse();createEntered=true;Mark("CREATE_ENTERED");job=CreateJobObjectW(IntPtr.Zero,null);createReturned=true;acquired=job!=null&&!job.IsInvalid;Mark("CREATE_RETURNED");if(!acquired)NativeFailed();}
+ public void Limit(){Active();Windows();if(!acquired||limited||!OriginalMatches())Refuse();Mark("LIMIT_ENTERED");Extended value=new Extended();value.Basic.Flags=0x2000;bool ok=SetInformationJobObject(job,9,ref value,(uint)Marshal.SizeOf(typeof(Extended)));Mark("LIMIT_RETURNED");if(!ok)NativeFailed();limited=true;}
+ public void CheckInheritance(){Active();Windows();if(!limited||nonInherited||!OriginalMatches())Refuse();Mark("FLAGS_ENTERED");uint flags;bool ok=GetHandleInformation(job,out flags);Mark("FLAGS_RETURNED");if(!ok)NativeFailed();if((flags&1)!=0)Refuse();nonInherited=true;}
+ public void BindOriginal(){Active();if(!nonInherited||bound||!OriginalMatches())Refuse();Mark("BIND_ENTERED");handle=process.Handle;birth=process.StartTime.ToUniversalTime().Ticks;if(handle==IntPtr.Zero||handle==new IntPtr(-1)||birth<=0)Refuse();bound=true;Mark("BIND_RETURNED");}
+ public void Assign(){Active();Windows();if(!bound||assignEntered||!OriginalMatches())Refuse();assignEntered=true;Mark("ASSIGN_ENTERED");bool ok=AssignProcessToJobObject(job,handle);assignReturned=true;Mark("ASSIGN_RETURNED");if(!ok)NativeFailed();assigned=true;}
+ public void CheckMembership(){Active();Windows();if(!assigned||member||!OriginalMatches())Refuse();Mark("MEMBER_ENTERED");bool found;bool ok=IsProcessInJob(handle,job,out found);Mark("MEMBER_RETURNED");if(!ok)NativeFailed();if(!found)Refuse();member=true;}
+ public bool CloseOnce(){if(closeEntered)return closeConfirmed;closeEntered=true;Mark("CLOSE_ENTERED");if(job==null){closeReturned=!createEntered||createReturned;closeConfirmed=closeReturned;}else if(job.IsInvalid&&!acquired){closeReturned=true;closeConfirmed=true;}else{closeConfirmed=job.CloseOnce();closeReturned=job.CloseReturned;error=job.Error;}Mark(closeReturned?"CLOSE_RETURNED":"CLOSE_UNKNOWN");return closeConfirmed;}
+}
+'@
+  }
+  function Assert-OwnerCutoverOwnedPeerJobContext {
+   $c=$script:ownedPeerCleanupCertificate;$i=$script:ownedPeerInitializationIssued
+   if(-not [object]::ReferenceEquals($script:ownedPeerJobOriginalBinding.Item1,$script:originalState) -or -not [object]::ReferenceEquals($script:ownedPeerJobOriginalBinding.Item2,$script:originalClockRegistration) -or -not [object]::ReferenceEquals($script:ownedPeerJobOriginalBinding.Item3,$ExecutionContext.SessionState.Module)){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}
+   $canonical=Microsoft.PowerShell.Utility\Get-Variable -Name ownedPeerJobCanonicalNative -Scope Script -ErrorAction SilentlyContinue;if($canonical -and -not [object]::ReferenceEquals($canonical.Value,$script:ownedPeerJobNativeAnchor)){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}
+   if($script:ownedPeerJobStores -isnot [Tuple[object,object]] -or -not [object]::ReferenceEquals($script:ownedPeerJobStores.Item1,$script:originalState) -or -not [object]::ReferenceEquals($script:ownedPeerJobStores.Item2,$script:ownedPeerJobAcquisitions)){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}
+   if($c -isnot [Tuple[object,object,object,object]] -or $i -isnot [Tuple[object,long,long,long,object]] -or -not [object]::ReferenceEquals($c.Item1,$script:originalState) -or -not [object]::ReferenceEquals($c.Item4,$i) -or -not [object]::ReferenceEquals($i.Item5,$script:originalState) -or $c.Item2 -isnot [Diagnostics.Process] -or $c.Item3 -isnot [Diagnostics.ProcessStartInfo] -or -not [object]::ReferenceEquals($c.Item2.StartInfo,$c.Item3) -or $i.Item1 -isnot [Diagnostics.Stopwatch] -or -not $i.Item1.IsRunning -or -not [object]::ReferenceEquals((Get-Command Initialize-OwnerCutoverOwnedPeerJobNative -CommandType Function -ErrorAction Stop).ScriptBlock,$script:ownedPeerJobNativeFactory) -or -not [object]::ReferenceEquals((Get-Command Get-OwnerCutoverOwnedPeerJobNativeSource -CommandType Function -ErrorAction Stop).ScriptBlock,$script:ownedPeerJobSourceReader)){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}
+   $j=$script:ownedPeerJobIssued;if($j){if($j -isnot [Tuple[object,object,object,object]] -or $j.Item3 -isnot [Tuple[Type,string,object]] -or -not [object]::ReferenceEquals($j.Item1,$c) -or -not [object]::ReferenceEquals($j.Item4.GetType(),$j.Item3.Item1) -or -not $j.Item4.OriginalReference($c.Item2) -or -not $j.Item4.OriginalMatches()){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}}
+   $known=Get-OwnerCutoverOwnedPeerJobCleanupOwner;if($known){if($script:ownedPeerJobIssued -isnot [Tuple[object,object,object,object]] -or -not [object]::ReferenceEquals($script:ownedPeerJobIssued.Item4,$known) -or $script:ownedPeerJobAcquisitions.Count -ne 1 -or -not [object]::ReferenceEquals($script:ownedPeerJobAcquisitions[0].Item2,$known)){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}}
+   Assert-OwnerCutoverPeerClockRegistration
+   $before=[Diagnostics.Stopwatch]::GetTimestamp();$elapsed=$i.Item1.ElapsedTicks;$after=[Diagnostics.Stopwatch]::GetTimestamp();$frequency=[Diagnostics.Stopwatch]::Frequency
+   if(-not $i.Item1.IsRunning -or $frequency -le 0 -or $frequency -ne $i.Item4 -or $i.Item2 -lt 0 -or $i.Item3 -lt $i.Item2 -or $before -lt $i.Item3 -or $after -lt $before -or $elapsed -lt ($before-$i.Item3) -or $elapsed -gt ($after-$i.Item2) -or [Numerics.BigInteger]::Multiply([Numerics.BigInteger]($after-$i.Item2),1000) -ge [Numerics.BigInteger]::Multiply([Numerics.BigInteger]15000,$frequency)){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}
+   Assert-OwnerCutoverPrivateClock
+  }
+  function Initialize-OwnerCutoverOwnedPeerJobNative {
+   Assert-OwnerCutoverOwnedPeerJobContext
+   if([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT -or [IntPtr]::Size -ne 8){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}
+   $name='GoriqOriginalOwnedPeerJob1218';$type=$name -as [type];$literal=Get-OwnerCutoverOwnedPeerJobNativeSource;$hash=Get-OwnerLauncherDigest ([Text.Encoding]::UTF8.GetBytes($literal))
+   if($script:ownedPeerJobNativeIssued){$issued=$script:ownedPeerJobNativeIssued;if($issued -isnot [Tuple[Type,string,object]] -or -not [object]::ReferenceEquals($issued.Item1,$type) -or $issued.Item2 -cne $hash -or -not [object]::ReferenceEquals($issued.Item3,$script:originalState)){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'};return}
+   if($type -or ('GoriqOriginalOwnedPeerJobHandle1218' -as [type])){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}
+   Assert-OwnerCutoverOwnedPeerJobContext;$script:ownedPeerJobCompilationState='ENTERED';$null=Add-Type -TypeDefinition $literal -PassThru -ErrorAction Stop;$type=$name -as [type]
+   if(-not $type -or -not $type.IsSealed){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'};$script:ownedPeerJobNativeIssued=[Tuple[Type,string,object]]::new($type,$hash,$script:originalState);$script:ownedPeerJobNativeAnchor=[Tuple[Type,string,object,object]]::new($type,$hash,$script:originalState,$script:originalClockRegistration);Microsoft.PowerShell.Utility\New-Variable -Name ownedPeerJobCanonicalNative -Scope Script -Option Constant -Value $script:ownedPeerJobNativeAnchor;$script:ownedPeerJobCompilationState='RETURNED';Assert-OwnerCutoverOwnedPeerJobContext
+  }
+  $script:ownedPeerJobNativeFactory=(Get-Command Initialize-OwnerCutoverOwnedPeerJobNative).ScriptBlock;$script:ownedPeerJobSourceReader=(Get-Command Get-OwnerCutoverOwnedPeerJobNativeSource).ScriptBlock
+  function Initialize-OwnerCutoverOwnedPeerJob {
+   Assert-OwnerCutoverOwnedPeerJobContext
+   if($script:ownedPeerJobIssued -or $script:ownedPeerJobAcquisitions.Count -ne 0){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}
+   Initialize-OwnerCutoverOwnedPeerJobNative;Assert-OwnerCutoverOwnedPeerJobContext
+   $native=$script:ownedPeerJobNativeIssued;$c=$script:ownedPeerCleanupCertificate
+   if($native -isnot [Tuple[Type,string,object]] -or -not [object]::ReferenceEquals($native.Item3,$script:originalState) -or $native.Item1.FullName -cne 'GoriqOriginalOwnedPeerJob1218'){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}
+   $owner=[Activator]::CreateInstance($native.Item1,[object[]]@($c.Item2,$script:originalState,$c,$script:originalClockRegistration,$c.Item4.Item1));$script:ownedPeerJobAcquisitions.Add([Tuple[object,object]]::new($c,$owner));$script:ownedPeerJobIssued=[Tuple[object,object,object,object]]::new($c,$script:originalClockRegistration,$native,$owner)
+   Assert-OwnerCutoverOwnedPeerJobContext;$owner.Create();Assert-OwnerCutoverOwnedPeerJobContext;$owner.Limit();Assert-OwnerCutoverOwnedPeerJobContext;$owner.CheckInheritance();Assert-OwnerCutoverOwnedPeerJobContext
+   if(-not $owner.Acquired -or -not $owner.Limited -or -not $owner.NonInherited){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}
+  }
+  function Assign-OwnerCutoverOwnedPeerJob {
+   Assert-OwnerCutoverOwnedPeerJobContext;$j=$script:ownedPeerJobIssued;$c=$script:ownedPeerCleanupCertificate
+   if($j -isnot [Tuple[object,object,object,object]] -or -not [object]::ReferenceEquals($j.Item1,$c) -or -not [object]::ReferenceEquals($j.Item2,$script:originalClockRegistration) -or -not [object]::ReferenceEquals($j.Item3,$script:ownedPeerJobNativeIssued)){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}
+   $owner=$j.Item4;$owner.BindOriginal();Assert-OwnerCutoverOwnedPeerJobContext;$owner.Assign();Assert-OwnerCutoverOwnedPeerJobContext;$owner.CheckMembership();Assert-OwnerCutoverOwnedPeerJobContext
+   Assert-OwnerCutoverOwnedPeerJob
+  }
+  function Assert-OwnerCutoverOwnedPeerJob {
+   Assert-OwnerCutoverOwnedPeerJobContext;$j=$script:ownedPeerJobIssued;$a=$null
+   if($j -isnot [Tuple[object,object,object,object]] -or $script:ownedPeerJobAcquisitions.Count -ne 1 -or -not [object]::ReferenceEquals($j.Item1,$script:ownedPeerCleanupCertificate) -or -not [object]::ReferenceEquals($j.Item2,$script:originalClockRegistration) -or -not [object]::ReferenceEquals($j.Item3,$script:ownedPeerJobNativeIssued) -or -not [object]::ReferenceEquals($j.Item4.GetType(),$j.Item3.Item1) -or -not [object]::ReferenceEquals($script:ownedPeerJobAcquisitions[0].Item1,$j.Item1) -or -not [object]::ReferenceEquals($script:ownedPeerJobAcquisitions[0].Item2,$j.Item4) -or -not $j.Item4.OriginalReference($j.Item1.Item2) -or -not $j.Item4.OriginalMatches() -or -not $j.Item4.Bound -or -not $j.Item4.Assigned -or -not $j.Item4.MembershipVerified -or $j.Item4.CloseEntered -or -not $script:ownedPeerLifetime.allocations.TryGetValue($j.Item1.Item2,[ref]$a) -or -not [object]::ReferenceEquals($a.state,$script:originalState) -or -not [object]::ReferenceEquals($a.info,$j.Item1.Item3)){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}
+   Assert-OwnerCutoverOwnedPeerJobContext
+  }
+  function Get-OwnerCutoverOwnedPeerJobCleanupOwner {
+   try{
+    $origin=Microsoft.PowerShell.Utility\Get-Variable -Name ownedPeerJobOriginalBinding -Scope Script -ErrorAction SilentlyContinue;$native=Microsoft.PowerShell.Utility\Get-Variable -Name ownedPeerJobCanonicalNative -Scope Script -ErrorAction SilentlyContinue
+    if(-not $origin -or -not $native -or ($origin.Options -band [Management.Automation.ScopedItemOptions]::Constant) -eq 0 -or ($native.Options -band [Management.Automation.ScopedItemOptions]::Constant) -eq 0){return $null};$binding=$origin.Value;$a=$native.Value
+    if($binding -isnot [Tuple[object,object,object]] -or $binding.Item3 -isnot [Management.Automation.PSModuleInfo] -or -not [object]::ReferenceEquals($binding.Item3,$ExecutionContext.SessionState.Module) -or $a -isnot [Tuple[Type,string,object,object]] -or $a.Item2 -cnotmatch '\A[a-f0-9]{64}\z' -or -not [object]::ReferenceEquals($a.Item3,$binding.Item1) -or -not [object]::ReferenceEquals($a.Item4,$binding.Item2) -or $a.Item1.FullName -cne 'GoriqOriginalOwnedPeerJob1218' -or -not [object]::ReferenceEquals($a.Item1,('GoriqOriginalOwnedPeerJob1218' -as [type])) -or $a.Item4 -isnot [Tuple[object,object]] -or -not [object]::ReferenceEquals($a.Item3,$a.Item4.Item1[0])){return $null}
+    $type=$a.Item1;$owner=$type::ResolveOriginal($a.Item3,$a.Item4);if($null -eq $owner){return $null};$c=$owner.OriginalConstructor
+    if(-not [object]::ReferenceEquals($owner.GetType(),$type) -or -not [object]::ReferenceEquals($owner.OriginalState,$a.Item3) -or -not [object]::ReferenceEquals($owner.OriginalRegistration,$a.Item4) -or $c -isnot [Tuple[object,object,object,object]] -or -not [object]::ReferenceEquals($c.Item1,$a.Item3) -or $c.Item2 -isnot [Diagnostics.Process] -or $c.Item3 -isnot [Diagnostics.ProcessStartInfo] -or $c.Item4 -isnot [Tuple[object,long,long,long,object]] -or -not [object]::ReferenceEquals($owner.OriginalWatch,$c.Item4.Item1) -or -not [object]::ReferenceEquals($c.Item4.Item5,$a.Item3) -or -not $owner.OriginalReference($c.Item2)){return $null};return $owner
+   }catch{return $null}
+  }
+  function Close-OwnerCutoverOwnedPeerJob {
+   $script:ownedPeerJobCloseState='UNKNOWN'
+   try{
+    $owner=Get-OwnerCutoverOwnedPeerJobCleanupOwner
+    if($null -eq $owner){if($null -eq $script:ownedPeerJobNativeAnchor){$script:ownedPeerJobCloseState='NOT_ISSUED'};return}
+    $owner.OriginalWatch.Stop();$confirmed=$owner.CloseOnce()
+    if($confirmed -and $owner.CloseEntered -and $owner.CloseReturned -and $owner.CloseConfirmed){$script:ownedPeerJobCloseState='RETURNED_CONFIRMED';$script:ownedPeerJobClosed=$owner}
+   }catch{
+    # The C# ownership CWT retains every issued owner even when all PS mirrors drift.
+   }
+  }
+  function Close-OwnerCutoverOwnedPeerPipes {
+   $script:ownedPeerJobPipeState='UNKNOWN'
+   try{
+    $owner=Get-OwnerCutoverOwnedPeerJobCleanupOwner;if($null -eq $owner){return};$c=$owner.OriginalConstructor
+    $origin=Microsoft.PowerShell.Utility\Get-Variable -Name ownedPeerJobOriginalBinding -Scope Script -ErrorAction SilentlyContinue
+    if(-not $origin -or ($origin.Options -band [Management.Automation.ScopedItemOptions]::Constant) -eq 0 -or $origin.Value -isnot [Tuple[object,object,object]] -or -not [object]::ReferenceEquals($origin.Value.Item3,$ExecutionContext.SessionState.Module)){return}
+    # Mutable closed-cookie and reference mirrors never certify pipe identity.
+    $canonical=Microsoft.PowerShell.Utility\Get-Variable -Name ownedPeerJobCanonicalPipes -Scope Script -ErrorAction SilentlyContinue
+    if($canonical){
+     $value=$canonical.Value
+     if(($canonical.Options -band [Management.Automation.ScopedItemOptions]::Constant) -eq 0 -or $value -isnot [Tuple[object,object,object]] -or -not [object]::ReferenceEquals($value.Item1,$c) -or -not [object]::ReferenceEquals($value.Item3,$origin.Value) -or $value.Item2 -isnot [Collections.ObjectModel.ReadOnlyCollection[object]] -or $value.Item2.Count -ne 3){return};$refs=$value.Item2
+    }else{
+     if($c -isnot [Tuple[object,object,object,object]] -or $c.Item2 -isnot [Diagnostics.Process]){return};$p=$c.Item2;$started=$script:ownedPeerCleanupStarted
+     if($started -isnot [Tuple[object,IntPtr,long]] -or -not [object]::ReferenceEquals($started.Item1,$c) -or -not [object]::ReferenceEquals($p.StartInfo,$c.Item3) -or $p.Handle -ne $started.Item2 -or $p.StartTime.ToUniversalTime().Ticks -ne $started.Item3 -or -not $p.HasExited){return}
+     $all=$true;$held=[Collections.Generic.List[object]]::new();foreach($kind in @('INPUT','OUTPUT','ERROR')){try{$stream=switch($kind){'INPUT'{$p.StandardInput.BaseStream};'OUTPUT'{$p.StandardOutput.BaseStream};'ERROR'{$p.StandardError.BaseStream}};$handle=if($stream -is [IO.FileStream]){$stream.SafeFileHandle}elseif($stream -is [IO.Pipes.PipeStream]){$stream.SafePipeHandle}else{throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'};if($handle -isnot [Runtime.InteropServices.SafeHandle]){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'};foreach($previous in $held){if([object]::ReferenceEquals($previous.Item1,$stream) -or [object]::ReferenceEquals($previous.Item2,$handle)){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}};$held.Add([Tuple[object,object]]::new($stream,$handle))}catch{$all=$false}}
+     $refs=[Collections.ObjectModel.ReadOnlyCollection[object]]::new($held);$script:ownedPeerJobPipeReferences=$refs
+     if(-not $all -or $refs.Count -ne 3){foreach($pair in $refs){try{$pair.Item1.Dispose()}catch{}};return}
+     # Issue once from the certified original Process, before any pipe disposal.
+     Microsoft.PowerShell.Utility\New-Variable -Name ownedPeerJobCanonicalPipes -Scope Script -Option Constant -Value ([Tuple[object,object,object]]::new($c,$refs,$origin.Value)) -ErrorAction Stop
+    }
+    $all=$true;foreach($pair in $refs){try{if($pair -isnot [Tuple[object,object]] -or $pair.Item1 -isnot [IO.Stream] -or $pair.Item2 -isnot [Runtime.InteropServices.SafeHandle]){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'};$pair.Item1.Dispose();if(-not $pair.Item2.IsClosed){$all=$false}}catch{$all=$false}}
+    if($all){$script:ownedPeerJobPipeState='CLOSED'}
+   }catch{}
+  }
+
   function Close-OwnerCutoverOwnedPeerObserver {
    # Containment only, including terminal clock0. No mutable lifetime mirror,
    # caller PID, new process, runtime task or refreshed budget is an authority.
+   try{Close-OwnerCutoverOwnedPeerJob}catch{}
+   try{
    $certificate=$script:ownedPeerCleanupCertificate
+   $jobOwner=Get-OwnerCutoverOwnedPeerJobCleanupOwner;if($jobOwner){$certificate=$jobOwner.OriginalConstructor}
    if($certificate -isnot [Tuple[object,object,object,object]] -or $certificate.Item2 -isnot [Diagnostics.Process] -or $certificate.Item3 -isnot [Diagnostics.ProcessStartInfo] -or $certificate.Item4 -isnot [Tuple[object,long,long,long,object]] -or -not [object]::ReferenceEquals($certificate.Item1,$certificate.Item4.Item5) -or $certificate.Item4.Item1 -isnot [Diagnostics.Stopwatch]){return}
    $certificate.Item4.Item1.Stop()
    if([object]::ReferenceEquals($script:ownedPeerCleanupClosed,$certificate)){$script:ownedPeerLifetime.observerContainment='CLOSED';return}
@@ -1191,12 +1338,12 @@ function New-OwnerCutoverPrivateModule($State){
      $started=[Tuple[object,IntPtr,long]]::new($certificate,$handle,$birth);$script:ownedPeerCleanupStarted=$started
     }
     if($started -isnot [Tuple[object,IntPtr,long]] -or -not [object]::ReferenceEquals($started.Item1,$certificate) -or $process.Handle -ne $started.Item2 -or $process.StartTime.ToUniversalTime().Ticks -ne $started.Item3){return}
-    if(-not $process.HasExited){$process.Kill();if(-not $process.WaitForExit(1000)){return}}
-    $script:ownedPeerCleanupClosed=$certificate;$script:ownedPeerLifetime.observerContainment='CLOSED';$process.Dispose()
+    if(-not $process.HasExited){if($script:ownedPeerJobCloseState -cne 'RETURNED_CONFIRMED' -or $null -eq $jobOwner -or -not $jobOwner.Assigned -or -not $jobOwner.MembershipVerified){$process.Kill()};if(-not $process.WaitForExit(1000)){return}}
+    if($null -eq $jobOwner -or -not $jobOwner.CloseConfirmed -or $script:ownedPeerJobCloseState -cne 'RETURNED_CONFIRMED'){return};$script:ownedPeerCleanupClosed=$certificate;$script:ownedPeerLifetime.observerContainment='CLOSED'
    }catch{
     # UNKNOWN is not closure. Retain the original certificate/handle for owned
     # containment; never dispose away an unconfirmed actor or touch a mirror.
-   }
+   }   }finally{Close-OwnerCutoverOwnedPeerPipes;if($script:ownedPeerLifetime.observerContainment -ceq 'CLOSED'){if($script:ownedPeerJobPipeState -ceq 'CLOSED'){$done=$script:ownedPeerCleanupClosed;try{$done.Item2.Dispose()}catch{$script:ownedPeerLifetime.observerContainment='UNKNOWN'}}else{$script:ownedPeerLifetime.observerContainment='UNKNOWN'}}}
   }
   function Get-OwnerCutoverOwnedPeerProcessObservation($Process){
    Assert-OwnerCutoverPrivateClock;$null=$Process.Handle;Assert-OwnerCutoverPrivateClock;$id=$Process.Id;Assert-OwnerCutoverPrivateClock;$creation=$Process.StartTime.ToUniversalTime().Ticks.ToString([Globalization.CultureInfo]::InvariantCulture);Assert-OwnerCutoverPrivateClock;$session=$Process.SessionId;Assert-OwnerCutoverPrivateClock;$image=$Process.MainModule.FileName;Assert-OwnerCutoverPrivateClock;$exited=$Process.HasExited;Assert-OwnerCutoverPrivateClock
@@ -1281,7 +1428,7 @@ function New-OwnerCutoverPrivateModule($State){
    Assert-OwnerCutoverPrivateClock
   }
   function Assert-OwnerCutoverOwnedPeer {
-   try{Assert-OwnerCutoverPrivateClock;$record=$null
+   try{Assert-OwnerCutoverPrivateClock;Assert-OwnerCutoverOwnedPeerJob;$record=$null
    if($script:ownedPeerLifetime.terminal -or $null -eq $script:ownedPeerLifetime.token -or -not $script:ownedPeerLifetime.records.TryGetValue($script:ownedPeerLifetime.token,[ref]$record) -or -not [object]::ReferenceEquals($record,$script:ownedPeerLifetime.record) -or -not [object]::ReferenceEquals($record.state,$script:originalState) -or -not [object]::ReferenceEquals($record.journal,$script:journalLifetime.token) -or -not [object]::ReferenceEquals($record.process,$script:ownedPeerLifetime.process)){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}
    Read-OwnerCutoverPrivateKernel;Assert-OwnerCutoverPrivateJournal;Assert-OwnerCutoverNodeStartupPolicy;Assert-OwnerCutoverPeerNodeBinding;$observed=Get-OwnerCutoverOwnedPeerProcessObservation $record.process;Assert-OwnerCutoverPeerProcessObservation $observed;if($observed.pid -ne $record.observation.pid -or $observed.creationTicks -cne $record.observation.creationTicks -or $observed.sessionId -ne $script:kernelBaseline.sessionId -or $observed.imagePath -ine $script:nodePath -or $record.stderrTask.IsCompleted -or $record.extraTask.IsCompleted){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'};Assert-OwnerCutoverPrivateClock}catch{$script:ownedPeerLifetime.terminal=$true;Close-OwnerCutoverOwnedPeerObserver;throw}
   }
@@ -1396,7 +1543,7 @@ public static class GoriqOriginalPeerQpcNative1218 {
     $native=$script:stagePath+'\scripts\owner-code-rotation-native-1218.mjs';$system=Get-OwnerCutoverWindowsDirectory;Assert-OwnerCutoverPrivateClock
     $info=[Diagnostics.ProcessStartInfo]::new();$info.FileName=$script:nodePath;$info.Arguments='"'+$native+'" --owned-cutover-peer';$info.WorkingDirectory=$script:stagePath;$info.UseShellExecute=$false;$info.CreateNoWindow=$true;$info.RedirectStandardInput=$true;$info.RedirectStandardOutput=$true;$info.RedirectStandardError=$true;$info.EnvironmentVariables.Clear()
     $values=@{SystemRoot=$system;WINDIR=$system;ComSpec=($system+'\System32\cmd.exe');USERPROFILE=$script:kernelBaseline.profile;LOCALAPPDATA=$script:kernelBaseline.localAppData;TEMP=($script:stagePath+'\.gai-results');TMP=($script:stagePath+'\.gai-results');PATH=([IO.Path]::GetDirectoryName($script:nodePath)+';'+[IO.Path]::Combine($system,'System32')+';'+$system);PATHEXT='.COM;.EXE;.BAT;.CMD';PSModulePath=([IO.Path]::Combine($system,'System32','WindowsPowerShell','v1.0','Modules'))};foreach($key in $values.Keys){$info.EnvironmentVariables[$key]=$values[$key]}
-    $process=New-OwnerCutoverOwnedPeerProcess $info;$allocation=$null;if($process -isnot [Diagnostics.Process] -or -not $script:ownedPeerLifetime.allocations.TryGetValue($process,[ref]$allocation) -or -not [object]::ReferenceEquals($allocation.state,$script:originalState) -or -not [object]::ReferenceEquals($allocation.info,$info) -or -not [object]::ReferenceEquals($allocation.info,$process.StartInfo)){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'};$script:ownedPeerLifetime.process=$process;Assert-OwnerCutoverPrivateClock;if(-not $process.Start()){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'};Assert-OwnerCutoverPrivateClock;Confirm-OwnerCutoverOwnedPeerCleanupIdentity
+    $process=New-OwnerCutoverOwnedPeerProcess $info;$allocation=$null;if($process -isnot [Diagnostics.Process] -or -not $script:ownedPeerLifetime.allocations.TryGetValue($process,[ref]$allocation) -or -not [object]::ReferenceEquals($allocation.state,$script:originalState) -or -not [object]::ReferenceEquals($allocation.info,$info) -or -not [object]::ReferenceEquals($allocation.info,$process.StartInfo)){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'};$script:ownedPeerLifetime.process=$process;Initialize-OwnerCutoverOwnedPeerJob;Assert-OwnerCutoverPrivateClock;if(-not $process.Start()){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'};Assert-OwnerCutoverPrivateClock;Confirm-OwnerCutoverOwnedPeerCleanupIdentity;Assign-OwnerCutoverOwnedPeerJob
     $observed=Get-OwnerCutoverOwnedPeerProcessObservation $process;Assert-OwnerCutoverPeerProcessObservation $observed;if($observed.imagePath -ine $script:nodePath -or $observed.sessionId -ne $script:kernelBaseline.sessionId){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}
     $hello=[ordered]@{schemaVersion=1;kind='GORIQ_OWNED_NODE_PEER_HELLO';sequence=1;sourceRevision=$script:originalState.sourceRevision;originalGrantSha256=$script:originalState.grantHash;attemptId=$script:originalState.grant.approvalId;workflowRunId=$script:originalState.workflowRunId;officialJobId=$script:originalState.jobId;nativeMjsSha256=$script:originalState.grant.sourceHashes.'scripts/owner-code-rotation-native-1218.mjs';nativePsSha256=$script:originalState.grant.sourceHashes.'scripts/owner-code-rotation-native-1218.ps1';bootstrapPid=$script:kernelBaseline.pid;bootstrapCreationTicks=$script:kernelBaseline.creationTicks;ownerSidSha256=$script:originalState.grant.ownerSidSha256;sessionId=$script:kernelBaseline.sessionId;nodePid=$observed.pid;nodeCreationTicks=$observed.creationTicks;nodePath=$script:nodePath;nodeImageIdentityKey=$script:nodeIdentity.key}
     $wire=[Text.Encoding]::UTF8.GetBytes(($hello|Microsoft.PowerShell.Utility\ConvertTo-Json -Compress)+[char]10);if($wire.Length -gt 32768){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'}
@@ -1420,26 +1567,54 @@ public static class GoriqOriginalPeerQpcNative1218 {
  Assert-OwnerCutoverPublicBudget $State;return $module
 }
 function New-OwnerCutoverPrivateBackend {
- param([object]$PublicToken)
- $state=$null;$publicStore=Get-Variable -Name ownerCutoverPublicLifetimes -Scope Script -ErrorAction SilentlyContinue
- if(-not $publicStore -or $null -eq $PublicToken -or -not $script:ownerCutoverPublicLifetimes.tokens.TryGetValue($PublicToken,[ref]$state) -or $state.phase -cne 'PUBLIC_SOURCE_BOUND'){throw 'ROTATION_CUTOVER_PRIVATE_CONTEXT_REJECTED'}
- Assert-OwnerCutoverPublicBudget $state
- $store=Get-Variable -Name ownerCutoverPrivateLifetimes -Scope Script -ErrorAction SilentlyContinue
- if(-not $store){$script:ownerCutoverPrivateLifetimes=@{states=[System.Runtime.CompilerServices.ConditionalWeakTable[object,object]]::new();tokens=[System.Runtime.CompilerServices.ConditionalWeakTable[object,object]]::new()}}
- $record=$null
- if($script:ownerCutoverPrivateLifetimes.states.TryGetValue($state,[ref]$record)){
-  if($record.terminal){throw 'ROTATION_CUTOVER_PRIVATE_CONTEXT_REJECTED'}
-  $null=Get-OwnerCutoverPrivateBackendStatus $record.token;return $record.token
- }
- $record=@{state=$state;module=$null;token=[object]::new();terminal=$false;phase='DISCOVERING_PRIVATE_KERNEL'};$script:ownerCutoverPrivateLifetimes.states.Add($state,$record)
- try{$record.module=New-OwnerCutoverPrivateModule $state;&$record.module {Read-OwnerCutoverPrivateKernel};Assert-OwnerCutoverPublicBudget $state;$record.phase='KERNEL_DATA_BOUND';$script:ownerCutoverPrivateLifetimes.tokens.Add($record.token,$record);return $record.token}catch{$record.terminal=$true;throw 'ROTATION_CUTOVER_PRIVATE_CONTEXT_REJECTED'}
+param([object]$PublicToken)
+$e='ROTATION_CUTOVER_PRIVATE_CONTEXT_REJECTED'
+$o=$script:ownerCutoverPrivateOrigin75;$f0=$MyInvocation.MyCommand
+if($f0-isnot[Management.Automation.FunctionInfo]-or$f0.Name-cne'New-OwnerCutoverPrivateBackend'-or$null-ne$f0.Module-or$null-ne$f0.ScriptBlock.Module){throw $e}
+$a=$f0.ScriptBlock.Ast;while($a.Parent){$a=$a.Parent};if(-not[object]::ReferenceEquals($a,$o.Item1)-or$null-ne$o.Item2.Module-or$null-ne$o.Item3.Module-or$null-ne$o.Item5.Module){throw $e}
+$pv=Microsoft.PowerShell.Utility\Get-Variable ownerCutoverPublicLifetimes -Scope Script -ErrorAction SilentlyContinue;$state=$null
+if(-not$pv-or$null-eq$PublicToken-or-not$pv.Value.tokens.TryGetValue($PublicToken,[ref]$state)-or$state.phase-cne'PUBLIC_SOURCE_BOUND'){throw $e}
+$null=Assert-OwnerCutoverPublicBudget $state
+$i0=Microsoft.PowerShell.Utility\Get-Variable ownerCutoverPrivateIssuer75 -Scope Script -ErrorAction SilentlyContinue
+if(-not$i0){
+if(Microsoft.PowerShell.Utility\Get-Variable ownerCutoverPrivateLifetimes -Scope Script -ErrorAction SilentlyContinue){throw $e}
+$script:ownerCutoverPrivateLifetimes=@{states=[Runtime.CompilerServices.ConditionalWeakTable[object,object]]::new();tokens=[Runtime.CompilerServices.ConditionalWeakTable[object,object]]::new()}
+$v=Microsoft.PowerShell.Utility\Get-Variable ownerCutoverPrivateLifetimes -Scope Script;$store=$v.Value;$pub=$pv.Value;$ctor=$o.Item2;$clock=$o.Item3;$get=$o.Item5
+$check={param($x,$refs)
+$q=&$get
+if(-not[object]::ReferenceEquals($q.Item1,$pv)-or-not[object]::ReferenceEquals($q.Item2,$v)-or-not[object]::ReferenceEquals($q.Item1.Value,$pub)-or-not[object]::ReferenceEquals($q.Item2.Value,$store)-or-not[object]::ReferenceEquals($store['states'],$refs.Item1)-or-not[object]::ReferenceEquals($store['tokens'],$refs.Item2)-or-not[object]::ReferenceEquals($pub['states'],$refs.Item3)-or-not[object]::ReferenceEquals($pub['tokens'],$refs.Item4)-or$null-ne$get.Module-or$null-ne$ctor.Module-or$null-ne$clock.Module-or-not[object]::ReferenceEquals($q.Item3,$clock)){throw $e}
+$s=if($x-is[Tuple[object,object,object,object]]){$x.Item1}else{$x};$r=$null;$t=$null
+if(-not$pub['states'].TryGetValue($s,[ref]$r)-or-not[object]::ReferenceEquals($r,$s)-or-not$pub['tokens'].TryGetValue($s.token,[ref]$t)-or-not[object]::ReferenceEquals($t,$s)){throw $e}
+if($x-is[Tuple[object,object,object,object]]){
+$r=$null;$c=$null
+if(-not$store['states'].TryGetValue($s,[ref]$r)-or-not[object]::ReferenceEquals($r,$x.Item2)-or-not$store['tokens'].TryGetValue($x.Item4,[ref]$c)-or-not[object]::ReferenceEquals($c,$x)-or-not[object]::ReferenceEquals($r['state'],$s)-or-not[object]::ReferenceEquals($r['module'],$x.Item3)-or-not[object]::ReferenceEquals($r['token'],$x.Item4)){throw $e}
+&$x.Item3 {Assert-OwnerCutoverPeerClockRegistration}
+}else{$null=&$clock $s}
+}.GetNewClosure()
+$find={param($token)$s=$null;if($null-eq$token-or-not$pub['tokens'].TryGetValue($token,[ref]$s)-or-not[object]::ReferenceEquals($s.token,$token)){throw $e};$refs=[Tuple[object,object,object,object]]::new($store['states'],$store['tokens'],$pub['states'],$pub['tokens']);&$check $s $refs;return [Tuple[object,object]]::new($s,$refs)}.GetNewClosure()
+$make={param($s)
+$m=&$ctor $s;$b=$m.SessionState.PSVariable.Get('ownedPeerJobOriginalBinding');$k=$m.ExportedFunctions['Read-OwnerCutoverPrivateKernel'];$a=$ctor.Ast;while($a.Parent){$a=$a.Parent};$z=$k.ScriptBlock.Ast;while($z.Parent){$z=$z.Parent}
+if(-not$b-or($b.Options-band[Management.Automation.ScopedItemOptions]::Constant)-eq0-or-not[object]::ReferenceEquals($b.Value.Item1,$s)-or-not[object]::ReferenceEquals($b.Value.Item3,$m)-or-not[object]::ReferenceEquals($b.Value.Item2.Item1[8],$clock)-or-not[object]::ReferenceEquals($k.ScriptBlock.Module,$m)-or-not[object]::ReferenceEquals($a,$z)){throw $e}
+$t=[object]::new();$r=@{state=$s;module=$m;token=$t;terminal=$false;phase='DISCOVERING_PRIVATE_KERNEL'};return [Tuple[object,object,object,object]]::new($s,$r,$m,$t)
+}.GetNewClosure()
+$t0=$o.Item4.Value;$null=Assert-OwnerCutoverPublicBudget $state
+$h=[Activator]::CreateInstance($t0,[Reflection.BindingFlags]'Instance,NonPublic',$null,[object[]]@($find,$make,$check),[Globalization.CultureInfo]::InvariantCulture)
+Microsoft.PowerShell.Utility\New-Variable ownerCutoverPrivateIssuer75 -Scope Script -Option Constant -Value $h
+}else{if(($i0.Options-band[Management.Automation.ScopedItemOptions]::Constant)-eq0-or-not$o.Item4.IsValueCreated-or-not$o.Item4.Value.IsInstanceOfType($i0.Value)){throw $e};$h=$i0.Value}
+$store=$script:ownerCutoverPrivateLifetimes;$r=$null
+if($store-isnot[hashtable]-or$store['states']-isnot[Runtime.CompilerServices.ConditionalWeakTable[object,object]]){throw $e}
+if($store['states'].TryGetValue($state,[ref]$r)){if($r-isnot[hashtable]){throw $e};$null=&$o.Item6$r['token'];return $r['token']}
+$c0=$h.Issue($PublicToken);$r=$c0.Item2
+try{$store['states'].Add($state,$r);$store['tokens'].Add($c0.Item4,$c0);$null=$h.Forward($c0);&$c0.Item3 {Read-OwnerCutoverPrivateKernel};$null=$h.Forward($c0);$r['phase']='KERNEL_DATA_BOUND';return $c0.Item4}catch{$r['terminal']=$true;$h.Unknown($c0);throw $e}
 }
 function Get-OwnerCutoverPrivateBackendStatus {
- param([object]$Token)
- $record=$null;$store=Get-Variable -Name ownerCutoverPrivateLifetimes -Scope Script -ErrorAction SilentlyContinue
- if(-not $store -or $null -eq $Token -or -not $script:ownerCutoverPrivateLifetimes.tokens.TryGetValue($Token,[ref]$record) -or $record.terminal -or $record.phase -cne 'KERNEL_DATA_BOUND'){throw 'ROTATION_CUTOVER_PRIVATE_CONTEXT_REJECTED'}
- try{Assert-OwnerCutoverPublicBudget $record.state;&$record.module {Read-OwnerCutoverPrivateKernel};Assert-OwnerCutoverPublicBudget $record.state}catch{$record.terminal=$true;throw 'ROTATION_CUTOVER_PRIVATE_CONTEXT_REJECTED'}
- return [pscustomobject][ordered]@{schemaVersion=1;phase='KERNEL_DATA_BOUND';effectCapability=$false;privateContextVerified=$false}
+param([object]$Token)
+$e='ROTATION_CUTOVER_PRIVATE_CONTEXT_REJECTED'
+$c0=$null;$d=$script:ownerCutoverPrivateLifetimes;$o=$script:ownerCutoverPrivateOrigin75;$v=Microsoft.PowerShell.Utility\Get-Variable ownerCutoverPrivateIssuer75 -Scope Script -ErrorAction SilentlyContinue
+if($d-isnot[hashtable]-or$d['tokens']-isnot[Runtime.CompilerServices.ConditionalWeakTable[object,object]]-or-not$v-or($v.Options-band[Management.Automation.ScopedItemOptions]::Constant)-eq0-or-not$o.Item4.IsValueCreated-or-not$o.Item4.Value.IsInstanceOfType($v.Value)-or$null-eq$Token-or-not$d['tokens'].TryGetValue($Token,[ref]$c0)-or-not$v.Value.IsKnown($c0)){throw $e}
+$r=$c0.Item2;if($r['terminal']-or$r['phase']-cne'KERNEL_DATA_BOUND'-or-not[object]::ReferenceEquals($c0.Item4,$Token)){throw $e}
+try{$null=$v.Value.Forward($c0);&$c0.Item3 {Read-OwnerCutoverPrivateKernel};$null=$v.Value.Forward($c0)}catch{$r['terminal']=$true;$v.Value.Unknown($c0);throw $e}
+return [pscustomobject][ordered]@{schemaVersion=1;phase='KERNEL_DATA_BOUND';effectCapability=$false;privateContextVerified=$false}
 }
 
 # Retained-scriptblock execution has no trustworthy PSScriptRoot. This private
@@ -1452,26 +1627,53 @@ function Get-OwnerCutoverEntryWorkspace {
  return $root
 }
 function Invoke-OwnerCutoverBootstrap {
- $result=[pscustomobject][ordered]@{schemaVersion=3;issue=1218;operation='production-cutover-bootstrap';complete=$false;failureCode='ROTATION_CUTOVER_BOOTSTRAP_INCOMPLETE';effectCapability=$false}
- try{
-  $root=Get-OwnerCutoverEntryWorkspace
-  $context=[pscustomobject]@{GITHUB_ACTOR=$env:GITHUB_ACTOR;GITHUB_REPOSITORY=$env:GITHUB_REPOSITORY;GITHUB_REF=$env:GITHUB_REF;GITHUB_SHA=$env:GITHUB_SHA;GITHUB_RUN_ID=$env:GITHUB_RUN_ID;GITHUB_RUN_ATTEMPT=$env:GITHUB_RUN_ATTEMPT;GITHUB_WORKFLOW_REF=$env:GITHUB_WORKFLOW_REF;JARVIS_PRODUCTION_CONFIG=$env:JARVIS_PRODUCTION_CONFIG}
-  $selection=Get-OwnerRotationProfileSelection -Encoded $env:GORIQ_OWNER_ROTATION_SCOPE_BASE64 -Environment $context -Now (Get-OwnerCutoverUtcNow)
-  if($selection.profile -cne 'CUTOVER_V1'){throw 'ROTATION_ENTRY_CONTEXT_REQUIRED'}
-  $publicReadiness=Get-OwnerCutoverPublicReadiness
-  $script:ownerCutoverEntryWorkspaceContext=@{checkoutRoot=$root;sourceRevision=$selection.sourceRevision;originalGrantSha256=$selection.originalGrantSha256;workflowRunId=$env:GITHUB_RUN_ID;workflowRunAttempt=1;publicReadinessIdentity=$publicReadiness}
-  $private=New-OwnerCutoverPrivateBackend -PublicToken $publicReadiness
-  $script:ownerCutoverEntryWorkspaceContext.privateReadinessIdentity=$private;$record=$null
-  if(-not $script:ownerCutoverPrivateLifetimes.tokens.TryGetValue($private,[ref]$record)){throw 'ROTATION_CUTOVER_PRIVATE_CONTEXT_REJECTED'}
-  $sourceStatus=&$record.module {Initialize-OwnerCutoverPrivateSource};$nodeStatus=&$record.module {Initialize-OwnerCutoverProtectedNode};&$record.module {Initialize-OwnerCutoverNodeStartupPolicy};$configurationStatus=&$record.module {Initialize-OwnerCutoverPrivateConfiguration};$journalStatus=&$record.module {Initialize-OwnerCutoverPrivateJournal};$fallbackStatus=&$record.module {Initialize-OwnerCutoverFallbackInputs}
-  $script:ownerCutoverEntryWorkspaceContext.readonlyPhase=$fallbackStatus.phase
-
- }catch{$code=$_.Exception.Message;if($code -cin @('ROTATION_CUTOVER_BOOTSTRAP_INCOMPLETE','ROTATION_CUTOVER_PUBLIC_SOURCE_REJECTED','ROTATION_CUTOVER_CLOCK_INVALID','ROTATION_CUTOVER_FORWARD_RESERVE','ROTATION_CUTOVER_NODE_STARTUP_POLICY_REQUIRED','ROTATION_ENTRY_ATTEMPT_CONSUMED')){$result.failureCode=$code}else{$result.failureCode='ROTATION_ENTRY_CONTEXT_REQUIRED'}}
- # The genuine readonly kernel/source/Node/config/journal/known-fallback path
- # is connected. Target environment/activeDB, held peer/original38, proof and actual recovery
- # are not connected; no data context enters the native admission registry.
- return $result
+$result=[pscustomobject][ordered]@{schemaVersion=3;issue=1218;operation='production-cutover-bootstrap';complete=$false;failureCode='ROTATION_CUTOVER_BOOTSTRAP_INCOMPLETE';effectCapability=$false}
+try{
+$root=Get-OwnerCutoverEntryWorkspace
+$ctx=[pscustomobject]@{GITHUB_ACTOR=$env:GITHUB_ACTOR;GITHUB_REPOSITORY=$env:GITHUB_REPOSITORY;GITHUB_REF=$env:GITHUB_REF;GITHUB_SHA=$env:GITHUB_SHA;GITHUB_RUN_ID=$env:GITHUB_RUN_ID;GITHUB_RUN_ATTEMPT=$env:GITHUB_RUN_ATTEMPT;GITHUB_WORKFLOW_REF=$env:GITHUB_WORKFLOW_REF;JARVIS_PRODUCTION_CONFIG=$env:JARVIS_PRODUCTION_CONFIG}
+$selection=Get-OwnerRotationProfileSelection -Encoded $env:GORIQ_OWNER_ROTATION_SCOPE_BASE64 -Environment $ctx -Now(Get-OwnerCutoverUtcNow)
+if($selection.profile-cne'CUTOVER_V1'){throw 'ROTATION_ENTRY_CONTEXT_REQUIRED'}
+$public=Get-OwnerCutoverPublicReadiness
+$script:ownerCutoverEntryWorkspaceContext=@{checkoutRoot=$root;sourceRevision=$selection.sourceRevision;originalGrantSha256=$selection.originalGrantSha256;workflowRunId=$env:GITHUB_RUN_ID;workflowRunAttempt=1;publicReadinessIdentity=$public}
+$private=New-OwnerCutoverPrivateBackend -PublicToken $public
+$ctx=$script:ownerCutoverEntryWorkspaceContext;$ctx.privateReadinessIdentity=$private;$cert=$null;$h=$script:ownerCutoverPrivateIssuer75
+if(-not$script:ownerCutoverPrivateLifetimes.tokens.TryGetValue($private,[ref]$cert)-or-not$h.IsKnown($cert)){throw 'ROTATION_CUTOVER_PRIVATE_CONTEXT_REJECTED'}
+$m=$cert.Item3
+try{
+ $i=0;foreach($step in @({Initialize-OwnerCutoverPrivateSource},{Initialize-OwnerCutoverProtectedNode},{Initialize-OwnerCutoverNodeStartupPolicy},{Initialize-OwnerCutoverPrivateConfiguration},{Initialize-OwnerCutoverPrivateJournal},{Initialize-OwnerCutoverFallbackInputs},{Initialize-OwnerCutoverOwnedPeer},{Initialize-OwnerCutoverOwnedPeerClockAssociation})){
+$null=$h.Forward($cert);if(-not[object]::ReferenceEquals($ctx,$script:ownerCutoverEntryWorkspaceContext)-or-not[object]::ReferenceEquals($ctx.privateReadinessIdentity,$private)-or-not[object]::ReferenceEquals($ctx.publicReadinessIdentity,$public)){throw 'ROTATION_CUTOVER_PRIVATE_CONTEXT_REJECTED'}
+$status=&$m $step
+$null=$h.Forward($cert);if(-not[object]::ReferenceEquals($ctx,$script:ownerCutoverEntryWorkspaceContext)-or-not[object]::ReferenceEquals($ctx.privateReadinessIdentity,$private)-or-not[object]::ReferenceEquals($ctx.publicReadinessIdentity,$public)){throw 'ROTATION_CUTOVER_PRIVATE_CONTEXT_REJECTED'}
+if($i++ -eq 5){$ctx.readonlyPhase=$status.phase}
 }
+}finally{
+$closed=$false
+try{&$m{Close-OwnerCutoverOwnedPeerObserver};$closed=&$m{$owner=Get-OwnerCutoverOwnedPeerJobCleanupOwner;$pipes=Microsoft.PowerShell.Utility\Get-Variable ownedPeerJobCanonicalPipes -Scope Script -ErrorAction SilentlyContinue;if(-not$owner-or-not$owner.CloseConfirmed-or-not$pipes-or-not[object]::ReferenceEquals($script:ownedPeerCleanupClosed,$owner.OriginalConstructor)){return $false};foreach($pair in $pipes.Value.Item2){if(-not$pair.Item2.IsClosed){return $false}};return $true}}catch{}
+if(-not$closed){$h.Unknown($cert)}
+}
+}catch{$code=$_.Exception.Message;if($code-cin@('ROTATION_CUTOVER_BOOTSTRAP_INCOMPLETE','ROTATION_CUTOVER_PUBLIC_SOURCE_REJECTED','ROTATION_CUTOVER_CLOCK_INVALID','ROTATION_CUTOVER_FORWARD_RESERVE','ROTATION_CUTOVER_NODE_STARTUP_POLICY_REQUIRED','ROTATION_ENTRY_ATTEMPT_CONSUMED')){$result.failureCode=$code}else{$result.failureCode='ROTATION_ENTRY_CONTEXT_REQUIRED'}}
+return $result
+}
+
+$load75=$MyInvocation.MyCommand.ScriptBlock.Ast;while($load75.Parent){$load75=$load75.Parent}
+&{
+param($root)
+$ctor=(Microsoft.PowerShell.Core\Get-Command New-OwnerCutoverPrivateModule -CommandType Function).ScriptBlock;$clock=(Microsoft.PowerShell.Core\Get-Command Read-OwnerCutoverClock -CommandType Function).ScriptBlock;$status=(Microsoft.PowerShell.Core\Get-Command Get-OwnerCutoverPrivateBackendStatus -CommandType Function).ScriptBlock
+$reader={$z=@(foreach($n in 'Read-OwnerCutoverClock,Get-OwnerCutoverOriginalClockEndpointData,Get-OwnerCutoverUtcNow,Get-OwnerCutoverMonotonicStamp,Get-OwnerCutoverMonotonicFrequency'.Split(',')){(Microsoft.PowerShell.Core\Get-Command $n -CommandType Function).ScriptBlock});return [Tuple[object,object,object,object]]::new((Microsoft.PowerShell.Utility\Get-Variable ownerCutoverPublicLifetimes -Scope Script -ErrorAction SilentlyContinue),(Microsoft.PowerShell.Utility\Get-Variable ownerCutoverPrivateLifetimes -Scope Script -ErrorAction SilentlyContinue),$z[0],$z)}
+foreach($b in @($ctor,$clock,$status,$reader)){$a=$b.Ast;while($a.Parent){$a=$a.Parent};if($null-ne$b.Module-or-not[object]::ReferenceEquals($a,$root)){throw 'ROTATION_CUTOVER_PRIVATE_CONTEXT_REJECTED'}}
+$name='OwnerCutoverPrivateHistory75_'+[Guid]::NewGuid().ToString('N');$source=@'
+using System;
+using System.Management.Automation;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+public sealed class OwnerCutoverPrivateHistory75{private sealed class Entry{internal object State,Certificate,Owner,Refs;internal bool Failed,Unknown;internal GCHandle Root;internal Entry(object s){State=s;}}private static readonly ConditionalWeakTable<object,Entry> history=new ConditionalWeakTable<object,Entry>();private static readonly object gate=new object();private readonly ScriptBlock resolve,construct,validate;private OwnerCutoverPrivateHistory75(ScriptBlock resolve,ScriptBlock construct,ScriptBlock validate){if(resolve==null||construct==null||validate==null)throw Refused();this.resolve=resolve;this.construct=construct;this.validate=validate;}private static InvalidOperationException Refused(){return new InvalidOperationException("PRIVATE_HISTORY_REFUSED");}private static object Base(object x){return x is PSObject?((PSObject)x).BaseObject:x;}public object Issue(object t){Tuple<object,object> p=Base(resolve.InvokeReturnAsIs(new object[]{t})) as Tuple<object,object>;if(p==null||p.Item1==null)throw Refused();object s=p.Item1;Entry e;lock(gate){if(history.TryGetValue(s,out e))throw Refused();e=new Entry(s);e.Refs=p.Item2;history.Add(s,e);}try{object z=Base(construct.InvokeReturnAsIs(new object[]{s}));Tuple<object,object,object,object> c=z as Tuple<object,object,object,object>;if(c==null||!Object.ReferenceEquals(c.Item1,s)||c.Item4==null||c.Item4.GetType()!=typeof(object))throw Refused();e.Certificate=z;return z;}catch{e.Failed=true;Retain(e);throw Refused();}}private Entry Known(object z){Tuple<object,object,object,object> c=z as Tuple<object,object,object,object>;Entry e;if(c==null||!history.TryGetValue(c.Item1,out e)||!Object.ReferenceEquals(e.Certificate,z))throw Refused();return e;}public bool IsKnown(object z){try{Known(z);return true;}catch{return false;}}public bool Forward(object z){Entry e=Known(z);if(e.Failed||e.Unknown)throw Refused();validate.InvokeReturnAsIs(new object[]{e.Certificate,e.Refs});return true;}private void Retain(Entry e){lock(e){if(!e.Unknown){e.Owner=this;e.Root=GCHandle.Alloc(e,GCHandleType.Normal);e.Unknown=true;}}}public void Unknown(object z){Retain(Known(z));}}
+'@
+$source=$source.Replace('OwnerCutoverPrivateHistory75',$name)
+$factory={$b=$script:privateTypeBinding75;if($b.Item2-as[type]){throw 'ROTATION_CUTOVER_PRIVATE_CONTEXT_REJECTED'};$types=@(Microsoft.PowerShell.Utility\Add-Type -TypeDefinition $b.Item1-PassThru -ErrorAction Stop);foreach($type in $types){if($type.FullName-ceq$b.Item2){return $type}};throw 'ROTATION_CUTOVER_PRIVATE_CONTEXT_REJECTED'}.GetNewClosure()
+&$factory.Module {param($binding)Microsoft.PowerShell.Utility\New-Variable privateTypeBinding75 -Scope Script -Option Constant -Value $binding}([Tuple[string,string]]::new($source,$name))
+Microsoft.PowerShell.Utility\New-Variable ownerCutoverPrivateOrigin75 -Scope Script -Option Constant -Value([Tuple[object,object,object,object,object,object]]::new($root,$ctor,$clock,[Lazy[type]]::new([Func[type]]$factory),$reader,$status))
+}$load75
+Microsoft.PowerShell.Utility\Remove-Variable load75
 
 if ($MyInvocation.InvocationName -ne '.') {
  # The closed retained entry is intentionally unavailable until authentic

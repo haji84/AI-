@@ -671,9 +671,22 @@ if($Scenario -in @('capsule','execution-boundary')){
  $tokens=$null;$errors=$null;$ast=[Management.Automation.Language.Parser]::ParseInput($code,[ref]$tokens,[ref]$errors);if($errors.Count -ne 0){throw 'WORKFLOW_CAPSULE_PARSE'};$resource=$ast.Find({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -ceq 'Get-OwnerRotationSelectorPublicResource'},$true);if(-not $resource){throw 'RESOURCE_BOUNDARY_MISSING'};$program=$code.Remove($resource.Extent.StartOffset,$resource.Extent.EndOffset-$resource.Extent.StartOffset)
  $script:capsuleCalls=[Collections.Generic.List[string]]::new();$script:capsuleCase='';$script:capsuleEntry=[IO.File]::ReadAllBytes((Join-Path (Split-Path $PSScriptRoot) 'scripts/owner-code-rotation-native-1218.ps1'))
  function Get-OwnerRotationSelectorPublicResource([string]$Uri){[void]$script:capsuleCalls.Add($Uri);if($script:capsuleCase -eq 'transport'){throw 'FAKE_TRANSPORT_PRIVATE_CANARY'};if($Uri -ceq 'https://api.github.com/repos/haji84/AI-/git/ref/heads/main'){$sha=if($script:capsuleCase -eq 'main-mismatch'){'f'*40}else{'a'*40};return ,[Text.Encoding]::UTF8.GetBytes(('{"object":{"sha":"'+$sha+'"}}'))};if($Uri -ceq ('https://raw.githubusercontent.com/haji84/AI-/'+('a'*40)+'/scripts/owner-code-rotation-native-1218.ps1')){if($script:capsuleCase -eq 'source-mismatch'){return ,[Text.Encoding]::UTF8.GetBytes("throw 'UNTRUSTED_SOURCE_EXECUTED'")};return ,$script:capsuleEntry};throw 'UNEXPECTED_PUBLIC_URL'}
+ # Each actual workflow selector runs once in a fresh file script scope,
+ # matching its independent workflow step while retaining this same test host.
+ # Share the original case, retained bytes and request trace explicitly.
+ $selectorScope=@'
+param([string]$Program,[scriptblock]$Resource,[string]$Case,[byte[]]$Entry,[Collections.Generic.List[string]]$Calls)
+$ErrorActionPreference='Stop';Set-StrictMode -Version Latest
+$script:capsuleCalls=$Calls;$script:capsuleCase=$Case;$script:capsuleEntry=$Entry
+Set-Item -Path function:Get-OwnerRotationSelectorPublicResource -Value $Resource
+& ([scriptblock]::Create($Program))
+'@
+ $selectorResource=(Get-Command Get-OwnerRotationSelectorPublicResource -CommandType Function).ScriptBlock;$selectorScopeBytes=[Text.UTF8Encoding]::new($false).GetBytes($selectorScope);if($selectorScopeBytes.Length -gt 8192){throw 'WORKFLOW_CAPSULE_SCOPE_BOUND'}
  $results=@();foreach($request in $inputData.requests){$root=[IO.Path]::Combine([IO.Path]::GetTempPath(),('cutover-public-capsule-'+[IO.Path]::GetRandomFileName()));$null=[IO.Directory]::CreateDirectory([IO.Path]::Combine($root,'owner-native-12345678-1','scripts'));$local=[IO.Path]::Combine($root,'owner-native-12345678-1','scripts','owner-code-rotation-native-1218.ps1');[IO.File]::WriteAllBytes($local,$script:capsuleEntry);$script:capsuleCase=$request.case;$script:capsuleCalls.Clear();foreach($property in $request.environment.PSObject.Properties){[Environment]::SetEnvironmentVariable($property.Name,[string]$property.Value)};$env:GORIQ_OWNER_ROTATION_SCOPE_BASE64=$request.encoded;$env:GITHUB_WORKSPACE=$root;$env:GITHUB_OUTPUT=[IO.Path]::Combine($root,'profile-output');$env:JARVIS_PRODUCTION_CONFIG=''
   if($request.case -eq 'local-tamper'){[IO.File]::WriteAllText($local,"throw 'UNTRUSTED_SOURCE_EXECUTED'")}
-  try{& ([scriptblock]::Create($program));$output=[IO.File]::ReadAllText($env:GITHUB_OUTPUT)
+  try{$selectorPath=[IO.Path]::Combine($root,'selector-scope.ps1');$selectorStream=$null
+   try{$selectorStream=[IO.File]::Open($selectorPath,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None);$selectorStream.Write($selectorScopeBytes,0,$selectorScopeBytes.Length);$selectorStream.Flush()}finally{if($selectorStream){$selectorStream.Dispose()}}
+   &$selectorPath -Program $program -Resource $selectorResource -Case $script:capsuleCase -Entry $script:capsuleEntry -Calls $script:capsuleCalls;$output=[IO.File]::ReadAllText($env:GITHUB_OUTPUT)
   if($Scenario -eq 'execution-boundary'){
    $env:GORIQ_OWNER_ROTATION_PROFILE='CUTOVER_V1';$env:GORIQ_C1_PROBE_MARKER=[IO.Path]::Combine($root,'owned-marker');$mutation='[IO.File]::WriteAllText($env:GORIQ_C1_PROBE_MARKER,"PUBLIC_UNVERIFIED_ENTRY_EXECUTED"); exit 0'
    if($request.case -eq 'post-selector'){[IO.File]::WriteAllText($local,$mutation)}
