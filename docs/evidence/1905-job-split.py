@@ -86,6 +86,22 @@ $g2Cert=Microsoft.PowerShell.Utility\\Get-Variable -Name ownedPeerJobCanonicalPi
     found = re.findall(r"JOB_GROUP2_FLAGS (\[[^\r\n]{1,800}\])", cp["stdout"])
     vals = json.loads(found[-1]) if found else []
     timeout = re.findall(r"JOB_GROUP2_TIMEOUT (YES|NO)", cp["stdout"])
+    # The original JS test's after-hook prints the bounded fixture progress
+    # *before* it deletes its own temporary directory. The Python caller
+    # must parse that public receipt, not its externally supplied env dir.
+    observed = re.findall(r"GORIQ_PUBLIC_PEER_PROGRESS (\[[^\r\n]{1,20000}\])", cp["stdout"])
+    phase_rows = []
+    for payload in observed[-2:]:
+        try:
+            for item in json.loads(payload):
+                if not isinstance(item,dict) or item.get("group") != "OWNED_2":
+                    continue
+                for v in item.get("rows",[])[:64]:
+                    if isinstance(v,str) and re.fullmatch(
+                      r"(?:GROUP_(?:BEGIN|DONE)|SOURCE_BASE_(?:BEGIN|DONE)|CASE_SUCCESS_(?:BEGIN|KERNEL_DONE|SOURCE_DONE|NODE_DONE|CONFIGURATION_DONE|JOURNAL_DONE|FALLBACK_DONE|PEER_DONE|END)):[0-9]{1,9}",v):
+                        phase_rows.append(v)
+        except (TypeError,ValueError):
+            pass
     phases = []
     for item in vals:
         if isinstance(item, str) and re.fullmatch(
@@ -94,7 +110,8 @@ $g2Cert=Microsoft.PowerShell.Utility\\Get-Variable -Name ownedPeerJobCanonicalPi
             phases.append(item)
     return {"run_status": cp["status"], "original_assertions_exit": cp["exit"],
             "powershell_timeout": timeout[-1] if timeout else "UNKNOWN",
-            "predicate_rows": phases, "progress_tail": cp.get("progress", []),
+            "predicate_rows": phases, "progress_tail": phase_rows[-24:],
+            "case_begin_count":sum(x.startswith("CASE_SUCCESS_BEGIN:") for x in phase_rows),
             "progress_files":cp.get("progress_files", []),
             "acceptance": "NOT_ASSESSED"}
 
@@ -150,8 +167,25 @@ def real_windows_diagnostic(fixture, test):
  $script:privateJobUnconfirmedDriver=@{process=$p;held=$held;info=$info};throw
 }"""
     modified_fixture = unique(modified_fixture, driverCatch, driverProbe)
+    # Differentiate partial EOF caused by a clean exit vs an explicit
+    # exception in the independently allocated original driver.
+    # Only disposable inner-driver errors are classified. Keep original
+    # stderr and nonzero failure, and emit no paths, tokens or exception text.
+    trapAnchor="Set-StrictMode -Version Latest\n# BEGIN_COMPOSED_PRIVATE_TEST_MODE"
+    trapCode="""Set-StrictMode -Version Latest
+trap {
+ if($OwnedJobWindows -and $TransportGroup -in @(1,2)){
+  $value=[string]$_.Exception.GetBaseException().Message
+  $tag='UNKNOWN'
+  if($value -cmatch '\A(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE|PEER_FIXTURE|ROTATION_CUTOVER)_[A-Z0-9_]{2,100}\z'){$tag=$value}
+  [Console]::Error.WriteLine('JOB_DRIVER_TRAP|'+$tag)
+ }
+ break
+}
+# BEGIN_COMPOSED_PRIVATE_TEST_MODE"""
+    modified_fixture = unique(modified_fixture,trapAnchor,trapCode)
     begin = "assert.equal(child.error,undefined);"
-    stageCode = r"""const stages=(child.stderr||'').split(/\r?\n/).filter(x=>/^(?:JOB_REAL_(?:STAGE\|(?:UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE)_[A-Z0-9_]{2,100})|READ_CONTEXT\|(?:DRIVER|OUTSIDE|UNKNOWN))|JOB_DRIVER_(?:CHILD_EXITED\|(?:YES|NO)|EXIT_CODE\|(?:ZERO|NONZERO|UNKNOWN)|STDERR_READ\|(?:EOF|DATA|PENDING|FAULT)))$/.test(x));console.log('JOB_REAL_STAGE_CODES '+JSON.stringify(stages.slice(-5)));"""
+    stageCode = r"""const stages=(child.stderr||'').split(/\r?\n/).filter(x=>/^(?:JOB_REAL_(?:STAGE\|(?:UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE)_[A-Z0-9_]{2,100})|READ_CONTEXT\|(?:DRIVER|OUTSIDE|UNKNOWN))|JOB_DRIVER_(?:CHILD_EXITED\|(?:YES|NO)|EXIT_CODE\|(?:ZERO|NONZERO|UNKNOWN)|STDERR_READ\|(?:EOF|DATA|PENDING|FAULT)|TRAP\|(?:UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE|PEER_FIXTURE|ROTATION_CUTOVER)_[A-Z0-9_]{2,100})))$/.test(x));console.log('JOB_REAL_STAGE_CODES '+JSON.stringify(stages.slice(-5)));"""
     statusCode = r"""console.log('JOB_REAL_CHILD '+JSON.stringify({timeout:child.error?.code==='ETIMEDOUT'?'YES':'NO',exit:child.status===0?'ZERO':child.status===null?'NULL':'NONZERO',stderr:child.stderr?'YES':'NO',stdout:child.stdout?'YES':'NO'}));"""
     chunk = unique(chunk, begin, statusCode + stageCode + begin)
     modified_test = test[:start] + chunk + test[end:]
@@ -163,7 +197,7 @@ def real_windows_diagnostic(fixture, test):
     stage_codes = json.loads(stage[-1]) if stage else []
     stage_codes = [x for x in stage_codes
                    if isinstance(x,str) and re.fullmatch(
-                     r"(?:JOB_REAL_(?:STAGE\|(?:UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE)_[A-Z0-9_]{2,100})|READ_CONTEXT\|(?:DRIVER|OUTSIDE|UNKNOWN))|JOB_DRIVER_(?:CHILD_EXITED\|(?:YES|NO)|EXIT_CODE\|(?:ZERO|NONZERO|UNKNOWN)|STDERR_READ\|(?:EOF|DATA|PENDING|FAULT)))",x)]
+                     r"(?:JOB_REAL_(?:STAGE\|(?:UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE)_[A-Z0-9_]{2,100})|READ_CONTEXT\|(?:DRIVER|OUTSIDE|UNKNOWN))|JOB_DRIVER_(?:CHILD_EXITED\|(?:YES|NO)|EXIT_CODE\|(?:ZERO|NONZERO|UNKNOWN)|STDERR_READ\|(?:EOF|DATA|PENDING|FAULT)|TRAP\|(?:UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE|PEER_FIXTURE|ROTATION_CUTOVER)_[A-Z0-9_]{2,100})))",x)]
     native_status=re.findall(r"JOB_REAL_CHILD (\{[^\r\n]{1,250}\})",cp["stdout"])
     native_child=json.loads(native_status[-1]) if native_status else {}
     found = re.findall(r"JOB_REAL_FLAGS (\{[^\r\n]{1,1800}\})", cp["stdout"])
