@@ -285,7 +285,11 @@ def main():
         for p,b in data.items(): Path(p).write_bytes(b)
         report['writer_parent_identity_candidate']=writer_parent(data[FIXTURE].decode(),data[TEST].decode(),out,False,False,True)
         for p,b in data.items(): Path(p).write_bytes(b)
-        Path(NATIVE).write_bytes(annotate_native(data[NATIVE].decode()).encode())
+        # First split diagnosis: preserve byte-for-byte original native source.
+        # Only the disposable public fixture gets fixed boolean breadcrumbs.
+        # Combining a native-source mutation here can trigger pinned-source
+        # rejection before the actual Clock/Job predicate is ever reached.
+        Path(NATIVE).write_bytes(data[NATIVE])
         Path(FIXTURE).write_bytes(annotate_fixture(data[FIXTURE].decode()).encode())
         source=data[TEST].decode()
         source=source.replace("assert.equal(child.error,undefined);assert.equal(child.status,0", "if(child.stderr){const safe=child.stderr.split(/\\r?\\n/).filter(x=>/^(?:PIPE_(?:GUARD_[0-9]{2}|CATCH_[0-9]{2}|OUTER)|JOB_NATIVE_STAGE|CLOCK_(?:MARK|CONTAINMENT|EXITED|WATCH)|JOB_(?:SAME_HANDLE|SAME_BIRTH|ACTOR_EXITED|PIPES_CLOSED|STATE_CLOSED))(?:\\|[A-Za-z0-9_-]{1,180})*$/.test(x));if(safe.length)console.log('CLOSED_STAGE '+JSON.stringify(safe.slice(0,24)));}assert.equal(child.error,undefined);assert.equal(child.status,0")
@@ -298,7 +302,10 @@ def main():
             if mark>=0:
                 try: rows.extend(json.loads(line[mark+13:]))
                 except (ValueError,TypeError): pass
-        report['cleanup']={'exit':r.returncode,'seconds':round(time.monotonic()-start,3),'fixed_stage_rows':rows[:100]}
+        fixed=re.findall(r'(?:CLOCK_(?:MARK|CONTAINMENT|EXITED|WATCH)|JOB_(?:SAME_HANDLE|SAME_BIRTH|ACTOR_EXITED|PIPES_CLOSED|STATE_CLOSED))\|(?:YES|NO|BEFORE|AFTER)',r.stdout+'\n'+r.stderr)
+        report['cleanup']={'exit':r.returncode,'seconds':round(time.monotonic()-start,3),
+            'fixed_stage_rows':rows[:100], 'fixed_predicates':sorted(set(fixed))[:30],
+            'original_native_hash_pinned':True}
         # Run the exact failed public fixture in a fresh isolated test process
         # with only original ownership checks plus original wrapper disposal.
         for p,b in data.items(): Path(p).write_bytes(b)
