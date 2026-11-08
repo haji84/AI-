@@ -1,5 +1,14 @@
-param([string]$Root,[switch]$ClockEndpointData,[switch]$ClockAssociationData,[switch]$ClockWatchData,[switch]$ClockTransactionData,[switch]$ClockRevisionData,[switch]$ClockContainmentData,[switch]$OwnedTransport,[switch]$ClosedChannel,[switch]$PlatformEnvironment,[switch]$AwaitResultTransport,[switch]$PipeDiagnostic,[switch]$WriteDiagnostic,[switch]$ManagedFlushTransport,[switch]$SourceBufferTransport,[switch]$HelloPreambleDiagnostic,[switch]$PreambleCleanupDiagnostic,[switch]$ProbeDiagnosticTransport,[switch]$HostedProbeDiagnostic,[ValidateSet(0,1,2)][int]$TransportGroup=0,[ValidateSet('positive','wrong-parent')][string]$HostedAncestry,[string]$NodeExecutable,[string]$PublicEofActorRoot,[string]$PublicEofActorSourceHash,[string]$PublicEofActorAssemblyHash,[switch]$PrimitiveEofDiagnosticData,[string]$ClockDataCase)
+param([string]$Root,[switch]$ClockEndpointData,[switch]$ClockAssociationData,[switch]$ClockWatchData,[switch]$ClockTransactionData,[switch]$ClockRevisionData,[switch]$ClockContainmentData,[switch]$OwnedTransport,[switch]$ClosedChannel,[switch]$PlatformEnvironment,[switch]$AwaitResultTransport,[switch]$PipeDiagnostic,[switch]$WriteDiagnostic,[switch]$ManagedFlushTransport,[switch]$SourceBufferTransport,[switch]$HelloPreambleDiagnostic,[switch]$PreambleCleanupDiagnostic,[switch]$ProbeDiagnosticTransport,[switch]$HostedProbeDiagnostic,[ValidateSet(0,1,2)][int]$TransportGroup=0,[ValidateSet('positive','wrong-parent')][string]$HostedAncestry,[string]$NodeExecutable,[string]$PublicEofActorRoot,[string]$PublicEofActorSourceHash,[string]$PublicEofActorAssemblyHash,[switch]$PrimitiveEofDiagnosticData,[string]$ClockDataCase,[switch]$PrimitiveEofSyncReadData)
 $ProgressPreference='SilentlyContinue';$ErrorActionPreference='Stop';Set-StrictMode -Version Latest
+# BEGIN_PUBLIC_SYNC_EOF_MODE
+if($PSBoundParameters.ContainsKey('PrimitiveEofSyncReadData')){
+ $syncAllowed=[Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal);foreach($key in @('Root','PrimitiveEofSyncReadData','PublicEofActorRoot','PublicEofActorSourceHash','PublicEofActorAssemblyHash')){$null=$syncAllowed.Add($key)}
+ if(-not $PrimitiveEofSyncReadData -or $args.Count -ne 0){throw 'PUBLIC_SYNC_EOF_CONTEXT_REQUIRED'}
+ foreach($key in $PSBoundParameters.Keys){if(-not $syncAllowed.Contains($key)){throw 'PUBLIC_SYNC_EOF_CONTEXT_REQUIRED'}}
+ if($Root -isnot [string] -or [string]::IsNullOrWhiteSpace($Root) -or $Root.Length -gt 4096 -or $Root.IndexOf([char]0) -ge 0 -or $PublicEofActorRoot -isnot [string] -or [string]::IsNullOrWhiteSpace($PublicEofActorRoot) -or $PublicEofActorRoot.Length -gt 1024 -or $PublicEofActorRoot.IndexOf([char]0) -ge 0 -or $PublicEofActorSourceHash -cnotmatch '\A[a-f0-9]{64}\z' -or $PublicEofActorAssemblyHash -cnotmatch '\A[a-f0-9]{64}\z'){throw 'PUBLIC_SYNC_EOF_CONTEXT_REQUIRED'}
+ try{if(-not [IO.Path]::IsPathRooted($Root) -or -not [IO.Path]::IsPathRooted($PublicEofActorRoot)){throw 'PUBLIC_SYNC_EOF_CONTEXT_REQUIRED'}}catch{throw 'PUBLIC_SYNC_EOF_CONTEXT_REQUIRED'}
+}
+# END_PUBLIC_SYNC_EOF_MODE
 if($PrimitiveEofDiagnosticData -and ($OwnedTransport -or $ClosedChannel -or $ClockEndpointData -or $ClockAssociationData -or $ClockWatchData -or $ClockTransactionData -or $ClockRevisionData -or $ClockContainmentData -or $PlatformEnvironment -or $AwaitResultTransport -or $PipeDiagnostic -or $WriteDiagnostic -or $ManagedFlushTransport -or $SourceBufferTransport -or $HelloPreambleDiagnostic -or $PreambleCleanupDiagnostic -or $ProbeDiagnosticTransport -or $HostedProbeDiagnostic -or $TransportGroup -ne 0 -or $HostedAncestry -or $NodeExecutable -or [string]::IsNullOrEmpty($PublicEofActorRoot) -or $PublicEofActorRoot.Length -gt 1024 -or $PublicEofActorSourceHash -cnotmatch '\A[a-f0-9]{64}\z' -or $PublicEofActorAssemblyHash -cnotmatch '\A[a-f0-9]{64}\z')){throw 'PUBLIC_PRIMITIVE_EOF_CONTEXT_REQUIRED'}
 # BEGIN_FIXED_CLOCK_DATA_CASE
 $script:publicClockDataCaseSelected=$PSBoundParameters.ContainsKey('ClockDataCase');$script:publicClockDataCaseOrdinal=-1;$script:publicClockDataCaseName=$null
@@ -592,6 +601,139 @@ function New-PublicEofActorStageCapture([string]$Root){
 function Read-PublicEofActorStageCapture($Capture){
  try{if($Capture -isnot [hashtable] -or $Capture.consumed -isnot [bool] -or $Capture.consumed){return (ConvertFrom-PublicEofActorStageBytes ([byte[]]@()))};$Capture.consumed=$true;$full=Assert-PublicEofActorStageRoot $Capture.root;$path=[IO.Path]::Combine($full,'public-eof-actor-stage.txt');$info=[IO.FileInfo]::new($path);$stream=$Capture.stream;if($stream -isnot [IO.FileStream] -or -not $stream.CanRead -or -not [string]::Equals($stream.Name,$path,[StringComparison]::OrdinalIgnoreCase) -or -not $info.Exists -or ($info.Attributes -band ([IO.FileAttributes]::Directory -bor [IO.FileAttributes]::ReparsePoint)) -or $stream.Length -lt 1 -or $stream.Length -gt 64){return (ConvertFrom-PublicEofActorStageBytes ([byte[]]@()))};$stream.Position=0;$buffer=[byte[]]::new(65);$length=$stream.Length;$count=$stream.Read($buffer,0,65);if($length -ne $count -or $count -lt 1 -or $count -gt 64){return (ConvertFrom-PublicEofActorStageBytes ([byte[]]@()))};$bytes=[byte[]]::new($count);[Array]::Copy($buffer,$bytes,$count);return (ConvertFrom-PublicEofActorStageBytes $bytes)}catch{return (ConvertFrom-PublicEofActorStageBytes ([byte[]]@()))}
 }
+$publicDedicatedReadControls=@'
+param([Parameter(Mandatory=$true)][string]$Fixture)
+$ErrorActionPreference='Stop'
+$base=(& {
+param([Parameter(Mandatory=$true)][string]$Fixture)
+$ErrorActionPreference='Stop';Set-StrictMode -Version Latest
+function Require($Value,[string]$Code){if(-not $Value){throw $Code}}
+$tokens=$null;$errors=$null;$ast=[Management.Automation.Language.Parser]::ParseFile($Fixture,[ref]$tokens,[ref]$errors);Require ($errors.Count -eq 0) 'SYNC_FIXTURE_PARSE_REQUIRED'
+$functions=@($ast.FindAll({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -ceq 'Get-PublicDedicatedEofReadProbeSource'},$true));Require ($functions.Count -eq 1) 'PUBLIC_DEDICATED_READ_API_REQUIRED'
+. ([scriptblock]::Create($functions[0].Extent.Text));$source=Get-PublicDedicatedEofReadProbeSource
+Require ($source -is [string] -and $source.Length -lt 16384 -and $source -notmatch 'DllImport|ThreadPool|Thread\.Abort|Process\.|Environment\.') 'SYNC_MANAGED_ONLY_FIXED_SOURCE_REQUIRED'
+Add-Type -TypeDefinition $source -ErrorAction Stop
+Add-Type @"
+using System;using System.IO;using System.Threading;
+public sealed class PublicSyncControlStream:Stream {
+ readonly string mode;readonly ManualResetEvent release=new ManualResetEvent(false);int reads;
+ public PublicSyncControlStream(string value){mode=value;}public int Reads{get{return reads;}}
+ public void ReleaseOwn(){release.Set();}public override bool CanRead{get{return mode!="unreadable";}}public override bool CanSeek{get{return false;}}public override bool CanWrite{get{return false;}}
+ public override long Length{get{throw new NotSupportedException();}}public override long Position{get{throw new NotSupportedException();}set{throw new NotSupportedException();}}
+ public override int Read(byte[] buffer,int offset,int count){Interlocked.Increment(ref reads);if(buffer==null||offset!=0||count!=1)throw new InvalidOperationException("ONE_BYTE_ONLY");if(mode=="io")throw new IOException("RAW_IO_CANARY");if(mode=="unknown")throw new InvalidOperationException("RAW_OTHER_CANARY");if(mode=="blocked")release.WaitOne();if(mode=="invalid-count")return 2;if(mode=="byte"){buffer[0]=65;return 1;}return 0;}
+ public override void Flush(){}public override long Seek(long offset,SeekOrigin origin){throw new NotSupportedException();}public override void SetLength(long value){throw new NotSupportedException();}public override void Write(byte[] buffer,int offset,int count){throw new NotSupportedException();}
+ protected override void Dispose(bool disposing){if(disposing){release.Set();release.Dispose();}base.Dispose(disposing);}
+}
+"@
+function Snapshot($Probe){$s=$Probe.Snapshot();Require ($s -is [Collections.ObjectModel.ReadOnlyCollection[object]] -and $s.Count -eq 8) 'SYNC_EIGHT_READONLY_CLOSED_FIELDS_REQUIRED';foreach($i in @(0,1,2,3,6,7)){Require ($s[$i] -is [bool]) 'SYNC_BOOL_FIELDS_REQUIRED'};Require ($s[4] -is [int] -and $s[4] -ge -1 -and $s[4] -le 1 -and $s[5] -is [string] -and $s[5] -cin @('NONE','IO','UNKNOWN') -and $s[7]) 'SYNC_FINITE_RESULT_REQUIRED';return ,$s}
+$rows=@();foreach($mode in @('empty','byte','io','unknown','invalid-count','blocked')){
+ $stream=[PublicSyncControlStream]::new($mode);$probe=[PublicDedicatedEofReadProbe]::new($stream)
+ try{
+  $before=Snapshot $probe;Require (-not $before[0] -and -not $before[1] -and -not $before[2] -and -not $before[3] -and $before[4] -eq -1 -and $before[5] -ceq 'NONE' -and -not $before[6]) 'SYNC_INACTIVE_REQUIRED'
+  $probe.Start();if($mode -ceq 'blocked'){
+   $watch=[Diagnostics.Stopwatch]::StartNew();do{$pending=Snapshot $probe;if($pending[2]){break};[Threading.Thread]::Sleep(1)}while($watch.ElapsedMilliseconds -lt 1000);$watch.Stop()
+   Require ($pending[0] -and $pending[1] -and $pending[2] -and -not $pending[3] -and $pending[4] -eq -1 -and $pending[5] -ceq 'NONE' -and $pending[6] -and -not $probe.Join(1)) 'SYNC_PENDING_SNAPSHOT_REQUIRED';$stream.ReleaseOwn()
+  }
+  Require ($probe.Join(1000)) 'SYNC_OWN_THREAD_JOIN_REQUIRED';$after=Snapshot $probe
+  Require ($after[0] -and $after[1] -and $after[2] -and $after[3] -and -not $after[6] -and $stream.Reads -eq 1) 'SYNC_ONE_READ_COMPLETION_REQUIRED'
+  $expected=if($mode -ceq 'io'){'IO'}elseif($mode -cin @('unknown','invalid-count')){'UNKNOWN'}else{'NONE'};$count=if($mode -ceq 'byte'){1}elseif($expected -ceq 'NONE'){0}else{-1}
+  Require ($after[4] -eq $count -and $after[5] -ceq $expected) 'SYNC_RESULT_CLASS_REQUIRED'
+  $refused=$false;try{$probe.Start()}catch{$refused=$true};Require $refused 'SYNC_START_REPLAY_REFUSAL_REQUIRED'
+  foreach($limit in @(-1,1001)){$refused=$false;try{$null=$probe.Join($limit)}catch{$refused=$true};Require $refused 'SYNC_JOIN_BOUNDS_REQUIRED'}
+  $rows+=@{mode=$mode;reads=$stream.Reads;result=$after[4];error=$after[5];pass=$true}
+ }finally{$stream.ReleaseOwn();if($probe){$null=$probe.Join(1000)};$stream.Dispose()}
+}
+foreach($kind in @('null','unreadable')){$stream=if($kind -ceq 'null'){$null}else{[PublicSyncControlStream]::new('unreadable')};try{$refused=$false;try{$null=[PublicDedicatedEofReadProbe]::new($stream)}catch{$refused=$true};Require $refused 'SYNC_CONSTRUCTOR_REFUSAL_REQUIRED';$rows+=@{mode=$kind;pass=$true}}finally{if($stream){$stream.Dispose()}}}
+@{pass=$true;rows=$rows;actualWindows=$false;actualActorProcesses=0;nativeAuthority=$false;acceptanceVerified=$false}|Microsoft.PowerShell.Utility\ConvertTo-Json -Depth 5 -Compress
+
+} -Fixture $Fixture)|Microsoft.PowerShell.Utility\ConvertFrom-Json
+$adverse=(& {
+param([Parameter(Mandatory=$true)][string]$Fixture)
+$ErrorActionPreference='Stop';Set-StrictMode -Version Latest
+function Need($Value,[string]$Code){if(-not $Value){throw $Code}}
+Need ($null -ne ('PublicDedicatedEofReadProbe' -as [type])) 'SYNC_REAL_HELPER_REQUIRED'
+Add-Type @"
+using System;using System.IO;
+public sealed class PublicSyncCtorFailureStream:Stream {
+ public override bool CanRead{get{throw new IOException("RAW_CONSTRUCTOR_CANARY");}}public override bool CanWrite{get{return false;}}public override bool CanSeek{get{return false;}}
+ public override long Length{get{throw new NotSupportedException();}}public override long Position{get{throw new NotSupportedException();}set{throw new NotSupportedException();}}
+ public override int Read(byte[] buffer,int offset,int count){throw new InvalidOperationException("NEVER_READ");}public override void Flush(){}public override long Seek(long offset,SeekOrigin origin){throw new NotSupportedException();}public override void SetLength(long value){throw new NotSupportedException();}public override void Write(byte[] buffer,int offset,int count){throw new NotSupportedException();}
+}
+"@
+$stream=[PublicSyncCtorFailureStream]::new();try{$closed=$false;try{$null=[PublicDedicatedEofReadProbe]::new($stream)}catch{$closed=$_.Exception.ToString().Contains('PUBLIC_SYNC_STREAM_REQUIRED') -and -not $_.Exception.ToString().Contains('RAW_CONSTRUCTOR_CANARY')};Need $closed 'SYNC_PARTIAL_CONSTRUCTOR_CLOSED_ERROR_REQUIRED'}finally{$stream.Dispose()}
+$a=[IO.MemoryStream]::new([byte[]]@());$b=[IO.MemoryStream]::new([byte[]]@());$probe=[PublicDedicatedEofReadProbe]::new($a)
+try{
+ Need ($probe.MatchesStream($a) -and -not $probe.MatchesStream($b)) 'SYNC_EXACT_STREAM_REFERENCE_REQUIRED';$before=$probe.Snapshot();$readonly=$false;try{([Collections.IList]$before)[4]=0}catch{$readonly=$true};Need $readonly 'SYNC_READONLY_SNAPSHOT_REQUIRED';$refused=$false;try{$null=$probe.Join(0)}catch{$refused=$true};Need $refused 'SYNC_UNSTARTED_JOIN_REFUSAL_REQUIRED'
+ $probe.Start();Need ($probe.Join(1000)) 'SYNC_IMMUTABLE_SAMPLE_JOIN_REQUIRED';$after=$probe.Snapshot();Need (-not $before[3] -and $before[4] -eq -1 -and $after[3] -and $after[4] -eq 0) 'SYNC_EARLIER_SAMPLE_MUST_NOT_ADVANCE'
+}finally{$a.Dispose();$b.Dispose()}
+# TEST-only reflection starts this exact owned worker first to force real Thread.Start failure.
+$a=[IO.MemoryStream]::new([byte[]]@());$probe=[PublicDedicatedEofReadProbe]::new($a);try{
+ $field=[PublicDedicatedEofReadProbe].GetField('worker',([Reflection.BindingFlags]::NonPublic -bor [Reflection.BindingFlags]::Instance));Need ($null -ne $field) 'SYNC_OWN_WORKER_REQUIRED';$worker=$field.GetValue($probe);$worker.Start();Need ($worker.Join(1000)) 'SYNC_OWN_WORKER_STOP_REQUIRED';$refused=$false;try{$probe.Start()}catch{$refused=$_.Exception.ToString().Contains('PUBLIC_SYNC_START_REFUSED')};Need $refused 'SYNC_ACTUAL_START_FAILURE_REQUIRED';$snapshot=$probe.Snapshot();Need ($snapshot[0] -and -not $snapshot[1] -and $snapshot[2] -and $snapshot[3] -and -not $snapshot[6] -and $probe.Join(1000)) 'SYNC_FAILED_START_MUST_NOT_CLAIM_RETURNED'
+}finally{$a.Dispose()}
+$samples=0;for($i=0;$i -lt 100;$i++){
+ $a=[IO.MemoryStream]::new([byte[]]@());$probe=[PublicDedicatedEofReadProbe]::new($a)
+ try{$probe.Start();$timer=[Diagnostics.Stopwatch]::StartNew();do{$snapshot=$probe.Snapshot();Need (($snapshot[3] -and $snapshot[4] -eq 0 -and $snapshot[5] -ceq 'NONE') -or (-not $snapshot[3] -and $snapshot[4] -eq -1 -and $snapshot[5] -ceq 'NONE')) 'SYNC_COHERENT_PUBLICATION_REQUIRED';$samples++;$done=$probe.Join(0);if(-not $done){[Threading.Thread]::Sleep(0)}}while(-not $done -and $timer.ElapsedMilliseconds -lt 1000);$timer.Stop();Need ($probe.Join(1000)) 'SYNC_RACE_OWN_JOIN_REQUIRED'}finally{$a.Dispose()}
+}
+# Execute the actual new finally block against finite DATA leaves; no real Process/HANDLE.
+$tokens=$null;$errors=$null;$ast=[Management.Automation.Language.Parser]::ParseFile($Fixture,[ref]$tokens,[ref]$errors);Need ($errors.Count -eq 0) 'SYNC_CLEANUP_SOURCE_PARSE_REQUIRED';$tries=@($ast.FindAll({param($n)$n -is [Management.Automation.Language.TryStatementAst] -and $n.Finally -and $n.Finally.Extent.Text.Contains('$script:publicSyncEofUnconfirmed=')},$true));Need ($tries.Count -eq 1) 'SYNC_EXACT_FINALLY_REQUIRED';$body=$tries[0].Finally.Extent.Text;$cleanup=[scriptblock]::Create($body.Substring(1,$body.Length-2))
+function Test-PublicPrimitiveEofIdentityData($Certificate,$Process,$Handle,$Birth){return $script:syncCleanupModelMode -cne 'identity-failure'}
+$cleanupRows=@();foreach($mode in @('success','identity-failure','wait-failure','thread-join-failure','stream-identity-failure','pending-io','deadline-exhausted','pipe-dispose-failure')){
+ $script:syncCleanupModelMode=$mode;$script:syncCleanupClockCalls=0;Remove-Variable -Name publicSyncEofUnconfirmed -Scope Script -ErrorAction SilentlyContinue
+ $process=[pscustomobject]@{HasExited=$false;Handle=[IntPtr]::new(104);StartTime=[datetime]::new(638000000000000000);Kills=0;Waits=0;Disposes=0;WaitOK=($mode -cne 'wait-failure')};$process|Add-Member ScriptMethod Kill {$this.Kills++;$this.HasExited=$true};$process|Add-Member ScriptMethod WaitForExit {param($left)$this.Waits++;return $this.WaitOK};$process|Add-Member ScriptMethod Dispose {$this.Disposes++}
+ $readStream=[pscustomobject]@{Disposes=0};$readStream|Add-Member ScriptMethod Dispose {$this.Disposes++}
+ $inputStream=[pscustomobject]@{Disposes=0;Fail=($mode -ceq 'pipe-dispose-failure')};$inputStream|Add-Member ScriptMethod Dispose {$this.Disposes++;if($this.Fail){throw 'PUBLIC_MODEL_PIPE_DISPOSE_FAILURE'}};$errorStream=[pscustomobject]@{Disposes=0};$errorStream|Add-Member ScriptMethod Dispose {$this.Disposes++}
+ $probe=[pscustomobject]@{Joins=0;MatchOK=($mode -cne 'stream-identity-failure');JoinOK=($mode -cne 'thread-join-failure')};$probe|Add-Member ScriptMethod MatchesStream {param($value)return $this.MatchOK};$probe|Add-Member ScriptMethod Snapshot {return ,([object[]]@($true,$true,$true,$true,0,'NONE',$false,$true))};$probe|Add-Member ScriptMethod Join {param($left)$this.Joins++;return $this.JoinOK}
+ $watch=[pscustomobject]@{Stopped=$false};$watch|Add-Member ScriptProperty ElapsedMilliseconds {$script:syncCleanupClockCalls++;if($script:syncCleanupModelMode -ceq 'deadline-exhausted' -and $script:syncCleanupClockCalls -gt 1){return 1001};return 0};$watch|Add-Member ScriptMethod Stop {$this.Stopped=$true}
+ $certificate=[Tuple[object,IntPtr,long]]::new($process,$process.Handle,$process.StartTime.Ticks);$startAttempted=$true;$stopped=$false;$stageCapture=$null;$actor=$null;$owned=$null;$pending=@{};if($mode -ceq 'pending-io'){$pending.frame=[Threading.Tasks.TaskCompletionSource[int]]::new().Task}
+ $result=@{status='DIAGNOSTIC';cleanup='NOT_STARTED';actorStage=$null};&$cleanup
+ if($mode -ceq 'success'){Need ($result.cleanup -ceq 'CLOSED' -and $process.Kills -eq 1 -and $process.Waits -eq 1 -and $probe.Joins -eq 1 -and $readStream.Disposes -eq 1 -and $inputStream.Disposes -eq 1 -and $errorStream.Disposes -eq 1 -and $process.Disposes -eq 1) 'SYNC_CONFIRMED_CLEANUP_MODEL_REQUIRED'}else{
+  Need ($result.cleanup -ceq 'UNKNOWN' -and $result.status -ceq 'INCONCLUSIVE' -and $process.Disposes -eq 0) 'SYNC_UNCONFIRMED_RETAIN_REQUIRED';if($mode -ceq 'pipe-dispose-failure'){Need ($inputStream.Disposes -eq 1 -and $readStream.Disposes -eq 1 -and $errorStream.Disposes -eq 1) 'SYNC_OTHER_PIPES_CLOSE_AFTER_ONE_DISPOSE_FAILURE_REQUIRED'}else{Need ($inputStream.Disposes -eq 0 -and $readStream.Disposes -eq 0 -and $errorStream.Disposes -eq 0) 'SYNC_UNCERTAIN_IO_RETAIN_REQUIRED'};Need ([object]::ReferenceEquals($script:publicSyncEofUnconfirmed.process,$process) -and [object]::ReferenceEquals($script:publicSyncEofUnconfirmed.probe,$probe) -and [object]::ReferenceEquals($script:publicSyncEofUnconfirmed.stream,$readStream)) 'SYNC_ORIGINAL_REFERENCES_RETAINED_REQUIRED'
+ }
+ if($mode -ceq 'identity-failure'){Need ($process.Kills -eq 0 -and $probe.Joins -eq 1) 'SYNC_FOREIGN_KILL_REFUSAL_AND_INDEPENDENT_JOIN_REQUIRED'};if($mode -ceq 'wait-failure'){Need ($probe.Joins -eq 1) 'SYNC_JOIN_AFTER_PROCESS_WAIT_FAILURE_REQUIRED'};Need $watch.Stopped 'SYNC_ORIGINAL_WATCH_STOP_REQUIRED';$cleanupRows+=@{mode=$mode;cleanup=$result.cleanup;ownKillCalls=$process.Kills;ownJoinCalls=$probe.Joins;pass=$true}
+}
+Remove-Variable -Name publicSyncEofUnconfirmed -Scope Script -ErrorAction SilentlyContinue
+@{pass=$true;partialConstructor=1;readonlyAndReference=1;failedRealStart=1;raceIterations=100;coherentSamples=$samples;cleanupModels=$cleanupRows;actualCleanupProcesses=0;actualWindowsEOF=$false;nativeAuthority=$false;acceptanceVerified=$false}|Microsoft.PowerShell.Utility\ConvertTo-Json -Depth 5 -Compress
+
+} -Fixture $Fixture)|Microsoft.PowerShell.Utility\ConvertFrom-Json
+$base|Add-Member -NotePropertyName adversarial -NotePropertyValue $adverse
+$base|Microsoft.PowerShell.Utility\ConvertTo-Json -Depth 7 -Compress
+'@
+$publicSyncModeControls=@'
+param([Parameter(Mandatory=$true)][string]$Fixture)
+$ErrorActionPreference='Stop';Set-StrictMode -Version Latest
+function Require($Value,[string]$Code){if(-not $Value){throw $Code}}
+$text=[IO.File]::ReadAllText($Fixture);$match=[regex]::Match($text,'(?s)# BEGIN_PUBLIC_SYNC_EOF_MODE\r?\n(.*?)# END_PUBLIC_SYNC_EOF_MODE');Require $match.Success 'PUBLIC_SYNC_EOF_MODE_REQUIRED';$guard=$match.Groups[1].Value
+function Check-Mode($Bound,$Extra=@()){
+ $PrimitiveEofSyncReadData=$Bound['PrimitiveEofSyncReadData'];$Root=$Bound['Root'];$PublicEofActorRoot=$Bound['PublicEofActorRoot'];$PublicEofActorSourceHash=$Bound['PublicEofActorSourceHash'];$PublicEofActorAssemblyHash=$Bound['PublicEofActorAssemblyHash']
+ $refused=$false;try{. ([scriptblock]::Create('$args=$Extra;$PSBoundParameters=$Bound;'+$guard))}catch{Require ($_.Exception.Message -ceq 'PUBLIC_SYNC_EOF_CONTEXT_REQUIRED') 'SYNC_CONTEXT_ERROR_MUST_BE_CLOSED';$refused=$true};return $refused
+}
+function Valid-Bound {return @{Root=[IO.Path]::GetFullPath('/PUBLIC_ROOT');PrimitiveEofSyncReadData=$true;PublicEofActorRoot=[IO.Path]::GetFullPath('/public-eof-actor-ABC123');PublicEofActorSourceHash=('a'*64);PublicEofActorAssemblyHash=('b'*64)}}
+Require (-not (Check-Mode (Valid-Bound))) 'SYNC_VALID_MODE_REQUIRED';$refusals=0
+foreach($key in @('ClockEndpointData','ClockAssociationData','ClockWatchData','ClockTransactionData','ClockRevisionData','ClockContainmentData','OwnedTransport','ClosedChannel','PlatformEnvironment','AwaitResultTransport','PipeDiagnostic','WriteDiagnostic','ManagedFlushTransport','SourceBufferTransport','HelloPreambleDiagnostic','PreambleCleanupDiagnostic','ProbeDiagnosticTransport','HostedProbeDiagnostic','TransportGroup','HostedAncestry','NodeExecutable','PrimitiveEofDiagnosticData','ClockDataCase','OwnedJobData','OwnedJobLiteralData','OwnedJobWindows','OwnedJobCloseThrowData','Unknown')){$b=Valid-Bound;$b[$key]=$false;Require (Check-Mode $b) 'SYNC_FOREIGN_MODE_REFUSAL_REQUIRED';$refusals++}
+foreach($key in @('Root','PublicEofActorRoot','PublicEofActorSourceHash','PublicEofActorAssemblyHash')){$b=Valid-Bound;$b.Remove($key);Require (Check-Mode $b) 'SYNC_REQUIRED_FIELD_REFUSAL';$refusals++}
+foreach($key in @('Root','PublicEofActorRoot')){foreach($bad in @('',' ','.',([string][char]0),('x'*4097))){$b=Valid-Bound;$b[$key]=$bad;Require (Check-Mode $b) 'SYNC_PATH_REFUSAL_REQUIRED';$refusals++}}
+foreach($key in @('PublicEofActorSourceHash','PublicEofActorAssemblyHash')){foreach($bad in @('',('A'*64),('a'*63),('a'*65),(('a'*64)+[char]10),(('a'*64)+[char]0))){$b=Valid-Bound;$b[$key]=$bad;Require (Check-Mode $b) 'SYNC_HASH_REFUSAL_REQUIRED';$refusals++}}
+$b=Valid-Bound;$b.PrimitiveEofSyncReadData=$false;Require (Check-Mode $b) 'SYNC_PRESENT_FALSE_REFUSAL_REQUIRED';$refusals++
+Require (Check-Mode (Valid-Bound) @('UNKNOWN')) 'SYNC_UNBOUND_ARGUMENT_REFUSAL_REQUIRED';$refusals++
+Require (-not (Check-Mode @{})) 'SYNC_LEGACY_ABSENCE_REQUIRED'
+@{pass=$true;canonical=1;refusals=$refusals;legacyAbsent=$true;productImports=0;actualChildProcesses=0;nativeAuthority=$false}|Microsoft.PowerShell.Utility\ConvertTo-Json -Compress
+'@
+
+function Get-PublicDedicatedEofReadProbeSource {return @'
+using System;using System.IO;using System.Threading;using System.Collections.ObjectModel;
+public sealed class PublicDedicatedEofReadProbe {
+ readonly Stream stream;readonly Thread worker;readonly object gate=new object();readonly byte[] buffer=new byte[1];readonly bool background;
+ bool startEntered,startReturned,readEntered,readReturned;int count=-1;string error="NONE";
+ static void Refuse(string code){throw new InvalidOperationException(code);}
+ public PublicDedicatedEofReadProbe(Stream value){if(value==null)Refuse("PUBLIC_SYNC_STREAM_REQUIRED");bool readable=false;try{readable=value.CanRead;}catch{Refuse("PUBLIC_SYNC_STREAM_REQUIRED");}if(!readable)Refuse("PUBLIC_SYNC_STREAM_REQUIRED");stream=value;worker=new Thread(new ThreadStart(ReadOne));worker.IsBackground=true;background=worker.IsBackground;}
+ public bool MatchesStream(Stream value){return Object.ReferenceEquals(stream,value);}
+ public void Start(){lock(gate){if(startEntered)Refuse("PUBLIC_SYNC_START_REPLAY_REFUSED");startEntered=true;}try{worker.Start();}catch{Refuse("PUBLIC_SYNC_START_REFUSED");}lock(gate){startReturned=true;}}
+ void ReadOne(){lock(gate){readEntered=true;}int result=-1;string failure="NONE";try{result=stream.Read(buffer,0,1);if(result<0||result>1){result=-1;Refuse("PUBLIC_SYNC_READ_REFUSED");}}catch(IOException){result=-1;failure="IO";}catch{result=-1;failure="UNKNOWN";}lock(gate){count=result;error=failure;readReturned=true;}}
+ public ReadOnlyCollection<object> Snapshot(){lock(gate){return Array.AsReadOnly(new object[]{startEntered,startReturned,readEntered,readReturned,count,error,worker.IsAlive,background});}}
+ public bool Join(int milliseconds){if(milliseconds<0||milliseconds>1000)Refuse("PUBLIC_SYNC_JOIN_BOUND_REQUIRED");lock(gate){if(!startEntered)Refuse("PUBLIC_SYNC_START_REQUIRED");}try{return worker.Join(milliseconds);}catch(ThreadStateException){return false;}}
+}
+'@
+}
 function Get-PublicWindowsEofActorSource {return @'
 using System;
 using System.IO;
@@ -669,6 +811,50 @@ function Read-PublicPrimitiveEofFrame([IO.Stream]$Stream,[Diagnostics.Stopwatch]
 function Write-PublicPrimitiveEofLine([IO.Stream]$Stream,[byte[]]$Bytes,[Diagnostics.Stopwatch]$Watch,[hashtable]$Pending){
  if(-not $Stream -or -not $Stream.CanWrite -or -not $Watch -or -not $Watch.IsRunning -or $Bytes.Length -lt 1 -or $Bytes.Length -gt 32768){throw 'PUBLIC_PRIMITIVE_EOF_WRITE_REQUIRED'};$start=$Watch.ElapsedMilliseconds;$left=[Math]::Min(2500,14000-$start);if($left -le 0){throw 'PUBLIC_PRIMITIVE_EOF_WRITE_TIMEOUT'};$Pending.write=$Stream.WriteAsync($Bytes,0,$Bytes.Length);if(-not $Pending.write.Wait([int]$left) -or $Watch.ElapsedMilliseconds -ge 14000 -or $Watch.ElapsedMilliseconds-$start -ge 2500){throw 'PUBLIC_PRIMITIVE_EOF_WRITE_TIMEOUT'};$null=$Pending.write.GetAwaiter().GetResult();$left=[Math]::Min(1000,[Math]::Min(2500-($Watch.ElapsedMilliseconds-$start),14000-$Watch.ElapsedMilliseconds));if($left -le 0){throw 'PUBLIC_PRIMITIVE_EOF_WRITE_TIMEOUT'};$flush=[Delegate]::CreateDelegate([Action],$Stream,'Flush');$Pending.flush=[Threading.Tasks.Task]::Run($flush);if(-not $Pending.flush.Wait([int]$left) -or $Watch.ElapsedMilliseconds -ge 14000 -or $Watch.ElapsedMilliseconds-$start -ge 2500){throw 'PUBLIC_PRIMITIVE_EOF_WRITE_TIMEOUT'};$null=$Pending.flush.GetAwaiter().GetResult()
 }
+# BEGIN_PUBLIC_SYNC_EOF_PRODUCER
+if($PrimitiveEofSyncReadData){
+ $result=[ordered]@{profile='goriq-public-standalone-sync-eof-diagnostic-v1';status='INCONCLUSIVE';observation='UNKNOWN';readCompleted=$null;readZero=$null;childAliveBeforeCleanup=$null;ancestryFrameBounded=$false;reader=$null;actorStage=(ConvertFrom-PublicEofActorStageBytes ([byte[]]@()));cleanup='NOT_STARTED';actualWindowsExecuted=$false;originalObserverUsed=$false;nativeAuthority=$false;acceptanceVerified=$false}
+ if([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT -or $PSVersionTable.PSVersion.Major -ne 5){$result.status='NOT_RUN';$result|Microsoft.PowerShell.Utility\ConvertTo-Json -Depth 5 -Compress;return}
+ $result.actualWindowsExecuted=$true;$watch=[Diagnostics.Stopwatch]::StartNew();$actor=$null;$stageCapture=$null;$owned=$null;$process=$null;$certificate=$null;$startAttempted=$false;$stopped=$false;$probe=$null;$readStream=$null;$inputStream=$null;$errorStream=$null;$pending=@{frame=$null;write=$null;flush=$null}
+ try{
+  # Compile only the fixed managed helper, charged to the original case origin.
+  if('PublicDedicatedEofReadProbe' -as [type]){throw 'PUBLIC_SYNC_EOF_HELPER_REQUIRED'};Microsoft.PowerShell.Utility\Add-Type -TypeDefinition (Get-PublicDedicatedEofReadProbeSource) -ErrorAction Stop
+  if($watch.ElapsedMilliseconds -ge 14000){throw 'PUBLIC_SYNC_EOF_CASE_TIMEOUT'}
+  $actor=Open-PublicWindowsEofActor $PublicEofActorRoot $PublicEofActorSourceHash $PublicEofActorAssemblyHash;$owned=[IO.Path]::Combine([IO.Path]::GetTempPath(),('public-owned-peer-'+[IO.Path]::GetRandomFileName()));$null=[IO.Directory]::CreateDirectory($owned);$stageCapture=New-PublicEofActorStageCapture $owned
+  $windows=[Environment]::GetFolderPath('Windows');if($windows -cnotmatch '\A[A-Za-z]:\\Windows\z' -or $watch.ElapsedMilliseconds -ge 14000){throw 'PUBLIC_PRIMITIVE_EOF_CONTEXT_REQUIRED'};$info=[Diagnostics.ProcessStartInfo]::new();$info.FileName=$actor.path;$info.Arguments='';$info.WorkingDirectory=$owned;$info.UseShellExecute=$false;$info.CreateNoWindow=$true;$info.RedirectStandardInput=$true;$info.RedirectStandardOutput=$true;$info.RedirectStandardError=$true;$info.EnvironmentVariables.Clear();$values=@{SystemRoot=$windows;WINDIR=$windows;ComSpec=($windows+'\System32\cmd.exe');USERPROFILE='C:\Users\Owner';LOCALAPPDATA='C:\Users\Owner\AppData\Local';TEMP=$owned;TMP=$owned;PATH=([IO.Path]::GetDirectoryName($actor.path)+';'+$windows+'\System32;'+$windows);PATHEXT='.COM;.EXE;.BAT;.CMD';PSModulePath=($windows+'\System32\WindowsPowerShell\v1.0\Modules');GORIQ_PUBLIC_PEER_CASE='late-stdout-eof'};foreach($key in $values.Keys){$info.EnvironmentVariables[$key]=$values[$key]}
+  $process=[Diagnostics.Process]::new();$process.StartInfo=$info;if($watch.ElapsedMilliseconds -ge 14000){throw 'PUBLIC_PRIMITIVE_EOF_START_REFUSED'};$startAttempted=$true;if(-not $process.Start()){throw 'PUBLIC_PRIMITIVE_EOF_START_REFUSED'};$started=$true;$handle=$process.Handle;$birth=$process.StartTime.ToUniversalTime().Ticks;$certificate=[Tuple[object,IntPtr,long]]::new($process,$handle,$birth);if(-not (Test-PublicPrimitiveEofIdentityData $certificate $process $process.Handle $process.StartTime.ToUniversalTime().Ticks) -or $watch.ElapsedMilliseconds -ge 14000){throw 'PUBLIC_PRIMITIVE_EOF_IDENTITY_REQUIRED'}
+  $inputStream=$process.StandardInput.BaseStream;$readStream=$process.StandardOutput.BaseStream;$errorStream=$process.StandardError.BaseStream
+  $hello='{"nodePid":12,"bootstrapPid":11,"nodeCreationTicks":"639000000000000001","bootstrapCreationTicks":"639000000000000000","sessionId":2,"nodePath":"PUBLIC_FIXED_NODE","nodeImageIdentityKey":"PUBLIC_FIXED_IDENTITY","ownerSidSha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","sourceRevision":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","originalGrantSha256":"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc","nativeMjsSha256":"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd","nativePsSha256":"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"}'
+  Write-PublicPrimitiveEofLine $process.StandardInput.BaseStream ([Text.Encoding]::UTF8.GetBytes($hello+[char]10)) $watch $pending;$result.ancestryFrameBounded=Read-PublicPrimitiveEofFrame $process.StandardOutput.BaseStream $watch $pending
+  if(-not $result.ancestryFrameBounded -or $pending.frame -isnot [Threading.Tasks.Task] -or -not $pending.frame.IsCompleted -or $watch.ElapsedMilliseconds -ge 14000){throw 'PUBLIC_SYNC_EOF_FRAME_REQUIRED'}
+  if(-not [object]::ReferenceEquals($readStream,$process.StandardOutput.BaseStream)){throw 'PUBLIC_SYNC_EOF_STREAM_REQUIRED'};$probe=[PublicDedicatedEofReadProbe]::new($readStream);if(-not $probe.MatchesStream($readStream) -or $watch.ElapsedMilliseconds -ge 14000){throw 'PUBLIC_SYNC_EOF_STREAM_REQUIRED'};$probe.Start()
+  $entry=$watch.ElapsedMilliseconds;do{$sample=$probe.Snapshot();if($sample[2]){break};[Threading.Thread]::Sleep(1)}while($watch.ElapsedMilliseconds-$entry -lt 1000 -and $watch.ElapsedMilliseconds -lt 14000)
+  if(-not $sample[0] -or -not $sample[1] -or -not $sample[2] -or $sample[3] -or $watch.ElapsedMilliseconds -ge 14000){throw 'PUBLIC_SYNC_EOF_PENDING_READ_REQUIRED'}
+  Write-PublicPrimitiveEofLine $process.StandardInput.BaseStream ([Text.Encoding]::UTF8.GetBytes('PUBLIC_TRIGGER_CLOSE_STDOUT'+[char]10)) $watch $pending
+  $poll=$watch.ElapsedMilliseconds;do{$sample=$probe.Snapshot();if($sample[3]){break};[Threading.Thread]::Sleep(5)}while($watch.ElapsedMilliseconds-$poll -lt 2000 -and $watch.ElapsedMilliseconds -lt 14000)
+  if($watch.ElapsedMilliseconds -ge 14000 -or -not $probe.MatchesStream($readStream) -or -not (Test-PublicPrimitiveEofIdentityData $certificate $process $process.Handle $process.StartTime.ToUniversalTime().Ticks)){throw 'PUBLIC_SYNC_EOF_OBSERVATION_REQUIRED'}
+  # One coherent snapshot; later cleanup/completion never rewrites this sample.
+  $sample=$probe.Snapshot();$alive=(-not $process.HasExited);if($watch.ElapsedMilliseconds -ge 14000){throw 'PUBLIC_SYNC_EOF_CASE_TIMEOUT'}
+  $result.reader=[ordered]@{startEntered=$sample[0];startReturned=$sample[1];readEntered=$sample[2];readReturned=$sample[3];result=$sample[4];error=$sample[5];threadAlive=$sample[6];background=$sample[7]};$result.readCompleted=$sample[3];$result.readZero=if($sample[3] -and $sample[5] -ceq 'NONE'){$sample[4] -eq 0}else{$null};$result.childAliveBeforeCleanup=$alive
+  $result.observation=if(-not $alive){'CHILD_EXITED'}elseif($sample[3]){if($sample[5] -cne 'NONE'){'IO_FAILURE'}elseif($sample[4] -eq 0){'READ0_ALIVE'}else{'UNKNOWN'}}elseif($sample[6]){'PENDING_ALIVE'}else{'UNKNOWN'};$result.status=if($result.observation -cin @('READ0_ALIVE','PENDING_ALIVE','CHILD_EXITED')){'DIAGNOSTIC'}else{'INCONCLUSIVE'}
+ }catch{$result.status='INCONCLUSIVE';$result.observation='IO_FAILURE';$result.reader=$null;$result.readCompleted=$null;$result.readZero=$null;$result.childAliveBeforeCleanup=$null}
+ finally{
+  $clean=$true;$cleanupStart=$watch.ElapsedMilliseconds
+  if($startAttempted){$result.cleanup='UNKNOWN';try{if(-not (Test-PublicPrimitiveEofIdentityData $certificate $process $process.Handle $process.StartTime.ToUniversalTime().Ticks)){throw 'PUBLIC_SYNC_EOF_IDENTITY_REQUIRED'};$held=$certificate.Item1;if(-not $held.HasExited){$held.Kill()};$left=1000-($watch.ElapsedMilliseconds-$cleanupStart);if($left -le 0 -or -not $held.WaitForExit([int]$left)){throw 'PUBLIC_SYNC_EOF_STOP_UNCONFIRMED'};$stopped=$true}catch{$clean=$false}}
+  if($probe){try{if(-not $probe.MatchesStream($readStream)){throw 'PUBLIC_SYNC_EOF_THREAD_REQUIRED'};$last=$probe.Snapshot();if($last[0]){$left=1000-($watch.ElapsedMilliseconds-$cleanupStart);if($left -le 0 -or -not $probe.Join([int]$left)){throw 'PUBLIC_SYNC_EOF_THREAD_UNCONFIRMED'}}elseif($last[2] -or $last[3] -or $last[6]){throw 'PUBLIC_SYNC_EOF_THREAD_UNCONFIRMED'}}catch{$clean=$false}}
+  foreach($task in $pending.Values){try{if($task -is [Threading.Tasks.Task] -and -not $task.IsCompleted){$left=1000-($watch.ElapsedMilliseconds-$cleanupStart);if($left -le 0 -or -not $task.Wait([int]$left)){throw 'PUBLIC_SYNC_EOF_IO_UNCONFIRMED'}}}catch{$clean=$false}}
+  if($stageCapture){if($stopped -and $watch.ElapsedMilliseconds-$cleanupStart -lt 1000){try{$result.actorStage=Read-PublicEofActorStageCapture $stageCapture}catch{$clean=$false}}else{$result.actorStage=ConvertFrom-PublicEofActorStageBytes ([byte[]]@())}}
+  if($clean -and ($startAttempted -or $inputStream -or $readStream -or $errorStream)){
+   foreach($heldPipe in @($inputStream,$readStream,$errorStream)){try{if($null -eq $heldPipe -or $watch.ElapsedMilliseconds-$cleanupStart -ge 1000){throw 'PUBLIC_SYNC_EOF_PIPE_UNCONFIRMED'};$heldPipe.Dispose()}catch{$clean=$false}}
+  }
+  if($clean){try{if($process){$process.Dispose()};if($stageCapture){$stageCapture.stream.Dispose()};if($actor){foreach($heldFile in $actor.handles){$heldFile.Dispose()}};if($owned){$null=Assert-PublicEofActorStageRoot $owned;[IO.Directory]::Delete($owned,$true)};if($watch.ElapsedMilliseconds-$cleanupStart -ge 1000){throw 'PUBLIC_SYNC_EOF_CLEANUP_UNCONFIRMED'};if($startAttempted){$result.cleanup='CLOSED'}}catch{$clean=$false}}
+  if(-not $clean){$result.cleanup='UNKNOWN';$result.status='INCONCLUSIVE';$script:publicSyncEofUnconfirmed=@{process=$process;certificate=$certificate;actor=$actor;stageCapture=$stageCapture;pending=$pending;probe=$probe;stream=$readStream;inputStream=$inputStream;errorStream=$errorStream;root=$owned}}
+  $watch.Stop()
+ }
+ $result|Microsoft.PowerShell.Utility\ConvertTo-Json -Depth 5 -Compress;return
+}
+# END_PUBLIC_SYNC_EOF_PRODUCER
+
 if($PrimitiveEofDiagnosticData){
  $result=[ordered]@{profile='goriq-public-standalone-eof-diagnostic-v1';status='INCONCLUSIVE';observation='UNKNOWN';eofTaskCompleted=$null;eofReadZero=$null;childAliveBeforeCleanup=$null;ancestryFrameBounded=$false;taskStatus='UNKNOWN';streamMode='UNKNOWN';workersAvailable='UNKNOWN';actorStage=(ConvertFrom-PublicEofActorStageBytes ([byte[]]@()));cleanup='NOT_STARTED';actualWindowsExecuted=$false;originalObserverUsed=$false;nativeAuthority=$false;acceptanceVerified=$false}
  if([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT -or $PSVersionTable.PSVersion.Major -ne 5){$result.status='NOT_RUN';$result|Microsoft.PowerShell.Utility\ConvertTo-Json -Depth 5 -Compress;return}
