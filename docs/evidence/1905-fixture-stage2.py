@@ -147,6 +147,46 @@ def writer_parent(fixture, test_source, out, exact_load=False, snapshot_origin=F
  $matchesExpectedActor=[string]::Equals([IO.Path]::GetDirectoryName($path),$actorLocation,$eq)
  $expectedExists=[IO.File]::Exists($path)
  $actualExists=$isWriter -and [IO.File]::Exists($writer.Name)
+ $fileIdentity='UNKNOWN';$identityReader=$null
+ try{
+  if($isWriter -and $expectedExists){
+   $identitySource=@'
+using System;
+using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
+[StructLayout(LayoutKind.Sequential)] public struct PublicFt20261108 { public uint Low; public uint High; }
+[StructLayout(LayoutKind.Sequential)] public struct PublicHandleInfo20261108 {
+ public uint Attributes;
+ public PublicFt20261108 Created;
+ public PublicFt20261108 Accessed;
+ public PublicFt20261108 Modified;
+ public uint Volume;
+ public uint FileSizeHigh;
+ public uint FileSizeLow;
+ public uint Links;
+ public uint IndexHigh;
+ public uint IndexLow;
+}
+public static class PublicFileIdentityProbe20261108 {
+ [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+ [DllImport("kernel32.dll",ExactSpelling=true,SetLastError=true)]
+ [return:MarshalAs(UnmanagedType.Bool)]
+ private static extern bool GetFileInformationByHandle(SafeFileHandle handle,out PublicHandleInfo20261108 info);
+ public static int Compare(SafeFileHandle a,SafeFileHandle b){
+  PublicHandleInfo20261108 x,y;
+  if(a==null||b==null||a.IsInvalid||b.IsInvalid||!GetFileInformationByHandle(a,out x)||!GetFileInformationByHandle(b,out y))return -1;
+  if(x.Volume==y.Volume && x.IndexHigh==y.IndexHigh && x.IndexLow==y.IndexLow && (x.IndexHigh!=0||x.IndexLow!=0))return 1;
+  return 0;
+ }
+}
+'@
+   if(-not ('PublicFileIdentityProbe20261108' -as [type])){$null=Add-Type -TypeDefinition $identitySource -ErrorAction Stop}
+   $identityReader=[IO.FileStream]::new($path,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
+   $sameFile=[PublicFileIdentityProbe20261108]::Compare($writer.SafeFileHandle,$identityReader.SafeFileHandle)
+   if($sameFile -eq 1){$fileIdentity='MATCH'}elseif($sameFile -eq 0){$fileIdentity='DIFFERENT'}
+  }
+ }catch{}finally{if($identityReader){$identityReader.Dispose()}}
+ [Console]::Out.WriteLine('WRITER_IDENTITY|'+$fileIdentity)
  foreach($diag in @(@('LOCATION_WRITER',$matchesWriterLocation),@('CODEBASE_WRITER',$matchesWriterCodebase),@('LOCATION_EXPECTED',$matchesExpectedLocation),@('CODEBASE_EXPECTED',$matchesExpectedCodebase),@('ACTOR_EXPECTED',$matchesExpectedActor),@('EXPECTED_EXISTS',$expectedExists),@('ACTUAL_EXISTS',$actualExists))){[Console]::Out.WriteLine('WRITER_'+$diag[0]+'|'+$(if($diag[1]){'YES'}else{'NO'}))}
  [Console]::Out.WriteLine('WRITER_TYPE|'+$(if($isWriter){'YES'}else{'NO'}));[Console]::Out.WriteLine('WRITER_PATH|'+$(if($strictPath){'YES'}else{'NO'}));[Console]::Out.WriteLine('WRITER_PATH_CASELESS|'+$(if($loosePath){'YES'}else{'NO'}));[Console]::Out.WriteLine('WRITER_EMPTY|'+$(if($empty){'YES'}else{'NO'}));[Console]::Out.WriteLine('WRITER_DIRECTORY|'+$(if($sameDirectory){'YES'}else{'NO'}));[Console]::Out.WriteLine('WRITER_BASENAME|'+$baseClass)
  """+expected
@@ -158,13 +198,13 @@ def writer_parent(fixture, test_source, out, exact_load=False, snapshot_origin=F
     controls=once(controls,embedded.group(0),embedded.group(0).replace(embedded.group(1),base64.b64encode(revised.encode()).decode()))
     updated_fixture=once(fixture,outer.group(0),outer.group(0).replace(outer.group(1),controls))
     marker="if(child.error!==undefined||child.status!==0||child.stderr!=='')console.log('GORIQ_PUBLIC_EOF_DATA_CONTROL_FAILURE '"
-    prelude="if(child.stdout){const safe=child.stdout.split(/\\r?\\n/).filter(v=>/^WRITER_(?:TYPE|PATH|PATH_CASELESS|EMPTY|DIRECTORY|BASENAME|LOCATION_WRITER|CODEBASE_WRITER|LOCATION_EXPECTED|CODEBASE_EXPECTED|ACTOR_EXPECTED|EXPECTED_EXISTS|ACTUAL_EXISTS)[|](?:YES|NO|STDOUT|STDERR|OTHER|NONE)$/.test(v));if(safe.length)console.log('WRITER_SAFE_STAGES '+JSON.stringify(safe))}"
+    prelude="if(child.stdout){const safe=child.stdout.split(/\\r?\\n/).filter(v=>/^WRITER_(?:TYPE|PATH|PATH_CASELESS|EMPTY|DIRECTORY|BASENAME|LOCATION_WRITER|CODEBASE_WRITER|LOCATION_EXPECTED|CODEBASE_EXPECTED|ACTOR_EXPECTED|EXPECTED_EXISTS|ACTUAL_EXISTS|IDENTITY)[|](?:YES|NO|STDOUT|STDERR|OTHER|NONE|MATCH|DIFFERENT|UNKNOWN)$/.test(v));if(safe.length)console.log('WRITER_SAFE_STAGES '+JSON.stringify(safe))}"
     updated_test=once(test_source,marker,prelude+marker)
     Path(FIXTURE).write_text(updated_fixture,encoding='utf8')
     Path(TEST).write_text(updated_test,encoding='utf8')
     r=subprocess.run(['node','--test','--test-concurrency=1','--test-name-pattern=^public Windows EOF actor compiles as data',TEST],
         capture_output=True,text=True,encoding='utf8',errors='replace',timeout=40)
-    matches=re.findall(r'WRITER_(?:TYPE|PATH|PATH_CASELESS|EMPTY|DIRECTORY|BASENAME|LOCATION_WRITER|CODEBASE_WRITER|LOCATION_EXPECTED|CODEBASE_EXPECTED|ACTOR_EXPECTED|EXPECTED_EXISTS|ACTUAL_EXISTS)\|(?:YES|NO|STDOUT|STDERR|OTHER|NONE)',r.stdout)
+    matches=re.findall(r'WRITER_(?:TYPE|PATH|PATH_CASELESS|EMPTY|DIRECTORY|BASENAME|LOCATION_WRITER|CODEBASE_WRITER|LOCATION_EXPECTED|CODEBASE_EXPECTED|ACTOR_EXPECTED|EXPECTED_EXISTS|ACTUAL_EXISTS|IDENTITY)\|(?:YES|NO|STDOUT|STDERR|OTHER|NONE|MATCH|DIFFERENT|UNKNOWN)',r.stdout)
     return {'exit':r.returncode,'predicates':sorted(set(matches)), 'observed_predicate_count':len(matches)}
 
 
