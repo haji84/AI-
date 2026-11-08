@@ -1311,7 +1311,7 @@ public sealed class GoriqOriginalOwnedPeerJob1218 {
      # Issue once from the certified original Process, before any pipe disposal.
      Microsoft.PowerShell.Utility\New-Variable -Name ownedPeerJobCanonicalPipes -Scope Script -Option Constant -Value ([Tuple[object,object,object]]::new($c,$refs,$origin.Value)) -ErrorAction Stop
     }
-    $all=$true;foreach($pair in $refs){try{if($pair -isnot [Tuple[object,object]] -or $pair.Item1 -isnot [IO.Stream] -or $pair.Item2 -isnot [Runtime.InteropServices.SafeHandle]){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'};$pair.Item1.Dispose();if(-not $pair.Item2.IsClosed){$all=$false}}catch{$all=$false}}
+    $all=$true;if($c.Item2 -isnot [Diagnostics.Process] -or -not $c.Item2.HasExited){return};foreach($wrapper in @($c.Item2.StandardInput,$c.Item2.StandardOutput,$c.Item2.StandardError)){try{$wrapper.Dispose()}catch{$all=$false}};foreach($pair in $refs){try{if($pair -isnot [Tuple[object,object]] -or $pair.Item1 -isnot [IO.Stream] -or $pair.Item2 -isnot [Runtime.InteropServices.SafeHandle]){throw 'ROTATION_CUTOVER_PEER_PROOF_REJECTED'};$pair.Item1.Dispose();if(-not $pair.Item2.IsClosed){$all=$false}}catch{$all=$false}}
     if($all){$script:ownedPeerJobPipeState='CLOSED'}
    }catch{}
   }
