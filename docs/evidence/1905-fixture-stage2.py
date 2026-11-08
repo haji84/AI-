@@ -11,7 +11,7 @@ import time
 NATIVE='scripts/owner-code-rotation-native-1218.ps1'
 FIXTURE='tests/owner-code-cutover-peer.fixture.ps1'
 TEST='scripts/owner-code-cutover-peer.test.mjs'
-EXPECTED={NATIVE:'d2fb7ab5af7f5f18d2463bd21a32a80fcf9f1678',FIXTURE:'046c3253209cbbb9787c16314286f6254db7fcf1',TEST:'af332cb501682da7ffede47eb560dec4ce9b41a4'}
+EXPECTED={NATIVE:'d2fb7ab5af7f5f18d2463bd21a32a80fcf9f1678',FIXTURE:'3d3e6f210390eb88edbee9fc8c5278e2bd41d92c',TEST:'af332cb501682da7ffede47eb560dec4ce9b41a4'}
 
 
 def once(s,a,b):
@@ -58,16 +58,16 @@ def annotate_fixture(source):
 def decoder(fixture,out,explicit_values=False,renamed=False):
     match=re.search(r"\$snapshotContract=\[Text.Encoding\]::UTF8.GetString\(\[Convert\]::FromBase64String\('([^']+)'\)\)",fixture)
     body=base64.b64decode(match[1],validate=True).decode()
-    a='$bytes=New-Bytes $width ([ulong[]]@(4,8,12));$result=$type::Decode($bytes,$bytes.Length,$width,0,[ulong]4);'
-    b="$bytes=New-Bytes $width ([ulong[]]@(4,8,12));[Console]::Out.WriteLine('DEC_VECTOR|'+$width+'|'+$bytes.Length+'|'+$bytes.GetType().FullName);$result=$type::Decode($bytes,$bytes.Length,$width,0,[ulong]4);[Console]::Out.WriteLine('DEC_RETURN|'+$width+'|'+$result.Count);"
+    a='$bytes=New-Bytes $width ([System.UInt64[]]@(4,8,12));$result=$type::Decode($bytes,$bytes.Length,$width,0,[System.UInt64]4);'
+    b="$bytes=New-Bytes $width ([System.UInt64[]]@(4,8,12));[Console]::Out.WriteLine('DEC_VECTOR|'+$width+'|'+$bytes.Length+'|'+$bytes.GetType().FullName);$result=$type::Decode($bytes,$bytes.Length,$width,0,[System.UInt64]4);[Console]::Out.WriteLine('DEC_RETURN|'+$width+'|'+$result.Count);"
     body=once(body,a,b)
     if explicit_values:
-        body=once(body,'$bytes=New-Bytes $width ([ulong[]]@(4,8,12))',
-            '$publicValues=[ulong[]]@([ulong]4,[ulong]8,[ulong]12);$bytes=New-Bytes -Width $width -Values $publicValues')
+        body=once(body,'$bytes=New-Bytes $width ([System.UInt64[]]@(4,8,12))',
+            '$publicValues=[System.UInt64[]]@([System.UInt64]4,[System.UInt64]8,[System.UInt64]12);$bytes=New-Bytes -Width $width -Values $publicValues')
         body=once(body,'$b=New-Bytes $width $values',
             '$b=New-Bytes -Width $width -Values $values')
-        body=once(body,'$valid=New-Bytes 8 ([ulong[]]@(4))',
-            '$valid=New-Bytes -Width 8 -Values ([ulong[]]@([ulong]4))')
+        body=once(body,'$valid=New-Bytes 8 ([System.UInt64[]]@(4))',
+            '$valid=New-Bytes -Width 8 -Values ([System.UInt64[]]@([System.UInt64]4))')
     body=once(body,'$t=$null;$e=$null;$ast=',"[Console]::Out.WriteLine('DEC_SCRIPT_ENTER');$t=$null;$e=$null;$ast=")
     body=once(body,'$source=Get-PublicWindowsEofActorSource',"$source=Get-PublicWindowsEofActorSource;[Console]::Out.WriteLine('DEC_SOURCE_OK')")
     body=once(body,"$type='PublicEofOwnHandleSnapshot' -as [type];", "[Console]::Out.WriteLine('DEC_TYPE_BEGIN');$type='PublicEofOwnHandleSnapshot' -as [type];")
@@ -77,19 +77,19 @@ def decoder(fixture,out,explicit_values=False,renamed=False):
     if not explicit_values and not renamed:
         # Distinguish a parameter conversion problem, missing function,
         # and actual decoder invocation with finite non-secret status.
-        body=once(body,'$bytes=New-Bytes $width ([ulong[]]@(4,8,12));',
-            "$publicArray=[ulong[]]@(4,8,12);[Console]::Out.WriteLine('DEC_CAST_COMPLETE|'+$publicArray.Length);[Console]::Out.WriteLine('DEC_COMMAND_VISIBLE|'+([bool](Get-Command -Name New-Bytes -CommandType Function -ErrorAction SilentlyContinue)));$bytes=New-Bytes $width $publicArray;")
+        body=once(body,'$bytes=New-Bytes $width ([System.UInt64[]]@(4,8,12));',
+            "$publicArray=[System.UInt64[]]@(4,8,12);[Console]::Out.WriteLine('DEC_CAST_COMPLETE|'+$publicArray.Length);[Console]::Out.WriteLine('DEC_COMMAND_VISIBLE|'+([bool](Get-Command -Name New-Bytes -CommandType Function -ErrorAction SilentlyContinue)));$bytes=New-Bytes $width $publicArray;")
 
     # Read-only public probe only: emit fixed stage names before the failing
     # width-4 source-vector builder; no inner exception, handle or path values.
-    body=once(body,'function Put-Pointer([byte[]]$Buffer,[int]$Offset,[ulong]$Value,[int]$Width){',
-        "function Put-Pointer([byte[]]$Buffer,[int]$Offset,[ulong]$Value,[int]$Width){[Console]::Out.WriteLine('DEC_PUT_ENTER|'+$Width);")
+    body=once(body,'function Put-Pointer([byte[]]$Buffer,[int]$Offset,[System.UInt64]$Value,[int]$Width){',
+        "function Put-Pointer([byte[]]$Buffer,[int]$Offset,[System.UInt64]$Value,[int]$Width){[Console]::Out.WriteLine('DEC_PUT_ENTER|'+$Width);")
     body=once(body,'[Buffer]::BlockCopy($data,0,$Buffer,$Offset,$Width)}',
         "[Console]::Out.WriteLine('DEC_BEFORE_COPY|'+$Width);[Buffer]::BlockCopy($data,0,$Buffer,$Offset,$Width);[Console]::Out.WriteLine('DEC_AFTER_COPY|'+$Width)}")
-    body=once(body,'function New-Bytes([int]$Width,[ulong[]]$Values){',
-        "function New-Bytes([int]$Width,[ulong[]]$Values){[Console]::Out.WriteLine('DEC_NEW_ENTER|'+$Width);")
-    body=once(body,'Put-Pointer $buffer 0 ([ulong]$Values.Count) $Width;',
-        "[Console]::Out.WriteLine('DEC_BEFORE_COUNT|'+$Width);Put-Pointer $buffer 0 ([ulong]$Values.Count) $Width;[Console]::Out.WriteLine('DEC_AFTER_COUNT|'+$Width);")
+    body=once(body,'function New-Bytes([int]$Width,[System.UInt64[]]$Values){',
+        "function New-Bytes([int]$Width,[System.UInt64[]]$Values){[Console]::Out.WriteLine('DEC_NEW_ENTER|'+$Width);")
+    body=once(body,'Put-Pointer $buffer 0 ([System.UInt64]$Values.Count) $Width;',
+        "[Console]::Out.WriteLine('DEC_BEFORE_COUNT|'+$Width);Put-Pointer $buffer 0 ([System.UInt64]$Values.Count) $Width;[Console]::Out.WriteLine('DEC_AFTER_COUNT|'+$Width);")
     body=once(body,'Put-Pointer $buffer ($header+$stride*$i) $Values[$i] $Width',
         "[Console]::Out.WriteLine('DEC_BEFORE_ITEM|'+$Width);Put-Pointer $buffer ($header+$stride*$i) $Values[$i] $Width;[Console]::Out.WriteLine('DEC_AFTER_ITEM|'+$Width)")
     if renamed:
