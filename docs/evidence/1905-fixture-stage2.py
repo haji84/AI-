@@ -120,7 +120,7 @@ try{
     return {'exit':r.returncode,'rows':[x for x in r.stdout.splitlines() if re.fullmatch(r'DEC_[A-Z_]+(?:\|[A-Za-z0-9_.\[\]-]{1,80})*',x)]}
 
 
-def writer_parent(fixture, test_source, out):
+def writer_parent(fixture, test_source, out, exact_load=False):
     """Classify only the three existing CreateNew assertions; no acceptance changes."""
     outer=re.search(r" \$publicWindowsEofActorControls=@'\r?\n([\s\S]*?)\r?\n'@",fixture)
     if outer is None: raise ValueError('PUBLIC_CONTROLS_ANCHOR_REQUIRED')
@@ -134,6 +134,10 @@ def writer_parent(fixture, test_source, out):
  [Console]::Out.WriteLine('WRITER_TYPE|'+$(if($isWriter){'YES'}else{'NO'}));[Console]::Out.WriteLine('WRITER_PATH|'+$(if($strictPath){'YES'}else{'NO'}));[Console]::Out.WriteLine('WRITER_PATH_CASELESS|'+$(if($loosePath){'YES'}else{'NO'}));[Console]::Out.WriteLine('WRITER_EMPTY|'+$(if($empty){'YES'}else{'NO'}));[Console]::Out.WriteLine('WRITER_DIRECTORY|'+$(if($sameDirectory){'YES'}else{'NO'}));[Console]::Out.WriteLine('WRITER_BASENAME|'+$baseClass)
  """+expected
     revised=once(original,expected,observed)
+    if exact_load:
+        # Bind the exact compiled artifact, not a PowerShell type-name cache.
+        revised=once(revised,'$assembly=[PublicWindowsEofActor].Assembly;',
+            '$assembly=[Reflection.Assembly]::LoadFile($assemblyPath);')
     controls=once(controls,embedded.group(0),embedded.group(0).replace(embedded.group(1),base64.b64encode(revised.encode()).decode()))
     updated_fixture=once(fixture,outer.group(0),outer.group(0).replace(outer.group(1),controls))
     marker="if(child.error!==undefined||child.status!==0||child.stderr!=='')console.log('GORIQ_PUBLIC_EOF_DATA_CONTROL_FAILURE '"
@@ -158,6 +162,8 @@ def main():
         report['decoder_explicit_values']=decoder(data[FIXTURE].decode(),out,True)
         report['decoder_renamed']=decoder(data[FIXTURE].decode(),out,False,True)
         report['writer_parent']=writer_parent(data[FIXTURE].decode(),data[TEST].decode(),out)
+        for p,b in data.items(): Path(p).write_bytes(b)
+        report['writer_parent_exact_load']=writer_parent(data[FIXTURE].decode(),data[TEST].decode(),out,True)
         for p,b in data.items(): Path(p).write_bytes(b)
         Path(NATIVE).write_bytes(annotate_native(data[NATIVE].decode()).encode())
         Path(FIXTURE).write_bytes(annotate_fixture(data[FIXTURE].decode()).encode())
