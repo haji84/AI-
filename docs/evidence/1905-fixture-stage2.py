@@ -61,10 +61,6 @@ def decoder(fixture,out,explicit_values=False,renamed=False):
     a='$bytes=New-Bytes $width ([ulong[]]@(4,8,12));$result=$type::Decode($bytes,$bytes.Length,$width,0,[ulong]4);'
     b="$bytes=New-Bytes $width ([ulong[]]@(4,8,12));[Console]::Out.WriteLine('DEC_VECTOR|'+$width+'|'+$bytes.Length+'|'+$bytes.GetType().FullName);$result=$type::Decode($bytes,$bytes.Length,$width,0,[ulong]4);[Console]::Out.WriteLine('DEC_RETURN|'+$width+'|'+$result.Count);"
     body=once(body,a,b)
-    if renamed:
-        # Keep the same vectors/constraints, check whether the helper name itself
-        # alters PowerShell 5.1 command binding. Experiment in disposable workspace.
-        body=body.replace('New-Bytes','New-PublicSnapshotBytes')
     if explicit_values:
         body=once(body,'$bytes=New-Bytes $width ([ulong[]]@(4,8,12))',
             '$publicValues=[ulong[]]@([ulong]4,[ulong]8,[ulong]12);$bytes=New-Bytes -Width $width -Values $publicValues')
@@ -90,6 +86,10 @@ def decoder(fixture,out,explicit_values=False,renamed=False):
         "[Console]::Out.WriteLine('DEC_BEFORE_COUNT|'+$Width);Put-Pointer $buffer 0 ([ulong]$Values.Count) $Width;[Console]::Out.WriteLine('DEC_AFTER_COUNT|'+$Width);")
     body=once(body,'Put-Pointer $buffer ($header+$stride*$i) $Values[$i] $Width',
         "[Console]::Out.WriteLine('DEC_BEFORE_ITEM|'+$Width);Put-Pointer $buffer ($header+$stride*$i) $Values[$i] $Width;[Console]::Out.WriteLine('DEC_AFTER_ITEM|'+$Width)")
+    if renamed:
+        # Preserve original test vectors and failure controls, change only the
+        # local helper command name after instrumenting the function body.
+        body=body.replace('New-Bytes','New-PublicSnapshotBytes')
     script=r'''param([string]$Fixture)
 $ErrorActionPreference='Stop';Set-StrictMode -Version Latest
 $stage='PARSE'
