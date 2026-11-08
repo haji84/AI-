@@ -115,7 +115,7 @@ $g2Cert=Microsoft.PowerShell.Utility\\Get-Variable -Name ownedPeerJobCanonicalPi
             "progress_files":cp.get("progress_files", []),
             "acceptance": "NOT_ASSESSED"}
 
-def real_windows_diagnostic(fixture, test):
+def real_windows_diagnostic(fixture, test, explicit_driver_target=False):
     start = test.index(REAL_TEST)
     end = test.index("\ntest(", start + len(REAL_TEST))
     chunk = test[start:end]
@@ -238,8 +238,23 @@ trap {
  }
 }else{[Console]::In.ReadToEnd()}"""
     modified_fixture = unique(modified_fixture,inputOriginal,inputVariant)
+    # The nested Windows manager must execute the original public fixture.
+    # This test compares paths without logging them, and a separate candidate
+    # uses the already-verified Root to launch that exact fixture.
+    startDriver=modified_fixture.index("function New-PublicPrivateJobDriver(")
+    endDriver=modified_fixture.index("function Stop-PublicPrivateJobAllocatedProcess(",startDriver)
+    driver=modified_fixture[startDriver:endDriver]
+    originalPath="$info.Arguments='-NoLogo -NoProfile -NonInteractive -File \"'+$PSCommandPath+'\" -Root \"'+$Root+'\" -OwnedJobWindows -TransportGroup '+$Group;"
+    if explicit_driver_target:
+        targetPrefix="$target=[IO.Path]::GetFullPath((Join-Path $Root 'tests/owner-code-cutover-peer.fixture.ps1'));Require ([IO.File]::Exists($target)) 'JOB_DRIVER_TARGET_MISSING';"
+        newPath=targetPrefix+originalPath.replace("$PSCommandPath","$target")
+    else:
+        targetPrefix="$same=$false;try{if($PSCommandPath){$same=[string]::Equals([IO.Path]::GetFullPath($PSCommandPath),[IO.Path]::GetFullPath((Join-Path $Root 'tests/owner-code-cutover-peer.fixture.ps1')),[StringComparison]::OrdinalIgnoreCase)}}catch{};[Console]::Error.WriteLine('JOB_DRIVER_PATH_MATCH|'+$(if($same){'YES'}else{'NO'}));"
+        newPath=targetPrefix+originalPath
+    driver=unique(driver,originalPath,newPath)
+    modified_fixture=modified_fixture[:startDriver]+driver+modified_fixture[endDriver:]
     begin = "assert.equal(child.error,undefined);"
-    stageCode = r"""const stages=(child.stderr||'').split(/\r?\n/).filter(x=>/^(?:JOB_REAL_(?:STAGE\|(?:UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE)_[A-Z0-9_]{2,100})|READ_CONTEXT\|(?:DRIVER|OUTSIDE|UNKNOWN))|JOB_DRIVER_(?:CHILD_EXITED\|(?:YES|NO)|EXIT_CODE\|(?:ZERO|NONZERO|UNKNOWN)|STDERR_READ\|(?:EOF|DATA|PENDING|FAULT)|TRAP\|(?:UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE|PEER_FIXTURE|ROTATION_CUTOVER)_[A-Z0-9_]{2,100})|TRAP_CAPTURE\|(?:UNAVAILABLE|UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE|PEER_FIXTURE|ROTATION_CUTOVER)_[A-Z0-9_]{2,100})|SOURCE_BASE\|(?:UNAVAILABLE|UNKNOWN|(?:CUTOVER_BOOTSTRAP_FIXTURE|CUTOVER|PEER_FIXTURE|ROTATION_CUTOVER|JOB)_[A-Z0-9_]{3,120})|SOURCE_CLASS\|(?:UNAVAILABLE|RUNTIME|METHOD|ARGUMENT|FORMAT|INVALID_OPERATION|IO|OTHER)|INPUT_CODE\|(?:UNAVAILABLE|NO_LINE|EMPTY|PARSE|OTHER)))$/.test(x));console.log('JOB_REAL_STAGE_CODES '+JSON.stringify(stages.slice(-5)));"""
+    stageCode = r"""const stages=(child.stderr||'').split(/\r?\n/).filter(x=>/^(?:JOB_REAL_(?:STAGE\|(?:UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE)_[A-Z0-9_]{2,100})|READ_CONTEXT\|(?:DRIVER|OUTSIDE|UNKNOWN))|JOB_DRIVER_(?:CHILD_EXITED\|(?:YES|NO)|EXIT_CODE\|(?:ZERO|NONZERO|UNKNOWN)|STDERR_READ\|(?:EOF|DATA|PENDING|FAULT)|TRAP\|(?:UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE|PEER_FIXTURE|ROTATION_CUTOVER)_[A-Z0-9_]{2,100})|TRAP_CAPTURE\|(?:UNAVAILABLE|UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE|PEER_FIXTURE|ROTATION_CUTOVER)_[A-Z0-9_]{2,100})|SOURCE_BASE\|(?:UNAVAILABLE|UNKNOWN|(?:CUTOVER_BOOTSTRAP_FIXTURE|CUTOVER|PEER_FIXTURE|ROTATION_CUTOVER|JOB)_[A-Z0-9_]{3,120})|SOURCE_CLASS\|(?:UNAVAILABLE|RUNTIME|METHOD|ARGUMENT|FORMAT|INVALID_OPERATION|IO|OTHER)|INPUT_CODE\|(?:UNAVAILABLE|NO_LINE|EMPTY|PARSE|OTHER)|PATH_MATCH\|(?:YES|NO)))$/.test(x));console.log('JOB_REAL_STAGE_CODES '+JSON.stringify(stages.slice(-5)));"""
     statusCode = r"""console.log('JOB_REAL_CHILD '+JSON.stringify({timeout:child.error?.code==='ETIMEDOUT'?'YES':'NO',exit:child.status===0?'ZERO':child.status===null?'NULL':'NONZERO',stderr:child.stderr?'YES':'NO',stdout:child.stdout?'YES':'NO'}));"""
     chunk = unique(chunk, begin, statusCode + stageCode + begin)
     modified_test = test[:start] + chunk + test[end:]
@@ -251,7 +266,7 @@ trap {
     stage_codes = json.loads(stage[-1]) if stage else []
     stage_codes = [x for x in stage_codes
                    if isinstance(x,str) and re.fullmatch(
-                     r"(?:JOB_REAL_(?:STAGE\|(?:UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE)_[A-Z0-9_]{2,100})|READ_CONTEXT\|(?:DRIVER|OUTSIDE|UNKNOWN))|JOB_DRIVER_(?:CHILD_EXITED\|(?:YES|NO)|EXIT_CODE\|(?:ZERO|NONZERO|UNKNOWN)|STDERR_READ\|(?:EOF|DATA|PENDING|FAULT)|TRAP\|(?:UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE|PEER_FIXTURE|ROTATION_CUTOVER)_[A-Z0-9_]{2,100})|TRAP_CAPTURE\|(?:UNAVAILABLE|UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE|PEER_FIXTURE|ROTATION_CUTOVER)_[A-Z0-9_]{2,100})|SOURCE_BASE\|(?:UNAVAILABLE|UNKNOWN|(?:CUTOVER_BOOTSTRAP_FIXTURE|CUTOVER|PEER_FIXTURE|ROTATION_CUTOVER|JOB)_[A-Z0-9_]{3,120})|SOURCE_CLASS\|(?:UNAVAILABLE|RUNTIME|METHOD|ARGUMENT|FORMAT|INVALID_OPERATION|IO|OTHER)|INPUT_CODE\|(?:UNAVAILABLE|NO_LINE|EMPTY|PARSE|OTHER)))",x)]
+                     r"(?:JOB_REAL_(?:STAGE\|(?:UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE)_[A-Z0-9_]{2,100})|READ_CONTEXT\|(?:DRIVER|OUTSIDE|UNKNOWN))|JOB_DRIVER_(?:CHILD_EXITED\|(?:YES|NO)|EXIT_CODE\|(?:ZERO|NONZERO|UNKNOWN)|STDERR_READ\|(?:EOF|DATA|PENDING|FAULT)|TRAP\|(?:UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE|PEER_FIXTURE|ROTATION_CUTOVER)_[A-Z0-9_]{2,100})|TRAP_CAPTURE\|(?:UNAVAILABLE|UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE|PEER_FIXTURE|ROTATION_CUTOVER)_[A-Z0-9_]{2,100})|SOURCE_BASE\|(?:UNAVAILABLE|UNKNOWN|(?:CUTOVER_BOOTSTRAP_FIXTURE|CUTOVER|PEER_FIXTURE|ROTATION_CUTOVER|JOB)_[A-Z0-9_]{3,120})|SOURCE_CLASS\|(?:UNAVAILABLE|RUNTIME|METHOD|ARGUMENT|FORMAT|INVALID_OPERATION|IO|OTHER)|INPUT_CODE\|(?:UNAVAILABLE|NO_LINE|EMPTY|PARSE|OTHER)|PATH_MATCH\|(?:YES|NO)))",x)]
     native_status=re.findall(r"JOB_REAL_CHILD (\{[^\r\n]{1,250}\})",cp["stdout"])
     native_child=json.loads(native_status[-1]) if native_status else {}
     found = re.findall(r"JOB_REAL_FLAGS (\{[^\r\n]{1,1800}\})", cp["stdout"])
@@ -295,6 +310,10 @@ def main():
         TEST.write_bytes(original_test)
         report["windows_real_job"] = real_windows_diagnostic(
             original_fixture.decode("utf-8"), original_test.decode("utf-8"))
+        FIXTURE.write_bytes(original_fixture)
+        TEST.write_bytes(original_test)
+        report["windows_real_job_exact_target"] = real_windows_diagnostic(
+            original_fixture.decode("utf-8"), original_test.decode("utf-8"), True)
     finally:
         FIXTURE.write_bytes(original_fixture)
         TEST.write_bytes(original_test)
