@@ -39,7 +39,7 @@ def run_selected(pattern, fixture_text, test_text, progress=False):
     def progress_file_names():
         if progress_root is None: return []
         return sorted(f.name for f in progress_root.iterdir()
-                      if re.fullmatch(r"(?:OWNED|CLOSED|PLATFORM)_[012]\\.txt",f.name))
+                      if re.fullmatch(r"(?:OWNED|CLOSED|PLATFORM)_[012]\.txt",f.name))
     def phases():
         if progress_root is None: return []
         f = progress_root/"OWNED_2.txt"
@@ -135,7 +135,7 @@ def real_windows_diagnostic(fixture, test):
     stage_codes = [x for x in stage_codes
                    if isinstance(x,str) and re.fullmatch(
                      r"JOB_REAL_STAGE\|(?:UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE)_[A-Z0-9_]{2,100})",x)]
-    native_status=re.findall(r"JOB_REAL_CHILD (\\{[^\\r\\n]{1,250}\\})",cp["stdout"])
+    native_status=re.findall(r"JOB_REAL_CHILD (\{[^\r\n]{1,250}\})",cp["stdout"])
     native_child=json.loads(native_status[-1]) if native_status else {}
     found = re.findall(r"JOB_REAL_FLAGS (\{[^\r\n]{1,1800}\})", cp["stdout"])
     flags = json.loads(found[-1]) if found else {}
