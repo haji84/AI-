@@ -535,8 +535,17 @@ def main():
                          capture_output=True,text=True,encoding='utf8',errors='replace',timeout=120)
         early_rows=re.findall(r'PIPE_EARLY(?:_INSTALLED)?\|(?:PASS|FAIL|YES|NO)',early_result.stdout+'\n'+early_result.stderr)
         failure_codes=sorted(set(re.findall(r'(?:CUTOVER_BOOTSTRAP_FIXTURE|PUBLIC_CLOCK|JOB_WINDOWS)_[A-Z0-9_]{1,120}',early_result.stdout+'\n'+early_result.stderr)))
+        # Only emit test names from a pre-authorized four-case whitelist, not
+        # stderr, filesystem paths, underlying runtime messages or secrets.
+        public_cases=('clock R2 refusal cleans','private original-State owned Job finite policy and cleanup group2',
+          'Windows private original-State Job contains','private owned Job thrown close')
+        outcomes={}
+        for case in public_cases:
+            failed=bool(re.search(r'(?m)^.*(?:✖|not ok [0-9]+ -)\\s*'+re.escape(case),early_result.stdout))
+            passed=bool(re.search(r'(?m)^.*(?:✔|ok [0-9]+ -)\\s*'+re.escape(case),early_result.stdout))
+            outcomes[case]='FAIL' if failed else 'PASS' if passed else 'UNKNOWN'
         report['early_cert_candidate']={'exit':early_result.returncode,'seconds':round(time.monotonic()-started,3),
-          'stages':early_rows[-24:],'failure_codes':failure_codes[:15], 'production_accepted':False}
+          'stages':early_rows[-24:],'failure_codes':failure_codes[:15],'case_outcomes':outcomes, 'production_accepted':False}
     finally:
         for p,b in data.items(): Path(p).write_bytes(b)
         (out/'report.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2))
