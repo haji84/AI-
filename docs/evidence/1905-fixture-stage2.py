@@ -469,7 +469,7 @@ def main():
         detail=re.findall(r'(?:CUTOVER_BOOTSTRAP_FIXTURE|PUBLIC_CLOCK|JOB_WINDOWS)_[A-Z0-9_]{1,120}',a.stdout+'\n'+a.stderr)
         # Only report known, bounded phase booleans from disposable test stdout.
         # A single API PASS may belong to a passing case rather than assign-fail.
-        api_proof=re.findall(r'(?:PIPE_(?:API|LOOKUP)|JOB_(?:CANONICAL_EXISTS|STATE_CLOSED|PIPES_CLOSED|PIPE[012]_CLOSED|OWNER_RESOLVED|OWNER_CLOSED)|CLOCK_(?:CONTAINMENT|PIPE_CLOSED|JOB_CLOSED|OWNER_CLOSED))\\|(?:PASS|YES|NO|[A-Za-z]{3,40})',a.stdout+'\n'+a.stderr)
+        api_proof=re.findall(r'(?:PIPE_(?:API|LOOKUP)|JOB_(?:CANONICAL_EXISTS|STATE_CLOSED|PIPES_CLOSED|PIPE[012]_CLOSED|OWNER_RESOLVED|OWNER_CLOSED)|CLOCK_(?:CONTAINMENT|PIPE_CLOSED|JOB_CLOSED|OWNER_CLOSED))\|(?:PASS|YES|NO|[A-Za-z]{3,40})',a.stdout+'\n'+a.stderr)
         report['module_api_lookup_candidate']={'exit':a.returncode,'seconds':round(time.monotonic()-start,3),
             'api_states':sorted(set(api))[:12], 'api_proof_rows':api_proof[-80:], 'failure_codes':sorted(set(detail))[:15],
             'original_native_unchanged':True,'production_accepted':False}
