@@ -458,8 +458,8 @@ def main():
         start=time.monotonic()
         a=subprocess.run(['node','--test','--test-concurrency=1','--test-name-pattern='+pattern,TEST],
                          capture_output=True,text=True,encoding='utf8',errors='replace',timeout=120)
-        api=re.findall(r'PIPE_API\\|(?:PASS|[A-Za-z]{3,45})',a.stdout+'\\n'+a.stderr)
-        detail=re.findall(r'(?:CUTOVER_BOOTSTRAP_FIXTURE|PUBLIC_CLOCK|JOB_WINDOWS)_[A-Z0-9_]{1,120}',a.stdout+'\\n'+a.stderr)
+        api=re.findall(r'PIPE_API\|(?:PASS|[A-Za-z]{3,45})',a.stdout+'\n'+a.stderr)
+        detail=re.findall(r'(?:CUTOVER_BOOTSTRAP_FIXTURE|PUBLIC_CLOCK|JOB_WINDOWS)_[A-Z0-9_]{1,120}',a.stdout+'\n'+a.stderr)
         report['module_api_candidate']={'exit':a.returncode,'seconds':round(time.monotonic()-start,3),
             'api_states':sorted(set(api))[:12], 'failure_codes':sorted(set(detail))[:15],
             'original_native_unchanged':True,'production_accepted':False}
