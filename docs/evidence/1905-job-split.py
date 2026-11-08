@@ -254,8 +254,11 @@ Emit-PublicNestedStage 'BEGIN'
     modified_fixture = unique(modified_fixture, "# TEST batch selection only;",
         "Emit-PublicNestedStage 'JOB_OPTIONS_OK'\n# TEST batch selection only;")
     nativeLoad=". (Join-Path $Root 'scripts/owner-code-rotation-native-1218.ps1')"
-    modified_fixture = unique(modified_fixture,nativeLoad,
-        nativeLoad+";Emit-PublicNestedStage 'NATIVE_READY'")
+    # The native source line also occurs inside a separate embedded corpus.
+    # Scope the replacement to the real fixture's grouped-clock guard.
+    nativeAnchor="if($script:publicClockTransactionGrouped -and $TransportGroup -notin @(0,1)){throw 'PEER_FIXTURE_CLOCK_TRANSACTION_GROUP_REQUIRED'}\n"+nativeLoad
+    modified_fixture=unique(modified_fixture,nativeAnchor,
+        nativeAnchor+";Emit-PublicNestedStage 'NATIVE_READY'")
     inputLine="$publicInput=if($OwnedJobWindows -and $TransportGroup -in @(1,2))"
     modified_fixture = unique(modified_fixture,inputLine,
         "Emit-PublicNestedStage 'INPUT_BEFORE';"+inputLine)
