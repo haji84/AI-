@@ -1,0 +1,45 @@
+name: Owner cutover source-bound fixture isolation
+
+on:
+  push:
+    branches: [fix/1218-production-cutover-40]
+    paths:
+      - '.github/workflows/owner-cutover-fixture-isolation.yml'
+      - 'docs/evidence/1905-fixture-isolation.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: owner-cutover-fixture-isolation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  isolate:
+    if: github.repository == 'haji84/AI-' && github.ref == 'refs/heads/fix/1218-production-cutover-40'
+    runs-on: windows-2025
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24.19.0'
+      - name: Verify experiment transport guards
+        run: python docs/evidence/1905-fixture-isolation.py --self-test
+      - name: Original failures then sealed-file candidate and separate cleanup guards
+        run: python docs/evidence/1905-fixture-isolation.py --run
+      - name: Retain public-source patch and closed diagnostic receipt only
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: pr1905-source-isolation-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/pr1905-fixture-isolation/report.json
+            ${{ runner.temp }}/pr1905-fixture-isolation/candidate.patch
+            ${{ runner.temp }}/pr1905-fixture-isolation/public-source.zip
+          retention-days: 1
+          if-no-files-found: warn
