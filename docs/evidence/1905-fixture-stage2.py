@@ -207,6 +207,13 @@ try{
 '@
     $body=$body.Replace($newVar,$apiNative)"""
         install=once(install,original_line,candidate)
+    if module_api_candidate:
+        # Same module that passed the original CWT/owner binding must own the
+        # read-back. In-memory comparison only; no source file or gate changed.
+        lookup="$canonical=Microsoft.PowerShell.Utility\\Get-Variable -Name ownedPeerJobCanonicalPipes -Scope Script -ErrorAction SilentlyContinue"
+        replacement="$canonical=$origin.Value.Item3.SessionState.PSVariable.Get('ownedPeerJobCanonicalPipes');[Console]::Error.WriteLine('PIPE_LOOKUP|'+$(if($canonical){'YES'}else{'NO'}))"
+        install=once(install,"    $body=$body.Replace($newVar,$apiNative)",
+            "    $body=$body.Replace($newVar,$apiNative)\\n    $lookup='"+lookup+"'\\n    $body=$body.Replace($lookup, '"+replacement.replace("'","''")+"')")
     source=once(source,"  Write-PublicPeerProgress ($phaseCase+'_KERNEL_DONE')",install+"\n  Write-PublicPeerProgress ($phaseCase+'_KERNEL_DONE')")
     return source
 
@@ -426,7 +433,7 @@ def main():
         Path(NATIVE).write_bytes(data[NATIVE])
         Path(FIXTURE).write_bytes(annotate_fixture(data[FIXTURE].decode()).encode())
         source=data[TEST].decode()
-        source=source.replace("assert.equal(child.error,undefined);assert.equal(child.status,0", "if(child.stderr){const safe=child.stderr.split(/\\r?\\n/).filter(x=>/^(?:PIPE_(?:ENTER|OWNER|BEFORE_REFS|ITEM_EXCEPTION|ALL|REFS3|NEWVAR|NEWVAR_REASON|NEWVAR_FQID|PRE_SCRIPT|PRE_LOCAL|PRE_GLOBAL|PRE_UP[123]|TUPLE|UNIQUE|API|OUTER|INMEMORY_INSTALLED)|JOB_NATIVE_STAGE|CLOCK_(?:MARK|CONTAINMENT|EXITED|WATCH|JOB_OWNER|JOB_CLOSED|OWNER_CLOSED|STARTED|CERT_CLOSED|PIPE_CLOSED|OWNER_CHECK)|JOB_(?:SAME_HANDLE|SAME_BIRTH|ACTOR_EXITED|PIPES_CLOSED|STATE_CLOSED|OWNER_RESOLVED|CANONICAL_PRESENT|CANONICAL_EXISTS|STARTED_PRESENT|OWNER_CLOSED|ORIGIN_EXISTS|ORIGIN_CONSTANT|ORIGIN_TUPLE|ORIGIN_MODULE|REF_STREAMS|REF_HANDLES|REF_DISTINCT|REF_HELD[012]|PIPE[012]_CLOSED|REFS_3|REFS_EMPTY|CONSTRUCTOR|STARTED_SAME|STARTINFO_SAME|CERT_HANDLE|CERT_BIRTH))(?:\\|[A-Za-z0-9_-]{1,180})*$/.test(x));if(safe.length)console.log('CLOSED_STAGE '+JSON.stringify(safe.slice(-45)));}assert.equal(child.error,undefined);assert.equal(child.status,0")
+        source=source.replace("assert.equal(child.error,undefined);assert.equal(child.status,0", "if(child.stderr){const safe=child.stderr.split(/\\r?\\n/).filter(x=>/^(?:PIPE_(?:ENTER|OWNER|BEFORE_REFS|ITEM_EXCEPTION|ALL|REFS3|NEWVAR|NEWVAR_REASON|NEWVAR_FQID|PRE_SCRIPT|PRE_LOCAL|PRE_GLOBAL|PRE_UP[123]|TUPLE|UNIQUE|API|LOOKUP|OUTER|INMEMORY_INSTALLED)|JOB_NATIVE_STAGE|CLOCK_(?:MARK|CONTAINMENT|EXITED|WATCH|JOB_OWNER|JOB_CLOSED|OWNER_CLOSED|STARTED|CERT_CLOSED|PIPE_CLOSED|OWNER_CHECK)|JOB_(?:SAME_HANDLE|SAME_BIRTH|ACTOR_EXITED|PIPES_CLOSED|STATE_CLOSED|OWNER_RESOLVED|CANONICAL_PRESENT|CANONICAL_EXISTS|STARTED_PRESENT|OWNER_CLOSED|ORIGIN_EXISTS|ORIGIN_CONSTANT|ORIGIN_TUPLE|ORIGIN_MODULE|REF_STREAMS|REF_HANDLES|REF_DISTINCT|REF_HELD[012]|PIPE[012]_CLOSED|REFS_3|REFS_EMPTY|CONSTRUCTOR|STARTED_SAME|STARTINFO_SAME|CERT_HANDLE|CERT_BIRTH))(?:\\|[A-Za-z0-9_-]{1,180})*$/.test(x));if(safe.length)console.log('CLOSED_STAGE '+JSON.stringify(safe.slice(-45)));}assert.equal(child.error,undefined);assert.equal(child.status,0")
         Path(TEST).write_bytes(source.encode())
         pattern='^(clock R2 refusal cleans|private original-State owned Job finite policy and cleanup group2|Windows private original-State Job contains|private owned Job thrown close)'
         start=time.monotonic();r=subprocess.run(['node','--test','--test-concurrency=1','--test-name-pattern='+pattern,TEST],capture_output=True,text=True,encoding='utf8',errors='replace',timeout=120)
@@ -460,7 +467,7 @@ def main():
                          capture_output=True,text=True,encoding='utf8',errors='replace',timeout=120)
         api=re.findall(r'PIPE_API\|(?:PASS|[A-Za-z]{3,45})',a.stdout+'\n'+a.stderr)
         detail=re.findall(r'(?:CUTOVER_BOOTSTRAP_FIXTURE|PUBLIC_CLOCK|JOB_WINDOWS)_[A-Z0-9_]{1,120}',a.stdout+'\n'+a.stderr)
-        report['module_api_candidate']={'exit':a.returncode,'seconds':round(time.monotonic()-start,3),
+        report['module_api_lookup_candidate']={'exit':a.returncode,'seconds':round(time.monotonic()-start,3),
             'api_states':sorted(set(api))[:12], 'failure_codes':sorted(set(detail))[:15],
             'original_native_unchanged':True,'production_accepted':False}
     finally:
