@@ -120,7 +120,7 @@ try{
     return {'exit':r.returncode,'rows':[x for x in r.stdout.splitlines() if re.fullmatch(r'DEC_[A-Z_]+(?:\|[A-Za-z0-9_.\[\]-]{1,80})*',x)]}
 
 
-def writer_parent(fixture, test_source, out, exact_load=False, snapshot_origin=False):
+def writer_parent(fixture, test_source, out, exact_load=False, snapshot_origin=False, identity_accept=False):
     """Classify original CreateNew and a temporary actor-local type-origin candidate."""
     if snapshot_origin:
         fixture=once(fixture,
@@ -191,6 +191,12 @@ public static class PublicFileIdentityProbe20261108 {
  [Console]::Out.WriteLine('WRITER_TYPE|'+$(if($isWriter){'YES'}else{'NO'}));[Console]::Out.WriteLine('WRITER_PATH|'+$(if($strictPath){'YES'}else{'NO'}));[Console]::Out.WriteLine('WRITER_PATH_CASELESS|'+$(if($loosePath){'YES'}else{'NO'}));[Console]::Out.WriteLine('WRITER_EMPTY|'+$(if($empty){'YES'}else{'NO'}));[Console]::Out.WriteLine('WRITER_DIRECTORY|'+$(if($sameDirectory){'YES'}else{'NO'}));[Console]::Out.WriteLine('WRITER_BASENAME|'+$baseClass)
  """+expected
     revised=once(original,expected,observed)
+    if identity_accept:
+        # One-time DISPOSABLE comparison only: retain FileStream, zero-length,
+        # CreateNew, foreign preservation, source-hash and all real test guards.
+        # A Windows Volume/FileIndex match is mandatory when textual names differ.
+        stronger="if($writer -isnot [IO.FileStream] -or (($writer.Name -cne $path) -and $fileIdentity -cne 'MATCH') -or $writer.Length -ne 0){throw 'ACTUAL_SOURCE_CREATE_NEW_REQUIRED'}"
+        revised=once(revised,expected,stronger)
     if exact_load:
         # Bind the exact compiled artifact, not a PowerShell type-name cache.
         revised=once(revised,'$assembly=[PublicWindowsEofActor].Assembly;',
@@ -205,7 +211,14 @@ public static class PublicFileIdentityProbe20261108 {
     r=subprocess.run(['node','--test','--test-concurrency=1','--test-name-pattern=^public Windows EOF actor compiles as data',TEST],
         capture_output=True,text=True,encoding='utf8',errors='replace',timeout=40)
     matches=re.findall(r'WRITER_(?:TYPE|PATH|PATH_CASELESS|EMPTY|DIRECTORY|BASENAME|LOCATION_WRITER|CODEBASE_WRITER|LOCATION_EXPECTED|CODEBASE_EXPECTED|ACTOR_EXPECTED|EXPECTED_EXISTS|ACTUAL_EXISTS|IDENTITY|READOPEN)\|(?:YES|NO|STDOUT|STDERR|OTHER|NONE|MATCH|DIFFERENT|UNKNOWN)',r.stdout)
-    return {'exit':r.returncode,'predicates':sorted(set(matches)), 'observed_predicate_count':len(matches)}
+    observed_failure=re.search(r'GORIQ_PUBLIC_EOF_DATA_CONTROL_FAILURE (\\{[^\\r\\n]+\\})',r.stdout)
+    failure=None
+    if observed_failure:
+        try:
+            record=json.loads(observed_failure.group(1))
+            failure={k:record.get(k) for k in ('phase','code','category','nativeAuthority')}
+        except ValueError: failure={'code':'UNPARSEABLE_PUBLIC_ENUM'}
+    return {'exit':r.returncode,'predicates':sorted(set(matches)), 'observed_predicate_count':len(matches), 'public_failure':failure}
 
 
 def main():
@@ -223,6 +236,8 @@ def main():
         report['writer_parent_exact_load']=writer_parent(data[FIXTURE].decode(),data[TEST].decode(),out,True)
         for p,b in data.items(): Path(p).write_bytes(b)
         report['writer_parent_snapshot_origin']=writer_parent(data[FIXTURE].decode(),data[TEST].decode(),out,False,True)
+        for p,b in data.items(): Path(p).write_bytes(b)
+        report['writer_parent_identity_candidate']=writer_parent(data[FIXTURE].decode(),data[TEST].decode(),out,False,False,True)
         for p,b in data.items(): Path(p).write_bytes(b)
         Path(NATIVE).write_bytes(annotate_native(data[NATIVE].decode()).encode())
         Path(FIXTURE).write_bytes(annotate_fixture(data[FIXTURE].decode()).encode())
