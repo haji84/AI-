@@ -166,6 +166,19 @@ try{
  elseif($fqid -match '(?i)SessionState'){$code='SESSION_STATE'}
  elseif($fqid -match '(?i)WriteError'){$code='WRITE_ERROR'}
  [Console]::Error.WriteLine('PIPE_NEWVAR_FQID|'+$code)
+ $kind='OTHER'
+ $full=[string]$_.Exception.Message
+ if($full -match '(?i)maximum|too many|capacity|limit.*variable|variable.*limit'){$kind='VARIABLE_CAPACITY'}
+ elseif($full -match '(?i)scope|session.*state'){$kind='SCOPE_OR_SESSION'}
+ elseif($full -match '(?i)constant|read.?only|overwrite|exists'){$kind='CONSTANT_CONFLICT'}
+ elseif($full -match '(?i)runspace|pipeline|thread|closed'){$kind='RUNSPACE_STATE'}
+ [Console]::Error.WriteLine('PIPE_EXCEPTION_CLASS|'+$kind)
+ $count=[int]@((Microsoft.PowerShell.Utility\Get-Variable -Scope Script -ErrorAction SilentlyContinue)).Count
+ $maximum=0
+ try{$maximum=[int](Microsoft.PowerShell.Utility\Get-Variable MaximumVariableCount -ValueOnly -ErrorAction Stop)}catch{}
+ [Console]::Error.WriteLine('PIPE_CAP_CONFIG|'+$(if($maximum -ge 1024 -and $maximum -le 32768){'VALID'}else{'UNKNOWN'}))
+ [Console]::Error.WriteLine('PIPE_CAP_NEAR|'+$(if($maximum -gt 0 -and $count -ge ($maximum - 10)){'YES'}else{'NO'}))
+ [Console]::Error.WriteLine('PIPE_CAP_USED|'+$(if($count -ge 4090){'HIGH'}elseif($count -ge 2048){'MID'}else{'LOW'}))
  $altState='UNKNOWN'
  try{
   Microsoft.PowerShell.Utility\New-Variable -Name publicJobUniqueCertProbe1905 -Scope Script -Option Constant -Value $canonicalTuple -ErrorAction Stop
@@ -433,7 +446,7 @@ def main():
         Path(NATIVE).write_bytes(data[NATIVE])
         Path(FIXTURE).write_bytes(annotate_fixture(data[FIXTURE].decode()).encode())
         source=data[TEST].decode()
-        source=source.replace("assert.equal(child.error,undefined);assert.equal(child.status,0", "if(child.stderr){const safe=child.stderr.split(/\\r?\\n/).filter(x=>/^(?:PIPE_(?:ENTER|OWNER|BEFORE_REFS|ITEM_EXCEPTION|ALL|REFS3|NEWVAR|NEWVAR_REASON|NEWVAR_FQID|PRE_SCRIPT|PRE_LOCAL|PRE_GLOBAL|PRE_UP[123]|TUPLE|UNIQUE|API|LOOKUP|OUTER|INMEMORY_INSTALLED)|JOB_NATIVE_STAGE|CLOCK_(?:MARK|CONTAINMENT|EXITED|WATCH|JOB_OWNER|JOB_CLOSED|OWNER_CLOSED|STARTED|CERT_CLOSED|PIPE_CLOSED|OWNER_CHECK)|JOB_(?:SAME_HANDLE|SAME_BIRTH|ACTOR_EXITED|PIPES_CLOSED|STATE_CLOSED|OWNER_RESOLVED|CANONICAL_PRESENT|CANONICAL_EXISTS|STARTED_PRESENT|OWNER_CLOSED|ORIGIN_EXISTS|ORIGIN_CONSTANT|ORIGIN_TUPLE|ORIGIN_MODULE|REF_STREAMS|REF_HANDLES|REF_DISTINCT|REF_HELD[012]|PIPE[012]_CLOSED|REFS_3|REFS_EMPTY|CONSTRUCTOR|STARTED_SAME|STARTINFO_SAME|CERT_HANDLE|CERT_BIRTH))(?:\\|[A-Za-z0-9_-]{1,180})*$/.test(x));if(safe.length)console.log('CLOSED_STAGE '+JSON.stringify(safe.slice(-45)));}assert.equal(child.error,undefined);assert.equal(child.status,0")
+        source=source.replace("assert.equal(child.error,undefined);assert.equal(child.status,0", "if(child.stderr){const safe=child.stderr.split(/\\r?\\n/).filter(x=>/^(?:PIPE_(?:ENTER|OWNER|BEFORE_REFS|ITEM_EXCEPTION|ALL|REFS3|NEWVAR|NEWVAR_REASON|NEWVAR_FQID|EXCEPTION_CLASS|CAP_CONFIG|CAP_NEAR|CAP_USED|PRE_SCRIPT|PRE_LOCAL|PRE_GLOBAL|PRE_UP[123]|TUPLE|UNIQUE|API|LOOKUP|OUTER|INMEMORY_INSTALLED)|JOB_NATIVE_STAGE|CLOCK_(?:MARK|CONTAINMENT|EXITED|WATCH|JOB_OWNER|JOB_CLOSED|OWNER_CLOSED|STARTED|CERT_CLOSED|PIPE_CLOSED|OWNER_CHECK)|JOB_(?:SAME_HANDLE|SAME_BIRTH|ACTOR_EXITED|PIPES_CLOSED|STATE_CLOSED|OWNER_RESOLVED|CANONICAL_PRESENT|CANONICAL_EXISTS|STARTED_PRESENT|OWNER_CLOSED|ORIGIN_EXISTS|ORIGIN_CONSTANT|ORIGIN_TUPLE|ORIGIN_MODULE|REF_STREAMS|REF_HANDLES|REF_DISTINCT|REF_HELD[012]|PIPE[012]_CLOSED|REFS_3|REFS_EMPTY|CONSTRUCTOR|STARTED_SAME|STARTINFO_SAME|CERT_HANDLE|CERT_BIRTH))(?:\\|[A-Za-z0-9_-]{1,180})*$/.test(x));if(safe.length)console.log('CLOSED_STAGE '+JSON.stringify(safe.slice(-45)));}assert.equal(child.error,undefined);assert.equal(child.status,0")
         Path(TEST).write_bytes(source.encode())
         pattern='^(clock R2 refusal cleans|private original-State owned Job finite policy and cleanup group2|Windows private original-State Job contains|private owned Job thrown close)'
         start=time.monotonic();r=subprocess.run(['node','--test','--test-concurrency=1','--test-name-pattern='+pattern,TEST],capture_output=True,text=True,encoding='utf8',errors='replace',timeout=120)
@@ -443,7 +456,7 @@ def main():
             if mark>=0:
                 try: rows.extend(json.loads(line[mark+13:]))
                 except (ValueError,TypeError): pass
-        fixed=re.findall(r'(?:PIPE_(?:ENTER|OWNER|BEFORE_REFS|ALL|REFS3|NEWVAR|NEWVAR_REASON|NEWVAR_FQID|PRE_SCRIPT|PRE_LOCAL|PRE_GLOBAL|PRE_UP[123]|TUPLE|UNIQUE|INMEMORY_INSTALLED)|CLOCK_(?:MARK|CONTAINMENT|EXITED|WATCH|JOB_OWNER|JOB_CLOSED|OWNER_CLOSED|STARTED|CERT_CLOSED|PIPE_CLOSED|OWNER_CHECK)|JOB_(?:SAME_HANDLE|SAME_BIRTH|ACTOR_EXITED|PIPES_CLOSED|STATE_CLOSED|OWNER_RESOLVED|CANONICAL_PRESENT|CANONICAL_EXISTS|STARTED_PRESENT|OWNER_CLOSED|ORIGIN_EXISTS|ORIGIN_CONSTANT|ORIGIN_TUPLE|ORIGIN_MODULE|REF_STREAMS|REF_HANDLES|REF_DISTINCT|REF_HELD[012]|PIPE[012]_CLOSED|REFS_3|REFS_EMPTY|CONSTRUCTOR|STARTED_SAME|STARTINFO_SAME|CERT_HANDLE|CERT_BIRTH))\|(?:YES|NO|BEFORE|AFTER)',r.stdout+'\n'+r.stderr)
+        fixed=re.findall(r'(?:PIPE_(?:ENTER|OWNER|BEFORE_REFS|ALL|REFS3|NEWVAR|NEWVAR_REASON|NEWVAR_FQID|EXCEPTION_CLASS|CAP_CONFIG|CAP_NEAR|CAP_USED|PRE_SCRIPT|PRE_LOCAL|PRE_GLOBAL|PRE_UP[123]|TUPLE|UNIQUE|INMEMORY_INSTALLED)|CLOCK_(?:MARK|CONTAINMENT|EXITED|WATCH|JOB_OWNER|JOB_CLOSED|OWNER_CLOSED|STARTED|CERT_CLOSED|PIPE_CLOSED|OWNER_CHECK)|JOB_(?:SAME_HANDLE|SAME_BIRTH|ACTOR_EXITED|PIPES_CLOSED|STATE_CLOSED|OWNER_RESOLVED|CANONICAL_PRESENT|CANONICAL_EXISTS|STARTED_PRESENT|OWNER_CLOSED|ORIGIN_EXISTS|ORIGIN_CONSTANT|ORIGIN_TUPLE|ORIGIN_MODULE|REF_STREAMS|REF_HANDLES|REF_DISTINCT|REF_HELD[012]|PIPE[012]_CLOSED|REFS_3|REFS_EMPTY|CONSTRUCTOR|STARTED_SAME|STARTINFO_SAME|CERT_HANDLE|CERT_BIRTH))\|(?:YES|NO|BEFORE|AFTER)',r.stdout+'\n'+r.stderr)
         report['cleanup']={'exit':r.returncode,'seconds':round(time.monotonic()-start,3),
             'fixed_stage_rows':rows[:100], 'fixed_predicates':sorted(set(fixed))[:30],
             'original_native_hash_pinned':True}
