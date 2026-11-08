@@ -120,6 +120,33 @@ try{
     return {'exit':r.returncode,'rows':[x for x in r.stdout.splitlines() if re.fullmatch(r'DEC_[A-Z_]+(?:\|[A-Za-z0-9_.\[\]-]{1,80})*',x)]}
 
 
+def writer_parent(fixture, test_source, out):
+    """Classify only the three existing CreateNew assertions; no acceptance changes."""
+    outer=re.search(r" \$publicWindowsEofActorControls=@'\r?\n([\s\S]*?)\r?\n'@",fixture)
+    if outer is None: raise ValueError('PUBLIC_CONTROLS_ANCHOR_REQUIRED')
+    controls=outer.group(1)
+    embedded=re.search(r"\$writerParentContract=\[Text.Encoding\]::UTF8.GetString\(\[Convert\]::FromBase64String\('([^']+)'\)\)",controls)
+    if embedded is None: raise ValueError('WRITER_CONTRACT_ANCHOR_REQUIRED')
+    original=base64.b64decode(embedded.group(1),validate=True).decode()
+    expected="if($writer -isnot [IO.FileStream] -or $writer.Name -cne $path -or $writer.Length -ne 0){throw 'ACTUAL_SOURCE_CREATE_NEW_REQUIRED'}"
+    observed="""$isWriter=($writer -is [IO.FileStream]);$strictPath=$false;$loosePath=$false;$empty=$false
+ if($isWriter){$strictPath=([string]::Equals($writer.Name,$path,[StringComparison]::Ordinal));$loosePath=([string]::Equals($writer.Name,$path,[StringComparison]::OrdinalIgnoreCase));$empty=($writer.Length -eq 0)}
+ foreach($pair in @(@('TYPE',$isWriter),@('PATH',$strictPath),@('PATH_CASELESS',$loosePath),@('EMPTY',$empty))){[Console]::Out.WriteLine('WRITER_'+$pair[0]+'|'+$(if($pair[1]){'YES'}else{'NO'}))}
+ """+expected
+    revised=once(original,expected,observed)
+    controls=once(controls,embedded.group(0),embedded.group(0).replace(embedded.group(1),base64.b64encode(revised.encode()).decode()))
+    updated_fixture=once(fixture,outer.group(0),outer.group(0).replace(outer.group(1),controls))
+    marker="if(child.error!==undefined||child.status!==0||child.stderr!=='')console.log('GORIQ_PUBLIC_EOF_DATA_CONTROL_FAILURE '"
+    prelude="if(child.stdout){const safe=child.stdout.split(/\\r?\\n/).filter(v=>/^WRITER_(?:TYPE|PATH|PATH_CASELESS|EMPTY)\\\\|(?:YES|NO)$/.test(v));if(safe.length)console.log('WRITER_SAFE_STAGES '+JSON.stringify(safe))}"
+    updated_test=once(test_source,marker,prelude+marker)
+    Path(FIXTURE).write_text(updated_fixture,encoding='utf8')
+    Path(TEST).write_text(updated_test,encoding='utf8')
+    r=subprocess.run(['node','--test','--test-concurrency=1','--test-name-pattern=^public Windows EOF actor compiles as data',TEST],
+        capture_output=True,text=True,encoding='utf8',errors='replace',timeout=40)
+    matches=re.findall(r'WRITER_(?:TYPE|PATH|PATH_CASELESS|EMPTY)\|(?:YES|NO)',r.stdout)
+    return {'exit':r.returncode,'predicates':sorted(set(matches)), 'observed_predicate_count':len(matches)}
+
+
 def main():
     if sys.argv[1:]!=['--run'] or os.environ.get('GITHUB_REPOSITORY')!='haji84/AI-' or os.environ.get('RUNNER_ENVIRONMENT')!='github-hosted' or os.name!='nt': raise ValueError('HOSTED_WINDOWS_REQUIRED')
     for p,h in EXPECTED.items():
@@ -130,6 +157,8 @@ def main():
         report['decoder']=decoder(data[FIXTURE].decode(),out)
         report['decoder_explicit_values']=decoder(data[FIXTURE].decode(),out,True)
         report['decoder_renamed']=decoder(data[FIXTURE].decode(),out,False,True)
+        report['writer_parent']=writer_parent(data[FIXTURE].decode(),data[TEST].decode(),out)
+        for p,b in data.items(): Path(p).write_bytes(b)
         Path(NATIVE).write_bytes(annotate_native(data[NATIVE].decode()).encode())
         Path(FIXTURE).write_bytes(annotate_fixture(data[FIXTURE].decode()).encode())
         source=data[TEST].decode()
