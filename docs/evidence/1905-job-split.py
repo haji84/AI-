@@ -4,8 +4,10 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 
 REPO = "haji84/AI-"
 FIXTURE = Path("tests/owner-code-cutover-peer.fixture.ps1")
@@ -26,11 +28,16 @@ def unique(source, old, new):
         raise ValueError("BOUNDED_SOURCE_ANCHOR_INVALID")
     return source.replace(old, new, 1)
 
-def run_selected(pattern, fixture_text, test_text, progress=False):
+def run_selected(pattern, fixture_text, test_text, progress=False, native_phase=False):
     FIXTURE.write_text(fixture_text, encoding="utf-8")
     TEST.write_text(test_text, encoding="utf-8")
     progress_root = None
+    phase_root = None
     run_env = None
+    if native_phase:
+        phase_root = Path(tempfile.mkdtemp(prefix="pr1905-nested-",dir=os.environ["RUNNER_TEMP"]))
+        run_env = os.environ.copy()
+        run_env["GORIQ_PR1905_PHASE_DIR"] = str(phase_root)
     if progress:
         progress_root = Path(os.environ["RUNNER_TEMP"])/"pr1905-job2-progress"
         progress_root.mkdir(exist_ok=False)
@@ -40,6 +47,15 @@ def run_selected(pattern, fixture_text, test_text, progress=False):
         if progress_root is None: return []
         return sorted(f.name for f in progress_root.iterdir()
                       if re.fullmatch(r"(?:OWNED|CLOSED|PLATFORM)_[012]\.txt",f.name))
+    def native_phases():
+        if phase_root is None: return {}
+        result={}
+        for group in ("1","2"):
+            f=phase_root/("NESTED_"+group+".txt")
+            if f.is_file():
+                result[group]=[v for v in f.read_text(encoding="ascii",errors="replace").splitlines()
+                               if v in ("BEGIN","INPUT_READY","BEFORE_BASE","AFTER_BASE","TRAP","BASE_FAIL")][-20:]
+        return result
     def phases():
         if progress_root is None: return []
         f = progress_root/"OWNED_2.txt"
@@ -56,10 +72,13 @@ def run_selected(pattern, fixture_text, test_text, progress=False):
             errors="replace", timeout=48, check=False, env=run_env,
         )
         return {"status": "RETURNED", "exit": cp.returncode,
-                "stdout": cp.stdout, "stderr": cp.stderr, "progress": phases(), "progress_files":progress_file_names()}
+                "stdout": cp.stdout, "stderr": cp.stderr, "progress": phases(), "progress_files":progress_file_names(),"nested_phases":native_phases()}
     except subprocess.TimeoutExpired:
         return {"status": "DIAGNOSTIC_TIMEOUT", "exit": None,
-                "stdout": "", "stderr": "", "progress": phases(), "progress_files":progress_file_names()}
+                "stdout": "", "stderr": "", "progress": phases(), "progress_files":progress_file_names(),"nested_phases":native_phases()}
+    finally:
+        if phase_root is not None:
+            shutil.rmtree(phase_root,ignore_errors=True)
 
 def group2_diagnostic(fixture, test):
     fixed = """
@@ -207,6 +226,26 @@ trap {
 }
 # BEGIN_COMPOSED_PRIVATE_TEST_MODE"""
     modified_fixture = unique(modified_fixture,trapAnchor,trapCode)
+    # Disposable, hosted-Windows-only phase receipt in an isolated temporary
+    # directory. Exactly six fixed labels; no raw paths or exception contents.
+    stageFunction=r"""
+function Emit-PublicNestedStage([string]$Label) {
+ if(-not $OwnedJobWindows -or $TransportGroup -notin @(1,2) -or
+    $env:GITHUB_REPOSITORY -cne 'haji84/AI-' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+    [string]::IsNullOrWhiteSpace($env:GORIQ_PR1905_PHASE_DIR)){return}
+ if($Label -notin @('BEGIN','INPUT_READY','BEFORE_BASE','AFTER_BASE','TRAP','BASE_FAIL')){return}
+ try{
+  $root=$env:GORIQ_PR1905_PHASE_DIR
+  if([IO.Directory]::Exists($root)){
+   $path=[IO.Path]::Combine($root,('NESTED_'+$TransportGroup+'.txt'))
+   [IO.File]::AppendAllText($path,($Label+[char]10),[Text.Encoding]::ASCII)
+  }
+ }catch{}
+}
+Emit-PublicNestedStage 'BEGIN'
+"""
+    modified_fixture = unique(modified_fixture,"# BEGIN_COMPOSED_PRIVATE_TEST_MODE",
+        "# BEGIN_COMPOSED_PRIVATE_TEST_MODE\n"+stageFunction)
     # The nested manager was observed to exit between SOURCE_BASE_BEGIN and
     # SOURCE_BASE_DONE. Capture the original failing contract code before the
     # child ends. Strictly bounded fixed enum, not exception text or file data.
@@ -230,6 +269,11 @@ trap {
  throw
 }""".replace("ORIGINAL_SOURCE_BASE",sourceBase)
     modified_fixture = unique(modified_fixture,sourceBase,sourceProbe)
+    modified_fixture = unique(modified_fixture,sourceProbe,
+        "Emit-PublicNestedStage 'BEFORE_BASE';"+sourceProbe+";Emit-PublicNestedStage 'AFTER_BASE'")
+    modified_fixture = unique(modified_fixture,
+        "[Console]::Error.WriteLine('JOB_SOURCE_BASE_CLASS|'+$category)\n throw",
+        "[Console]::Error.WriteLine('JOB_SOURCE_BASE_CLASS|'+$category)\n Emit-PublicNestedStage 'BASE_FAIL';throw")
     # The child stops between SOURCE_BASE_BEGIN and SOURCE_BASE_DONE. Check
     # its original Console.ReadLine/ConvertFrom-Json before source initialization.
     inputOriginal="$publicInput=if($OwnedJobWindows -and $TransportGroup -in @(1,2)){$line=[Console]::In.ReadLine();$null=$line|Microsoft.PowerShell.Utility\ConvertFrom-Json;$line}else{[Console]::In.ReadToEnd()}"
@@ -249,6 +293,8 @@ trap {
  }
 }else{[Console]::In.ReadToEnd()}"""
     modified_fixture = unique(modified_fixture,inputOriginal,inputVariant)
+    modified_fixture = unique(modified_fixture,inputVariant,
+        inputVariant+";Emit-PublicNestedStage 'INPUT_READY'")
     # The nested Windows manager must execute the original public fixture.
     # This test compares paths without logging them, and a separate candidate
     # uses the already-verified Root to launch that exact fixture.
@@ -271,7 +317,7 @@ trap {
     modified_test = test[:start] + chunk + test[end:]
     cp = run_selected(
         "^Windows private original-State Job contains held Node helper and manager death while outside control survives$",
-        modified_fixture, modified_test,
+        modified_fixture, modified_test, native_phase=True,
     )
     stage = re.findall(r"JOB_REAL_STAGE_CODES (\[[^\r\n]{1,1000}\])", cp["stdout"])
     stage_codes = json.loads(stage[-1]) if stage else []
@@ -286,7 +332,8 @@ trap {
                 if flags.get(k) in ("YES", "NO", "UNKNOWN")}
     return {"run_status":cp["status"], "original_assertions_exit":cp["exit"],
             "flags":filtered, "capture_complete":len(filtered)==len(FLAGS),
-            "stage_codes":stage_codes[-5:], "child":native_child,
+            "stage_codes":stage_codes[-8:], "child":native_child,
+            "nested_phases":cp.get("nested_phases",{}),
             "acceptance":"NOT_ASSESSED"}
 
 def main():
