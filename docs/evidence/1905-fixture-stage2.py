@@ -205,6 +205,13 @@ public static class PublicFileIdentityProbe20261108 {
     updated_fixture=once(fixture,outer.group(0),outer.group(0).replace(outer.group(1),controls))
     marker="if(child.error!==undefined||child.status!==0||child.stderr!=='')console.log('GORIQ_PUBLIC_EOF_DATA_CONTROL_FAILURE '"
     prelude="if(child.stdout){const safe=child.stdout.split(/\\r?\\n/).filter(v=>/^WRITER_(?:TYPE|PATH|PATH_CASELESS|EMPTY|DIRECTORY|BASENAME|LOCATION_WRITER|CODEBASE_WRITER|LOCATION_EXPECTED|CODEBASE_EXPECTED|ACTOR_EXPECTED|EXPECTED_EXISTS|ACTUAL_EXISTS|IDENTITY|READOPEN)[|](?:YES|NO|STDOUT|STDERR|OTHER|NONE|MATCH|DIFFERENT|UNKNOWN)$/.test(v));if(safe.length)console.log('WRITER_SAFE_STAGES '+JSON.stringify(safe))}"
+    # Only in the disposable diagnostics checkout: strip OUR added WRITER_*
+    # lines before passing stdout to the unchanged original JSON/parser/assertions.
+    # No real actor line, negative assertion, wire data or expected value is dropped.
+    if identity_accept:
+        scrub=("if(child.stdout){const lines=child.stdout.split(/\\r?\\n/);"
+               "child.stdout=lines.filter(v=>!/^WRITER_(?:TYPE|PATH|PATH_CASELESS|EMPTY|DIRECTORY|BASENAME|LOCATION_WRITER|CODEBASE_WRITER|LOCATION_EXPECTED|CODEBASE_EXPECTED|ACTOR_EXPECTED|EXPECTED_EXISTS|ACTUAL_EXISTS|IDENTITY|READOPEN)[|](?:YES|NO|STDOUT|STDERR|OTHER|NONE|MATCH|DIFFERENT|UNKNOWN)$/.test(v)).join('\\n');}")
+        prelude=prelude+scrub
     updated_test=once(test_source,marker,prelude+marker)
     Path(FIXTURE).write_text(updated_fixture,encoding='utf8')
     Path(TEST).write_text(updated_test,encoding='utf8')
@@ -218,7 +225,13 @@ public static class PublicFileIdentityProbe20261108 {
             record=json.loads(observed_failure.group(1))
             failure={k:record.get(k) for k in ('phase','code','category','nativeAuthority')}
         except ValueError: failure={'code':'UNPARSEABLE_PUBLIC_ENUM'}
-    return {'exit':r.returncode,'predicates':sorted(set(matches)), 'observed_predicate_count':len(matches), 'public_failure':failure}
+    failure_kind='UNKNOWN'
+    if r.returncode == 0: failure_kind='NONE'
+    elif 'Unexpected token' in r.stdout or 'SyntaxError' in r.stdout: failure_kind='JSON_PARSE'
+    elif 'AssertionError' in r.stdout or 'ERR_ASSERTION' in r.stdout: failure_kind='ASSERTION'
+    elif 'ACTUAL_SOURCE_CREATE_NEW_REQUIRED' in r.stdout: failure_kind='CREATE_NEW'
+    elif 'PUBLIC_' in r.stdout: failure_kind='PUBLIC_CONTRACT'
+    return {'exit':r.returncode,'predicates':sorted(set(matches)), 'observed_predicate_count':len(matches), 'public_failure':failure, 'test_failure_kind':failure_kind}
 
 
 def main():
