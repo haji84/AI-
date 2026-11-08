@@ -52,7 +52,29 @@ def cleanup_wrapper_candidate(native):
 def annotate_fixture(source):
     a="}catch{$script:jobWindowsResult=@{pass=$false;status='INCONCLUSIVE';code='PUBLIC_PRIVATE_JOB_WINDOWS_PROOF_UNCONFIRMED';nativeAuthority=$false}}"
     b="""}catch{$publicStageReason='UNKNOWN';$publicMessage=$_.Exception.GetBaseException().Message;if($publicMessage -cmatch '\\A(?:PEER_FIXTURE|CUTOVER_BOOTSTRAP_FIXTURE)_[A-Z0-9_]{1,150}\\z'){$publicStageReason=$publicMessage};[Console]::Error.WriteLine('JOB_NATIVE_STAGE|'+$publicStageReason+'|'+$_.Exception.GetBaseException().GetType().Name);$script:jobWindowsResult=@{pass=$false;status='INCONCLUSIVE';code='PUBLIC_PRIVATE_JOB_WINDOWS_PROOF_UNCONFIRMED';nativeAuthority=$false}}"""
-    return once(source,a,b)
+    source=once(source,a,b)
+    stage="    Refused {&$module {Initialize-OwnerCutoverOwnedPeer}}\\n    $containment="
+    stage_new="    [Console]::Error.WriteLine('CLOCK_MARK|BEFORE');Refused {&$module {Initialize-OwnerCutoverOwnedPeer}};[Console]::Error.WriteLine('CLOCK_MARK|AFTER')\\n    $containment="
+    source=once(source,stage.replace('\\n','\n'),stage_new.replace('\\n','\n'))
+    guard="Require ($script:ownedPeerLifetime.observerContainment -ceq 'CLOSED' -and $script:r2HeldProof.HasExited -and -not $script:ownedPeerCleanupCertificate.Item4.Item1.IsRunning) 'R2_EARLY_ORIGINAL_ACTOR_CLOSED'"
+    indicators=(
+      "[Console]::Error.WriteLine('CLOCK_CONTAINMENT|'+$(if($script:ownedPeerLifetime.observerContainment -ceq 'CLOSED'){'YES'}else{'NO'}));"
+      "[Console]::Error.WriteLine('CLOCK_EXITED|'+$(if($script:r2HeldProof.HasExited){'YES'}else{'NO'}));"
+      "[Console]::Error.WriteLine('CLOCK_WATCH|'+$(if(-not $script:ownedPeerCleanupCertificate.Item4.Item1.IsRunning){'YES'}else{'NO'}));"
+    )
+    source=once(source,guard,indicators+guard)
+    jobMarker="$held=$script:jobDataAssignFailureProof;Require ("
+    jobIndicators=(
+      "$held=$script:jobDataAssignFailureProof;"
+      "[Console]::Error.WriteLine('JOB_SAME_HANDLE|'+$(if($held.Item1.Handle -eq $held.Item2){'YES'}else{'NO'}));"
+      "[Console]::Error.WriteLine('JOB_SAME_BIRTH|'+$(if($held.Item1.StartTime.ToUniversalTime().Ticks -eq $held.Item3){'YES'}else{'NO'}));"
+      "[Console]::Error.WriteLine('JOB_ACTOR_EXITED|'+$(if($held.Item1.HasExited){'YES'}else{'NO'}));"
+      "[Console]::Error.WriteLine('JOB_PIPES_CLOSED|'+$(if(@($script:jobDataAssignFailurePipes|Where-Object {-not $_.IsClosed}).Count -eq 0){'YES'}else{'NO'}));"
+      "[Console]::Error.WriteLine('JOB_STATE_CLOSED|'+$(if($script:ownedPeerJobPipeState -ceq 'CLOSED'){'YES'}else{'NO'}));"
+      "Require ("
+    )
+    source=once(source,jobMarker,jobIndicators)
+    return source
 
 
 def decoder(fixture,out,explicit_values=False,renamed=False):
@@ -190,6 +212,17 @@ public static class PublicFileIdentityProbe20261108 {
  foreach($diag in @(@('LOCATION_WRITER',$matchesWriterLocation),@('CODEBASE_WRITER',$matchesWriterCodebase),@('LOCATION_EXPECTED',$matchesExpectedLocation),@('CODEBASE_EXPECTED',$matchesExpectedCodebase),@('ACTOR_EXPECTED',$matchesExpectedActor),@('EXPECTED_EXISTS',$expectedExists),@('ACTUAL_EXISTS',$actualExists))){[Console]::Out.WriteLine('WRITER_'+$diag[0]+'|'+$(if($diag[1]){'YES'}else{'NO'}))}
  [Console]::Out.WriteLine('WRITER_TYPE|'+$(if($isWriter){'YES'}else{'NO'}));[Console]::Out.WriteLine('WRITER_PATH|'+$(if($strictPath){'YES'}else{'NO'}));[Console]::Out.WriteLine('WRITER_PATH_CASELESS|'+$(if($loosePath){'YES'}else{'NO'}));[Console]::Out.WriteLine('WRITER_EMPTY|'+$(if($empty){'YES'}else{'NO'}));[Console]::Out.WriteLine('WRITER_DIRECTORY|'+$(if($sameDirectory){'YES'}else{'NO'}));[Console]::Out.WriteLine('WRITER_BASENAME|'+$baseClass)
  """+expected
+    # Once the on-branch source incorporates the sealed file-id proof, run
+    # the original, uninstrumented full EOF data contract in this disposable
+    # working copy. Previous experimental writers no longer own this source.
+    if expected not in original:
+        if original.count('PublicWriterIdentity1905') < 1 or original.count('GetFileInformationByHandle') < 1:
+            raise ValueError('WRITER_PARENT_SOURCE_CHANGED_UNKNOWN')
+        Path(FIXTURE).write_text(fixture,encoding='utf8')
+        Path(TEST).write_text(test_source,encoding='utf8')
+        r=subprocess.run(['node','--test','--test-concurrency=1','--test-name-pattern=^public Windows EOF actor compiles as data',TEST],
+                         capture_output=True,text=True,encoding='utf8',errors='replace',timeout=40)
+        return {'exit':r.returncode,'verification':'ORIGINAL_SOURCE_BOUND_FULL_EOF_DATA_TEST','no_injected_output':True}
     revised=once(original,expected,observed)
     if identity_accept:
         # One-time DISPOSABLE comparison only: retain FileStream, zero-length,
@@ -255,7 +288,7 @@ def main():
         Path(NATIVE).write_bytes(annotate_native(data[NATIVE].decode()).encode())
         Path(FIXTURE).write_bytes(annotate_fixture(data[FIXTURE].decode()).encode())
         source=data[TEST].decode()
-        source=source.replace("assert.equal(child.error,undefined);assert.equal(child.status,0", "if(child.stderr){const safe=child.stderr.split(/\\r?\\n/).filter(x=>/^(?:PIPE_(?:GUARD_[0-9]{2}|CATCH_[0-9]{2}|OUTER)|JOB_NATIVE_STAGE)(?:\\|[A-Za-z0-9_-]{1,180})*$/.test(x));if(safe.length)console.log('CLOSED_STAGE '+JSON.stringify(safe.slice(0,24)));}assert.equal(child.error,undefined);assert.equal(child.status,0")
+        source=source.replace("assert.equal(child.error,undefined);assert.equal(child.status,0", "if(child.stderr){const safe=child.stderr.split(/\\r?\\n/).filter(x=>/^(?:PIPE_(?:GUARD_[0-9]{2}|CATCH_[0-9]{2}|OUTER)|JOB_NATIVE_STAGE|CLOCK_(?:MARK|CONTAINMENT|EXITED|WATCH)|JOB_(?:SAME_HANDLE|SAME_BIRTH|ACTOR_EXITED|PIPES_CLOSED|STATE_CLOSED))(?:\\|[A-Za-z0-9_-]{1,180})*$/.test(x));if(safe.length)console.log('CLOSED_STAGE '+JSON.stringify(safe.slice(0,24)));}assert.equal(child.error,undefined);assert.equal(child.status,0")
         Path(TEST).write_bytes(source.encode())
         pattern='^(clock R2 refusal cleans|private original-State owned Job finite policy and cleanup group2|Windows private original-State Job contains|private owned Job thrown close)'
         start=time.monotonic();r=subprocess.run(['node','--test','--test-concurrency=1','--test-name-pattern='+pattern,TEST],capture_output=True,text=True,encoding='utf8',errors='replace',timeout=120)
