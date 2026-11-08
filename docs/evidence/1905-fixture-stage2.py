@@ -554,8 +554,21 @@ def main():
             failed=bool(re.search(r'(?m)^.*(?:✖|not ok [0-9]+ -)\s*'+re.escape(case),early_result.stdout))
             passed=bool(re.search(r'(?m)^.*(?:✔|ok [0-9]+ -)\s*'+re.escape(case),early_result.stdout))
             outcomes[case]='FAIL' if failed else 'PASS' if passed else 'UNKNOWN'
+        # Untrusted child text is narrowed to fixed public case IDs and
+        # fixed non-secret stage names only. No raw stderr, paths or handles.
+        phase_proof=[]
+        permitted=('process-mirror','all-mirrors','early-start-refusal','source-before-entry','certificate-mismatch')
+        for observation in re.finditer(r'GORIQ_PUBLIC_CLOCK_CASE_PROGRESS (\{[^\r\n]{1,16000}\})',early_result.stdout):
+            try:
+                value=json.loads(observation.group(1))
+                if value.get('case') not in permitted: continue
+                rows=value.get('rows',[])
+                rows=[row for row in rows if isinstance(row,str) and re.fullmatch(r'[A-Z_]{3,70}:[0-9]{1,9}',row)]
+                phase_proof.append({'case':value['case'],'last_phases':rows[-10:]})
+            except (ValueError,TypeError,AttributeError): pass
         report['early_cert_candidate']={'exit':early_result.returncode,'seconds':round(time.monotonic()-started,3),
-          'stages':early_rows[-24:],'failure_codes':failure_codes[:15],'case_outcomes':outcomes,'original_source_under_test':on_branch, 'production_accepted':False}
+          'stages':early_rows[-24:],'failure_codes':failure_codes[:15],'case_outcomes':outcomes,
+          'clock_phases':phase_proof[:8],'original_source_under_test':on_branch, 'production_accepted':False}
     finally:
         for p,b in data.items(): Path(p).write_bytes(b)
         (out/'report.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2))
