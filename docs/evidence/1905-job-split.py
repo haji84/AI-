@@ -36,6 +36,10 @@ def run_selected(pattern, fixture_text, test_text, progress=False):
         progress_root.mkdir(exist_ok=False)
         run_env = os.environ.copy()
         run_env["GORIQ_PUBLIC_PEER_PROGRESS_DIRECTORY"] = str(progress_root)
+    def progress_file_names():
+        if progress_root is None: return []
+        return sorted(f.name for f in progress_root.iterdir()
+                      if re.fullmatch(r"(?:OWNED|CLOSED|PLATFORM)_[012]\\.txt",f.name))
     def phases():
         if progress_root is None: return []
         f = progress_root/"OWNED_2.txt"
@@ -52,10 +56,10 @@ def run_selected(pattern, fixture_text, test_text, progress=False):
             errors="replace", timeout=48, check=False, env=run_env,
         )
         return {"status": "RETURNED", "exit": cp.returncode,
-                "stdout": cp.stdout, "stderr": cp.stderr, "progress": phases()}
+                "stdout": cp.stdout, "stderr": cp.stderr, "progress": phases(), "progress_files":progress_file_names()}
     except subprocess.TimeoutExpired:
         return {"status": "DIAGNOSTIC_TIMEOUT", "exit": None,
-                "stdout": "", "stderr": "", "progress": phases()}
+                "stdout": "", "stderr": "", "progress": phases(), "progress_files":progress_file_names()}
 
 def group2_diagnostic(fixture, test):
     fixed = """
@@ -91,6 +95,7 @@ $g2Cert=Microsoft.PowerShell.Utility\\Get-Variable -Name ownedPeerJobCanonicalPi
     return {"run_status": cp["status"], "original_assertions_exit": cp["exit"],
             "powershell_timeout": timeout[-1] if timeout else "UNKNOWN",
             "predicate_rows": phases, "progress_tail": cp.get("progress", []),
+            "progress_files":cp.get("progress_files", []),
             "acceptance": "NOT_ASSESSED"}
 
 def real_windows_diagnostic(fixture, test):
@@ -118,24 +123,28 @@ def real_windows_diagnostic(fixture, test):
     modified_fixture = unique(fixture, fixtureCatch, fixtureProbe)
     begin = "assert.equal(child.error,undefined);"
     stageCode = r"""const stages=(child.stderr||'').split(/\r?\n/).filter(x=>/^JOB_REAL_STAGE\|(?:UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE)_[A-Z0-9_]{2,100})$/.test(x));console.log('JOB_REAL_STAGE_CODES '+JSON.stringify(stages.slice(-5)));"""
-    chunk = unique(chunk, begin, stageCode + begin)
+    statusCode = r"""console.log('JOB_REAL_CHILD '+JSON.stringify({timeout:child.error?.code==='ETIMEDOUT'?'YES':'NO',exit:child.status===0?'ZERO':child.status===null?'NULL':'NONZERO',stderr:child.stderr?'YES':'NO',stdout:child.stdout?'YES':'NO'}));"""
+    chunk = unique(chunk, begin, statusCode + stageCode + begin)
     modified_test = test[:start] + chunk + test[end:]
     cp = run_selected(
         "^Windows private original-State Job contains held Node helper and manager death while outside control survives$",
         modified_fixture, modified_test,
     )
-    stage = re.findall(r"JOB_REAL_STAGE_CODES (\\[[^\\r\\n]{1,1000}\\])", cp["stdout"])
+    stage = re.findall(r"JOB_REAL_STAGE_CODES (\[[^\r\n]{1,1000}\])", cp["stdout"])
     stage_codes = json.loads(stage[-1]) if stage else []
     stage_codes = [x for x in stage_codes
                    if isinstance(x,str) and re.fullmatch(
-                     r"JOB_REAL_STAGE\\|(?:UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE)_[A-Z0-9_]{2,100})",x)]
+                     r"JOB_REAL_STAGE\|(?:UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE)_[A-Z0-9_]{2,100})",x)]
+    native_status=re.findall(r"JOB_REAL_CHILD (\\{[^\\r\\n]{1,250}\\})",cp["stdout"])
+    native_child=json.loads(native_status[-1]) if native_status else {}
     found = re.findall(r"JOB_REAL_FLAGS (\{[^\r\n]{1,1800}\})", cp["stdout"])
     flags = json.loads(found[-1]) if found else {}
     filtered = {k:flags[k] for k in FLAGS
                 if flags.get(k) in ("YES", "NO", "UNKNOWN")}
     return {"run_status":cp["status"], "original_assertions_exit":cp["exit"],
             "flags":filtered, "capture_complete":len(filtered)==len(FLAGS),
-            "stage_codes":stage_codes[-5:], "acceptance":"NOT_ASSESSED"}
+            "stage_codes":stage_codes[-5:], "child":native_child,
+            "acceptance":"NOT_ASSESSED"}
 
 def main():
     if sys.argv[1:] != ["--run"] or os.name != "nt" or \
