@@ -52,7 +52,7 @@ def cleanup_wrapper_candidate(native):
            "foreach($pair in $refs){try{if($pair -isnot")
     return native.replace(marker,extra,1)
 
-def annotate_fixture(source, module_api_candidate=False):
+def annotate_fixture(source, module_api_candidate=False, early_cert_candidate=False):
     a="}catch{$script:jobWindowsResult=@{pass=$false;status='INCONCLUSIVE';code='PUBLIC_PRIVATE_JOB_WINDOWS_PROOF_UNCONFIRMED';nativeAuthority=$false}}"
     b="""}catch{$publicStageReason='UNKNOWN';$publicMessage=$_.Exception.GetBaseException().Message;if($publicMessage -cmatch '\\A(?:PEER_FIXTURE|CUTOVER_BOOTSTRAP_FIXTURE)_[A-Z0-9_]{1,150}\\z'){$publicStageReason=$publicMessage};[Console]::Error.WriteLine('JOB_NATIVE_STAGE|'+$publicStageReason+'|'+$_.Exception.GetBaseException().GetType().Name);$script:jobWindowsResult=@{pass=$false;status='INCONCLUSIVE';code='PUBLIC_PRIVATE_JOB_WINDOWS_PROOF_UNCONFIRMED';nativeAuthority=$false}}"""
     source=once(source,a,b)
@@ -227,6 +227,47 @@ try{
         replacement="$canonical=$origin.Value.Item3.SessionState.PSVariable.Get('ownedPeerJobCanonicalPipes');[Console]::Error.WriteLine('PIPE_LOOKUP|'+$(if($canonical){'YES'}else{'NO'}))"
         install=once(install,"    $body=$body.Replace($newVar,$apiNative)",
             "    $body=$body.Replace($newVar,$apiNative)\n    $lookup='"+lookup+"'\n    $body=$body.Replace($lookup, '"+replacement.replace("'","''")+"')")
+    if early_cert_candidate:
+        # Disposable module-only test. Original owner CWT and all negative
+        # acceptance gates remain; never modify native product source.
+        early=r"""  if($OwnedJobData -or $ClockContainmentData -or $OwnedJobWindows){
+   &$module {
+    $fn=Get-Command Initialize-OwnerCutoverOwnedPeer -ErrorAction Stop
+    $body=$fn.ScriptBlock.ToString()
+    $needle='if(-not $process.Start()){throw ''ROTATION_CUTOVER_PEER_PROOF_REJECTED''};Assert-OwnerCutoverPrivateClock;Confirm-OwnerCutoverOwnedPeerCleanupIdentity;'
+    if(-not $body.Contains($needle)){throw 'EARLY_CERT_ANCHOR'}
+    $proof=@'
+try{
+ $owner=Get-OwnerCutoverOwnedPeerJobCleanupOwner
+ $cert=if($owner){$owner.OriginalConstructor}else{$null}
+ $original=Microsoft.PowerShell.Utility\Get-Variable -Name ownedPeerJobOriginalBinding -Scope Script -ErrorAction SilentlyContinue
+ if($cert -isnot [Tuple[object,object,object,object]] -or $null -eq $original -or (($original.Options -band [Management.Automation.ScopedItemOptions]::Constant) -eq 0) -or -not [object]::ReferenceEquals($cert.Item2,$process) -or -not [object]::ReferenceEquals($cert.Item3,$process.StartInfo) -or -not [object]::ReferenceEquals($original.Value.Item3,$ExecutionContext.SessionState.Module) -or $process.HasExited){throw 'EARLY_CERT_ORIGIN'}
+ $handle=$process.Handle;$born=$process.StartTime.ToUniversalTime().Ticks
+ if($handle -eq [IntPtr]::Zero -or $handle -eq [IntPtr]::new(-1) -or $born -le 0){throw 'EARLY_CERT_BIRTH'}
+ $pairs=[Collections.Generic.List[object]]::new()
+ foreach($kind in @('INPUT','OUTPUT','ERROR')){
+  $stream=switch($kind){'INPUT'{$process.StandardInput.BaseStream};'OUTPUT'{$process.StandardOutput.BaseStream};'ERROR'{$process.StandardError.BaseStream}}
+  $safe=if($stream -is [IO.FileStream]){$stream.SafeFileHandle}elseif($stream -is [IO.Pipes.PipeStream]){$stream.SafePipeHandle}else{throw 'EARLY_CERT_STREAM'}
+  if($safe -isnot [Runtime.InteropServices.SafeHandle] -or $safe.IsClosed){throw 'EARLY_CERT_HANDLE'}
+  $pairs.Add([Tuple[object,object]]::new($stream,$safe))
+ }
+ if($pairs.Count -ne 3 -or (Microsoft.PowerShell.Utility\Get-Variable -Name ownedPeerJobCanonicalPipes -Scope Script -ErrorAction SilentlyContinue)){throw 'EARLY_CERT_COUNT'}
+ $refs=[Collections.ObjectModel.ReadOnlyCollection[object]]::new($pairs)
+ $value=[Tuple[object,object,object]]::new($cert,$refs,$original.Value)
+ Microsoft.PowerShell.Utility\New-Variable -Name ownedPeerJobCanonicalPipes -Scope Script -Option Constant -Value $value -ErrorAction Stop
+ $stored=Microsoft.PowerShell.Utility\Get-Variable -Name ownedPeerJobCanonicalPipes -Scope Script -ErrorAction Stop
+ if((($stored.Options -band [Management.Automation.ScopedItemOptions]::Constant) -eq 0) -or -not [object]::ReferenceEquals($stored.Value,$value)){throw 'EARLY_CERT_READBACK'}
+ [Console]::Error.WriteLine('PIPE_EARLY|PASS')
+}catch{[Console]::Error.WriteLine('PIPE_EARLY|FAIL');throw}
+'@
+    $replacement=$needle.Replace('Confirm-OwnerCutoverOwnedPeerCleanupIdentity;',$proof+[char]10+'Confirm-OwnerCutoverOwnedPeerCleanupIdentity;')
+    $body=$body.Replace($needle,$replacement)
+    Set-Item -Path Function:script:Initialize-OwnerCutoverOwnedPeer -Value ([scriptblock]::Create($body)) -ErrorAction Stop
+    [Console]::Error.WriteLine('PIPE_EARLY_INSTALLED|YES')
+   }
+  }
+"""
+        install=install+early
     source=once(source,"  Write-PublicPeerProgress ($phaseCase+'_KERNEL_DONE')",install+"\n  Write-PublicPeerProgress ($phaseCase+'_KERNEL_DONE')")
     return source
 
@@ -486,6 +527,16 @@ def main():
         report['module_api_lookup_candidate']={'exit':a.returncode,'seconds':round(time.monotonic()-start,3),
             'api_states':sorted(set(api))[:12], 'api_proof_rows':api_proof[-80:], 'failure_codes':sorted(set(detail))[:15],
             'original_native_unchanged':True,'production_accepted':False}
+        for p,b in data.items(): Path(p).write_bytes(b)
+        Path(FIXTURE).write_bytes(annotate_fixture(data[FIXTURE].decode(),early_cert_candidate=True).encode())
+        Path(TEST).write_bytes(source.replace("PIPE_(?:ENTER|OWNER", "PIPE_(?:EARLY(?:_INSTALLED)?|ENTER|OWNER").encode())
+        started=time.monotonic()
+        early_result=subprocess.run(['node','--test','--test-concurrency=1','--test-name-pattern='+pattern,TEST],
+                         capture_output=True,text=True,encoding='utf8',errors='replace',timeout=120)
+        early_rows=re.findall(r'PIPE_EARLY(?:_INSTALLED)?\|(?:PASS|FAIL|YES|NO)',early_result.stdout+'\n'+early_result.stderr)
+        failure_codes=sorted(set(re.findall(r'(?:CUTOVER_BOOTSTRAP_FIXTURE|PUBLIC_CLOCK|JOB_WINDOWS)_[A-Z0-9_]{1,120}',early_result.stdout+'\n'+early_result.stderr)))
+        report['early_cert_candidate']={'exit':early_result.returncode,'seconds':round(time.monotonic()-started,3),
+          'stages':early_rows[-24:],'failure_codes':failure_codes[:15], 'production_accepted':False}
     finally:
         for p,b in data.items(): Path(p).write_bytes(b)
         (out/'report.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2))
