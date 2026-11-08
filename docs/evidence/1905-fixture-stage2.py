@@ -133,7 +133,21 @@ def annotate_fixture(source):
     $body=$body.Replace($guard,$guardDiagnostic+$guard)
     $newVar='Microsoft.PowerShell.Utility\New-Variable -Name ownedPeerJobCanonicalPipes -Scope Script -Option Constant -Value ([Tuple[object,object,object]]::new($c,$refs,$origin.Value)) -ErrorAction Stop'
     $newVarDiagnostic=@'
-try{ORIGINAL_NEW_VAR;[Console]::Error.WriteLine('PIPE_NEWVAR|PASS')}catch{[Console]::Error.WriteLine('PIPE_NEWVAR|'+$_.Exception.GetBaseException().GetType().Name);throw}
+$existingScript=Microsoft.PowerShell.Utility\Get-Variable -Name ownedPeerJobCanonicalPipes -Scope Script -ErrorAction SilentlyContinue
+$existingLocal=Microsoft.PowerShell.Utility\Get-Variable -Name ownedPeerJobCanonicalPipes -Scope Local -ErrorAction SilentlyContinue
+[Console]::Error.WriteLine('PIPE_PRE_SCRIPT|'+$(if($existingScript){'YES'}else{'NO'}))
+[Console]::Error.WriteLine('PIPE_PRE_LOCAL|'+$(if($existingLocal){'YES'}else{'NO'}))
+try{ORIGINAL_NEW_VAR;[Console]::Error.WriteLine('PIPE_NEWVAR|PASS')}catch{
+ $err=$_.Exception.GetBaseException()
+ $reason='OTHER'
+ if($_.Exception.Message -match '(?i)already exists'){$reason='EXISTS'}
+ elseif($_.Exception.Message -match '(?i)constant'){$reason='CONSTANT'}
+ elseif($_.Exception.Message -match '(?i)read.only'){$reason='READONLY'}
+ elseif($_.Exception.Message -match '(?i)cannot overwrite'){$reason='OVERWRITE'}
+ [Console]::Error.WriteLine('PIPE_NEWVAR|'+$err.GetType().Name)
+ [Console]::Error.WriteLine('PIPE_NEWVAR_REASON|'+$reason)
+ throw
+}
 '@
     if(-not $body.Contains($newVar)){throw 'PIPE_DIAG_NEWVAR_MISSING'}
     $body=$body.Replace($newVar,$newVarDiagnostic.Replace('ORIGINAL_NEW_VAR',$newVar))
@@ -367,7 +381,7 @@ def main():
         Path(NATIVE).write_bytes(data[NATIVE])
         Path(FIXTURE).write_bytes(annotate_fixture(data[FIXTURE].decode()).encode())
         source=data[TEST].decode()
-        source=source.replace("assert.equal(child.error,undefined);assert.equal(child.status,0", "if(child.stderr){const safe=child.stderr.split(/\\r?\\n/).filter(x=>/^(?:PIPE_(?:ENTER|OWNER|BEFORE_REFS|ITEM_EXCEPTION|ALL|REFS3|NEWVAR|OUTER|INMEMORY_INSTALLED)|JOB_NATIVE_STAGE|CLOCK_(?:MARK|CONTAINMENT|EXITED|WATCH|JOB_OWNER|JOB_CLOSED|OWNER_CLOSED|STARTED|CERT_CLOSED|PIPE_CLOSED|OWNER_CHECK)|JOB_(?:SAME_HANDLE|SAME_BIRTH|ACTOR_EXITED|PIPES_CLOSED|STATE_CLOSED|OWNER_RESOLVED|CANONICAL_PRESENT|CANONICAL_EXISTS|STARTED_PRESENT|OWNER_CLOSED|ORIGIN_EXISTS|ORIGIN_CONSTANT|ORIGIN_TUPLE|ORIGIN_MODULE|REF_STREAMS|REF_HANDLES|REF_DISTINCT|REF_HELD[012]|PIPE[012]_CLOSED|REFS_3|REFS_EMPTY|CONSTRUCTOR|STARTED_SAME|STARTINFO_SAME|CERT_HANDLE|CERT_BIRTH))(?:\\|[A-Za-z0-9_-]{1,180})*$/.test(x));if(safe.length)console.log('CLOSED_STAGE '+JSON.stringify(safe.slice(0,24)));}assert.equal(child.error,undefined);assert.equal(child.status,0")
+        source=source.replace("assert.equal(child.error,undefined);assert.equal(child.status,0", "if(child.stderr){const safe=child.stderr.split(/\\r?\\n/).filter(x=>/^(?:PIPE_(?:ENTER|OWNER|BEFORE_REFS|ITEM_EXCEPTION|ALL|REFS3|NEWVAR|NEWVAR_REASON|PRE_SCRIPT|PRE_LOCAL|OUTER|INMEMORY_INSTALLED)|JOB_NATIVE_STAGE|CLOCK_(?:MARK|CONTAINMENT|EXITED|WATCH|JOB_OWNER|JOB_CLOSED|OWNER_CLOSED|STARTED|CERT_CLOSED|PIPE_CLOSED|OWNER_CHECK)|JOB_(?:SAME_HANDLE|SAME_BIRTH|ACTOR_EXITED|PIPES_CLOSED|STATE_CLOSED|OWNER_RESOLVED|CANONICAL_PRESENT|CANONICAL_EXISTS|STARTED_PRESENT|OWNER_CLOSED|ORIGIN_EXISTS|ORIGIN_CONSTANT|ORIGIN_TUPLE|ORIGIN_MODULE|REF_STREAMS|REF_HANDLES|REF_DISTINCT|REF_HELD[012]|PIPE[012]_CLOSED|REFS_3|REFS_EMPTY|CONSTRUCTOR|STARTED_SAME|STARTINFO_SAME|CERT_HANDLE|CERT_BIRTH))(?:\\|[A-Za-z0-9_-]{1,180})*$/.test(x));if(safe.length)console.log('CLOSED_STAGE '+JSON.stringify(safe.slice(0,24)));}assert.equal(child.error,undefined);assert.equal(child.status,0")
         Path(TEST).write_bytes(source.encode())
         pattern='^(clock R2 refusal cleans|private original-State owned Job finite policy and cleanup group2|Windows private original-State Job contains|private owned Job thrown close)'
         start=time.monotonic();r=subprocess.run(['node','--test','--test-concurrency=1','--test-name-pattern='+pattern,TEST],capture_output=True,text=True,encoding='utf8',errors='replace',timeout=120)
@@ -377,7 +391,7 @@ def main():
             if mark>=0:
                 try: rows.extend(json.loads(line[mark+13:]))
                 except (ValueError,TypeError): pass
-        fixed=re.findall(r'(?:PIPE_(?:ENTER|OWNER|BEFORE_REFS|ALL|REFS3|NEWVAR|INMEMORY_INSTALLED)|CLOCK_(?:MARK|CONTAINMENT|EXITED|WATCH|JOB_OWNER|JOB_CLOSED|OWNER_CLOSED|STARTED|CERT_CLOSED|PIPE_CLOSED|OWNER_CHECK)|JOB_(?:SAME_HANDLE|SAME_BIRTH|ACTOR_EXITED|PIPES_CLOSED|STATE_CLOSED|OWNER_RESOLVED|CANONICAL_PRESENT|CANONICAL_EXISTS|STARTED_PRESENT|OWNER_CLOSED|ORIGIN_EXISTS|ORIGIN_CONSTANT|ORIGIN_TUPLE|ORIGIN_MODULE|REF_STREAMS|REF_HANDLES|REF_DISTINCT|REF_HELD[012]|PIPE[012]_CLOSED|REFS_3|REFS_EMPTY|CONSTRUCTOR|STARTED_SAME|STARTINFO_SAME|CERT_HANDLE|CERT_BIRTH))\|(?:YES|NO|BEFORE|AFTER)',r.stdout+'\n'+r.stderr)
+        fixed=re.findall(r'(?:PIPE_(?:ENTER|OWNER|BEFORE_REFS|ALL|REFS3|NEWVAR|NEWVAR_REASON|PRE_SCRIPT|PRE_LOCAL|INMEMORY_INSTALLED)|CLOCK_(?:MARK|CONTAINMENT|EXITED|WATCH|JOB_OWNER|JOB_CLOSED|OWNER_CLOSED|STARTED|CERT_CLOSED|PIPE_CLOSED|OWNER_CHECK)|JOB_(?:SAME_HANDLE|SAME_BIRTH|ACTOR_EXITED|PIPES_CLOSED|STATE_CLOSED|OWNER_RESOLVED|CANONICAL_PRESENT|CANONICAL_EXISTS|STARTED_PRESENT|OWNER_CLOSED|ORIGIN_EXISTS|ORIGIN_CONSTANT|ORIGIN_TUPLE|ORIGIN_MODULE|REF_STREAMS|REF_HANDLES|REF_DISTINCT|REF_HELD[012]|PIPE[012]_CLOSED|REFS_3|REFS_EMPTY|CONSTRUCTOR|STARTED_SAME|STARTINFO_SAME|CERT_HANDLE|CERT_BIRTH))\|(?:YES|NO|BEFORE|AFTER)',r.stdout+'\n'+r.stderr)
         report['cleanup']={'exit':r.returncode,'seconds':round(time.monotonic()-start,3),
             'fixed_stage_rows':rows[:100], 'fixed_predicates':sorted(set(fixed))[:30],
             'original_native_hash_pinned':True}
