@@ -78,11 +78,23 @@ def annotate_fixture(source):
       "$held=$script:jobDataAssignFailureProof;"
       "$jobResolved=Get-OwnerCutoverOwnedPeerJobCleanupOwner;"
       "$jobCanonical=Microsoft.PowerShell.Utility\\Get-Variable -Name ownedPeerJobCanonicalPipes -Scope Script -ErrorAction SilentlyContinue;"
+      "$jobOrigin=Microsoft.PowerShell.Utility\\Get-Variable -Name ownedPeerJobOriginalBinding -Scope Script -ErrorAction SilentlyContinue;"
+      "[Console]::Error.WriteLine('JOB_ORIGIN_EXISTS|'+$(if($null -ne $jobOrigin){'YES'}else{'NO'}));"
+      "[Console]::Error.WriteLine('JOB_ORIGIN_CONSTANT|'+$(if($jobOrigin -and ($jobOrigin.Options -band [Management.Automation.ScopedItemOptions]::Constant)){'YES'}else{'NO'}));"
+      "[Console]::Error.WriteLine('JOB_ORIGIN_TUPLE|'+$(if($jobOrigin -and $jobOrigin.Value -is [Tuple[object,object,object]]){'YES'}else{'NO'}));"
+      "[Console]::Error.WriteLine('JOB_ORIGIN_MODULE|'+$(if($jobOrigin -and [object]::ReferenceEquals($jobOrigin.Value.Item3,$ExecutionContext.SessionState.Module)){'YES'}else{'NO'}));"
+      "[Console]::Error.WriteLine('JOB_CANONICAL_EXISTS|'+$(if($null -ne $jobCanonical){'YES'}else{'NO'}));"
       "$jobConstructor=$jobResolved.OriginalConstructor;"
       "$jobProcess=$jobConstructor.Item2;"
       "$jobStarted=$script:ownedPeerCleanupStarted;"
       "$pipeRefs=$script:ownedPeerJobPipeReferences;"
       "[Console]::Error.WriteLine('JOB_REFS_3|'+$(if($pipeRefs -and $pipeRefs.Count -eq 3){'YES'}else{'NO'}));"
+      "[Console]::Error.WriteLine('JOB_REF_STREAMS|'+$(if(@($pipeRefs|Where-Object {$_.Item1 -isnot [IO.Stream]}).Count -eq 0){'YES'}else{'NO'}));"
+      "[Console]::Error.WriteLine('JOB_REF_HANDLES|'+$(if(@($pipeRefs|Where-Object {$_.Item2 -isnot [Runtime.InteropServices.SafeHandle]}).Count -eq 0){'YES'}else{'NO'}));"
+      "[Console]::Error.WriteLine('JOB_REF_DISTINCT|'+$(if(-not [object]::ReferenceEquals($pipeRefs[0].Item1,$pipeRefs[1].Item1) -and -not [object]::ReferenceEquals($pipeRefs[1].Item1,$pipeRefs[2].Item1) -and -not [object]::ReferenceEquals($pipeRefs[0].Item1,$pipeRefs[2].Item1)){'YES'}else{'NO'}));"
+      "[Console]::Error.WriteLine('JOB_REF_HELD0|'+$(if([object]::ReferenceEquals($pipeRefs[0].Item2,$script:jobDataAssignFailurePipes[0])){'YES'}else{'NO'}));"
+      "[Console]::Error.WriteLine('JOB_REF_HELD1|'+$(if([object]::ReferenceEquals($pipeRefs[1].Item2,$script:jobDataAssignFailurePipes[1])){'YES'}else{'NO'}));"
+      "[Console]::Error.WriteLine('JOB_REF_HELD2|'+$(if([object]::ReferenceEquals($pipeRefs[2].Item2,$script:jobDataAssignFailurePipes[2])){'YES'}else{'NO'}));"
       "[Console]::Error.WriteLine('JOB_REFS_EMPTY|'+$(if(-not $pipeRefs -or $pipeRefs.Count -eq 0){'YES'}else{'NO'}));"
       "[Console]::Error.WriteLine('JOB_CONSTRUCTOR|'+$(if($jobConstructor -is [Tuple[object,object,object,object]]){'YES'}else{'NO'}));"
       "[Console]::Error.WriteLine('JOB_STARTED_SAME|'+$(if($jobStarted -and [object]::ReferenceEquals($jobStarted.Item1,$jobConstructor)){'YES'}else{'NO'}));"
@@ -322,7 +334,7 @@ def main():
         Path(NATIVE).write_bytes(data[NATIVE])
         Path(FIXTURE).write_bytes(annotate_fixture(data[FIXTURE].decode()).encode())
         source=data[TEST].decode()
-        source=source.replace("assert.equal(child.error,undefined);assert.equal(child.status,0", "if(child.stderr){const safe=child.stderr.split(/\\r?\\n/).filter(x=>/^(?:PIPE_(?:GUARD_[0-9]{2}|CATCH_[0-9]{2}|OUTER)|JOB_NATIVE_STAGE|CLOCK_(?:MARK|CONTAINMENT|EXITED|WATCH)|JOB_(?:SAME_HANDLE|SAME_BIRTH|ACTOR_EXITED|PIPES_CLOSED|STATE_CLOSED))(?:\\|[A-Za-z0-9_-]{1,180})*$/.test(x));if(safe.length)console.log('CLOSED_STAGE '+JSON.stringify(safe.slice(0,24)));}assert.equal(child.error,undefined);assert.equal(child.status,0")
+        source=source.replace("assert.equal(child.error,undefined);assert.equal(child.status,0", "if(child.stderr){const safe=child.stderr.split(/\\r?\\n/).filter(x=>/^(?:PIPE_(?:GUARD_[0-9]{2}|CATCH_[0-9]{2}|OUTER)|JOB_NATIVE_STAGE|CLOCK_(?:MARK|CONTAINMENT|EXITED|WATCH|JOB_OWNER|JOB_CLOSED|OWNER_CLOSED|STARTED|CERT_CLOSED|PIPE_CLOSED|OWNER_CHECK)|JOB_(?:SAME_HANDLE|SAME_BIRTH|ACTOR_EXITED|PIPES_CLOSED|STATE_CLOSED|OWNER_RESOLVED|CANONICAL_PRESENT|CANONICAL_EXISTS|STARTED_PRESENT|OWNER_CLOSED|ORIGIN_EXISTS|ORIGIN_CONSTANT|ORIGIN_TUPLE|ORIGIN_MODULE|REF_STREAMS|REF_HANDLES|REF_DISTINCT|REF_HELD[012]|PIPE[012]_CLOSED|REFS_3|REFS_EMPTY|CONSTRUCTOR|STARTED_SAME|STARTINFO_SAME|CERT_HANDLE|CERT_BIRTH))(?:\\|[A-Za-z0-9_-]{1,180})*$/.test(x));if(safe.length)console.log('CLOSED_STAGE '+JSON.stringify(safe.slice(0,24)));}assert.equal(child.error,undefined);assert.equal(child.status,0")
         Path(TEST).write_bytes(source.encode())
         pattern='^(clock R2 refusal cleans|private original-State owned Job finite policy and cleanup group2|Windows private original-State Job contains|private owned Job thrown close)'
         start=time.monotonic();r=subprocess.run(['node','--test','--test-concurrency=1','--test-name-pattern='+pattern,TEST],capture_output=True,text=True,encoding='utf8',errors='replace',timeout=120)
@@ -332,7 +344,7 @@ def main():
             if mark>=0:
                 try: rows.extend(json.loads(line[mark+13:]))
                 except (ValueError,TypeError): pass
-        fixed=re.findall(r'(?:CLOCK_(?:MARK|CONTAINMENT|EXITED|WATCH|JOB_OWNER|JOB_CLOSED|OWNER_CLOSED|STARTED|CERT_CLOSED|PIPE_CLOSED|OWNER_CHECK)|JOB_(?:SAME_HANDLE|SAME_BIRTH|ACTOR_EXITED|PIPES_CLOSED|STATE_CLOSED|OWNER_RESOLVED|CANONICAL_PRESENT|STARTED_PRESENT|OWNER_CLOSED|PIPE[012]_CLOSED|REFS_3|REFS_EMPTY|CONSTRUCTOR|STARTED_SAME|STARTINFO_SAME|CERT_HANDLE|CERT_BIRTH))\|(?:YES|NO|BEFORE|AFTER)',r.stdout+'\n'+r.stderr)
+        fixed=re.findall(r'(?:CLOCK_(?:MARK|CONTAINMENT|EXITED|WATCH|JOB_OWNER|JOB_CLOSED|OWNER_CLOSED|STARTED|CERT_CLOSED|PIPE_CLOSED|OWNER_CHECK)|JOB_(?:SAME_HANDLE|SAME_BIRTH|ACTOR_EXITED|PIPES_CLOSED|STATE_CLOSED|OWNER_RESOLVED|CANONICAL_PRESENT|CANONICAL_EXISTS|STARTED_PRESENT|OWNER_CLOSED|ORIGIN_EXISTS|ORIGIN_CONSTANT|ORIGIN_TUPLE|ORIGIN_MODULE|REF_STREAMS|REF_HANDLES|REF_DISTINCT|REF_HELD[012]|PIPE[012]_CLOSED|REFS_3|REFS_EMPTY|CONSTRUCTOR|STARTED_SAME|STARTINFO_SAME|CERT_HANDLE|CERT_BIRTH))\|(?:YES|NO|BEFORE|AFTER)',r.stdout+'\n'+r.stderr)
         report['cleanup']={'exit':r.returncode,'seconds':round(time.monotonic()-start,3),
             'fixed_stage_rows':rows[:100], 'fixed_predicates':sorted(set(fixed))[:30],
             'original_native_hash_pinned':True}
