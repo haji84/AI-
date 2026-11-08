@@ -135,8 +135,23 @@ def real_windows_diagnostic(fixture, test):
         modified_fixture,
         "[Console]::Error.WriteLine('JOB_REAL_STAGE|'+$reason)",
         "[Console]::Error.WriteLine('JOB_REAL_STAGE|'+$reason);[Console]::Error.WriteLine('JOB_REAL_READ_CONTEXT|'+$(if($script:publicJobReadStage -cin @('OUTSIDE','DRIVER')){$script:publicJobReadStage}else{'UNKNOWN'}))")
+    # The manager driver may terminate before its first JSON line. Only
+    # boolean and enum state of the originally allocated child is emitted.
+    driverCatch="}catch{if($held){$null=Stop-PublicPrivateJobAllocatedProcess $held};$script:privateJobUnconfirmedDriver=@{process=$p;held=$held;info=$info};throw}"
+    driverProbe="""}catch{
+ [Console]::Error.WriteLine('JOB_DRIVER_CHILD_EXITED|'+$(if($p.HasExited){'YES'}else{'NO'}))
+ $exitKind='UNKNOWN'
+ if($p.HasExited){$exitKind=if($p.ExitCode -eq 0){'ZERO'}else{'NONZERO'}}
+ [Console]::Error.WriteLine('JOB_DRIVER_EXIT_CODE|'+$exitKind)
+ $readKind='PENDING'
+ if($stderr -and $stderr.IsCompleted){try{$n=$stderr.GetAwaiter().GetResult();$readKind=if($n -eq 0){'EOF'}else{'DATA'}}catch{$readKind='FAULT'}}
+ [Console]::Error.WriteLine('JOB_DRIVER_STDERR_READ|'+$readKind)
+ if($held){$null=Stop-PublicPrivateJobAllocatedProcess $held}
+ $script:privateJobUnconfirmedDriver=@{process=$p;held=$held;info=$info};throw
+}"""
+    modified_fixture = unique(modified_fixture, driverCatch, driverProbe)
     begin = "assert.equal(child.error,undefined);"
-    stageCode = r"""const stages=(child.stderr||'').split(/\r?\n/).filter(x=>/^JOB_REAL_(?:STAGE\|(?:UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE)_[A-Z0-9_]{2,100})|READ_CONTEXT\|(?:DRIVER|OUTSIDE|UNKNOWN))$/.test(x));console.log('JOB_REAL_STAGE_CODES '+JSON.stringify(stages.slice(-5)));"""
+    stageCode = r"""const stages=(child.stderr||'').split(/\r?\n/).filter(x=>/^(?:JOB_REAL_(?:STAGE\|(?:UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE)_[A-Z0-9_]{2,100})|READ_CONTEXT\|(?:DRIVER|OUTSIDE|UNKNOWN))|JOB_DRIVER_(?:CHILD_EXITED\|(?:YES|NO)|EXIT_CODE\|(?:ZERO|NONZERO|UNKNOWN)|STDERR_READ\|(?:EOF|DATA|PENDING|FAULT)))$/.test(x));console.log('JOB_REAL_STAGE_CODES '+JSON.stringify(stages.slice(-5)));"""
     statusCode = r"""console.log('JOB_REAL_CHILD '+JSON.stringify({timeout:child.error?.code==='ETIMEDOUT'?'YES':'NO',exit:child.status===0?'ZERO':child.status===null?'NULL':'NONZERO',stderr:child.stderr?'YES':'NO',stdout:child.stdout?'YES':'NO'}));"""
     chunk = unique(chunk, begin, statusCode + stageCode + begin)
     modified_test = test[:start] + chunk + test[end:]
@@ -148,7 +163,7 @@ def real_windows_diagnostic(fixture, test):
     stage_codes = json.loads(stage[-1]) if stage else []
     stage_codes = [x for x in stage_codes
                    if isinstance(x,str) and re.fullmatch(
-                     r"JOB_REAL_(?:STAGE\|(?:UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE)_[A-Z0-9_]{2,100})|READ_CONTEXT\|(?:DRIVER|OUTSIDE|UNKNOWN))",x)]
+                     r"(?:JOB_REAL_(?:STAGE\|(?:UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE)_[A-Z0-9_]{2,100})|READ_CONTEXT\|(?:DRIVER|OUTSIDE|UNKNOWN))|JOB_DRIVER_(?:CHILD_EXITED\|(?:YES|NO)|EXIT_CODE\|(?:ZERO|NONZERO|UNKNOWN)|STDERR_READ\|(?:EOF|DATA|PENDING|FAULT)))",x)]
     native_status=re.findall(r"JOB_REAL_CHILD (\{[^\r\n]{1,250}\})",cp["stdout"])
     native_child=json.loads(native_status[-1]) if native_status else {}
     found = re.findall(r"JOB_REAL_FLAGS (\{[^\r\n]{1,1800}\})", cp["stdout"])
