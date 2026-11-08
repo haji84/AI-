@@ -159,6 +159,19 @@ try{
  elseif($_.Exception.Message -match '(?i)cannot overwrite'){$reason='OVERWRITE'}
  [Console]::Error.WriteLine('PIPE_NEWVAR|'+$err.GetType().Name)
  [Console]::Error.WriteLine('PIPE_NEWVAR_REASON|'+$reason)
+ $fqid=[string]$_.FullyQualifiedErrorId
+ $code='OTHER'
+ if($fqid -match '(?i)VariableAlreadyExists|VariableExists'){$code='VARIABLE_EXISTS'}
+ elseif($fqid -match '(?i)VariableNotWritable|NotWritable'){$code='VARIABLE_NOT_WRITABLE'}
+ elseif($fqid -match '(?i)SessionState'){$code='SESSION_STATE'}
+ elseif($fqid -match '(?i)WriteError'){$code='WRITE_ERROR'}
+ [Console]::Error.WriteLine('PIPE_NEWVAR_FQID|'+$code)
+ $altState='UNKNOWN'
+ try{
+  Microsoft.PowerShell.Utility\New-Variable -Name publicJobUniqueCertProbe1905 -Scope Script -Option Constant -Value $canonicalTuple -ErrorAction Stop
+  $altState='PASS'
+ }catch{$altState='FAIL'}
+ [Console]::Error.WriteLine('PIPE_UNIQUE|'+$altState)
  throw
 }
 '@
@@ -394,7 +407,7 @@ def main():
         Path(NATIVE).write_bytes(data[NATIVE])
         Path(FIXTURE).write_bytes(annotate_fixture(data[FIXTURE].decode()).encode())
         source=data[TEST].decode()
-        source=source.replace("assert.equal(child.error,undefined);assert.equal(child.status,0", "if(child.stderr){const safe=child.stderr.split(/\\r?\\n/).filter(x=>/^(?:PIPE_(?:ENTER|OWNER|BEFORE_REFS|ITEM_EXCEPTION|ALL|REFS3|NEWVAR|NEWVAR_REASON|PRE_SCRIPT|PRE_LOCAL|PRE_GLOBAL|PRE_UP[123]|TUPLE|OUTER|INMEMORY_INSTALLED)|JOB_NATIVE_STAGE|CLOCK_(?:MARK|CONTAINMENT|EXITED|WATCH|JOB_OWNER|JOB_CLOSED|OWNER_CLOSED|STARTED|CERT_CLOSED|PIPE_CLOSED|OWNER_CHECK)|JOB_(?:SAME_HANDLE|SAME_BIRTH|ACTOR_EXITED|PIPES_CLOSED|STATE_CLOSED|OWNER_RESOLVED|CANONICAL_PRESENT|CANONICAL_EXISTS|STARTED_PRESENT|OWNER_CLOSED|ORIGIN_EXISTS|ORIGIN_CONSTANT|ORIGIN_TUPLE|ORIGIN_MODULE|REF_STREAMS|REF_HANDLES|REF_DISTINCT|REF_HELD[012]|PIPE[012]_CLOSED|REFS_3|REFS_EMPTY|CONSTRUCTOR|STARTED_SAME|STARTINFO_SAME|CERT_HANDLE|CERT_BIRTH))(?:\\|[A-Za-z0-9_-]{1,180})*$/.test(x));if(safe.length)console.log('CLOSED_STAGE '+JSON.stringify(safe.slice(0,24)));}assert.equal(child.error,undefined);assert.equal(child.status,0")
+        source=source.replace("assert.equal(child.error,undefined);assert.equal(child.status,0", "if(child.stderr){const safe=child.stderr.split(/\\r?\\n/).filter(x=>/^(?:PIPE_(?:ENTER|OWNER|BEFORE_REFS|ITEM_EXCEPTION|ALL|REFS3|NEWVAR|NEWVAR_REASON|NEWVAR_FQID|PRE_SCRIPT|PRE_LOCAL|PRE_GLOBAL|PRE_UP[123]|TUPLE|UNIQUE|OUTER|INMEMORY_INSTALLED)|JOB_NATIVE_STAGE|CLOCK_(?:MARK|CONTAINMENT|EXITED|WATCH|JOB_OWNER|JOB_CLOSED|OWNER_CLOSED|STARTED|CERT_CLOSED|PIPE_CLOSED|OWNER_CHECK)|JOB_(?:SAME_HANDLE|SAME_BIRTH|ACTOR_EXITED|PIPES_CLOSED|STATE_CLOSED|OWNER_RESOLVED|CANONICAL_PRESENT|CANONICAL_EXISTS|STARTED_PRESENT|OWNER_CLOSED|ORIGIN_EXISTS|ORIGIN_CONSTANT|ORIGIN_TUPLE|ORIGIN_MODULE|REF_STREAMS|REF_HANDLES|REF_DISTINCT|REF_HELD[012]|PIPE[012]_CLOSED|REFS_3|REFS_EMPTY|CONSTRUCTOR|STARTED_SAME|STARTINFO_SAME|CERT_HANDLE|CERT_BIRTH))(?:\\|[A-Za-z0-9_-]{1,180})*$/.test(x));if(safe.length)console.log('CLOSED_STAGE '+JSON.stringify(safe.slice(0,24)));}assert.equal(child.error,undefined);assert.equal(child.status,0")
         Path(TEST).write_bytes(source.encode())
         pattern='^(clock R2 refusal cleans|private original-State owned Job finite policy and cleanup group2|Windows private original-State Job contains|private owned Job thrown close)'
         start=time.monotonic();r=subprocess.run(['node','--test','--test-concurrency=1','--test-name-pattern='+pattern,TEST],capture_output=True,text=True,encoding='utf8',errors='replace',timeout=120)
@@ -404,7 +417,7 @@ def main():
             if mark>=0:
                 try: rows.extend(json.loads(line[mark+13:]))
                 except (ValueError,TypeError): pass
-        fixed=re.findall(r'(?:PIPE_(?:ENTER|OWNER|BEFORE_REFS|ALL|REFS3|NEWVAR|NEWVAR_REASON|PRE_SCRIPT|PRE_LOCAL|PRE_GLOBAL|PRE_UP[123]|TUPLE|INMEMORY_INSTALLED)|CLOCK_(?:MARK|CONTAINMENT|EXITED|WATCH|JOB_OWNER|JOB_CLOSED|OWNER_CLOSED|STARTED|CERT_CLOSED|PIPE_CLOSED|OWNER_CHECK)|JOB_(?:SAME_HANDLE|SAME_BIRTH|ACTOR_EXITED|PIPES_CLOSED|STATE_CLOSED|OWNER_RESOLVED|CANONICAL_PRESENT|CANONICAL_EXISTS|STARTED_PRESENT|OWNER_CLOSED|ORIGIN_EXISTS|ORIGIN_CONSTANT|ORIGIN_TUPLE|ORIGIN_MODULE|REF_STREAMS|REF_HANDLES|REF_DISTINCT|REF_HELD[012]|PIPE[012]_CLOSED|REFS_3|REFS_EMPTY|CONSTRUCTOR|STARTED_SAME|STARTINFO_SAME|CERT_HANDLE|CERT_BIRTH))\|(?:YES|NO|BEFORE|AFTER)',r.stdout+'\n'+r.stderr)
+        fixed=re.findall(r'(?:PIPE_(?:ENTER|OWNER|BEFORE_REFS|ALL|REFS3|NEWVAR|NEWVAR_REASON|NEWVAR_FQID|PRE_SCRIPT|PRE_LOCAL|PRE_GLOBAL|PRE_UP[123]|TUPLE|UNIQUE|INMEMORY_INSTALLED)|CLOCK_(?:MARK|CONTAINMENT|EXITED|WATCH|JOB_OWNER|JOB_CLOSED|OWNER_CLOSED|STARTED|CERT_CLOSED|PIPE_CLOSED|OWNER_CHECK)|JOB_(?:SAME_HANDLE|SAME_BIRTH|ACTOR_EXITED|PIPES_CLOSED|STATE_CLOSED|OWNER_RESOLVED|CANONICAL_PRESENT|CANONICAL_EXISTS|STARTED_PRESENT|OWNER_CLOSED|ORIGIN_EXISTS|ORIGIN_CONSTANT|ORIGIN_TUPLE|ORIGIN_MODULE|REF_STREAMS|REF_HANDLES|REF_DISTINCT|REF_HELD[012]|PIPE[012]_CLOSED|REFS_3|REFS_EMPTY|CONSTRUCTOR|STARTED_SAME|STARTINFO_SAME|CERT_HANDLE|CERT_BIRTH))\|(?:YES|NO|BEFORE|AFTER)',r.stdout+'\n'+r.stderr)
         report['cleanup']={'exit':r.returncode,'seconds':round(time.monotonic()-start,3),
             'fixed_stage_rows':rows[:100], 'fixed_predicates':sorted(set(fixed))[:30],
             'original_native_hash_pinned':True}
