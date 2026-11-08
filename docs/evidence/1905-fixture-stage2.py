@@ -43,12 +43,19 @@ def annotate_fixture(source):
     return once(source,a,b)
 
 
-def decoder(fixture,out):
+def decoder(fixture,out,explicit_values=False):
     match=re.search(r"\$snapshotContract=\[Text.Encoding\]::UTF8.GetString\(\[Convert\]::FromBase64String\('([^']+)'\)\)",fixture)
     body=base64.b64decode(match[1],validate=True).decode()
     a='$bytes=New-Bytes $width ([ulong[]]@(4,8,12));$result=$type::Decode($bytes,$bytes.Length,$width,0,[ulong]4);'
     b="$bytes=New-Bytes $width ([ulong[]]@(4,8,12));[Console]::Out.WriteLine('DEC_VECTOR|'+$width+'|'+$bytes.Length+'|'+$bytes.GetType().FullName);$result=$type::Decode($bytes,$bytes.Length,$width,0,[ulong]4);[Console]::Out.WriteLine('DEC_RETURN|'+$width+'|'+$result.Count);"
     body=once(body,a,b)
+    if explicit_values:
+        body=once(body,'$bytes=New-Bytes $width ([ulong[]]@(4,8,12))',
+            '$publicValues=[ulong[]]@([ulong]4,[ulong]8,[ulong]12);$bytes=New-Bytes -Width $width -Values $publicValues')
+        body=once(body,'$b=New-Bytes $width $values',
+            '$b=New-Bytes -Width $width -Values $values')
+        body=once(body,'$valid=New-Bytes 8 ([ulong[]]@(4))',
+            '$valid=New-Bytes -Width 8 -Values ([ulong[]]@([ulong]4))')
     body=once(body,'$t=$null;$e=$null;$ast=',"[Console]::Out.WriteLine('DEC_SCRIPT_ENTER');$t=$null;$e=$null;$ast=")
     body=once(body,'$source=Get-PublicWindowsEofActorSource',"$source=Get-PublicWindowsEofActorSource;[Console]::Out.WriteLine('DEC_SOURCE_OK')")
     body=once(body,"$type='PublicEofOwnHandleSnapshot' -as [type];", "[Console]::Out.WriteLine('DEC_TYPE_BEGIN');$type='PublicEofOwnHandleSnapshot' -as [type];")
@@ -99,6 +106,7 @@ def main():
     data={p:Path(p).read_bytes() for p in EXPECTED};report={'schema':'PR1905_STAGE2_V1','production_accepted':False,'source_changed':False}
     try:
         report['decoder']=decoder(data[FIXTURE].decode(),out)
+        report['decoder_explicit_values']=decoder(data[FIXTURE].decode(),out,True)
         Path(NATIVE).write_bytes(annotate_native(data[NATIVE].decode()).encode())
         Path(FIXTURE).write_bytes(annotate_fixture(data[FIXTURE].decode()).encode())
         source=data[TEST].decode()
