@@ -181,7 +181,7 @@ public static class PublicFileIdentityProbe20261108 {
 }
 '@
    if(-not ('PublicFileIdentityProbe20261108' -as [type])){$null=Add-Type -TypeDefinition $identitySource -ErrorAction Stop}
-   $identityReader=[IO.FileStream]::new($path,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
+   $identityReader=[IO.FileStream]::new($path,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::ReadWrite);[Console]::Out.WriteLine('WRITER_READOPEN|YES')
    $sameFile=[PublicFileIdentityProbe20261108]::Compare($writer.SafeFileHandle,$identityReader.SafeFileHandle)
    if($sameFile -eq 1){$fileIdentity='MATCH'}elseif($sameFile -eq 0){$fileIdentity='DIFFERENT'}
   }
@@ -198,13 +198,13 @@ public static class PublicFileIdentityProbe20261108 {
     controls=once(controls,embedded.group(0),embedded.group(0).replace(embedded.group(1),base64.b64encode(revised.encode()).decode()))
     updated_fixture=once(fixture,outer.group(0),outer.group(0).replace(outer.group(1),controls))
     marker="if(child.error!==undefined||child.status!==0||child.stderr!=='')console.log('GORIQ_PUBLIC_EOF_DATA_CONTROL_FAILURE '"
-    prelude="if(child.stdout){const safe=child.stdout.split(/\\r?\\n/).filter(v=>/^WRITER_(?:TYPE|PATH|PATH_CASELESS|EMPTY|DIRECTORY|BASENAME|LOCATION_WRITER|CODEBASE_WRITER|LOCATION_EXPECTED|CODEBASE_EXPECTED|ACTOR_EXPECTED|EXPECTED_EXISTS|ACTUAL_EXISTS|IDENTITY)[|](?:YES|NO|STDOUT|STDERR|OTHER|NONE|MATCH|DIFFERENT|UNKNOWN)$/.test(v));if(safe.length)console.log('WRITER_SAFE_STAGES '+JSON.stringify(safe))}"
+    prelude="if(child.stdout){const safe=child.stdout.split(/\\r?\\n/).filter(v=>/^WRITER_(?:TYPE|PATH|PATH_CASELESS|EMPTY|DIRECTORY|BASENAME|LOCATION_WRITER|CODEBASE_WRITER|LOCATION_EXPECTED|CODEBASE_EXPECTED|ACTOR_EXPECTED|EXPECTED_EXISTS|ACTUAL_EXISTS|IDENTITY|READOPEN)[|](?:YES|NO|STDOUT|STDERR|OTHER|NONE|MATCH|DIFFERENT|UNKNOWN)$/.test(v));if(safe.length)console.log('WRITER_SAFE_STAGES '+JSON.stringify(safe))}"
     updated_test=once(test_source,marker,prelude+marker)
     Path(FIXTURE).write_text(updated_fixture,encoding='utf8')
     Path(TEST).write_text(updated_test,encoding='utf8')
     r=subprocess.run(['node','--test','--test-concurrency=1','--test-name-pattern=^public Windows EOF actor compiles as data',TEST],
         capture_output=True,text=True,encoding='utf8',errors='replace',timeout=40)
-    matches=re.findall(r'WRITER_(?:TYPE|PATH|PATH_CASELESS|EMPTY|DIRECTORY|BASENAME|LOCATION_WRITER|CODEBASE_WRITER|LOCATION_EXPECTED|CODEBASE_EXPECTED|ACTOR_EXPECTED|EXPECTED_EXISTS|ACTUAL_EXISTS|IDENTITY)\|(?:YES|NO|STDOUT|STDERR|OTHER|NONE|MATCH|DIFFERENT|UNKNOWN)',r.stdout)
+    matches=re.findall(r'WRITER_(?:TYPE|PATH|PATH_CASELESS|EMPTY|DIRECTORY|BASENAME|LOCATION_WRITER|CODEBASE_WRITER|LOCATION_EXPECTED|CODEBASE_EXPECTED|ACTOR_EXPECTED|EXPECTED_EXISTS|ACTUAL_EXISTS|IDENTITY|READOPEN)\|(?:YES|NO|STDOUT|STDERR|OTHER|NONE|MATCH|DIFFERENT|UNKNOWN)',r.stdout)
     return {'exit':r.returncode,'predicates':sorted(set(matches)), 'observed_predicate_count':len(matches)}
 
 
