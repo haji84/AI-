@@ -213,7 +213,7 @@ try{
         lookup="$canonical=Microsoft.PowerShell.Utility\\Get-Variable -Name ownedPeerJobCanonicalPipes -Scope Script -ErrorAction SilentlyContinue"
         replacement="$canonical=$origin.Value.Item3.SessionState.PSVariable.Get('ownedPeerJobCanonicalPipes');[Console]::Error.WriteLine('PIPE_LOOKUP|'+$(if($canonical){'YES'}else{'NO'}))"
         install=once(install,"    $body=$body.Replace($newVar,$apiNative)",
-            "    $body=$body.Replace($newVar,$apiNative)\\n    $lookup='"+lookup+"'\\n    $body=$body.Replace($lookup, '"+replacement.replace("'","''")+"')")
+            "    $body=$body.Replace($newVar,$apiNative)\n    $lookup='"+lookup+"'\n    $body=$body.Replace($lookup, '"+replacement.replace("'","''")+"')")
     source=once(source,"  Write-PublicPeerProgress ($phaseCase+'_KERNEL_DONE')",install+"\n  Write-PublicPeerProgress ($phaseCase+'_KERNEL_DONE')")
     return source
 
