@@ -211,7 +211,7 @@ public static class PublicFileIdentityProbe20261108 {
     r=subprocess.run(['node','--test','--test-concurrency=1','--test-name-pattern=^public Windows EOF actor compiles as data',TEST],
         capture_output=True,text=True,encoding='utf8',errors='replace',timeout=40)
     matches=re.findall(r'WRITER_(?:TYPE|PATH|PATH_CASELESS|EMPTY|DIRECTORY|BASENAME|LOCATION_WRITER|CODEBASE_WRITER|LOCATION_EXPECTED|CODEBASE_EXPECTED|ACTOR_EXPECTED|EXPECTED_EXISTS|ACTUAL_EXISTS|IDENTITY|READOPEN)\|(?:YES|NO|STDOUT|STDERR|OTHER|NONE|MATCH|DIFFERENT|UNKNOWN)',r.stdout)
-    observed_failure=re.search(r'GORIQ_PUBLIC_EOF_DATA_CONTROL_FAILURE (\\{[^\\r\\n]+\\})',r.stdout)
+    observed_failure=re.search(r'GORIQ_PUBLIC_EOF_DATA_CONTROL_FAILURE (\{[^\r\n]+\})',r.stdout+"\n"+r.stderr)
     failure=None
     if observed_failure:
         try:
