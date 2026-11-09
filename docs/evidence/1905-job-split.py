@@ -204,7 +204,7 @@ oneCase:accepted,rows:number,stderr:child.stderr?.length>0}));}"""
             "acceptance":"NOT_ASSESSED"}
 
 
-def real_windows_diagnostic(fixture, test, explicit_driver_target=False, bom_trim=False, outside_utf8=False):
+def real_windows_diagnostic(fixture, test, explicit_driver_target=False, bom_trim=False, outside_utf8=False, async_stdout=False):
     start = test.index(REAL_TEST)
     end = test.index("\ntest(", start + len(REAL_TEST))
     chunk = test[start:end]
@@ -257,7 +257,7 @@ def real_windows_diagnostic(fixture, test, explicit_driver_target=False, bom_tri
    if([IO.File]::Exists($path)){
     $stages=[IO.File]::ReadAllLines($path,[Text.Encoding]::ASCII)
     foreach($stage in $stages){
-     if($stage -cin @('INPUT_BEGIN','JSON_OK','HELPER_BEGIN','HELPER_READY','OUTPUT_BEGIN')){
+     if($stage -cin @('INPUT_BEGIN','JSON_OK','HELPER_BEGIN','HELPER_READY','OUTPUT_BEGIN','OUTPUT_SENT','OUTPUT_FAIL')){
       [Console]::Error.WriteLine('JOB_OUTSIDE_PHASE|'+$stage)
      }
     }
@@ -277,11 +277,17 @@ def real_windows_diagnostic(fixture, test, explicit_driver_target=False, bom_tri
   $js=$js.Replace("const publicJobBirth=await new Promise","jobPhase('HELPER_BEGIN');const publicJobBirth=await new Promise")
   $js=$js.Replace("ancestry.helper.pid=publicJobHelper.pid;","jobPhase('HELPER_READY');ancestry.helper.pid=publicJobHelper.pid;")
   $js=$js.Replace("writePublicStdout(wire+'\n'+","jobPhase('OUTPUT_BEGIN');writePublicStdout(wire+'\n'+")
+  $js=$js.Replace("writePublicStdout(wire+'\n'+(mode==='extra'?'PUBLIC_EXTRA_FRAME\n':''));});",
+    "try{writePublicStdout(wire+'\n'+(mode==='extra'?'PUBLIC_EXTRA_FRAME\n':''));jobPhase('OUTPUT_SENT')}catch(e){jobPhase('OUTPUT_FAIL');throw e};});")
  }
 """
     modified_fixture=unique(fixture,
        " [IO.File]::WriteAllText($childPath,$js,[Text.UTF8Encoding]::new($false));",
        nodePhase+" [IO.File]::WriteAllText($childPath,$js,[Text.UTF8Encoding]::new($false));")
+    if async_stdout:
+        synchronous="function writePublicStdout(text){const bytes=Buffer.from(text,'utf8');let offset=0;while(offset<bytes.length){const count=writeSync(1,bytes,offset,bytes.length-offset);if(!Number.isInteger(count)||count<1||count>bytes.length-offset)throw new Error('PUBLIC_FD_WRITE_REFUSED');offset+=count;}}"
+        modified_fixture=unique(modified_fixture,synchronous,
+            "function writePublicStdout(text){process.stdout.write(text,'utf8');}")
     if outside_utf8:
         marker="$info=[Diagnostics.ProcessStartInfo]::new();$info.FileName=[string]$inputData.nodeExecutable;"
         begin=modified_fixture.index(marker)
@@ -476,7 +482,7 @@ Emit-PublicNestedStage 'BEGIN'
     driver=unique(driver,originalPath,newPath)
     modified_fixture=modified_fixture[:startDriver]+driver+modified_fixture[endDriver:]
     begin = "assert.equal(child.error,undefined);"
-    stageCode = r"""const stages=(child.stderr||'').split(/\r?\n/).filter(x=>/^(?:JOB_REAL_(?:STAGE\|(?:UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE)_[A-Z0-9_]{2,100})|READ_CONTEXT\|(?:DRIVER|OUTSIDE|UNKNOWN))|JOB_DRIVER_(?:CHILD_EXITED\|(?:YES|NO)|EXIT_CODE\|(?:ZERO|NONZERO|UNKNOWN)|STDERR_READ\|(?:EOF|DATA|PENDING|FAULT)|TRAP\|(?:UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE|PEER_FIXTURE|ROTATION_CUTOVER)_[A-Z0-9_]{2,100})|TRAP_CAPTURE\|(?:UNAVAILABLE|UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE|PEER_FIXTURE|ROTATION_CUTOVER)_[A-Z0-9_]{2,100})|SOURCE_BASE\|(?:UNAVAILABLE|UNKNOWN|(?:CUTOVER_BOOTSTRAP_FIXTURE|CUTOVER|PEER_FIXTURE|ROTATION_CUTOVER|JOB)_[A-Z0-9_]{3,120})|SOURCE_CLASS\|(?:UNAVAILABLE|RUNTIME|METHOD|ARGUMENT|FORMAT|INVALID_OPERATION|IO|OTHER)|INPUT_CODE\|(?:UNAVAILABLE|NO_LINE|EMPTY|PARSE|OTHER)|PATH_MATCH\|(?:YES|NO)|ERRCATEGORY\|(?:PARSE|BIND|FILE|ACCESS|BOOTSTRAP|FIXTURE|ROTATION|STRICT|OTHER_ERROR|OTHER))|JOB_OUTSIDE_(?:PHASE\|(?:INPUT_BEGIN|JSON_OK|HELPER_BEGIN|HELPER_READY|OUTPUT_BEGIN)|EXITED\|(?:YES|NO)|EXIT_CODE\|(?:ZERO|NONZERO|UNKNOWN)|ERROR_CLASS\|(?:EMPTY|HELPER_TIMEOUT|HELPER_SHAPE|HELPER_LIMIT|HELPER_IDENTITY|HELPER_REFUSED|JSON_SYNTAX|MODULE_NOT_FOUND|REFERENCE_ERROR|TYPE_ERROR|BROKEN_PIPE|FILE_MISSING|NODE_INVALID|NODE_ERROR|OTHER)))$/.test(x));console.log('JOB_REAL_STAGE_CODES '+JSON.stringify(stages.slice(-15)));"""
+    stageCode = r"""const stages=(child.stderr||'').split(/\r?\n/).filter(x=>/^(?:JOB_REAL_(?:STAGE\|(?:UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE)_[A-Z0-9_]{2,100})|READ_CONTEXT\|(?:DRIVER|OUTSIDE|UNKNOWN))|JOB_DRIVER_(?:CHILD_EXITED\|(?:YES|NO)|EXIT_CODE\|(?:ZERO|NONZERO|UNKNOWN)|STDERR_READ\|(?:EOF|DATA|PENDING|FAULT)|TRAP\|(?:UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE|PEER_FIXTURE|ROTATION_CUTOVER)_[A-Z0-9_]{2,100})|TRAP_CAPTURE\|(?:UNAVAILABLE|UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE|PEER_FIXTURE|ROTATION_CUTOVER)_[A-Z0-9_]{2,100})|SOURCE_BASE\|(?:UNAVAILABLE|UNKNOWN|(?:CUTOVER_BOOTSTRAP_FIXTURE|CUTOVER|PEER_FIXTURE|ROTATION_CUTOVER|JOB)_[A-Z0-9_]{3,120})|SOURCE_CLASS\|(?:UNAVAILABLE|RUNTIME|METHOD|ARGUMENT|FORMAT|INVALID_OPERATION|IO|OTHER)|INPUT_CODE\|(?:UNAVAILABLE|NO_LINE|EMPTY|PARSE|OTHER)|PATH_MATCH\|(?:YES|NO)|ERRCATEGORY\|(?:PARSE|BIND|FILE|ACCESS|BOOTSTRAP|FIXTURE|ROTATION|STRICT|OTHER_ERROR|OTHER))|JOB_OUTSIDE_(?:PHASE\|(?:INPUT_BEGIN|JSON_OK|HELPER_BEGIN|HELPER_READY|OUTPUT_BEGIN|OUTPUT_SENT|OUTPUT_FAIL)|EXITED\|(?:YES|NO)|EXIT_CODE\|(?:ZERO|NONZERO|UNKNOWN)|ERROR_CLASS\|(?:EMPTY|HELPER_TIMEOUT|HELPER_SHAPE|HELPER_LIMIT|HELPER_IDENTITY|HELPER_REFUSED|JSON_SYNTAX|MODULE_NOT_FOUND|REFERENCE_ERROR|TYPE_ERROR|BROKEN_PIPE|FILE_MISSING|NODE_INVALID|NODE_ERROR|OTHER)))$/.test(x));console.log('JOB_REAL_STAGE_CODES '+JSON.stringify(stages.slice(-15)));"""
     statusCode = r"""console.log('JOB_REAL_CHILD '+JSON.stringify({timeout:child.error?.code==='ETIMEDOUT'?'YES':'NO',exit:child.status===0?'ZERO':child.status===null?'NULL':'NONZERO',stderr:child.stderr?'YES':'NO',stdout:child.stdout?'YES':'NO'}));"""
     chunk = unique(chunk, begin, statusCode + stageCode + begin)
     modified_test = test[:start] + chunk + test[end:]
@@ -488,7 +494,7 @@ Emit-PublicNestedStage 'BEGIN'
     stage_codes = json.loads(stage[-1]) if stage else []
     stage_codes = [x for x in stage_codes
                    if isinstance(x,str) and re.fullmatch(
-                     r"(?:JOB_REAL_(?:STAGE\|(?:UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE)_[A-Z0-9_]{2,100})|READ_CONTEXT\|(?:DRIVER|OUTSIDE|UNKNOWN))|JOB_DRIVER_(?:CHILD_EXITED\|(?:YES|NO)|EXIT_CODE\|(?:ZERO|NONZERO|UNKNOWN)|STDERR_READ\|(?:EOF|DATA|PENDING|FAULT)|TRAP\|(?:UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE|PEER_FIXTURE|ROTATION_CUTOVER)_[A-Z0-9_]{2,100})|TRAP_CAPTURE\|(?:UNAVAILABLE|UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE|PEER_FIXTURE|ROTATION_CUTOVER)_[A-Z0-9_]{2,100})|SOURCE_BASE\|(?:UNAVAILABLE|UNKNOWN|(?:CUTOVER_BOOTSTRAP_FIXTURE|CUTOVER|PEER_FIXTURE|ROTATION_CUTOVER|JOB)_[A-Z0-9_]{3,120})|SOURCE_CLASS\|(?:UNAVAILABLE|RUNTIME|METHOD|ARGUMENT|FORMAT|INVALID_OPERATION|IO|OTHER)|INPUT_CODE\|(?:UNAVAILABLE|NO_LINE|EMPTY|PARSE|OTHER)|PATH_MATCH\|(?:YES|NO)|ERRCATEGORY\|(?:PARSE|BIND|FILE|ACCESS|BOOTSTRAP|FIXTURE|ROTATION|STRICT|OTHER_ERROR|OTHER))|JOB_OUTSIDE_(?:PHASE\|(?:INPUT_BEGIN|JSON_OK|HELPER_BEGIN|HELPER_READY|OUTPUT_BEGIN)|EXITED\|(?:YES|NO)|EXIT_CODE\|(?:ZERO|NONZERO|UNKNOWN)|ERROR_CLASS\|(?:EMPTY|HELPER_TIMEOUT|HELPER_SHAPE|HELPER_LIMIT|HELPER_IDENTITY|HELPER_REFUSED|JSON_SYNTAX|MODULE_NOT_FOUND|REFERENCE_ERROR|TYPE_ERROR|BROKEN_PIPE|FILE_MISSING|NODE_INVALID|NODE_ERROR|OTHER)))",x)]
+                     r"(?:JOB_REAL_(?:STAGE\|(?:UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE)_[A-Z0-9_]{2,100})|READ_CONTEXT\|(?:DRIVER|OUTSIDE|UNKNOWN))|JOB_DRIVER_(?:CHILD_EXITED\|(?:YES|NO)|EXIT_CODE\|(?:ZERO|NONZERO|UNKNOWN)|STDERR_READ\|(?:EOF|DATA|PENDING|FAULT)|TRAP\|(?:UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE|PEER_FIXTURE|ROTATION_CUTOVER)_[A-Z0-9_]{2,100})|TRAP_CAPTURE\|(?:UNAVAILABLE|UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE|PEER_FIXTURE|ROTATION_CUTOVER)_[A-Z0-9_]{2,100})|SOURCE_BASE\|(?:UNAVAILABLE|UNKNOWN|(?:CUTOVER_BOOTSTRAP_FIXTURE|CUTOVER|PEER_FIXTURE|ROTATION_CUTOVER|JOB)_[A-Z0-9_]{3,120})|SOURCE_CLASS\|(?:UNAVAILABLE|RUNTIME|METHOD|ARGUMENT|FORMAT|INVALID_OPERATION|IO|OTHER)|INPUT_CODE\|(?:UNAVAILABLE|NO_LINE|EMPTY|PARSE|OTHER)|PATH_MATCH\|(?:YES|NO)|ERRCATEGORY\|(?:PARSE|BIND|FILE|ACCESS|BOOTSTRAP|FIXTURE|ROTATION|STRICT|OTHER_ERROR|OTHER))|JOB_OUTSIDE_(?:PHASE\|(?:INPUT_BEGIN|JSON_OK|HELPER_BEGIN|HELPER_READY|OUTPUT_BEGIN|OUTPUT_SENT|OUTPUT_FAIL)|EXITED\|(?:YES|NO)|EXIT_CODE\|(?:ZERO|NONZERO|UNKNOWN)|ERROR_CLASS\|(?:EMPTY|HELPER_TIMEOUT|HELPER_SHAPE|HELPER_LIMIT|HELPER_IDENTITY|HELPER_REFUSED|JSON_SYNTAX|MODULE_NOT_FOUND|REFERENCE_ERROR|TYPE_ERROR|BROKEN_PIPE|FILE_MISSING|NODE_INVALID|NODE_ERROR|OTHER)))",x)]
     native_status=re.findall(r"JOB_REAL_CHILD (\{[^\r\n]{1,250}\})",cp["stdout"])
     native_child=json.loads(native_status[-1]) if native_status else {}
     found = re.findall(r"JOB_REAL_FLAGS (\{[^\r\n]{1,1800}\})", cp["stdout"])
@@ -548,6 +554,11 @@ def main():
         report["windows_real_job_outside_utf8"] = real_windows_diagnostic(
             original_fixture.decode("utf-8"), original_test.decode("utf-8"),
             False, False, True)
+        FIXTURE.write_bytes(original_fixture)
+        TEST.write_bytes(original_test)
+        report["windows_real_job_async_stdout"] = real_windows_diagnostic(
+            original_fixture.decode("utf-8"), original_test.decode("utf-8"),
+            False, False, False, True)
     finally:
         FIXTURE.write_bytes(original_fixture)
         TEST.write_bytes(original_test)
