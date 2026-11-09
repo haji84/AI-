@@ -653,7 +653,7 @@ def strict_json_receiver_candidate(fixture, test, diagnostic=False):
             "acceptance":"NOT_ASSESSED"}
 
 
-def stream_reader_candidate(fixture,test):
+def stream_reader_candidate(fixture,test,strict_actual_bom=False):
     """Disposable original full Windows Job test: strict raw UTF-8 input."""
     old="$publicInput=if($OwnedJobWindows -and $TransportGroup -in @(1,2)){$line=[Console]::In.ReadLine();$null=$line|Microsoft.PowerShell.Utility\\ConvertFrom-Json;$line}else{[Console]::In.ReadToEnd()}"
     candidate=r"""$publicInput=if($OwnedJobWindows -and $TransportGroup -in @(1,2)){
@@ -663,13 +663,21 @@ def stream_reader_candidate(fixture,test):
  $null=$line|Microsoft.PowerShell.Utility\ConvertFrom-Json -ErrorAction Stop
  $line
 }else{[Console]::In.ReadToEnd()}"""
+    if strict_actual_bom:
+        # Red/green probe only: PowerShell's culture-sensitive StartsWith()
+        # may treat FEFF as ignorable even when it is absent. Compare the
+        # actual first code point, remove exactly ONE genuine FEFF, and reject
+        # further BOM/control bytes before the original JSON parsing.
+        candidate=unique(candidate,
+            "  $line=$reader.ReadLine()",
+            "  $line=$reader.ReadLine()\n  if($null -ne $line -and $line.Length -gt 0 -and $line[0] -eq [char]0xFEFF){$line=$line.Substring(1)}")
     modified=unique(fixture,old,candidate)
     cp=run_selected(
       "^Windows private original-State Job contains held Node helper and manager death while outside control survives$",
       modified,test)
     return {"run_status":cp["status"],"original_assertions_exit":cp["exit"],
             "source_only_input_change":True,"original_tests_unchanged":True,
-            "acceptance":"NOT_ASSESSED"}
+            "actual_bom_only":strict_actual_bom,"acceptance":"NOT_ASSESSED"}
 
 
 def driver_raw_utf8_candidate(fixture,test,bom_trim=False):
@@ -756,6 +764,10 @@ def main():
         TEST.write_bytes(original_test)
         report["windows_real_job_stream_reader_original_test"] = stream_reader_candidate(
             original_fixture.decode("utf-8"), original_test.decode("utf-8"))
+        FIXTURE.write_bytes(original_fixture)
+        TEST.write_bytes(original_test)
+        report["windows_real_job_stream_reader_exact_bom_candidate"] = stream_reader_candidate(
+            original_fixture.decode("utf-8"), original_test.decode("utf-8"), True)
         FIXTURE.write_bytes(original_fixture)
         TEST.write_bytes(original_test)
         report["windows_real_job_stream_reader_diagnostic"] = real_windows_diagnostic(
