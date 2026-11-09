@@ -284,15 +284,6 @@ def real_windows_diagnostic(fixture, test, explicit_driver_target=False, bom_tri
     modified_fixture=unique(fixture,
        " [IO.File]::WriteAllText($childPath,$js,[Text.UTF8Encoding]::new($false));",
        nodePhase+" [IO.File]::WriteAllText($childPath,$js,[Text.UTF8Encoding]::new($false));")
-    if raw_utf8:
-        oldEncoding="$info.StandardInputEncoding=[Text.UTF8Encoding]::new($false);Require ($info.StandardInputEncoding.GetPreamble().Length -eq 0) 'JOB_DRIVER_BOM_FREE_UTF8_REQUIRED'"
-        newEncoding="$driverUtf8=[Text.UTF8Encoding]::new($false,$true);Require ($driverUtf8.GetPreamble().Length -eq 0) 'JOB_DRIVER_BOM_FREE_UTF8_REQUIRED'"
-        modified_fixture=unique(modified_fixture,oldEncoding,newEncoding)
-        oldWrite="$p.StandardInput.WriteLine($InputJson);$p.StandardInput.Flush();"
-        newWrite=("$wire=[byte[]]$driverUtf8.GetBytes($InputJson+[char]10);"
-          "Require ($wire.Length -ge 3 -and $wire.Length -le 32769 -and $wire[$wire.Length-1] -eq [byte]10) 'JOB_DRIVER_UTF8_WIRE_REQUIRED';"
-          "$writer=$p.StandardInput.BaseStream;$writer.Write($wire,0,$wire.Length);$writer.Flush();")
-        modified_fixture=unique(modified_fixture,oldWrite,newWrite)
     if async_stdout:
         synchronous="function writePublicStdout(text){const bytes=Buffer.from(text,'utf8');let offset=0;while(offset<bytes.length){const count=writeSync(1,bytes,offset,bytes.length-offset);if(!Number.isInteger(count)||count<1||count>bytes.length-offset)throw new Error('PUBLIC_FD_WRITE_REFUSED');offset+=count;}}"
         modified_fixture=unique(modified_fixture,synchronous,
@@ -346,6 +337,15 @@ def real_windows_diagnostic(fixture, test, explicit_driver_target=False, bom_tri
     ]
     for original, revised in checkpoints:
         modified_fixture=unique(modified_fixture,original,revised)
+    if raw_utf8:
+        oldEncoding="$info.StandardInputEncoding=[Text.UTF8Encoding]::new($false);Require ($info.StandardInputEncoding.GetPreamble().Length -eq 0) 'JOB_DRIVER_BOM_FREE_UTF8_REQUIRED'"
+        newEncoding="$driverUtf8=[Text.UTF8Encoding]::new($false,$true);Require ($driverUtf8.GetPreamble().Length -eq 0) 'JOB_DRIVER_BOM_FREE_UTF8_REQUIRED'"
+        modified_fixture=unique(modified_fixture,oldEncoding,newEncoding)
+        oldWrite="$p.StandardInput.WriteLine($InputJson);$p.StandardInput.Flush();"
+        newWrite=("$wire=[byte[]]$driverUtf8.GetBytes($InputJson+[char]10);"
+          "Require ($wire.Length -ge 3 -and $wire.Length -le 32769 -and $wire[$wire.Length-1] -eq [byte]10) 'JOB_DRIVER_UTF8_WIRE_REQUIRED';"
+          "$writer=$p.StandardInput.BaseStream;$writer.Write($wire,0,$wire.Length);$writer.Flush();")
+        modified_fixture=unique(modified_fixture,oldWrite,newWrite)
 
     driverInput="$p.StandardInput.WriteLine($InputJson);$p.StandardInput.Flush();"
     modified_fixture=unique(modified_fixture,driverInput,
