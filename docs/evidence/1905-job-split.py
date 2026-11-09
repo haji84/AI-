@@ -204,7 +204,7 @@ oneCase:accepted,rows:number,stderr:child.stderr?.length>0}));}"""
             "acceptance":"NOT_ASSESSED"}
 
 
-def real_windows_diagnostic(fixture, test, explicit_driver_target=False, bom_trim=False, outside_utf8=False, async_stdout=False, raw_utf8=False, strict_receiver=False):
+def real_windows_diagnostic(fixture, test, explicit_driver_target=False, bom_trim=False, outside_utf8=False, async_stdout=False, raw_utf8=False, strict_receiver=False, stream_reader=False):
     start = test.index(REAL_TEST)
     end = test.index("\ntest(", start + len(REAL_TEST))
     chunk = test[start:end]
@@ -349,7 +349,7 @@ def real_windows_diagnostic(fixture, test, explicit_driver_target=False, bom_tri
           "Require ($info.StandardInputEncoding.GetPreamble().Length -eq 0) 'JOB_DRIVER_BOM_FREE_UTF8_REQUIRED';"
           "[Console]::Error.WriteLine('JOB_EARLY_DRIVER|ENCODER_VERIFY')")
         modified_fixture=unique(modified_fixture,encoder,proof)
-    driverInput="$p.StandardInput.WriteLine($InputJson);$p.StandardInput.Flush();"
+    driverInput="$wire=[byte[]]$driverUtf8.GetBytes($InputJson+[char]10);Require ($wire.Length -ge 3 -and $wire.Length -le 32769 -and $wire[$wire.Length-1] -eq [byte]10) 'JOB_DRIVER_UTF8_WIRE_REQUIRED';$writer=$p.StandardInput.BaseStream;$writer.Write($wire,0,$wire.Length);$writer.Flush();" if "JOB_DRIVER_UTF8_WIRE_REQUIRED" in modified_fixture else "$p.StandardInput.WriteLine($InputJson);$p.StandardInput.Flush();"
     modified_fixture=unique(modified_fixture,driverInput,
         "[Console]::Error.WriteLine('JOB_EARLY_DRIVER|WRITE_BEFORE');"+
         driverInput+"[Console]::Error.WriteLine('JOB_EARLY_DRIVER|WRITE_DONE');")
@@ -544,6 +544,10 @@ Emit-PublicNestedStage 'BEGIN'
         inputVariant=unique(inputVariant,
           "  $line=[Console]::In.ReadLine()",
           "  $line=[Console]::In.ReadLine();if($null -ne $line -and $line.StartsWith([string][char]0xFEFF)){$line=$line.Substring(1)}")
+    if stream_reader:
+        inputVariant=unique(inputVariant,
+          "  $line=[Console]::In.ReadLine()",
+          "  $utf8Reader=[IO.StreamReader]::new([Console]::OpenStandardInput(),[Text.UTF8Encoding]::new($false,$true),$false,4096,$true)\n  $line=$utf8Reader.ReadLine()")
     if strict_receiver:
         safeSnippet="""  Require ($null -ne $line -and $line.Length -ge 2 -and $line.Length -le 32769) 'JOB_FIXED_DRIVER_INPUT_LINE'
   if($line[0] -eq [char]0xFEFF){$line=$line.Substring(1)}
@@ -637,6 +641,25 @@ def strict_json_receiver_candidate(fixture, test, diagnostic=False):
             "acceptance":"NOT_ASSESSED"}
 
 
+def stream_reader_candidate(fixture,test):
+    """Disposable original full Windows Job test: strict raw UTF-8 input."""
+    old="$publicInput=if($OwnedJobWindows -and $TransportGroup -in @(1,2)){$line=[Console]::In.ReadLine();$null=$line|Microsoft.PowerShell.Utility\\ConvertFrom-Json;$line}else{[Console]::In.ReadToEnd()}"
+    candidate=r"""$publicInput=if($OwnedJobWindows -and $TransportGroup -in @(1,2)){
+ $reader=[IO.StreamReader]::new([Console]::OpenStandardInput(),[Text.UTF8Encoding]::new($false,$true),$false,4096,$true)
+ $line=$reader.ReadLine()
+ Require ($null -ne $line -and $line.Length -ge 2 -and $line.Length -le 32768 -and $line[0] -eq '{' -and $line[$line.Length-1] -eq '}' -and $line.IndexOf([char]0xFEFF) -lt 0 -and $line.IndexOf([char]10) -lt 0 -and $line.IndexOf([char]13) -lt 0) 'JOB_FIXED_DRIVER_INPUT_LINE'
+ $null=$line|Microsoft.PowerShell.Utility\ConvertFrom-Json -ErrorAction Stop
+ $line
+}else{[Console]::In.ReadToEnd()}"""
+    modified=unique(fixture,old,candidate)
+    cp=run_selected(
+      "^Windows private original-State Job contains held Node helper and manager death while outside control survives$",
+      modified,test)
+    return {"run_status":cp["status"],"original_assertions_exit":cp["exit"],
+            "source_only_input_change":True,"original_tests_unchanged":True,
+            "acceptance":"NOT_ASSESSED"}
+
+
 def driver_raw_utf8_candidate(fixture,test,bom_trim=False):
     """Disposable original Windows test, unchanged assertions, BOM-free raw pipe."""
     original_encoding="$info.StandardInputEncoding=[Text.UTF8Encoding]::new($false);Require ($info.StandardInputEncoding.GetPreamble().Length -eq 0) 'JOB_DRIVER_BOM_FREE_UTF8_REQUIRED'"
@@ -717,6 +740,15 @@ def main():
         report["windows_real_job_async_stdout"] = real_windows_diagnostic(
             original_fixture.decode("utf-8"), original_test.decode("utf-8"),
             False, False, False, True)
+        FIXTURE.write_bytes(original_fixture)
+        TEST.write_bytes(original_test)
+        report["windows_real_job_stream_reader_original_test"] = stream_reader_candidate(
+            original_fixture.decode("utf-8"), original_test.decode("utf-8"))
+        FIXTURE.write_bytes(original_fixture)
+        TEST.write_bytes(original_test)
+        report["windows_real_job_stream_reader_diagnostic"] = real_windows_diagnostic(
+            original_fixture.decode("utf-8"), original_test.decode("utf-8"),
+            False, False, False, False, False, False, True)
         FIXTURE.write_bytes(original_fixture)
         TEST.write_bytes(original_test)
         report["windows_real_job_strict_json_receiver_original_test"] = strict_json_receiver_candidate(
