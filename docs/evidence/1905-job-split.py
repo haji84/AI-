@@ -337,15 +337,6 @@ def real_windows_diagnostic(fixture, test, explicit_driver_target=False, bom_tri
     ]
     for original, revised in checkpoints:
         modified_fixture=unique(modified_fixture,original,revised)
-    if raw_utf8:
-        oldEncoding="$info.StandardInputEncoding=[Text.UTF8Encoding]::new($false);Require ($info.StandardInputEncoding.GetPreamble().Length -eq 0) 'JOB_DRIVER_BOM_FREE_UTF8_REQUIRED'"
-        newEncoding="$driverUtf8=[Text.UTF8Encoding]::new($false,$true);Require ($driverUtf8.GetPreamble().Length -eq 0) 'JOB_DRIVER_BOM_FREE_UTF8_REQUIRED'"
-        modified_fixture=unique(modified_fixture,oldEncoding,newEncoding)
-        oldWrite="$p.StandardInput.WriteLine($InputJson);$p.StandardInput.Flush();"
-        newWrite=("$wire=[byte[]]$driverUtf8.GetBytes($InputJson+[char]10);"
-          "Require ($wire.Length -ge 3 -and $wire.Length -le 32769 -and $wire[$wire.Length-1] -eq [byte]10) 'JOB_DRIVER_UTF8_WIRE_REQUIRED';"
-          "$writer=$p.StandardInput.BaseStream;$writer.Write($wire,0,$wire.Length);$writer.Flush();")
-        modified_fixture=unique(modified_fixture,oldWrite,newWrite)
 
     driverInput="$p.StandardInput.WriteLine($InputJson);$p.StandardInput.Flush();"
     modified_fixture=unique(modified_fixture,driverInput,
@@ -560,6 +551,16 @@ Emit-PublicNestedStage 'BEGIN'
     statusCode = r"""console.log('JOB_REAL_CHILD '+JSON.stringify({timeout:child.error?.code==='ETIMEDOUT'?'YES':'NO',exit:child.status===0?'ZERO':child.status===null?'NULL':'NONZERO',stderr:child.stderr?'YES':'NO',stdout:child.stdout?'YES':'NO'}));"""
     chunk = unique(chunk, begin, statusCode + stageCode + begin)
     modified_test = test[:start] + chunk + test[end:]
+    if raw_utf8:
+        oldEncoding="$info.StandardInputEncoding=[Text.UTF8Encoding]::new($false);Require ($info.StandardInputEncoding.GetPreamble().Length -eq 0) 'JOB_DRIVER_BOM_FREE_UTF8_REQUIRED'"
+        newEncoding="$driverUtf8=[Text.UTF8Encoding]::new($false,$true);Require ($driverUtf8.GetPreamble().Length -eq 0) 'JOB_DRIVER_BOM_FREE_UTF8_REQUIRED'"
+        modified_fixture=unique(modified_fixture,oldEncoding,newEncoding)
+        oldWrite="$p.StandardInput.WriteLine($InputJson);$p.StandardInput.Flush();"
+        newWrite=("$wire=[byte[]]$driverUtf8.GetBytes($InputJson+[char]10);"
+          "Require ($wire.Length -ge 3 -and $wire.Length -le 32769 -and $wire[$wire.Length-1] -eq [byte]10) 'JOB_DRIVER_UTF8_WIRE_REQUIRED';"
+          "$writer=$p.StandardInput.BaseStream;$writer.Write($wire,0,$wire.Length);$writer.Flush();")
+        modified_fixture=unique(modified_fixture,oldWrite,newWrite)
+
     cp = run_selected(
         "^Windows private original-State Job contains held Node helper and manager death while outside control survives$",
         modified_fixture, modified_test, native_phase=True,
