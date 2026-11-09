@@ -204,7 +204,7 @@ oneCase:accepted,rows:number,stderr:child.stderr?.length>0}));}"""
             "acceptance":"NOT_ASSESSED"}
 
 
-def real_windows_diagnostic(fixture, test, explicit_driver_target=False, bom_trim=False, outside_utf8=False, async_stdout=False, raw_utf8=False):
+def real_windows_diagnostic(fixture, test, explicit_driver_target=False, bom_trim=False, outside_utf8=False, async_stdout=False, raw_utf8=False, strict_receiver=False):
     start = test.index(REAL_TEST)
     end = test.index("\ntest(", start + len(REAL_TEST))
     chunk = test[start:end]
@@ -528,6 +528,13 @@ Emit-PublicNestedStage 'BEGIN'
         inputVariant=unique(inputVariant,
           "  $line=[Console]::In.ReadLine()",
           "  $line=[Console]::In.ReadLine();if($null -ne $line -and $line.StartsWith([string][char]0xFEFF)){$line=$line.Substring(1)}")
+    if strict_receiver:
+        safeSnippet="""  Require ($null -ne $line -and $line.Length -ge 2 -and $line.Length -le 32769) 'JOB_FIXED_DRIVER_INPUT_LINE'
+  if($line[0] -eq [char]0xFEFF){$line=$line.Substring(1)}
+  Require ($line.Length -ge 2 -and $line.Length -le 32768 -and $line[0] -eq '{' -and $line[$line.Length-1] -eq '}' -and $line.IndexOf([char]0xFEFF) -lt 0 -and $line.IndexOf([char]10) -lt 0 -and $line.IndexOf([char]13) -lt 0) 'JOB_FIXED_DRIVER_INPUT_LINE'
+"""
+        inputVariant=unique(inputVariant,"  Emit-PublicNestedStage 'INPUT_JSON_BEGIN'\n",
+                            safeSnippet+"  Emit-PublicNestedStage 'INPUT_JSON_BEGIN'\n")
     modified_fixture = unique(modified_fixture,inputOriginal,inputVariant)
     modified_fixture = unique(modified_fixture,inputVariant,
         inputVariant+";Emit-PublicNestedStage 'INPUT_READY'")
@@ -695,6 +702,11 @@ def main():
         TEST.write_bytes(original_test)
         report["windows_real_job_strict_json_receiver_original_test"] = strict_json_receiver_candidate(
             original_fixture.decode("utf-8"), original_test.decode("utf-8"))
+        FIXTURE.write_bytes(original_fixture)
+        TEST.write_bytes(original_test)
+        report["windows_real_job_strict_json_receiver_diagnostic"] = real_windows_diagnostic(
+            original_fixture.decode("utf-8"), original_test.decode("utf-8"),
+            False, False, False, False, False, True)
         FIXTURE.write_bytes(original_fixture)
         TEST.write_bytes(original_test)
         report["windows_real_job_raw_utf8_candidate"] = driver_raw_utf8_candidate(
