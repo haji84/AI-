@@ -54,7 +54,7 @@ def run_selected(pattern, fixture_text, test_text, progress=False, native_phase=
             f=phase_root/("NESTED_"+group+".txt")
             if f.is_file():
                 result[group]=[v for v in f.read_text(encoding="ascii",errors="replace").splitlines()
-                               if v in ("BEGIN","CONTEXT_OK","JOB_OPTIONS_OK","NATIVE_READY","INPUT_BEFORE","INPUT_READ_BEGIN","INPUT_LINE","INPUT_NULL","INPUT_BOM","INPUT_NO_BOM","INPUT_OBJECT","INPUT_NONOBJECT","INPUT_BOM0","INPUT_BOM1","INPUT_BOM2PLUS","INPUT_END_OBJECT","INPUT_END_OTHER","INPUT_AFTER1_OBJECT","INPUT_AFTER1_OTHER","INPUT_JSON_BEGIN","INPUT_JSON_OK","INPUT_COMMAND_FOUND","INPUT_COMMAND_MISSING","INPUT_ERROR_COMMAND","INPUT_ERROR_RUNTIME","INPUT_ERROR_FORMAT","INPUT_ERROR_ARGUMENT","INPUT_ERROR_JSON","INPUT_ERROR_OTHER","INPUT_FAIL_NO_LINE","INPUT_FAIL_EMPTY","INPUT_FAIL_PARSE","INPUT_FAIL_OTHER","INPUT_READY","BEFORE_BASE","AFTER_BASE","TRAP","BASE_FAIL")][-20:]
+                               if v in ("BEGIN","CONTEXT_OK","JOB_OPTIONS_OK","NATIVE_READY","INPUT_BEFORE","INPUT_READ_BEGIN","INPUT_LINE","INPUT_NULL","INPUT_BOM","INPUT_NO_BOM","INPUT_OBJECT","INPUT_NONOBJECT","INPUT_BOM0","INPUT_BOM1","INPUT_BOM2PLUS","INPUT_END_OBJECT","INPUT_END_OTHER","INPUT_AFTER1_OBJECT","INPUT_AFTER1_OTHER","INPUT_JSON_BEGIN","INPUT_JSON_OK","INPUT_COMMAND_FOUND","INPUT_COMMAND_MISSING","INPUT_SELFTEST_PASS","INPUT_SELFTEST_FAIL","INPUT_REASON_DUPLICATE","INPUT_REASON_SYNTAX","INPUT_REASON_BINDING","INPUT_REASON_DEPTH","INPUT_REASON_OTHER","INPUT_ERROR_COMMAND","INPUT_ERROR_RUNTIME","INPUT_ERROR_FORMAT","INPUT_ERROR_ARGUMENT","INPUT_ERROR_JSON","INPUT_ERROR_OTHER","INPUT_FAIL_NO_LINE","INPUT_FAIL_EMPTY","INPUT_FAIL_PARSE","INPUT_FAIL_OTHER","INPUT_READY","BEFORE_BASE","AFTER_BASE","TRAP","BASE_FAIL")][-20:]
         return result
     def phases():
         if progress_root is None: return []
@@ -451,7 +451,7 @@ function Emit-PublicNestedStage([string]$Label) {
  if(-not $OwnedJobWindows -or $TransportGroup -notin @(1,2) -or
     $env:GITHUB_REPOSITORY -cne 'haji84/AI-' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
     [string]::IsNullOrWhiteSpace($env:GORIQ_PR1905_PHASE_DIR)){return}
- if($Label -notin @('BEGIN','CONTEXT_OK','JOB_OPTIONS_OK','NATIVE_READY','INPUT_BEFORE','INPUT_READ_BEGIN','INPUT_LINE','INPUT_NULL','INPUT_BOM','INPUT_NO_BOM','INPUT_OBJECT','INPUT_NONOBJECT','INPUT_BOM0','INPUT_BOM1','INPUT_BOM2PLUS','INPUT_END_OBJECT','INPUT_END_OTHER','INPUT_AFTER1_OBJECT','INPUT_AFTER1_OTHER','INPUT_JSON_BEGIN','INPUT_JSON_OK','INPUT_COMMAND_FOUND','INPUT_COMMAND_MISSING','INPUT_ERROR_COMMAND','INPUT_ERROR_RUNTIME','INPUT_ERROR_FORMAT','INPUT_ERROR_ARGUMENT','INPUT_ERROR_JSON','INPUT_ERROR_OTHER','INPUT_FAIL_NO_LINE','INPUT_FAIL_EMPTY','INPUT_FAIL_PARSE','INPUT_FAIL_OTHER','INPUT_READY','BEFORE_BASE','AFTER_BASE','TRAP','BASE_FAIL')){return}
+ if($Label -notin @('BEGIN','CONTEXT_OK','JOB_OPTIONS_OK','NATIVE_READY','INPUT_BEFORE','INPUT_READ_BEGIN','INPUT_LINE','INPUT_NULL','INPUT_BOM','INPUT_NO_BOM','INPUT_OBJECT','INPUT_NONOBJECT','INPUT_BOM0','INPUT_BOM1','INPUT_BOM2PLUS','INPUT_END_OBJECT','INPUT_END_OTHER','INPUT_AFTER1_OBJECT','INPUT_AFTER1_OTHER','INPUT_JSON_BEGIN','INPUT_JSON_OK','INPUT_COMMAND_FOUND','INPUT_COMMAND_MISSING','INPUT_SELFTEST_PASS','INPUT_SELFTEST_FAIL','INPUT_REASON_DUPLICATE','INPUT_REASON_SYNTAX','INPUT_REASON_BINDING','INPUT_REASON_DEPTH','INPUT_REASON_OTHER','INPUT_ERROR_COMMAND','INPUT_ERROR_RUNTIME','INPUT_ERROR_FORMAT','INPUT_ERROR_ARGUMENT','INPUT_ERROR_JSON','INPUT_ERROR_OTHER','INPUT_FAIL_NO_LINE','INPUT_FAIL_EMPTY','INPUT_FAIL_PARSE','INPUT_FAIL_OTHER','INPUT_READY','BEFORE_BASE','AFTER_BASE','TRAP','BASE_FAIL')){return}
  try{
   $root=$env:GORIQ_PR1905_PHASE_DIR
   if([IO.Directory]::Exists($root)){
@@ -526,6 +526,9 @@ Emit-PublicNestedStage 'BEGIN'
   $cmd=$null
   try{$cmd=Microsoft.PowerShell.Core\Get-Command -Name 'Microsoft.PowerShell.Utility\ConvertFrom-Json' -ErrorAction SilentlyContinue}catch{}
   Emit-PublicNestedStage $(if($cmd){'INPUT_COMMAND_FOUND'}else{'INPUT_COMMAND_MISSING'})
+  $selfOk=$false
+  try{$sample='{"public":1}'|Microsoft.PowerShell.Utility\ConvertFrom-Json -ErrorAction Stop;$selfOk=($sample.public -eq 1)}catch{}
+  Emit-PublicNestedStage $(if($selfOk){'INPUT_SELFTEST_PASS'}else{'INPUT_SELFTEST_FAIL'})
   Emit-PublicNestedStage 'INPUT_JSON_BEGIN'
   $null=$line|Microsoft.PowerShell.Utility\ConvertFrom-Json
   Emit-PublicNestedStage 'INPUT_JSON_OK'
@@ -537,6 +540,9 @@ Emit-PublicNestedStage 'BEGIN'
   elseif([string]$_.Exception.GetBaseException().Message -match '(?i)json|convertfrom'){$category='PARSE'}
   $name=$_.Exception.GetBaseException().GetType().Name
   $class=if($name -eq 'CommandNotFoundException'){'COMMAND'}elseif($name -eq 'RuntimeException'){'RUNTIME'}elseif($name -eq 'FormatException'){'FORMAT'}elseif($name -eq 'ArgumentException'){'ARGUMENT'}elseif($name -match '(?i)Json'){'JSON'}else{'OTHER'}
+  $message=[string]$_.Exception.Message
+  $reason=if($message -match '(?i)duplicate|same key|already been added|case.insensitive'){'DUPLICATE'}elseif($message -match '(?i)invalid json|invalid character|unexpected|bad json|json primitive|parse'){'SYNTAX'}elseif($message -match '(?i)parameter|inputobject|cannot convert|bind|argument'){'BINDING'}elseif($message -match '(?i)depth|recurs'){'DEPTH'}else{'OTHER'}
+  Emit-PublicNestedStage ('INPUT_REASON_'+$reason)
   Emit-PublicNestedStage ('INPUT_ERROR_'+$class)
   Emit-PublicNestedStage ('INPUT_FAIL_'+$category)
   [Console]::Error.WriteLine('JOB_DRIVER_INPUT_FAILURE|'+$category)
