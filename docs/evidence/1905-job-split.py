@@ -135,6 +135,10 @@ $g2Cert=Microsoft.PowerShell.Utility\\Get-Variable -Name ownedPeerJobCanonicalPi
             "acceptance": "NOT_ASSESSED"}
 
 def group2_single_case_diagnostics(fixture, test):
+    if "OwnedJobCase" in fixture:
+        # The CURRENT original group2 test already executes all six bounded
+        # cases independently; don't multiply six by six in diagnostics.
+        return {"status":"SOURCE_BOUND_ORIGINAL_SIX_CASES", "acceptance":"NOT_ASSESSED"}
     """One case per disposable process, original 15s per-process clock retained.
 
     The original six-row assertion intentionally FAILS for a one-row experiment.

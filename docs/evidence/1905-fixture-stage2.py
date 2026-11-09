@@ -11,7 +11,7 @@ import time
 NATIVE='scripts/owner-code-rotation-native-1218.ps1'
 FIXTURE='tests/owner-code-cutover-peer.fixture.ps1'
 TEST='scripts/owner-code-cutover-peer.test.mjs'
-EXPECTED={NATIVE:'287212853b7dd68adb901f6dd8d3c768732dcd0b',FIXTURE:'c628cd155cfc298451eec172f97815477925b992',TEST:'af332cb501682da7ffede47eb560dec4ce9b41a4'}
+EXPECTED={NATIVE:'287212853b7dd68adb901f6dd8d3c768732dcd0b',FIXTURE:'67656bc2083ac08fc244afaf60aab508dae89cb8',TEST:'1b6e730c925c87fe0fd2ca0234f1c07be4a11020'}
 
 
 def once(s,a,b):

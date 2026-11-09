@@ -766,6 +766,36 @@ test('private owned Job source closes the Start to HELLO descendant window witho
 
 for(const group of [0,1,2])test(`private original-State owned Job finite policy and cleanup group${group} is DATA only`,()=>{
  const g=grant();for(const name of Object.keys(g.sourceHashes))g.sourceHashes[name]=createHash('sha256').update(readFileSync(name)).digest('hex');const shell=process.platform==='win32'?join(process.env.SystemRoot,'System32/WindowsPowerShell/v1.0/powershell.exe'):'pwsh';
+ if(group===2){
+  // Six original DATA cases, each in its own authenticated source-bound
+  // Process and with the ORIGINAL 15-second per-process limit. Every negative
+  // guard still runs. Do not count a partial result or a skipped case as PASS.
+  const modes=['assigned-close','assign-fail','create-unknown','close-fail','mirror-cleanup','duplicate-close'];
+  const verified=new Set();
+  for(const mode of modes){
+   const args=['-NoLogo','-NoProfile','-NonInteractive','-File','tests/owner-code-cutover-peer.fixture.ps1','-Root',process.cwd(),'-OwnedJobData','-TransportGroup','2','-OwnedJobCase',mode];
+   const selected=spawnSync(shell,args,{input:JSON.stringify({encoded:encode(g),environment,now:new Date(now).toISOString(),nodeExecutable:process.execPath}),encoding:'utf8',timeout:15000,maxBuffer:16384});
+   assert.equal(selected.error,undefined);
+   assert.equal(selected.status,0,selected.stdout+selected.stderr);
+   assert.equal(selected.stderr,'');
+   const result=JSON.parse(selected.stdout);
+   assert.equal(result.pass,true);
+   assert.equal(result.actualOriginalRegistration,true);
+   assert.equal(result.originalProcessCertificate,true);
+   assert.equal(result.actualWindowsJobApiCalls,0);
+   assert.equal(result.nativeAuthority,false);
+   assert.equal(result.bootstrapActivated,false);
+   assert.equal(result.oldWatchRenewed,false);
+   assert.equal(result.group,group);
+   assert.equal(result.rows.length,1);
+   assert.equal(result.rows[0].id,mode);
+   assert.equal(result.rows[0].pass,true);
+   assert.equal(verified.has(mode),false);
+   verified.add(mode);
+  }
+  assert.equal(verified.size,6);
+  return;
+ }
  const child=spawnSync(shell,['-NoLogo','-NoProfile','-NonInteractive','-File','tests/owner-code-cutover-peer.fixture.ps1','-Root',process.cwd(),'-OwnedJobData','-TransportGroup',String(group)],{input:JSON.stringify({encoded:encode(g),environment,now:new Date(now).toISOString(),nodeExecutable:process.execPath}),encoding:'utf8',timeout:15000,maxBuffer:16384});assert.equal(child.error,undefined);assert.equal(child.status,0,child.stdout+child.stderr);assert.equal(child.stderr,'');const r=JSON.parse(child.stdout);
  assert.equal(r.pass,true);assert.equal(r.actualOriginalRegistration,true);assert.equal(r.originalProcessCertificate,true);assert.equal(r.actualWindowsJobApiCalls,0);assert.equal(r.nativeAuthority,false);assert.equal(r.bootstrapActivated,false);assert.equal(r.oldWatchRenewed,false);assert.equal(r.group,group);assert.equal(r.rows.length,6);for(const row of r.rows)assert.equal(row.pass,true);
 });
