@@ -338,7 +338,7 @@ def real_windows_diagnostic(fixture, test, explicit_driver_target=False, bom_tri
     for original, revised in checkpoints:
         modified_fixture=unique(modified_fixture,original,revised)
 
-    if not raw_utf8:
+    if not raw_utf8 and "JOB_DRIVER_UTF8_WIRE_REQUIRED" not in modified_fixture:
         shape="$system=[Environment]::GetFolderPath('Windows');$info=[Diagnostics.ProcessStartInfo]::new();"
         modified_fixture=unique(modified_fixture,shape,
           "[Console]::Error.WriteLine('JOB_EARLY_DRIVER|INPUT_SHAPE_OK');"+shape)
@@ -574,7 +574,7 @@ Emit-PublicNestedStage 'BEGIN'
     statusCode = r"""console.log('JOB_REAL_CHILD '+JSON.stringify({timeout:child.error?.code==='ETIMEDOUT'?'YES':'NO',exit:child.status===0?'ZERO':child.status===null?'NULL':'NONZERO',stderr:child.stderr?'YES':'NO',stdout:child.stdout?'YES':'NO'}));"""
     chunk = unique(chunk, begin, statusCode + stageCode + begin)
     modified_test = test[:start] + chunk + test[end:]
-    if raw_utf8:
+    if raw_utf8 and "JOB_DRIVER_UTF8_WIRE_REQUIRED" not in modified_fixture:
         oldEncoding="$info.StandardInputEncoding=[Text.UTF8Encoding]::new($false);Require ($info.StandardInputEncoding.GetPreamble().Length -eq 0) 'JOB_DRIVER_BOM_FREE_UTF8_REQUIRED'"
         newEncoding="$driverUtf8=[Text.UTF8Encoding]::new($false,$true);Require ($driverUtf8.GetPreamble().Length -eq 0) 'JOB_DRIVER_BOM_FREE_UTF8_REQUIRED'"
         modified_fixture=unique(modified_fixture,oldEncoding,newEncoding)
@@ -648,8 +648,11 @@ def driver_raw_utf8_candidate(fixture,test,bom_trim=False):
         "$writer=$p.StandardInput.BaseStream;"
         "$writer.Write($wire,0,$wire.Length);$writer.Flush();"
     )
-    modified=unique(fixture,original_encoding,compatible_encoding)
-    modified=unique(modified,original_write,compatible_write)
+    if "JOB_DRIVER_UTF8_WIRE_REQUIRED" in fixture:
+        modified=fixture
+    else:
+        modified=unique(fixture,original_encoding,compatible_encoding)
+        modified=unique(modified,original_write,compatible_write)
     if bom_trim:
         inputLine="$publicInput=if($OwnedJobWindows -and $TransportGroup -in @(1,2)){$line=[Console]::In.ReadLine();$null=$line|Microsoft.PowerShell.Utility\\ConvertFrom-Json;$line}else{[Console]::In.ReadToEnd()}"
         safeLine="$publicInput=if($OwnedJobWindows -and $TransportGroup -in @(1,2)){$line=[Console]::In.ReadLine();if($null -ne $line -and $line.StartsWith([string][char]0xFEFF)){$line=$line.Substring(1)};Require ($null -ne $line -and $line.Length -ge 2 -and $line[0] -eq '{' -and $line[$line.Length-1] -eq '}' -and $line.IndexOf([char]0xFEFF) -lt 0) 'JOB_FIXED_DRIVER_INPUT_LINE';$null=$line|Microsoft.PowerShell.Utility\\ConvertFrom-Json;$line}else{[Console]::In.ReadToEnd()}"
