@@ -572,6 +572,27 @@ Emit-PublicNestedStage 'BEGIN'
             "nested_phases":cp.get("nested_phases",{}),
             "acceptance":"NOT_ASSESSED"}
 
+def driver_raw_utf8_candidate(fixture,test):
+    """Disposable original Windows test, unchanged assertions, BOM-free raw pipe."""
+    original_encoding="$info.StandardInputEncoding=[Text.UTF8Encoding]::new($false);Require ($info.StandardInputEncoding.GetPreamble().Length -eq 0) 'JOB_DRIVER_BOM_FREE_UTF8_REQUIRED'"
+    compatible_encoding="$driverUtf8=[Text.UTF8Encoding]::new($false,$true);Require ($driverUtf8.GetPreamble().Length -eq 0) 'JOB_DRIVER_BOM_FREE_UTF8_REQUIRED'"
+    original_write="$p.StandardInput.WriteLine($InputJson);$p.StandardInput.Flush();"
+    compatible_write=(
+        "$wire=[byte[]]$driverUtf8.GetBytes($InputJson+[char]10);"
+        "Require ($wire.Length -ge 3 -and $wire.Length -le 32769 -and $wire[$wire.Length-1] -eq [byte]10) 'JOB_DRIVER_UTF8_WIRE_REQUIRED';"
+        "$writer=$p.StandardInput.BaseStream;"
+        "$writer.Write($wire,0,$wire.Length);$writer.Flush();"
+    )
+    modified=unique(fixture,original_encoding,compatible_encoding)
+    modified=unique(modified,original_write,compatible_write)
+    cp=run_selected(
+        "^Windows private original-State Job contains held Node helper and manager death while outside control survives$",
+        modified,test)
+    return {"original_assertions_exit":cp["exit"],"status":cp["status"],
+            "raw_utf8_no_bom":True,"original_tests_unchanged":True,
+            "production_accepted":False}
+
+
 def main():
     if sys.argv[1:] != ["--run"] or os.name != "nt" or \
        os.environ.get("GITHUB_REPOSITORY") != REPO or \
@@ -624,6 +645,10 @@ def main():
         report["windows_real_job_async_stdout"] = real_windows_diagnostic(
             original_fixture.decode("utf-8"), original_test.decode("utf-8"),
             False, False, False, True)
+        FIXTURE.write_bytes(original_fixture)
+        TEST.write_bytes(original_test)
+        report["windows_real_job_raw_utf8_candidate"] = driver_raw_utf8_candidate(
+            original_fixture.decode("utf-8"), original_test.decode("utf-8"))
     finally:
         FIXTURE.write_bytes(original_fixture)
         TEST.write_bytes(original_test)
