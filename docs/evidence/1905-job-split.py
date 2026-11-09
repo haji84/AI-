@@ -319,6 +319,23 @@ def real_windows_diagnostic(fixture, test, explicit_driver_target=False, bom_tri
     modified_fixture=unique(modified_fixture,"    Assert-PublicPrivateJobHeldAlive $outsideCert;Assert-PublicPrivateJobHeldAlive $outsideHelper\n    $script:jobWindowsResult=@{pass=$true","    Assert-PublicPrivateJobHeldAlive $outsideCert;Assert-PublicPrivateJobHeldAlive $outsideHelper\n    [Console]::Error.WriteLine('JOB_REAL_PHASE|FINAL_CHECKED')\n    $script:jobWindowsResult=@{pass=$true")
     # Two distinct read sites. The label is diagnostic state only, not proof
     # that the worker was assigned or that any native Job is valid.
+    # The previous public stage label OUTSIDE was stale after early-driver
+    # entry. Capture only bounded original driver lifecycle phases.
+    driverInput="$p.StandardInput.WriteLine($InputJson);$p.StandardInput.Flush();"
+    modified_fixture=unique(modified_fixture,driverInput,
+        "[Console]::Error.WriteLine('JOB_EARLY_DRIVER|WRITE_BEFORE');"+
+        driverInput+"[Console]::Error.WriteLine('JOB_EARLY_DRIVER|WRITE_DONE');")
+    driverRead="$line=Read-PublicPrivateJobLine $p.StandardOutput 4096;"
+    modified_fixture=unique(modified_fixture,driverRead,
+        "[Console]::Error.WriteLine('JOB_EARLY_DRIVER|READ_BEFORE');"+
+        driverRead+"[Console]::Error.WriteLine('JOB_EARLY_DRIVER|READ_DONE');")
+    driverDecode="$data=$line|Microsoft.PowerShell.Utility\\ConvertFrom-Json;"
+    modified_fixture=unique(modified_fixture,driverDecode,
+        "[Console]::Error.WriteLine('JOB_EARLY_DRIVER|PARSE_BEFORE');"+
+        driverDecode+"[Console]::Error.WriteLine('JOB_EARLY_DRIVER|PARSE_DONE');")
+    modified_fixture=unique(modified_fixture,
+        "$earlyDriver=New-PublicPrivateJobDriver 2 $publicInput",
+        "$earlyDriver=New-PublicPrivateJobDriver 2 $publicInput;[Console]::Error.WriteLine('JOB_EARLY_DRIVER|RETURNED')")
     modified_fixture = unique(
         modified_fixture,
         "$line=Read-PublicPrivateJobLine $p.StandardOutput 4096;",
