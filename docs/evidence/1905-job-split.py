@@ -54,7 +54,7 @@ def run_selected(pattern, fixture_text, test_text, progress=False, native_phase=
             f=phase_root/("NESTED_"+group+".txt")
             if f.is_file():
                 result[group]=[v for v in f.read_text(encoding="ascii",errors="replace").splitlines()
-                               if v in ("BEGIN","CONTEXT_OK","JOB_OPTIONS_OK","NATIVE_READY","INPUT_BEFORE","INPUT_READ_BEGIN","INPUT_LINE","INPUT_NULL","INPUT_JSON_BEGIN","INPUT_JSON_OK","INPUT_FAIL_NO_LINE","INPUT_FAIL_EMPTY","INPUT_FAIL_PARSE","INPUT_FAIL_OTHER","INPUT_READY","BEFORE_BASE","AFTER_BASE","TRAP","BASE_FAIL")][-20:]
+                               if v in ("BEGIN","CONTEXT_OK","JOB_OPTIONS_OK","NATIVE_READY","INPUT_BEFORE","INPUT_READ_BEGIN","INPUT_LINE","INPUT_NULL","INPUT_BOM","INPUT_NO_BOM","INPUT_OBJECT","INPUT_NONOBJECT","INPUT_JSON_BEGIN","INPUT_JSON_OK","INPUT_FAIL_NO_LINE","INPUT_FAIL_EMPTY","INPUT_FAIL_PARSE","INPUT_FAIL_OTHER","INPUT_READY","BEFORE_BASE","AFTER_BASE","TRAP","BASE_FAIL")][-20:]
         return result
     def phases():
         if progress_root is None: return []
@@ -81,6 +81,25 @@ def run_selected(pattern, fixture_text, test_text, progress=False, native_phase=
             shutil.rmtree(phase_root,ignore_errors=True)
 
 def group2_diagnostic(fixture, test):
+    if "OwnedJobCase" in fixture:
+        # The current full test preserves all six cases as six separately
+        # bounded processes. Emit only whitelisted mode and exit classifications.
+        start=test.index(GROUP_TEST)
+        end=test.index("\ntest(",start+len(GROUP_TEST))
+        chunk=test[start:end]
+        chunk=unique(chunk,"const selected=spawnSync(shell,args,",
+                     "console.log('JOB_CASE_BEGIN '+mode);const selected=spawnSync(shell,args,")
+        chunk=unique(chunk,"assert.equal(selected.error,undefined);",
+                     "console.log('JOB_CASE_RUNTIME '+mode+'|'+(selected.error?.code==='ETIMEDOUT'?'TIMEOUT':selected.status===0?'ZERO':selected.status===null?'NULL':'NONZERO'));assert.equal(selected.error,undefined);")
+        chunk=unique(chunk,"verified.add(mode);",
+                     "verified.add(mode);console.log('JOB_CASE_OK '+mode);")
+        cp=run_selected(
+            "^private original-State owned Job finite policy and cleanup group2 is DATA only$",
+            fixture,test[:start]+chunk+test[end:])
+        flags=re.findall(r"JOB_CASE_(?:BEGIN|OK) (?:assigned-close|assign-fail|create-unknown|close-fail|mirror-cleanup|duplicate-close)|JOB_CASE_RUNTIME (?:assigned-close|assign-fail|create-unknown|close-fail|mirror-cleanup|duplicate-close)\|(?:ZERO|NULL|NONZERO|TIMEOUT)",cp["stdout"])
+        return {"run_status":cp["status"],"original_assertions_exit":cp["exit"],
+                "case_progress":flags[-18:],
+                "six_original_cases_required":True,"acceptance":"NOT_ASSESSED"}
     fixed = """
 [Console]::Error.WriteLine('JOB_GROUP2_STATE|'+$(if($script:ownedPeerJobPipeState -ceq 'CLOSED'){'YES'}else{'NO'}));
 [Console]::Error.WriteLine('JOB_GROUP2_PIPES|'+$(if(@($actualPipeHandles|Where-Object {-not $_.IsClosed}).Count -eq 0){'YES'}else{'NO'}));
@@ -185,7 +204,7 @@ oneCase:accepted,rows:number,stderr:child.stderr?.length>0}));}"""
             "acceptance":"NOT_ASSESSED"}
 
 
-def real_windows_diagnostic(fixture, test, explicit_driver_target=False):
+def real_windows_diagnostic(fixture, test, explicit_driver_target=False, bom_trim=False):
     start = test.index(REAL_TEST)
     end = test.index("\ntest(", start + len(REAL_TEST))
     chunk = test[start:end]
@@ -285,7 +304,7 @@ function Emit-PublicNestedStage([string]$Label) {
  if(-not $OwnedJobWindows -or $TransportGroup -notin @(1,2) -or
     $env:GITHUB_REPOSITORY -cne 'haji84/AI-' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
     [string]::IsNullOrWhiteSpace($env:GORIQ_PR1905_PHASE_DIR)){return}
- if($Label -notin @('BEGIN','CONTEXT_OK','JOB_OPTIONS_OK','NATIVE_READY','INPUT_BEFORE','INPUT_READ_BEGIN','INPUT_LINE','INPUT_NULL','INPUT_JSON_BEGIN','INPUT_JSON_OK','INPUT_FAIL_NO_LINE','INPUT_FAIL_EMPTY','INPUT_FAIL_PARSE','INPUT_FAIL_OTHER','INPUT_READY','BEFORE_BASE','AFTER_BASE','TRAP','BASE_FAIL')){return}
+ if($Label -notin @('BEGIN','CONTEXT_OK','JOB_OPTIONS_OK','NATIVE_READY','INPUT_BEFORE','INPUT_READ_BEGIN','INPUT_LINE','INPUT_NULL','INPUT_BOM','INPUT_NO_BOM','INPUT_OBJECT','INPUT_NONOBJECT','INPUT_JSON_BEGIN','INPUT_JSON_OK','INPUT_FAIL_NO_LINE','INPUT_FAIL_EMPTY','INPUT_FAIL_PARSE','INPUT_FAIL_OTHER','INPUT_READY','BEFORE_BASE','AFTER_BASE','TRAP','BASE_FAIL')){return}
  try{
   $root=$env:GORIQ_PR1905_PHASE_DIR
   if([IO.Directory]::Exists($root)){
@@ -350,6 +369,8 @@ Emit-PublicNestedStage 'BEGIN'
   Emit-PublicNestedStage 'INPUT_READ_BEGIN'
   $line=[Console]::In.ReadLine()
   Emit-PublicNestedStage $(if($null -eq $line){'INPUT_NULL'}else{'INPUT_LINE'})
+  Emit-PublicNestedStage $(if($null -ne $line -and $line.StartsWith([string][char]0xFEFF)){'INPUT_BOM'}else{'INPUT_NO_BOM'})
+  Emit-PublicNestedStage $(if($null -ne $line -and $line.StartsWith('{')){'INPUT_OBJECT'}else{'INPUT_NONOBJECT'})
   Emit-PublicNestedStage 'INPUT_JSON_BEGIN'
   $null=$line|Microsoft.PowerShell.Utility\ConvertFrom-Json
   Emit-PublicNestedStage 'INPUT_JSON_OK'
@@ -364,6 +385,13 @@ Emit-PublicNestedStage 'BEGIN'
   throw
  }
 }else{[Console]::In.ReadToEnd()}"""
+    if bom_trim:
+        # This is an explicitly non-acceptance comparison; it may only remove
+        # a leading U+FEFF marker from a public fixture input. All original
+        # JSON schema/owner/source guards remain.
+        inputVariant=unique(inputVariant,
+          "  $line=[Console]::In.ReadLine()",
+          "  $line=[Console]::In.ReadLine();if($null -ne $line -and $line.StartsWith([string][char]0xFEFF)){$line=$line.Substring(1)}")
     modified_fixture = unique(modified_fixture,inputOriginal,inputVariant)
     modified_fixture = unique(modified_fixture,inputVariant,
         inputVariant+";Emit-PublicNestedStage 'INPUT_READY'")
@@ -446,6 +474,10 @@ def main():
         TEST.write_bytes(original_test)
         report["windows_real_job_exact_target"] = real_windows_diagnostic(
             original_fixture.decode("utf-8"), original_test.decode("utf-8"), True)
+        FIXTURE.write_bytes(original_fixture)
+        TEST.write_bytes(original_test)
+        report["windows_real_job_bom_candidate"] = real_windows_diagnostic(
+            original_fixture.decode("utf-8"), original_test.decode("utf-8"), False, True)
     finally:
         FIXTURE.write_bytes(original_fixture)
         TEST.write_bytes(original_test)

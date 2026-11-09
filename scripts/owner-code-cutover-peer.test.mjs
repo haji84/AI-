@@ -767,31 +767,40 @@ test('private owned Job source closes the Start to HELLO descendant window witho
 for(const group of [0,1,2])test(`private original-State owned Job finite policy and cleanup group${group} is DATA only`,()=>{
  const g=grant();for(const name of Object.keys(g.sourceHashes))g.sourceHashes[name]=createHash('sha256').update(readFileSync(name)).digest('hex');const shell=process.platform==='win32'?join(process.env.SystemRoot,'System32/WindowsPowerShell/v1.0/powershell.exe'):'pwsh';
  if(group===2){
-  // Six original DATA cases, each in its own authenticated source-bound
-  // Process and with the ORIGINAL 15-second per-process limit. Every negative
-  // guard still runs. Do not count a partial result or a skipped case as PASS.
+  // Preserve all six original DATA cases and the original 15-second budget
+  // for EACH original peer. Use a fresh sealed test-only progress directory
+  // per case so CreateNew never overwrites an earlier case's evidence.
   const modes=['assigned-close','assign-fail','create-unknown','close-fail','mirror-cleanup','duplicate-close'];
   const verified=new Set();
+  const progressOwner=peerProgressDirectories.get('private original-State owned Job finite policy and cleanup group2 is DATA only');
+  assert.ok(progressOwner && existsSync(progressOwner.directory));
   for(const mode of modes){
-   const args=['-NoLogo','-NoProfile','-NonInteractive','-File','tests/owner-code-cutover-peer.fixture.ps1','-Root',process.cwd(),'-OwnedJobData','-TransportGroup','2','-OwnedJobCase',mode];
-   const selected=spawnSync(shell,args,{input:JSON.stringify({encoded:encode(g),environment,now:new Date(now).toISOString(),nodeExecutable:process.execPath}),encoding:'utf8',timeout:15000,maxBuffer:16384});
-   assert.equal(selected.error,undefined);
-   assert.equal(selected.status,0,selected.stdout+selected.stderr);
-   assert.equal(selected.stderr,'');
-   const result=JSON.parse(selected.stdout);
-   assert.equal(result.pass,true);
-   assert.equal(result.actualOriginalRegistration,true);
-   assert.equal(result.originalProcessCertificate,true);
-   assert.equal(result.actualWindowsJobApiCalls,0);
-   assert.equal(result.nativeAuthority,false);
-   assert.equal(result.bootstrapActivated,false);
-   assert.equal(result.oldWatchRenewed,false);
-   assert.equal(result.group,group);
-   assert.equal(result.rows.length,1);
-   assert.equal(result.rows[0].id,mode);
-   assert.equal(result.rows[0].pass,true);
-   assert.equal(verified.has(mode),false);
-   verified.add(mode);
+   const caseDir=mkdtempSync(join(progressOwner.directory,'case-'));
+   try {
+    const args=['-NoLogo','-NoProfile','-NonInteractive','-File','tests/owner-code-cutover-peer.fixture.ps1','-Root',process.cwd(),'-OwnedJobData','-TransportGroup','2','-OwnedJobCase',mode];
+    const selected=spawnSync(shell,args,{input:JSON.stringify({encoded:encode(g),environment,now:new Date(now).toISOString(),nodeExecutable:process.execPath}),env:{...process.env,GORIQ_PUBLIC_PEER_PROGRESS_DIRECTORY:caseDir},encoding:'utf8',timeout:15000,maxBuffer:16384});
+    assert.equal(selected.error,undefined);
+    assert.equal(selected.status,0,selected.stdout+selected.stderr);
+    assert.equal(selected.stderr,'');
+    const result=JSON.parse(selected.stdout);
+    assert.equal(result.pass,true);
+    assert.equal(result.actualOriginalRegistration,true);
+    assert.equal(result.originalProcessCertificate,true);
+    assert.equal(result.actualWindowsJobApiCalls,0);
+    assert.equal(result.nativeAuthority,false);
+    assert.equal(result.bootstrapActivated,false);
+    assert.equal(result.oldWatchRenewed,false);
+    assert.equal(result.group,group);
+    assert.equal(result.rows.length,1);
+    assert.equal(result.rows[0].id,mode);
+    assert.equal(result.rows[0].pass,true);
+    assert.deepEqual(listPeerProgress(caseDir),['OWNED_2.txt']);
+    const progress=readClosedPeerProgress(join(caseDir,'OWNED_2.txt'));
+    assert.ok(progress.length>=2 && progress[0].startsWith('GROUP_BEGIN:') && progress.at(-1).startsWith('GROUP_DONE:'));
+    assert.equal(progress.some(row=>row.startsWith('PROGRESS_')),false);
+    assert.equal(verified.has(mode),false);
+    verified.add(mode);
+   } finally {rmSync(caseDir,{recursive:true,force:true});}
   }
   assert.equal(verified.size,6);
   return;
