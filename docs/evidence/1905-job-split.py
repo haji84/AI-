@@ -582,6 +582,38 @@ Emit-PublicNestedStage 'BEGIN'
             "nested_phases":cp.get("nested_phases",{}),
             "acceptance":"NOT_ASSESSED"}
 
+def strict_json_receiver_candidate(fixture, test, diagnostic=False):
+    """Allow at most one leading U+FEFF only on the fixed DRIVER input line.
+
+    This never changes OUTSIDE, owner proof, original Job assertions or
+    expected JSON schema. A complete success is required; no stderr is removed.
+    """
+    old="$publicInput=if($OwnedJobWindows -and $TransportGroup -in @(1,2)){$line=[Console]::In.ReadLine();$null=$line|Microsoft.PowerShell.Utility\\ConvertFrom-Json;$line}else{[Console]::In.ReadToEnd()}"
+    revised=r"""$publicInput=if($OwnedJobWindows -and $TransportGroup -in @(1,2)){
+ $line=[Console]::In.ReadLine()
+ Require ($null -ne $line -and $line.Length -ge 2 -and $line.Length -le 32769) 'JOB_FIXED_DRIVER_INPUT_LINE'
+ if($line[0] -eq [char]0xFEFF){$line=$line.Substring(1)}
+ Require ($line.Length -ge 2 -and $line.Length -le 32768 -and $line[0] -eq '{' -and $line[$line.Length-1] -eq '}' -and $line.IndexOf([char]0xFEFF) -lt 0 -and $line.IndexOf([char]10) -lt 0 -and $line.IndexOf([char]13) -lt 0) 'JOB_FIXED_DRIVER_INPUT_LINE'
+ $null=$line|Microsoft.PowerShell.Utility\ConvertFrom-Json -ErrorAction Stop
+ $line
+}else{[Console]::In.ReadToEnd()}"""
+    assert old.count("ConvertFrom-Json")==1
+    modified=unique(fixture,old,revised)
+    if diagnostic:
+        # Keep path and source private; log only bounded enums of the local
+        # nested process to classify a case that still fails after strict JSON.
+        annotated="""[Console]::Error.WriteLine('JOB_JSON_RECEIVER_OK|YES')"""
+        modified=unique(modified," $line\n}else{[Console]::In.ReadToEnd()}",
+            " "+annotated+"\n $line\n}else{[Console]::In.ReadToEnd()}")
+    cp=run_selected(
+        "^Windows private original-State Job contains held Node helper and manager death while outside control survives$",
+        modified,test)
+    return {"run_status":cp["status"],"original_assertions_exit":cp["exit"],
+            "all_original_checks_retained":True,
+            "sentinel_only_leading_bom":True,
+            "acceptance":"NOT_ASSESSED"}
+
+
 def driver_raw_utf8_candidate(fixture,test,bom_trim=False):
     """Disposable original Windows test, unchanged assertions, BOM-free raw pipe."""
     original_encoding="$info.StandardInputEncoding=[Text.UTF8Encoding]::new($false);Require ($info.StandardInputEncoding.GetPreamble().Length -eq 0) 'JOB_DRIVER_BOM_FREE_UTF8_REQUIRED'"
@@ -659,6 +691,10 @@ def main():
         report["windows_real_job_async_stdout"] = real_windows_diagnostic(
             original_fixture.decode("utf-8"), original_test.decode("utf-8"),
             False, False, False, True)
+        FIXTURE.write_bytes(original_fixture)
+        TEST.write_bytes(original_test)
+        report["windows_real_job_strict_json_receiver_original_test"] = strict_json_receiver_candidate(
+            original_fixture.decode("utf-8"), original_test.decode("utf-8"))
         FIXTURE.write_bytes(original_fixture)
         TEST.write_bytes(original_test)
         report["windows_real_job_raw_utf8_candidate"] = driver_raw_utf8_candidate(
