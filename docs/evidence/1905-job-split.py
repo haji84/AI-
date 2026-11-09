@@ -204,7 +204,7 @@ oneCase:accepted,rows:number,stderr:child.stderr?.length>0}));}"""
             "acceptance":"NOT_ASSESSED"}
 
 
-def real_windows_diagnostic(fixture, test, explicit_driver_target=False, bom_trim=False):
+def real_windows_diagnostic(fixture, test, explicit_driver_target=False, bom_trim=False, outside_utf8=False):
     start = test.index(REAL_TEST)
     end = test.index("\ntest(", start + len(REAL_TEST))
     chunk = test[start:end]
@@ -251,10 +251,47 @@ def real_windows_diagnostic(fixture, test, explicit_driver_target=False, bom_tri
    [Console]::Error.WriteLine('JOB_OUTSIDE_ERROR_CLASS|'+$class)
   }
  }
+ if($script:publicJobReadStage -ceq 'OUTSIDE' -and $outside){
+  try{
+   $path=[IO.Path]::Combine($owned,('public-node-'+$outside.Id+'.phases'))
+   if([IO.File]::Exists($path)){
+    $stages=[IO.File]::ReadAllLines($path,[Text.Encoding]::ASCII)
+    foreach($stage in $stages){
+     if($stage -cin @('INPUT_BEGIN','JSON_OK','HELPER_BEGIN','HELPER_READY','OUTPUT_BEGIN')){
+      [Console]::Error.WriteLine('JOB_OUTSIDE_PHASE|'+$stage)
+     }
+    }
+   }
+  }catch{}
+ }
  [Console]::Error.WriteLine('JOB_REAL_STAGE|'+$reason)
  $script:jobWindowsResult=@{pass=$false;status='INCONCLUSIVE';code='PUBLIC_PRIVATE_JOB_WINDOWS_PROOF_UNCONFIRMED';nativeAuthority=$false}
 }"""
-    modified_fixture = unique(fixture, fixtureCatch, fixtureProbe)
+    # Only in the disposable Job differential: stage the outside Node peer
+    # without logging the JSON wire, identities, paths or exception messages.
+    # The original native authority and all original acceptance tests stay intact.
+    nodePhase=r"""
+ if($OwnedJobWindows){
+  $js="import{appendFileSync}from'node:fs';function jobPhase(x){try{appendFileSync('public-node-'+process.pid+'.phases',x+'\n',{encoding:'ascii',flag:'a'});}catch{}}"+$js
+  $js=$js.Replace("const h=JSON.parse(first.replace(/^\uFEFF/,''));","jobPhase('INPUT_BEGIN');const h=JSON.parse(first.replace(/^\uFEFF/,''));jobPhase('JSON_OK');")
+  $js=$js.Replace("const publicJobBirth=await new Promise","jobPhase('HELPER_BEGIN');const publicJobBirth=await new Promise")
+  $js=$js.Replace("ancestry.helper.pid=publicJobHelper.pid;","jobPhase('HELPER_READY');ancestry.helper.pid=publicJobHelper.pid;")
+  $js=$js.Replace("writePublicStdout(wire+'\n'+","jobPhase('OUTPUT_BEGIN');writePublicStdout(wire+'\n'+")
+ }
+"""
+    modified_fixture=unique(fixture,
+       " [IO.File]::WriteAllText($childPath,$js,[Text.UTF8Encoding]::new($false));",
+       nodePhase+" [IO.File]::WriteAllText($childPath,$js,[Text.UTF8Encoding]::new($false));")
+    if outside_utf8:
+        marker="$info=[Diagnostics.ProcessStartInfo]::new();$info.FileName=[string]$inputData.nodeExecutable;"
+        begin=modified_fixture.index(marker)
+        end=modified_fixture.index("$outside=[Diagnostics.Process]::new();",begin)
+        section=modified_fixture[begin:end]
+        section=unique(section,
+           "$info.RedirectStandardInput=$true;$info.RedirectStandardOutput=$true",
+           "$info.RedirectStandardInput=$true;$info.StandardInputEncoding=[Text.UTF8Encoding]::new($false);Require ($info.StandardInputEncoding.GetPreamble().Length -eq 0) 'JOB_OUTSIDE_UTF8_NO_BOM';$info.RedirectStandardOutput=$true")
+        modified_fixture=modified_fixture[:begin]+section+modified_fixture[end:]
+    modified_fixture = unique(modified_fixture, fixtureCatch, fixtureProbe)
     # Two distinct read sites. The label is diagnostic state only, not proof
     # that the worker was assigned or that any native Job is valid.
     modified_fixture = unique(
@@ -439,7 +476,7 @@ Emit-PublicNestedStage 'BEGIN'
     driver=unique(driver,originalPath,newPath)
     modified_fixture=modified_fixture[:startDriver]+driver+modified_fixture[endDriver:]
     begin = "assert.equal(child.error,undefined);"
-    stageCode = r"""const stages=(child.stderr||'').split(/\r?\n/).filter(x=>/^(?:JOB_REAL_(?:STAGE\|(?:UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE)_[A-Z0-9_]{2,100})|READ_CONTEXT\|(?:DRIVER|OUTSIDE|UNKNOWN))|JOB_DRIVER_(?:CHILD_EXITED\|(?:YES|NO)|EXIT_CODE\|(?:ZERO|NONZERO|UNKNOWN)|STDERR_READ\|(?:EOF|DATA|PENDING|FAULT)|TRAP\|(?:UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE|PEER_FIXTURE|ROTATION_CUTOVER)_[A-Z0-9_]{2,100})|TRAP_CAPTURE\|(?:UNAVAILABLE|UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE|PEER_FIXTURE|ROTATION_CUTOVER)_[A-Z0-9_]{2,100})|SOURCE_BASE\|(?:UNAVAILABLE|UNKNOWN|(?:CUTOVER_BOOTSTRAP_FIXTURE|CUTOVER|PEER_FIXTURE|ROTATION_CUTOVER|JOB)_[A-Z0-9_]{3,120})|SOURCE_CLASS\|(?:UNAVAILABLE|RUNTIME|METHOD|ARGUMENT|FORMAT|INVALID_OPERATION|IO|OTHER)|INPUT_CODE\|(?:UNAVAILABLE|NO_LINE|EMPTY|PARSE|OTHER)|PATH_MATCH\|(?:YES|NO)|ERRCATEGORY\|(?:PARSE|BIND|FILE|ACCESS|BOOTSTRAP|FIXTURE|ROTATION|STRICT|OTHER_ERROR|OTHER))|JOB_OUTSIDE_(?:EXITED\|(?:YES|NO)|EXIT_CODE\|(?:ZERO|NONZERO|UNKNOWN)|ERROR_CLASS\|(?:EMPTY|HELPER_TIMEOUT|HELPER_SHAPE|HELPER_LIMIT|HELPER_IDENTITY|HELPER_REFUSED|JSON_SYNTAX|MODULE_NOT_FOUND|REFERENCE_ERROR|TYPE_ERROR|BROKEN_PIPE|FILE_MISSING|NODE_INVALID|NODE_ERROR|OTHER)))$/.test(x));console.log('JOB_REAL_STAGE_CODES '+JSON.stringify(stages.slice(-5)));"""
+    stageCode = r"""const stages=(child.stderr||'').split(/\r?\n/).filter(x=>/^(?:JOB_REAL_(?:STAGE\|(?:UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE)_[A-Z0-9_]{2,100})|READ_CONTEXT\|(?:DRIVER|OUTSIDE|UNKNOWN))|JOB_DRIVER_(?:CHILD_EXITED\|(?:YES|NO)|EXIT_CODE\|(?:ZERO|NONZERO|UNKNOWN)|STDERR_READ\|(?:EOF|DATA|PENDING|FAULT)|TRAP\|(?:UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE|PEER_FIXTURE|ROTATION_CUTOVER)_[A-Z0-9_]{2,100})|TRAP_CAPTURE\|(?:UNAVAILABLE|UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE|PEER_FIXTURE|ROTATION_CUTOVER)_[A-Z0-9_]{2,100})|SOURCE_BASE\|(?:UNAVAILABLE|UNKNOWN|(?:CUTOVER_BOOTSTRAP_FIXTURE|CUTOVER|PEER_FIXTURE|ROTATION_CUTOVER|JOB)_[A-Z0-9_]{3,120})|SOURCE_CLASS\|(?:UNAVAILABLE|RUNTIME|METHOD|ARGUMENT|FORMAT|INVALID_OPERATION|IO|OTHER)|INPUT_CODE\|(?:UNAVAILABLE|NO_LINE|EMPTY|PARSE|OTHER)|PATH_MATCH\|(?:YES|NO)|ERRCATEGORY\|(?:PARSE|BIND|FILE|ACCESS|BOOTSTRAP|FIXTURE|ROTATION|STRICT|OTHER_ERROR|OTHER))|JOB_OUTSIDE_(?:PHASE\|(?:INPUT_BEGIN|JSON_OK|HELPER_BEGIN|HELPER_READY|OUTPUT_BEGIN)|EXITED\|(?:YES|NO)|EXIT_CODE\|(?:ZERO|NONZERO|UNKNOWN)|ERROR_CLASS\|(?:EMPTY|HELPER_TIMEOUT|HELPER_SHAPE|HELPER_LIMIT|HELPER_IDENTITY|HELPER_REFUSED|JSON_SYNTAX|MODULE_NOT_FOUND|REFERENCE_ERROR|TYPE_ERROR|BROKEN_PIPE|FILE_MISSING|NODE_INVALID|NODE_ERROR|OTHER)))$/.test(x));console.log('JOB_REAL_STAGE_CODES '+JSON.stringify(stages.slice(-15)));"""
     statusCode = r"""console.log('JOB_REAL_CHILD '+JSON.stringify({timeout:child.error?.code==='ETIMEDOUT'?'YES':'NO',exit:child.status===0?'ZERO':child.status===null?'NULL':'NONZERO',stderr:child.stderr?'YES':'NO',stdout:child.stdout?'YES':'NO'}));"""
     chunk = unique(chunk, begin, statusCode + stageCode + begin)
     modified_test = test[:start] + chunk + test[end:]
@@ -451,7 +488,7 @@ Emit-PublicNestedStage 'BEGIN'
     stage_codes = json.loads(stage[-1]) if stage else []
     stage_codes = [x for x in stage_codes
                    if isinstance(x,str) and re.fullmatch(
-                     r"(?:JOB_REAL_(?:STAGE\|(?:UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE)_[A-Z0-9_]{2,100})|READ_CONTEXT\|(?:DRIVER|OUTSIDE|UNKNOWN))|JOB_DRIVER_(?:CHILD_EXITED\|(?:YES|NO)|EXIT_CODE\|(?:ZERO|NONZERO|UNKNOWN)|STDERR_READ\|(?:EOF|DATA|PENDING|FAULT)|TRAP\|(?:UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE|PEER_FIXTURE|ROTATION_CUTOVER)_[A-Z0-9_]{2,100})|TRAP_CAPTURE\|(?:UNAVAILABLE|UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE|PEER_FIXTURE|ROTATION_CUTOVER)_[A-Z0-9_]{2,100})|SOURCE_BASE\|(?:UNAVAILABLE|UNKNOWN|(?:CUTOVER_BOOTSTRAP_FIXTURE|CUTOVER|PEER_FIXTURE|ROTATION_CUTOVER|JOB)_[A-Z0-9_]{3,120})|SOURCE_CLASS\|(?:UNAVAILABLE|RUNTIME|METHOD|ARGUMENT|FORMAT|INVALID_OPERATION|IO|OTHER)|INPUT_CODE\|(?:UNAVAILABLE|NO_LINE|EMPTY|PARSE|OTHER)|PATH_MATCH\|(?:YES|NO)|ERRCATEGORY\|(?:PARSE|BIND|FILE|ACCESS|BOOTSTRAP|FIXTURE|ROTATION|STRICT|OTHER_ERROR|OTHER))|JOB_OUTSIDE_(?:EXITED\|(?:YES|NO)|EXIT_CODE\|(?:ZERO|NONZERO|UNKNOWN)|ERROR_CLASS\|(?:EMPTY|HELPER_TIMEOUT|HELPER_SHAPE|HELPER_LIMIT|HELPER_IDENTITY|HELPER_REFUSED|JSON_SYNTAX|MODULE_NOT_FOUND|REFERENCE_ERROR|TYPE_ERROR|BROKEN_PIPE|FILE_MISSING|NODE_INVALID|NODE_ERROR|OTHER)))",x)]
+                     r"(?:JOB_REAL_(?:STAGE\|(?:UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE)_[A-Z0-9_]{2,100})|READ_CONTEXT\|(?:DRIVER|OUTSIDE|UNKNOWN))|JOB_DRIVER_(?:CHILD_EXITED\|(?:YES|NO)|EXIT_CODE\|(?:ZERO|NONZERO|UNKNOWN)|STDERR_READ\|(?:EOF|DATA|PENDING|FAULT)|TRAP\|(?:UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE|PEER_FIXTURE|ROTATION_CUTOVER)_[A-Z0-9_]{2,100})|TRAP_CAPTURE\|(?:UNAVAILABLE|UNKNOWN|(?:JOB|PUBLIC_JOB|CUTOVER_BOOTSTRAP_FIXTURE|PEER_FIXTURE|ROTATION_CUTOVER)_[A-Z0-9_]{2,100})|SOURCE_BASE\|(?:UNAVAILABLE|UNKNOWN|(?:CUTOVER_BOOTSTRAP_FIXTURE|CUTOVER|PEER_FIXTURE|ROTATION_CUTOVER|JOB)_[A-Z0-9_]{3,120})|SOURCE_CLASS\|(?:UNAVAILABLE|RUNTIME|METHOD|ARGUMENT|FORMAT|INVALID_OPERATION|IO|OTHER)|INPUT_CODE\|(?:UNAVAILABLE|NO_LINE|EMPTY|PARSE|OTHER)|PATH_MATCH\|(?:YES|NO)|ERRCATEGORY\|(?:PARSE|BIND|FILE|ACCESS|BOOTSTRAP|FIXTURE|ROTATION|STRICT|OTHER_ERROR|OTHER))|JOB_OUTSIDE_(?:PHASE\|(?:INPUT_BEGIN|JSON_OK|HELPER_BEGIN|HELPER_READY|OUTPUT_BEGIN)|EXITED\|(?:YES|NO)|EXIT_CODE\|(?:ZERO|NONZERO|UNKNOWN)|ERROR_CLASS\|(?:EMPTY|HELPER_TIMEOUT|HELPER_SHAPE|HELPER_LIMIT|HELPER_IDENTITY|HELPER_REFUSED|JSON_SYNTAX|MODULE_NOT_FOUND|REFERENCE_ERROR|TYPE_ERROR|BROKEN_PIPE|FILE_MISSING|NODE_INVALID|NODE_ERROR|OTHER)))",x)]
     native_status=re.findall(r"JOB_REAL_CHILD (\{[^\r\n]{1,250}\})",cp["stdout"])
     native_child=json.loads(native_status[-1]) if native_status else {}
     found = re.findall(r"JOB_REAL_FLAGS (\{[^\r\n]{1,1800}\})", cp["stdout"])
@@ -460,7 +497,7 @@ Emit-PublicNestedStage 'BEGIN'
                 if flags.get(k) in ("YES", "NO", "UNKNOWN")}
     return {"run_status":cp["status"], "original_assertions_exit":cp["exit"],
             "flags":filtered, "capture_complete":len(filtered)==len(FLAGS),
-            "stage_codes":stage_codes[-8:], "child":native_child,
+            "stage_codes":stage_codes[-15:], "child":native_child,
             "nested_phases":cp.get("nested_phases",{}),
             "acceptance":"NOT_ASSESSED"}
 
@@ -506,6 +543,11 @@ def main():
         TEST.write_bytes(original_test)
         report["windows_real_job_bom_candidate"] = real_windows_diagnostic(
             original_fixture.decode("utf-8"), original_test.decode("utf-8"), False, True)
+        FIXTURE.write_bytes(original_fixture)
+        TEST.write_bytes(original_test)
+        report["windows_real_job_outside_utf8"] = real_windows_diagnostic(
+            original_fixture.decode("utf-8"), original_test.decode("utf-8"),
+            False, False, True)
     finally:
         FIXTURE.write_bytes(original_fixture)
         TEST.write_bytes(original_test)
