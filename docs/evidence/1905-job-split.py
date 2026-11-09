@@ -582,7 +582,7 @@ Emit-PublicNestedStage 'BEGIN'
             "nested_phases":cp.get("nested_phases",{}),
             "acceptance":"NOT_ASSESSED"}
 
-def driver_raw_utf8_candidate(fixture,test):
+def driver_raw_utf8_candidate(fixture,test,bom_trim=False):
     """Disposable original Windows test, unchanged assertions, BOM-free raw pipe."""
     original_encoding="$info.StandardInputEncoding=[Text.UTF8Encoding]::new($false);Require ($info.StandardInputEncoding.GetPreamble().Length -eq 0) 'JOB_DRIVER_BOM_FREE_UTF8_REQUIRED'"
     compatible_encoding="$driverUtf8=[Text.UTF8Encoding]::new($false,$true);Require ($driverUtf8.GetPreamble().Length -eq 0) 'JOB_DRIVER_BOM_FREE_UTF8_REQUIRED'"
@@ -595,6 +595,10 @@ def driver_raw_utf8_candidate(fixture,test):
     )
     modified=unique(fixture,original_encoding,compatible_encoding)
     modified=unique(modified,original_write,compatible_write)
+    if bom_trim:
+        inputLine="$publicInput=if($OwnedJobWindows -and $TransportGroup -in @(1,2)){$line=[Console]::In.ReadLine();$null=$line|Microsoft.PowerShell.Utility\\ConvertFrom-Json;$line}else{[Console]::In.ReadToEnd()}"
+        safeLine="$publicInput=if($OwnedJobWindows -and $TransportGroup -in @(1,2)){$line=[Console]::In.ReadLine();if($null -ne $line -and $line.StartsWith([string][char]0xFEFF)){$line=$line.Substring(1)};Require ($null -ne $line -and $line.Length -ge 2 -and $line[0] -eq '{' -and $line[$line.Length-1] -eq '}' -and $line.IndexOf([char]0xFEFF) -lt 0) 'JOB_FIXED_DRIVER_INPUT_LINE';$null=$line|Microsoft.PowerShell.Utility\\ConvertFrom-Json;$line}else{[Console]::In.ReadToEnd()}"
+        modified=unique(modified,inputLine,safeLine)
     cp=run_selected(
         "^Windows private original-State Job contains held Node helper and manager death while outside control survives$",
         modified,test)
@@ -661,9 +665,18 @@ def main():
             original_fixture.decode("utf-8"), original_test.decode("utf-8"))
         FIXTURE.write_bytes(original_fixture)
         TEST.write_bytes(original_test)
+        report["windows_real_job_raw_utf8_bom_original_test"] = driver_raw_utf8_candidate(
+            original_fixture.decode("utf-8"), original_test.decode("utf-8"), True)
+        FIXTURE.write_bytes(original_fixture)
+        TEST.write_bytes(original_test)
         report["windows_real_job_raw_utf8_diagnostic"] = real_windows_diagnostic(
             original_fixture.decode("utf-8"), original_test.decode("utf-8"),
             False, False, False, False, True)
+        FIXTURE.write_bytes(original_fixture)
+        TEST.write_bytes(original_test)
+        report["windows_real_job_raw_utf8_bom_candidate"] = real_windows_diagnostic(
+            original_fixture.decode("utf-8"), original_test.decode("utf-8"),
+            False, True, False, False, True)
     finally:
         FIXTURE.write_bytes(original_fixture)
         TEST.write_bytes(original_test)
