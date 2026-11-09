@@ -472,7 +472,7 @@ function hostedExpectedDocker(state, checkName) {
     security: "pnpm test:p8-security", build: "pnpm build --webpack" };
   const snapshot = join(state.request.receiptFile + ".logs", "source");
   return ["run", "--rm", "--pull=never", "--network=none", "--read-only", "--cap-drop=ALL", "--security-opt=no-new-privileges", "--pids-limit=128",
-    "--memory=2g", "--cpus=2", "--user=65534:65534", "--tmpfs", "/tmp:rw,noexec,nosuid,nodev,uid=65534,gid=65534,mode=0700,size=1536m",
+    "--memory=2g", "--cpus=3", "--user=65534:65534", "--tmpfs", "/tmp:rw,noexec,nosuid,nodev,uid=65534,gid=65534,mode=0700,size=1536m",
     "--mount", `type=bind,source=${snapshot},target=/source,readonly`, "--workdir", "/", "--entrypoint", "/bin/sh", state.image, "-ec",
     "node /opt/goriq-verifier/jarvis-verifier-offline-workspace.mjs && cd /tmp/verify && exec " + commands[checkName]];
 }

@@ -311,7 +311,7 @@ test("private hosted arithmetic model uses pre-UTC stamps, retained forward cuts
 
 test("private hosted checks preserve fixed commands quotas sequential-once ceilings and refuse public timeout overrides",async()=>{
  const m=hostedPrivateModel(),r=await m.ready();m.api.bindHostedCiRequest(r.token,r.req);const names=[];
- for(const name of r.req.requiredChecks){const args=m.api.expected(r.token,name);assert.ok(args.includes("--network=none")&&args.includes("--memory=2g")&&args.includes("--pids-limit=128"));
+ for(const name of r.req.requiredChecks){const args=m.api.expected(r.token,name);assert.ok(args.includes("--network=none")&&args.includes("--memory=2g")&&args.includes("--pids-limit=128")&&args.includes("--cpus=3"));
   const output=await m.api.runHostedCiContainer(r.token,r.req,name,args,r.options);assert.equal(output.status,0);assert.equal(output.error,undefined);assert.equal(output.hostedBudget.ceilingMs,["unit","integration"].includes(name)?600000:180000);names.push(output.cleanup.containerName);}
  assert.equal(new Set(names).size,6);await assert.rejects(m.api.runHostedCiContainer(r.token,r.req,"lint",[],r.options),/CHECK_ORDER/);
  for(const timeoutMs of [300001,600001]){const n=hostedPrivateModel(),s=await n.ready();n.api.bindHostedCiRequest(s.token,s.req);await assert.rejects(n.api.runHostedCiContainer(s.token,s.req,"lint",n.api.expected(s.token,"lint"),{...s.options,timeoutMs}),/OPTIONS_INVALID/);assert.equal(n.calls.filter(x=>x.kind==="process").length,0);}

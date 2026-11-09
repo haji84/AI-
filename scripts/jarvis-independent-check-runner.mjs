@@ -296,7 +296,7 @@ export async function runIndependentVerifier(req, options = {}) {
     const staticScript="node /opt/goriq-verifier/jarvis-verifier-offline-workspace.mjs && cd /tmp/verify && exec "+[command,...args].join(" ");
     const dockerArgs=["run","--rm","--pull=never","--network=none","--read-only",
       "--cap-drop=ALL","--security-opt=no-new-privileges","--pids-limit=128",
-      "--memory=2g","--cpus=2","--user=65534:65534",
+      "--memory=2g","--cpus=3","--user=65534:65534",
       "--tmpfs","/tmp:rw,noexec,nosuid,nodev,uid=65534,gid=65534,mode=0700,size=1536m",
       "--mount",`type=bind,source=${snapshot},target=/source,readonly`,
       "--workdir","/","--entrypoint","/bin/sh",

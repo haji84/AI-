@@ -189,7 +189,7 @@ async function executeHostedCI() {
       buildProfile: { id: "next-webpack-v1", command: "pnpm", args: ["build", "--webpack"] },
       hostedBudget:entryContext,
       limits: { timeoutMs: 180_000, timeoutMsByCheck: Object.fromEntries(CHECKS.map(name => [name, ["unit","integration"].includes(name)?600000:180000])),
-        memoryBytes: 2147483648, pids: 128, tmpfsMiB: 1536, network: "none", uid: 65534 } });
+        memoryBytes: 2147483648, cpuQuotaCores: 3, pids: 128, tmpfsMiB: 1536, network: "none", uid: 65534 } });
     const context = join(root, "image-context"); mkdirSync(context, { mode: 0o700 });
     for (const file of ["package.json", "pnpm-lock.yaml"]) copyFileSync(join(repo, file), join(context, file));
     copyFileSync(join(repo, "scripts/jarvis-verifier-offline-workspace.mjs"), join(context, "jarvis-verifier-offline-workspace.mjs"));
