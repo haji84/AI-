@@ -1,4 +1,4 @@
-param([ValidateSet('selector','capsule','execution-boundary','clr-public-policy','clr-public-profiler','clr-product-data','clr-product-profiler','owned-job-policy','owned-job-windows','owned-job-manager')][string]$Scenario='selector',[string]$PublicJobAssemblyRoot,[string]$PublicJobSourceHash,[string]$PublicJobAssemblyHash)
+param([ValidateSet('selector','capsule','execution-boundary','capsule-fixed-time','execution-boundary-fixed-time','clr-public-policy','clr-public-profiler','clr-product-data','clr-product-profiler','owned-job-policy','owned-job-windows','owned-job-manager')][string]$Scenario='selector',[string]$PublicJobAssemblyRoot,[string]$PublicJobSourceHash,[string]$PublicJobAssemblyHash)
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 $publicJobAssembly=$null;$managerStageCapture=$null;$managerInputStageCapture=$null;$usePublicJobAssembly=[Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT -and $Scenario -in @('owned-job-windows','owned-job-manager')
@@ -664,11 +664,20 @@ $inputData=[Console]::In.ReadToEnd()|ConvertFrom-Json
 function node {throw 'FORBIDDEN_PATH_NODE'}
 function Get-OwnerLauncherKernelContext {throw 'FORBIDDEN_PRIVATE_KERNEL'}
 function Get-OwnerRotationPublicResource {throw 'FORBIDDEN_PUBLIC_API'}
-if($Scenario -in @('capsule','execution-boundary')){
+if($Scenario -in @('capsule','execution-boundary','capsule-fixed-time','execution-boundary-fixed-time')){
  $workflow=[IO.File]::ReadAllText((Join-Path (Split-Path $PSScriptRoot) '.github/workflows/gai-zbook-diagnostic-1218.yml'))
  $step=[regex]::Match($workflow,'(?ms)^      - name: Select closed rotation profile before any PATH Node\n(?<step>.*?)(?=^      - )').Groups['step'].Value
  if(-not $step){throw 'CUTOVER_PROFILE_CAPSULE_MISSING'};$body=[regex]::Match($step,'(?m)^        run: \|\n(?<body>(?:          .*\n)+)').Groups['body'].Value;$code=($body -split '\n'|ForEach-Object {if($_.Length -ge 10){$_.Substring(10)}else{$_}})-join "`n"
  $tokens=$null;$errors=$null;$ast=[Management.Automation.Language.Parser]::ParseInput($code,[ref]$tokens,[ref]$errors);if($errors.Count -ne 0){throw 'WORKFLOW_CAPSULE_PARSE'};$resource=$ast.Find({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -ceq 'Get-OwnerRotationSelectorPublicResource'},$true);if(-not $resource){throw 'RESOURCE_BOUNDARY_MISSING'};$program=$code.Remove($resource.Extent.StartOffset,$resource.Extent.EndOffset-$resource.Extent.StartOffset)
+ # Pure test-only virtual-time control. The checked-in workflow and native
+ # grant expiry stay unchanged. The post-expiry cases run the unmodified source.
+ $frozenClock=$Scenario -in @('capsule-fixed-time','execution-boundary-fixed-time')
+ $sourceCall='$selection = Get-OwnerRotationProfileSelection -Encoded $encoded -Environment $context'
+ $simulatedCall="$sourceCall -Now ([datetimeoffset]::Parse('2026-11-10T07:00:00.000Z'))"
+ if($frozenClock){
+  if(($program.Split([string[]]@($sourceCall),[StringSplitOptions]::None).Count-1) -ne 1){throw 'PUBLIC_FIXED_CLOCK_SOURCE_DRIFT'}
+  $program=$program.Replace($sourceCall,$simulatedCall)
+ }
  $script:capsuleCalls=[Collections.Generic.List[string]]::new();$script:capsuleCase='';$script:capsuleEntry=[IO.File]::ReadAllBytes((Join-Path (Split-Path $PSScriptRoot) 'scripts/owner-code-rotation-native-1218.ps1'))
  function Get-OwnerRotationSelectorPublicResource([string]$Uri){[void]$script:capsuleCalls.Add($Uri);if($script:capsuleCase -eq 'transport'){throw 'FAKE_TRANSPORT_PRIVATE_CANARY'};if($Uri -ceq 'https://api.github.com/repos/haji84/AI-/git/ref/heads/main'){$sha=if($script:capsuleCase -eq 'main-mismatch'){'f'*40}else{'a'*40};return ,[Text.Encoding]::UTF8.GetBytes(('{"object":{"sha":"'+$sha+'"}}'))};if($Uri -ceq ('https://raw.githubusercontent.com/haji84/AI-/'+('a'*40)+'/scripts/owner-code-rotation-native-1218.ps1')){if($script:capsuleCase -eq 'source-mismatch'){return ,[Text.Encoding]::UTF8.GetBytes("throw 'UNTRUSTED_SOURCE_EXECUTED'")};return ,$script:capsuleEntry};throw 'UNEXPECTED_PUBLIC_URL'}
  # Each actual workflow selector runs once in a fresh file script scope,
@@ -687,10 +696,14 @@ Set-Item -Path function:Get-OwnerRotationSelectorPublicResource -Value $Resource
   try{$selectorPath=[IO.Path]::Combine($root,'selector-scope.ps1');$selectorStream=$null
    try{$selectorStream=[IO.File]::Open($selectorPath,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None);$selectorStream.Write($selectorScopeBytes,0,$selectorScopeBytes.Length);$selectorStream.Flush()}finally{if($selectorStream){$selectorStream.Dispose()}}
    &$selectorPath -Program $program -Resource $selectorResource -Case $script:capsuleCase -Entry $script:capsuleEntry -Calls $script:capsuleCalls;$output=[IO.File]::ReadAllText($env:GITHUB_OUTPUT)
-  if($Scenario -eq 'execution-boundary'){
+  if($Scenario -in @('execution-boundary','execution-boundary-fixed-time')){
    $env:GORIQ_OWNER_ROTATION_PROFILE='CUTOVER_V1';$env:GORIQ_C1_PROBE_MARKER=[IO.Path]::Combine($root,'owned-marker');$mutation='[IO.File]::WriteAllText($env:GORIQ_C1_PROBE_MARKER,"PUBLIC_UNVERIFIED_ENTRY_EXECUTED"); exit 0'
    if($request.case -eq 'post-selector'){[IO.File]::WriteAllText($local,$mutation)}
    $rotation=[regex]::Match($workflow,'(?ms)^      - name: Run separately approved bounded native rotation entry\n(?<step>.*?)(?=^      - )').Groups['step'].Value;$rotationBody=[regex]::Match($rotation,'(?m)^        run: \|\n(?<body>(?:          .*\n)+)').Groups['body'].Value;$programChild=($rotationBody -split '\n'|ForEach-Object {if($_.Length -ge 10){$_.Substring(10)}else{$_}})-join "`n"
+   if($frozenClock){
+    if(($programChild.Split([string[]]@($sourceCall),[StringSplitOptions]::None).Count-1) -ne 1){throw 'PUBLIC_FIXED_CLOCK_CHILD_SOURCE_DRIFT'}
+    $programChild=$programChild.Replace($sourceCall,$simulatedCall)
+   }
    $t=$null;$err=$null;$tree=[Management.Automation.Language.Parser]::ParseInput($programChild,[ref]$t,[ref]$err);if($err.Count -ne 0){throw 'ROTATION_BODY_PARSE'};$fetchFunction=$tree.Find({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -ceq 'Get-OwnerRotationSelectorPublicResource'},$true);if($fetchFunction){$programChild=$programChild.Remove($fetchFunction.Extent.StartOffset,$fetchFunction.Extent.EndOffset-$fetchFunction.Extent.StartOffset)}
    $boundary='. ([scriptblock]::Create([Text.UTF8Encoding]::new($false,$true).GetString($entryBytes)))';$boundaryFound=$programChild.Contains($boundary)
    if($request.case -eq 'post-final-verification' -and $boundaryFound){$programChild=$programChild.Replace($boundary,('[IO.File]::WriteAllText($localEntry,'+"'"+$mutation.Replace("'","''")+"'"+");`n"+$boundary))}
