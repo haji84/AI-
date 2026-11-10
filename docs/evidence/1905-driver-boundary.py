@@ -28,7 +28,7 @@ STAGES = frozenset(('BEGIN EARLY_REFUSAL OWNED_START OWNED_HELPER OUTSIDE_START 
     'MANAGER_STOP COMPLETE').split())
 PROBES = frozenset(('READ_BEGIN INPUT_LINE_RETURN INPUT_EMPTY INPUT_NULL INPUT_OBJECT '
     'INPUT_OTHER PARSE_BEGIN PARSE_DONE BASE_BEGIN BASE_DONE SCRIPT_THROW '
-    'FAIL_LINE_TIMEOUT FAIL_LINE_PARTIAL FAIL_EARLY_PROOF FAIL_OTHER').split())
+    'FAIL_LINE_TIMEOUT FAIL_LINE_PARTIAL FAIL_EARLY_PROOF FAIL_OTHER INPUT_BOM INPUT_BOM_PREFIX WRITER_BOM WRITER_NO_BOM').split())
 
 
 def once(source, old, new):
@@ -56,6 +56,13 @@ def candidate(source, mode):
             '$driverInputReader=[IO.StreamReader]::new([Console]::OpenStandardInput(),'
             '[Text.UTF8Encoding]::new($false,$true),$false,1024,$true);'
             '$line=$driverInputReader.ReadLine();')
+    if mode == 'bomfree-start':
+        return once(source, "try{Require ($p.Start()) 'JOB_FIXED_MANAGER_START';",
+            "try{$priorDriverInputEncoding=[Console]::InputEncoding;"
+            "try{[Console]::InputEncoding=$driverUtf8;"
+            "Require ($p.Start()) 'JOB_FIXED_MANAGER_START'}"
+            "finally{[Console]::InputEncoding=$priorDriverInputEncoding};"
+            "Require ($p.StandardInput.Encoding.GetPreamble().Length -eq 0) 'JOB_ACTUAL_DRIVER_WRITER_BOM_FREE_REQUIRED';")
     raise ValueError('UNKNOWN_CANDIDATE')
 
 
@@ -64,7 +71,7 @@ def instrument(source):
     helper = r'''
 function Write-PublicDriverBoundary([string]$Code){
  try{
-  if($Code -cnotin @('READ_BEGIN','INPUT_LINE_RETURN','INPUT_EMPTY','INPUT_NULL','INPUT_OBJECT','INPUT_OTHER','PARSE_BEGIN','PARSE_DONE','BASE_BEGIN','BASE_DONE','SCRIPT_THROW','FAIL_LINE_TIMEOUT','FAIL_LINE_PARTIAL','FAIL_EARLY_PROOF','FAIL_OTHER')){return}
+  if($Code -cnotin @('READ_BEGIN','INPUT_LINE_RETURN','INPUT_EMPTY','INPUT_NULL','INPUT_OBJECT','INPUT_OTHER','PARSE_BEGIN','PARSE_DONE','BASE_BEGIN','BASE_DONE','SCRIPT_THROW','FAIL_LINE_TIMEOUT','FAIL_LINE_PARTIAL','FAIL_EARLY_PROOF','FAIL_OTHER','INPUT_BOM','INPUT_BOM_PREFIX','WRITER_BOM','WRITER_NO_BOM')){return}
   if(-not $env:GORIQ_PR1905_DRIVER_BOUNDARY){return}
   $root=[IO.Path]::GetFullPath($env:GORIQ_PR1905_DRIVER_BOUNDARY)
   $temp=[IO.Path]::GetFullPath($env:RUNNER_TEMP).TrimEnd([char[]]@('\','/'))+[IO.Path]::DirectorySeparatorChar
@@ -83,7 +90,9 @@ trap {Write-PublicDriverBoundary 'SCRIPT_THROW';throw}
         "Write-PublicPeerProgress 'GROUP_BEGIN';Write-PublicPeerProgress 'SOURCE_BASE_BEGIN';Write-PublicDriverBoundary 'READ_BEGIN'")
     source = once(source,
         "$null=$line|Microsoft.PowerShell.Utility\\ConvertFrom-Json;$line}else{[Console]::In.ReadToEnd()};$null=. (Join-Path $Root 'tests/owner-code-cutover-private-bootstrap.fixture.ps1') -Scenario kernel -FixtureInput $publicInput -UseExistingNative75",
-        "Write-PublicDriverBoundary 'INPUT_LINE_RETURN';if($null -eq $line){Write-PublicDriverBoundary 'INPUT_NULL'}elseif($line.Length -eq 0){Write-PublicDriverBoundary 'INPUT_EMPTY'}elseif($line[0] -eq '{'){Write-PublicDriverBoundary 'INPUT_OBJECT'}else{Write-PublicDriverBoundary 'INPUT_OTHER'};Write-PublicDriverBoundary 'PARSE_BEGIN';$null=$line|Microsoft.PowerShell.Utility\\ConvertFrom-Json;Write-PublicDriverBoundary 'PARSE_DONE';$line}else{[Console]::In.ReadToEnd()};Write-PublicDriverBoundary 'BASE_BEGIN';$null=. (Join-Path $Root 'tests/owner-code-cutover-private-bootstrap.fixture.ps1') -Scenario kernel -FixtureInput $publicInput -UseExistingNative75;Write-PublicDriverBoundary 'BASE_DONE'")
+        "Write-PublicDriverBoundary 'INPUT_LINE_RETURN';if($null -eq $line){Write-PublicDriverBoundary 'INPUT_NULL'}elseif($line.Length -eq 0){Write-PublicDriverBoundary 'INPUT_EMPTY'}elseif($line[0] -eq '{'){Write-PublicDriverBoundary 'INPUT_OBJECT'}elseif($line[0] -eq [char]0xFEFF){Write-PublicDriverBoundary 'INPUT_BOM'}elseif($line.Length -ge 3 -and [int]$line[0] -eq 239 -and [int]$line[1] -eq 187 -and [int]$line[2] -eq 191){Write-PublicDriverBoundary 'INPUT_BOM_PREFIX'}else{Write-PublicDriverBoundary 'INPUT_OTHER'};Write-PublicDriverBoundary 'PARSE_BEGIN';$null=$line|Microsoft.PowerShell.Utility\\ConvertFrom-Json;Write-PublicDriverBoundary 'PARSE_DONE';$line}else{[Console]::In.ReadToEnd()};Write-PublicDriverBoundary 'BASE_BEGIN';$null=. (Join-Path $Root 'tests/owner-code-cutover-private-bootstrap.fixture.ps1') -Scenario kernel -FixtureInput $publicInput -UseExistingNative75;Write-PublicDriverBoundary 'BASE_DONE'")
+    source = once(source, "$wire=[byte[]]$driverUtf8.GetBytes($InputJson+[char]10);",
+        "if($p.StandardInput.Encoding.GetPreamble().Length -gt 0){Write-PublicDriverBoundary 'WRITER_BOM'}else{Write-PublicDriverBoundary 'WRITER_NO_BOM'};$wire=[byte[]]$driverUtf8.GetBytes($InputJson+[char]10);")
     reason = r"""$probeCode='FAIL_OTHER';$probeMessage=$_.Exception.GetBaseException().Message;foreach($prefix in @('PEER_FIXTURE_','CUTOVER_BOOTSTRAP_FIXTURE_')){if($probeMessage -ceq ($prefix+'JOB_PRIVATE_LINE_TIMEOUT')){$probeCode='FAIL_LINE_TIMEOUT'}elseif($probeMessage -ceq ($prefix+'JOB_PRIVATE_LINE_PARTIAL')){$probeCode='FAIL_LINE_PARTIAL'}elseif($probeMessage -ceq ($prefix+'JOB_FIXED_EARLY_DRIVER')){$probeCode='FAIL_EARLY_PROOF'}};Write-PublicDriverBoundary $probeCode;"""
     return once(source, '}catch{$phase=if($script:jobWindowsPhase',
                 '}catch{' + reason + '$phase=if($script:jobWindowsPhase')
@@ -188,7 +197,7 @@ def run():
             report['original_group2'] = {'exit': None, 'diagnostic_timeout': True,
                                          'acceptance': 'NOT_ASSESSED'}
         for mode, instrumented in (('baseline', False), ('baseline', True),
-                                   ('early-eof', True), ('explicit-utf8-reader', True)):
+                                   ('bomfree-start', True), ('bomfree-start', False)):
             report['runs'].append(run_case(source, mode, root, instrumented))
     finally:
         Path(FIXTURE).write_bytes(original)
