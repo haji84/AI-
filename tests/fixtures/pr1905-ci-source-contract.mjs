@@ -47,3 +47,18 @@ export function restoreR66WorkflowBaseline(workflow) {
   }
   return normalized;
 }
+
+// Node may discover this module as an entry under tests/fixtures. Register an
+// explicit fail-closed self-test only in that case, never during normal imports.
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import process from 'node:process';
+import {pathToFileURL} from 'node:url';
+import {resolve} from 'node:path';
+if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {
+  test('standalone exact-source helper refuses absent or malformed workflow input', () => {
+    for (const input of [undefined, null, 0, {}, '', 'jobs:\n', '\0', 'x'.repeat(65537)]) {
+      assert.throws(() => restoreR66WorkflowBaseline(input), /EXACT_HEAD_CHECKOUT_CONTRACT/);
+    }
+  });
+}
