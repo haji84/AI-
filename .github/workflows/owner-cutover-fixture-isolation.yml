@@ -8,6 +8,8 @@ on:
       - 'docs/evidence/1905-fixture-isolation.py'
       - 'docs/evidence/1905-fixture-stage2.py'
       - 'docs/evidence/1905-job-split.py'
+      - 'docs/evidence/1905-driver-boundary.py'
+      - 'docs/evidence/test_1905_driver_boundary.py'
 
 permissions:
   contents: read
@@ -92,13 +94,18 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '24.19.0'
-      - name: Collect two distinct native-job failure signatures
-        run: python docs/evidence/1905-job-split.py --run
-      - name: Save bounded test-only differential evidence
+      - name: Collect original group2 and bounded driver input observations
+        run: |
+          python -m unittest discover -s docs/evidence -p test_1905_driver_boundary.py -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python docs/evidence/1905-driver-boundary.py --run
+      - name: Save closed observations and six exact public source files
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: pr1905-job-split-${{ github.run_id }}
-          path: ${{ runner.temp }}/pr1905-job-split/report.json
+          name: pr1905-driver-boundary-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/pr1905-driver-boundary/report.json
+            ${{ runner.temp }}/pr1905-driver-boundary/public-sources.zip
           retention-days: 1
           if-no-files-found: error
