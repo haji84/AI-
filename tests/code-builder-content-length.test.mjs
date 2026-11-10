@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import process from 'node:process';
+import { Buffer } from 'node:buffer';
 import { createCodeBuilderWorkerServer } from '../scripts/code-builder-worker-service.ts';
 
 const models = JSON.stringify({ models: [{ name: 'qwen2.5-coder:3b' }] });
@@ -12,7 +14,7 @@ async function health(length, body = models, authorized = true) {
       assert.equal(String(input), 'http://127.0.0.1:11434/api/tags');
       const headers = { 'content-type': 'application/json' };
       if (length !== null) headers['content-length'] = length;
-      return new Response(body, { headers });
+      return new globalThis.Response(body, { headers });
     },
   });
   await new Promise((resolve, reject) => {
@@ -22,9 +24,9 @@ async function health(length, body = models, authorized = true) {
   try {
     const address = server.address();
     assert.ok(address && typeof address !== 'string');
-    const response = await fetch(`http://127.0.0.1:${address.port}/health`, {
+    const response = await globalThis.fetch(`http://127.0.0.1:${address.port}/health`, {
       headers: authorized ? { Authorization: 'Bearer content-length-test-only' } : {},
-      signal: AbortSignal.timeout(3000),
+      signal: globalThis.AbortSignal.timeout(3000),
     });
     return { status: response.status, body: await response.json(), calls };
   } finally {
