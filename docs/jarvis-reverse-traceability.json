@@ -5810,7 +5810,7 @@
     },
     {
       "path": "src/orchestrator/reasoning-router.ts",
-      "sha256": "9aee5dd4cc092fa541230a322e10bb28c8c2d8d42602682ea81d2f4be5f6b5ff",
+      "sha256": "6bd6b341d9dde010a5ed84a921cd7943061dfe3b0bc5b45f29301a830ef97413",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-007",

@@ -84,7 +84,7 @@ function chatChunkDecision(
     approvalSurface: null,
     executionMode: "chunked",
     maxChunkSteps: CHAT_CHUNK_STEPS,
-    continuationSurfaceOptions: ["chat", "work", "codex"],
+    continuationSurfaceOptions: ["chat", "work"],
   };
 }
 
@@ -112,7 +112,17 @@ export function routeReasoningTask(
     codex: validBudget(usage.codex, "codex usage"),
   };
 
-  const needsCodex = Boolean(signals.changesCode || signals.debugging || signals.testing || signals.refactoring || codeSignals(signals.text));
+  const codeWork = Boolean(signals.changesCode || signals.debugging || signals.testing || signals.refactoring || codeSignals(signals.text));
+  // Coding is executable through local GORIQ capabilities and bounded Chat.
+  // An unavailable Codex quota must never create an approval blocker.
+  if (codeWork && signals.approvedSurface !== "codex") {
+    return chatChunkDecision(
+      "Code work continues through bounded Chat and available local GORIQ Builder capabilities; no Codex approval is required",
+      normalizedUsage,
+      budgets,
+    );
+  }
+  const needsCodex = codeWork && signals.approvedSurface === "codex";
   const needsWork = !needsCodex && Boolean(
     signals.crossApp
     || signals.recurring
