@@ -135,7 +135,7 @@ async function installedLocalModel(): Promise<string | null> {
     });
     if (!response.ok || response.redirected) return null;
     const contentLength = response.headers.get("content-length");
-    if (contentLength !== null && (!/^\\d+$/.test(contentLength) || Number(contentLength) > 65536)) return null;
+    if (contentLength !== null && (!/^\d+$/.test(contentLength) || Number(contentLength) > 65536)) return null;
     const reader = response.body?.getReader();
     if (!reader) return null;
     const chunks: Buffer[] = [];
