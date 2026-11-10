@@ -6,6 +6,7 @@ async function healthFor(models: unknown[], overrides: Record<string, string> = 
   let queried = 0;
   const server = createCodeBuilderWorkerServer({
     env: {
+      NODE_ENV: "test",
       CODE_BUILDER_TOKEN: "test-only-local-code-builder",
       CODE_BUILDER_WORKSPACE: process.cwd(),
       GORIQ_OLLAMA_URL: endpoint,
