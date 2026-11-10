@@ -2,7 +2,7 @@
 
 ## Purpose
 
-GORIQ must not treat Codex as its primary repair brain. Automatic repair starts with GORIQ-owned and local capabilities, then escalates outward only when earlier stages are unavailable or fail bounded verification.
+GORIQ must not treat Codex as its primary repair brain. Automatic repair starts with GORIQ-owned and installed local capabilities, then uses only already-authorized optional external capabilities. Neither Codex nor CodeRabbit is a prerequisite for coding, CI, verification or goal recovery.
 
 ## Canonical order
 
@@ -13,8 +13,8 @@ GORIQ must not treat Codex as its primary repair brain. Automatic repair starts 
 5. Chat inside ChatGPT Project `自動化`
 6. Work inside ChatGPT Project `自動化`
 7. Groq Free Plan API (`qwen/qwen3.8-27b`)
-8. Codex
-9. HUMAN GATE
+8. Codex (legacy opt-in only; disabled in normal unattended runs)
+9. HUMAN GATE (the normal final stage when available allowed engines are exhausted)
 
 ## Execution contract
 
@@ -35,8 +35,8 @@ GORIQ must not treat Codex as its primary repair brain. Automatic repair starts 
 - If Chat shows Retry, the current Chat phase is abandoned immediately and the next smaller phase begins.
 - Only a newly completed assistant response after the current phase boundary may be accepted; late output from an older phase is stale.
 - After all bounded Chat phases fail, Stage 5 fails closed and canonical routing advances to Work.
-- Stage 7 uses only the Groq Free Plan. Missing credentials, rate limits, provider failures, malformed output, or failed local verification advance to Codex.
-- Codex is an external fallback/teacher engine, not the default repair engine.
+- Stage 7 uses only the previously authorized Groq Free Plan. Missing credentials, quota exhaustion, provider failures or failed verification advance to the next eligible stage, normally HUMAN GATE. Never auto-select Codex from an installed CLI.
+- Codex remains a historical opt-in capability only when GORIQ_ALLOW_CODEX_AUTOMATION=1 is deliberately configured. An installed CLI is not proof of quota or permission. CodeRabbit output, comments or approval are not required by this engine escalation policy; existing independent verification, GitHub protected review requirements and Human Gates remain unchanged.
 - HUMAN GATE is terminal and is reached only after all available automatic stages fail or a protected action/authority is required.
 
 ## Runtime bindings
@@ -50,8 +50,8 @@ The recovery controller binds the stages directly:
 - Stage 5: existing Chat surface inside ChatGPT Project `自動化`.
 - Stage 6: existing Work surface inside ChatGPT Project `自動化`.
 - Stage 7: Groq Free Plan API using `qwen/qwen3.8-27b` when `GROQ_API_KEY` is configured.
-- Stage 8: Codex.
-- Stage 9: Human Gate.
+- Stage 8: Disabled by default. Codex can be considered only with GORIQ_ALLOW_CODEX_AUTOMATION=1, and is never required for local operation.
+- Stage 9: Human Gate when all eligible automatic capabilities are unavailable or exhausted.
 
 External surfaces return only a bounded repair proposal/diff. GORIQ retains scope validation, verification, commit, and push authority. Chat/Work/Groq never receive GitHub push credentials.
 
@@ -71,9 +71,17 @@ External surfaces return only a bounded repair proposal/diff. GORIQ retains scop
 - GitHub CLI and a GitHub Actions repository secret are not required for Stage 7.
 - Never store or echo the plaintext API key.
 - No automatic billing or paid-plan transition.
-- HTTP 429 or any provider/validation failure advances to stage 8.
+- HTTP 429 or any provider/validation failure advances to the next enabled stage, normally Human Gate.
 - Groq is repair-only and is not a general planner replacement.
 
 ## Learning direction
 
 When an external engine succeeds, GORIQ should capture the failure fingerprint, bounded diff shape, verification outcome and engine provenance so a future learned-repair stage can replay or generalize the fix before reaching external stages.
+
+### Provider-independent Builder defaults
+
+- The ZBook/Mac persistent Builder selects the built-in `goriq-ollama-repair` adapter before any external CLI. The authenticated health endpoint advertises `code-builder` only after a bounded loopback `/api/tags` response proves an already installed supported local model.
+- The local default uses only `http://127.0.0.1:11434`. No model pull, new secret, paid API or remote endpoint is performed automatically.
+- Missing local model, unapproved URL, exhausted resources or missing explicit file allowlist produces a blocker. It never invokes Codex, Aider or CodeRabbit silently or fabricates successful verification.
+- Legacy CLI execution, if intentionally needed later, requires a separately set `GORIQ_ALLOW_LEGACY_CODE_BUILDER=1` and an explicit `CODE_BUILDER_ENGINE`; this is not part of the default.
+- Local AI-09 is an advisory reviewer. Formal signing, separate GitHub review/account requirements, six-check independent verification, immutable SHA evidence and protected Human Gates are still mandatory wherever the existing policy requires them. Do not confuse a local-model PASS with a signed independent approval.

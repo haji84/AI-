@@ -621,7 +621,7 @@ function resolveCodexEngineOrNull(): string | null {
 
 export function configuredRepairEngineIds(
   env: Record<string, string | undefined> = process.env,
-  codexAvailable = resolveCodexEngineOrNull() !== null,
+  codexAvailable = env.GORIQ_ALLOW_CODEX_AUTOMATION?.trim() === "1" && resolveCodexEngineOrNull() !== null,
   runtime = repairRuntimeStatus(),
 ): Array<Exclude<RepairEngineId, "human-gate">> {
   const available = new Set<Exclude<RepairEngineId, "human-gate">>([
@@ -635,7 +635,7 @@ export function configuredRepairEngineIds(
     if (env.GORIQ_ENABLE_AUTOMATIC_WORK_REPAIR?.trim() === "1") available.add("work");
   }
   if (env.GROQ_API_KEY?.trim()) available.add("free-external");
-  if (codexAvailable) available.add("codex");
+  if (codexAvailable && env.GORIQ_ALLOW_CODEX_AUTOMATION?.trim() === "1") available.add("codex");
   return REPAIR_ENGINE_ESCALATION_ORDER
     .map((stage) => stage.id)
     .filter((id): id is Exclude<RepairEngineId, "human-gate"> => id !== "human-gate" && available.has(id));
@@ -646,7 +646,9 @@ function createRepairEngineRunners(
   allowedPaths: string[],
   context: { repository: string; token: string },
 ): RepairEngineRunner[] {
-  const codexEngine = resolveCodexEngineOrNull();
+  // Never probe or invoke Codex on an ordinary CI recovery run.
+  const codexEngine = process.env.GORIQ_ALLOW_CODEX_AUTOMATION?.trim() === "1"
+    ? resolveCodexEngineOrNull() : null;
   const runtime = repairRuntimeStatus();
   const runners = new Map<Exclude<RepairEngineId, "human-gate">, RepairEngineRunner>();
 

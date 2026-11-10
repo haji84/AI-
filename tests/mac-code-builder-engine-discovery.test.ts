@@ -17,7 +17,7 @@ async function executable(path: string, target = process.execPath) {
   await symlink(target, path, "file");
 }
 
-test("Mac Builder resolver finds an existing Codex CLI outside the noninteractive PATH", async () => {
+test("Mac Builder defaults to its local engine even when Codex is present outside PATH", async () => {
   const home = await mkdtemp(join(tmpdir(), "goriq-engine-home-"));
   const codex = join(home, ".volta", "bin", "codex");
   await executable(codex);
@@ -25,10 +25,10 @@ test("Mac Builder resolver finds an existing Codex CLI outside the noninteractiv
   const { stdout } = await execFileAsync("/bin/bash", [resolver.pathname], {
     env: { HOME: home, PATH: "/usr/bin:/bin", NODE_ENV: "test" },
   });
-  assert.equal(stdout.trim(), codex);
+  assert.equal(stdout.trim(), "goriq-ollama-repair");
 });
 
-test("Mac Builder resolver finds Codex from the active npm global prefix", async () => {
+test("Mac Builder ignores an installed Codex npm shim by default", async () => {
   const home = await mkdtemp(join(tmpdir(), "goriq-engine-npm-"));
   const tools = join(home, "tools");
   const prefix = join(home, "npm-prefix");
@@ -41,25 +41,34 @@ test("Mac Builder resolver finds Codex from the active npm global prefix", async
   const { stdout } = await execFileAsync("/bin/bash", [resolver.pathname], {
     env: { HOME: home, PATH: `${tools}:/usr/bin:/bin`, NODE_ENV: "test", npm_config_prefix: prefix },
   });
-  assert.equal(stdout.trim(), codex);
+  assert.equal(stdout.trim(), "goriq-ollama-repair");
 });
 
-test("Mac Builder resolver honors an explicit executable engine", async () => {
+test("Mac Builder permits legacy CLI only after explicit opt-in", async () => {
   const home = await mkdtemp(join(tmpdir(), "goriq-engine-explicit-"));
   const codex = join(home, "trusted-codex");
   await executable(codex);
 
-  const { stdout } = await execFileAsync("/bin/bash", [resolver.pathname], {
+  const fallback = await execFileAsync("/bin/bash", [resolver.pathname], {
     env: { HOME: home, PATH: "/usr/bin:/bin", NODE_ENV: "test", CODE_BUILDER_ENGINE: codex },
   });
-  assert.equal(stdout.trim(), codex);
+  assert.equal(fallback.stdout.trim(), "goriq-ollama-repair");
+  const selected = await execFileAsync("/bin/bash", [resolver.pathname], {
+    env: { HOME: home, PATH: "/usr/bin:/bin", NODE_ENV: "test", CODE_BUILDER_ENGINE: codex, GORIQ_ALLOW_LEGACY_CODE_BUILDER: "1" },
+  });
+  assert.equal(selected.stdout.trim(), codex);
 });
 
-test("Mac Builder resolver fails closed when no supported engine exists", async () => {
+test("Mac Builder always selects a safe local adapter, and fails closed on invalid opt-in CLI", async () => {
   const home = await mkdtemp(join(tmpdir(), "goriq-engine-none-"));
+  const local = await execFileAsync("/bin/bash", [resolver.pathname], {
+    env: { HOME: home, PATH: "/usr/bin:/bin", NODE_ENV: "test" },
+  });
+  assert.equal(local.stdout.trim(), "goriq-ollama-repair");
   await assert.rejects(
     execFileAsync("/bin/bash", [resolver.pathname], {
-      env: { HOME: home, PATH: "/usr/bin:/bin", NODE_ENV: "test" },
+      env: { HOME: home, PATH: "/usr/bin:/bin", NODE_ENV: "test",
+        CODE_BUILDER_ENGINE: "/does/not/exist/codex", GORIQ_ALLOW_LEGACY_CODE_BUILDER: "1" },
     }),
     (error: unknown) => {
       if (!error || typeof error !== "object" || !("code" in error)) return false;
