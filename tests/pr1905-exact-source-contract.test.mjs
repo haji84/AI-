@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import {URL} from 'node:url';
 import { restoreR66WorkflowBaseline, PIN_BLOCKS } from './fixtures/pr1905-ci-source-contract.mjs';
 
 const base = '# before\njobs:\n  repository-guard:\n    steps:\n      - uses: actions/checkout@v4\n      - run: guard\n  project-checks:\n    steps:\n      - uses: actions/checkout@v4\n      - run: tests\n  independent-verifier-container:\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          ref: ${{ github.event.pull_request.head.sha || github.sha }}\n  windows-runtime-byte-fixtures:\n    steps:\n      - uses: actions/checkout@v4\n      - run: windows\n';

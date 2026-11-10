@@ -38,7 +38,7 @@ export function restoreR66WorkflowBaseline(workflow) {
     const start = normalized.indexOf(heading);
     if (start < 0 || normalized.indexOf(heading, start + heading.length) >= 0) refuse();
     const bodyStart = start + heading.length;
-    const next = /\n  [A-Za-z0-9_-]+:\n/.exec(normalized.slice(bodyStart));
+    const next = /\n {2}[A-Za-z0-9_-]+:\n/.exec(normalized.slice(bodyStart));
     const end = next ? bodyStart + next.index : normalized.length;
     const body = normalized.slice(bodyStart, end);
     const at = body.indexOf(block);
