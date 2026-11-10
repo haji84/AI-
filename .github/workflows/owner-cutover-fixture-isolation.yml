@@ -96,9 +96,9 @@ jobs:
           node-version: '24.19.0'
       - name: Collect original group2 and bounded driver input observations
         run: |
-          python -m unittest discover -s docs/evidence -p test_1905_driver_boundary.py -v
+          python -B -m unittest discover -s docs/evidence -p test_1905_driver_boundary.py -v
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python docs/evidence/1905-driver-boundary.py --run
+          python -B docs/evidence/1905-driver-boundary.py --run
       - name: Save closed observations and six exact public source files
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
