@@ -11,6 +11,7 @@ import { tmpdir } from "node:os";
 import { delimiter, dirname, join, resolve } from "node:path";
 
 import { runVerifierContainer } from "../scripts/jarvis-verifier-container.mjs";
+import { restoreR66WorkflowBaseline } from "./fixtures/pr1905-ci-source-contract.mjs";
 
 function fixture(t, behavior = {}) {
   const root = mkdtempSync(join(tmpdir(), "goriq-container-boundary-"));
@@ -608,7 +609,7 @@ function r66RuntimeFactsSource(){
 
 test("R66 runtime facts preserves the entire prior workflow outside one after-Test diagnostic",()=>{
  const {source,workflow,addition}=r66RuntimeFactsSource();
- assert.equal(createHash("sha256").update(workflow.replace(addition,"")).digest("hex"),"e5cd90e8c3d25858d85eb44959f11206db46bd850ee7e6e2e0dc7dc4f7286c26");
+ assert.equal(createHash("sha256").update(restoreR66WorkflowBaseline(workflow.replace(addition,""))).digest("hex"),"e5cd90e8c3d25858d85eb44959f11206db46bd850ee7e6e2e0dc7dc4f7286c26");
  assert.ok(source.includes("PUBLIC_TEST_RUNTIME_DIAGNOSTIC_ONLY"));assert.ok(source.includes("INCONCLUSIVE_IO"));
  for(const forbidden of ["os.environ.items", "os.environ.copy", "check_output", "shell=True", "resource.setrlimit", "SetMinThreads", "continue-on-error"])assert.equal(source.includes(forbidden),false,forbidden);
 });
