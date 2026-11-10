@@ -198,7 +198,7 @@ test("CI keeps producer failure authoritative and the signed artifact exact whil
   assert.match(job, /name: Start bounded resource observer\n\s+run: node scripts\/jarvis-verifier-resource-observer\.mjs --observe/);
   assert.match(job, /name: Real restricted-container six-check verification\n\s+if: \$\{\{ !cancelled\(\) \}\}\n\s+run: node scripts\/jarvis-verifier-live-ci\.mjs --execute-hosted-ci/);
   assert.match(job, /name: Finalize bounded resource observer\n\s+if: always\(\)\n\s+run: node scripts\/jarvis-verifier-resource-observer\.mjs --stop/);
-  assert.match(job, /name: Retain hosted-container evidence\n\s+if: always\(\)\n\s+uses: actions\/upload-artifact@v4\n\s+with:\n\s+name: independent-verifier-container-\$\{\{ github.sha \}\}\n\s+path: \$\{\{ runner.temp \}\}\/goriq-verifier-live-evidence\//);
+  assert.ok(job.includes("      - name: Retain hosted-container evidence\n        if: always()\n        uses: actions/upload-artifact@v4\n        with:\n          name: independent-verifier-container-${{ github.sha }}\n          path: |\n            ${{ runner.temp }}/goriq-verifier-live-evidence/\n            ${{ job.status != 'success' && format('!{0}/goriq-verifier-live-evidence/receipt.json', runner.temp) || '' }}\n          if-no-files-found: error\n          retention-days: 14"), "Signed evidence requires the exact reviewed conditional receipt selection");
   assert.match(job, /name: Retain supplemental resource observation\n\s+if: always\(\)/);
   assert.match(job, /path: \$\{\{ runner.temp \}\}\/goriq-verifier-resource-observer-\$\{\{ github.run_id \}\}-\$\{\{ github.run_attempt \}\}\/artifact\//);
   assert.doesNotMatch(job, /continue-on-error|\|\| true|RUNNER_TRACKING_ID|permissions:/);

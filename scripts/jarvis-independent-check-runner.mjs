@@ -13,10 +13,9 @@ import { chmodSync, closeSync, constants, copyFileSync, existsSync, fstatSync, l
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { attestLocalCandidate, validateTrackedEditsManifest } from "./jarvis-independent-artifact-attestation.mjs";
 import { safeGit } from "./jarvis-verifier-safe-git.mjs";
-import { runVerifierContainer } from "./jarvis-verifier-container.mjs";
+import { runVerifierContainer, bindHostedCiRequest, observeHostedCiBudget, runHostedCiContainer } from "./jarvis-verifier-container.mjs";
 
 const hash = bytes => createHash("sha256").update(bytes).digest("hex");
-const git = (cwd,...args) => safeGit(cwd,args);
 const validPath = p => typeof p==="string" && /^(src|scripts|tests|docs)\/[A-Za-z0-9_./-]+$/.test(p)
   && !p.split("/").some(x=>!x||x==="."||x==="..");
 const names = ["lint","typecheck","unit","integration","security","build"];
@@ -82,7 +81,8 @@ function readPrivateKey(file) {
     return createPrivateKey(bytes.subarray(0,count));
   }finally{closeSync(fd);}
 }
-function exportSnapshot(runner,destination,fileHashes) {
+function exportSnapshot(runner,destination,fileHashes,trustedOptions) {
+  const git = (cwd,...args) => safeGit(cwd,args,trustedOptions);
   const declared=Object.keys(fileHashes);
   const tracked=git(runner,"ls-files","-z","--cached").split("\0").filter(Boolean);
   // The private log parent stays 0700; the bind-mounted exported subtree must
@@ -114,7 +114,8 @@ function exportSnapshot(runner,destination,fileHashes) {
     chmodSync(target,(lstatSync(source).mode&0o111)?0o555:0o444);
   }
 }
-function exactGitRoot(input) {
+function exactGitRoot(input,trustedOptions) {
+  const git = (cwd,...args) => safeGit(cwd,args,trustedOptions);
   if(typeof input!=="string"||!isAbsolute(input)||!existsSync(input))throw Error("VERIFIER_WORKSPACE_MISSING");
   const root=realpathSync(input);
   if(git(root,"rev-parse","--show-toplevel").replaceAll("\\","/").toLowerCase()!==root.replaceAll("\\","/").toLowerCase()
@@ -185,10 +186,13 @@ export function createTrustedVerifierSigner(transport) {
 
 /** Byte staging only, not an isolation, executable-check, signature or release
  * verdict. Both worktrees must be host-controlled for the entire operation. */
-export function stageIndependentCandidate(req) {
+export function stageIndependentCandidate(req,trustedOptions) {
+  const git = (cwd,...args) => safeGit(cwd,args,trustedOptions);
+  const observe = stage => {if(trustedOptions&&Object.hasOwn(trustedOptions,"hostedCiLifetime"))observeHostedCiBudget(trustedOptions.hostedCiLifetime,stage);};
+  const attest = scope => {observe("ATTEST_BEFORE");const value=attestLocalCandidate(scope,trustedOptions);observe("ATTEST_AFTER");return value;};
   const edits=validateTrackedEditsManifest(req.trackedEdits);
   if(!edits.length)throw Error("VERIFIER_TRACKED_EDITS_REQUIRED");
-  const candidate=exactGitRoot(req.candidateWorkspace),runner=exactGitRoot(req.verifierWorkspace);
+  const candidate=exactGitRoot(req.candidateWorkspace,trustedOptions),runner=exactGitRoot(req.verifierWorkspace,trustedOptions);
   if(candidate===runner||candidate.startsWith(runner+sep)||runner.startsWith(candidate+sep))
     throw Error("VERIFIER_MUST_HAVE_DISTINCT_RUNNER_WORKSPACE");
   if(git(runner,"rev-parse","HEAD")!==req.baseRevision||git(runner,"status","--porcelain","-uall")!=="")
@@ -196,7 +200,7 @@ export function stageIndependentCandidate(req) {
   if(git(runner,"ls-files","-v","-z").split("\0").filter(Boolean).some(entry=>!entry.startsWith("H ")))
     throw Error("VERIFIER_RUNNER_INDEX_UNSAFE");
   const scope={baseRevision:req.baseRevision,targetPath:req.targetPath,allowedUntracked:req.allowedUntracked,trackedEdits:req.trackedEdits};
-  const before=attestLocalCandidate({workspace:candidate,...scope});
+  const before=attest({workspace:candidate,...scope});
   if(before.artifactDigest!==req.artifactDigest||before.candidateRevision!==req.sourceRevision)
     throw Error("VERIFIER_CANDIDATE_BINDING_MISMATCH");
   const paths=[...req.allowedUntracked,...edits.map(edit=>edit.path)];
@@ -218,26 +222,33 @@ export function stageIndependentCandidate(req) {
   }
   for(const path of paths)copyFileSync(join(candidate,path),join(runner,path),
     edits.some(edit=>edit.path===path)?0:constants.COPYFILE_EXCL);
-  const staged=attestLocalCandidate({workspace:runner,...scope});
+  const staged=attest({workspace:runner,...scope});
   if(staged.artifactDigest!==before.artifactDigest||staged.candidateRevision!==before.candidateRevision)
     throw Error("VERIFIER_STAGING_MISMATCH");
   return staged;
 }
 
 export async function runIndependentVerifier(req, options = {}) {
-  if(!options||typeof options!=="object"||Array.isArray(options)||Object.keys(options).some(key=>key!=="signerTransport"))
+  if(!options||typeof options!=="object"||Array.isArray(options)||Object.keys(options).some(key=>!["signerTransport","hostedCiLifetime"].includes(key)))
     throw Error("VERIFIER_SIGNER_TRANSPORT_INVALID");
+  const hosted=Object.hasOwn(options,"hostedCiLifetime"),token=hosted?Object.getOwnPropertyDescriptor(options,"hostedCiLifetime").value:undefined;
+  const trustedOptions=hosted?Object.freeze({hostedCiLifetime:token}):undefined;
+  const observe=stage=>hosted?observeHostedCiBudget(token,stage):null;
+  const git=(cwd,...args)=>safeGit(cwd,args,trustedOptions);
+  const attest=scope=>{observe("ATTEST_BEFORE");const value=attestLocalCandidate(scope,trustedOptions);observe("ATTEST_AFTER");return value;};
+  if(hosted)bindHostedCiRequest(token,req);
+  try {
   const transport=Object.hasOwn(options,"signerTransport")?createTrustedVerifierSigner(options.signerTransport):null;
   const mode={externalSigner:transport!==null};
   validateVerifierRunRequest(req,mode);
   if(process.env.GORIQ_VERIFIER_OPERATOR_ISOLATED!=="1")throw Error("VERIFIER_SEPARATE_PRINCIPAL_NOT_ACKNOWLEDGED");
   if(!/^[a-z0-9][a-z0-9._/:@-]*@sha256:[0-9a-f]{64}$/.test(process.env.GORIQ_VERIFIER_CONTAINER_IMAGE??""))
     throw Error("VERIFIER_TRUSTED_CONTAINER_IMAGE_REQUIRED");
-  const candidate=exactGitRoot(req.candidateWorkspace),runner=exactGitRoot(req.verifierWorkspace);
+  const candidate=exactGitRoot(req.candidateWorkspace,trustedOptions),runner=exactGitRoot(req.verifierWorkspace,trustedOptions);
   if(candidate===runner)throw Error("VERIFIER_MUST_HAVE_DISTINCT_RUNNER_WORKSPACE");
   if(git(runner,"rev-parse","HEAD")!==req.baseRevision||git(runner,"status","--porcelain","-uall")!=="")
     throw Error("VERIFIER_RUNNER_NOT_CLEAN");
-  const before=attestLocalCandidate({workspace:candidate,baseRevision:req.baseRevision,
+  const before=attest({workspace:candidate,baseRevision:req.baseRevision,
     targetPath:req.targetPath,allowedUntracked:req.allowedUntracked,trackedEdits:req.trackedEdits});
   if(before.artifactDigest!==req.artifactDigest||before.candidateRevision!==req.sourceRevision)
     throw Error("VERIFIER_CANDIDATE_BINDING_MISMATCH");
@@ -256,8 +267,8 @@ export async function runIndependentVerifier(req, options = {}) {
       throw Error("VERIFIER_TARGET_NOT_NEW");
     copyFileSync(resolve(candidate,path),target,constants.COPYFILE_EXCL);
   }
-  const staged=req.trackedEdits===undefined?attestLocalCandidate({workspace:runner,baseRevision:req.baseRevision,
-    targetPath:req.targetPath,allowedUntracked:req.allowedUntracked}):stageIndependentCandidate(req);
+  const staged=req.trackedEdits===undefined?attest({workspace:runner,baseRevision:req.baseRevision,
+    targetPath:req.targetPath,allowedUntracked:req.allowedUntracked}):stageIndependentCandidate(req,trustedOptions);
   if(staged.artifactDigest!==before.artifactDigest||staged.candidateRevision!==before.candidateRevision)
     throw Error("VERIFIER_STAGING_MISMATCH");
   const logDirectory=externalPath(candidate,runner,receiptFile+".logs");
@@ -265,7 +276,9 @@ export async function runIndependentVerifier(req, options = {}) {
   mkdirSync(dirname(logDirectory),{recursive:true});
   mkdirSync(logDirectory,{mode:0o700}); // exclusive, never overwrite another run
   const snapshot=join(logDirectory,"source");
-  exportSnapshot(runner,snapshot,staged.fileHashes);
+  observe("SETUP_RETURN");
+  exportSnapshot(runner,snapshot,staged.fileHashes,trustedOptions);
+  observe("SETUP_RETURN");
   const issuedAt=new Date().toISOString(),checks=[];
   for(const name of req.requiredChecks) {
     validateVerifierRunRequest(req,mode);
@@ -283,21 +296,20 @@ export async function runIndependentVerifier(req, options = {}) {
     const staticScript="node /opt/goriq-verifier/jarvis-verifier-offline-workspace.mjs && cd /tmp/verify && exec "+[command,...args].join(" ");
     const dockerArgs=["run","--rm","--pull=never","--network=none","--read-only",
       "--cap-drop=ALL","--security-opt=no-new-privileges","--pids-limit=128",
-      "--memory=2g","--cpus=2","--user=65534:65534",
+      "--memory=2g","--cpus=3","--user=65534:65534",
       "--tmpfs","/tmp:rw,noexec,nosuid,nodev,uid=65534,gid=65534,mode=0700,size=1536m",
       "--mount",`type=bind,source=${snapshot},target=/source,readonly`,
       "--workdir","/","--entrypoint","/bin/sh",
       image,"-ec",staticScript];
     const timeoutMs=verifierCheckTimeoutMs(name);
-    const output=await runVerifierContainer(dockerArgs,{cwd:runner,
-      untrustedExecutableRoots:[candidate,runner,snapshot],
-      timeoutMs,maxBuffer:2*1024*1024,env:{
-        PATH:process.env.PATH??"",SystemRoot:process.env.SystemRoot??"",
-      }});
+    const containerOptions={cwd:runner,untrustedExecutableRoots:[candidate,runner,snapshot],maxBuffer:2*1024*1024,
+      env:{PATH:process.env.PATH??"",SystemRoot:process.env.SystemRoot??""}};
+    const output=hosted?await runHostedCiContainer(token,req,name,dockerArgs,containerOptions)
+      :await runVerifierContainer(dockerArgs,{...containerOptions,timeoutMs});
     const status=output.error||output.status===null?"inconclusive":output.status===0?"passed":"failed";
     const log=JSON.stringify({
       sourceRevision:before.candidateRevision,fileHashes:before.fileHashes,
-      command, args, timeoutMs, executionProfile:name==="build"?"next-webpack-v1":null,
+      command, args, timeoutMs:hosted?output.hostedBudget?.timeoutMs??null:timeoutMs, ...(hosted?{hostedBudget:output.hostedBudget??null}:{}), executionProfile:name==="build"?"next-webpack-v1":null,
       containerImage:image, exit:output.status, signal:output.signal,
       stdout:output.stdout??"", stderr:output.stderr??"",
       errorCode:output.error?.code??null,
@@ -306,15 +318,17 @@ export async function runIndependentVerifier(req, options = {}) {
     })+"\n";
     const outputDigest=hash(log);
     externalPath(candidate,runner,logDirectory);
+    if(hosted)observe(status==="passed"?"EVIDENCE_BEFORE":"CLEANUP");
     writeFileSync(join(logDirectory,name+".json"),log,{flag:"wx",mode:0o600});
+    if(hosted)observe(status==="passed"?"EVIDENCE_AFTER":"CLEANUP");
     checks.push({check:name,status,outputDigest,recordedAt:new Date().toISOString()});
     if(status!=="passed")break;
   }
-  const after=attestLocalCandidate({workspace:candidate,baseRevision:req.baseRevision,
+  const after=attest({workspace:candidate,baseRevision:req.baseRevision,
     targetPath:req.targetPath,allowedUntracked:req.allowedUntracked,trackedEdits:req.trackedEdits});
   if(after.artifactDigest!==before.artifactDigest||after.candidateRevision!==before.candidateRevision)
     throw Error("VERIFIER_CANDIDATE_CHANGED_DURING_EXECUTION");
-  const runnerAfter=attestLocalCandidate({workspace:runner,baseRevision:req.baseRevision,
+  const runnerAfter=attest({workspace:runner,baseRevision:req.baseRevision,
     targetPath:req.targetPath,allowedUntracked:req.allowedUntracked,trackedEdits:req.trackedEdits});
   if(runnerAfter.candidateRevision!==before.candidateRevision)
     throw Error("VERIFIER_RUNNER_CHANGED_DURING_EXECUTION");
@@ -326,15 +340,25 @@ export async function runIndependentVerifier(req, options = {}) {
     baseRevision:req.baseRevision,sourceRevision:req.sourceRevision,
     artifactDigest:req.artifactDigest,issuedAt,expiresAt:expiry,checks};
   const bytes=Buffer.from(canonical(payload));
+  const signBudget=observe("SIGN_BEFORE");
+  if(hosted&&signBudget.remainingMs<15000)throw Error("HOSTED_CI_SIGN_NO_BUDGET");
   const signatureBase64=transport?await transport(bytes):sign(null,bytes,key).toString("base64");
+  observe("SIGN_AFTER");
   validateVerifierRunRequest(req,mode); // an asynchronous signer cannot extend expired scope
   const receipt={payload,signatureBase64};
   externalPath(candidate,runner,receiptFile);
   mkdirSync(dirname(receiptFile),{recursive:true});
+  observe("RECEIPT_BEFORE");
   writeFileSync(receiptFile,JSON.stringify(receipt)+"\n",{flag:"wx",mode:0o600});
-  return {verified:checks.length===req.requiredChecks.length&&checks.every(c=>c.status==="passed"),
+  observe("RECEIPT_AFTER");
+  const complete=checks.length===req.requiredChecks.length&&checks.every(c=>c.status==="passed");
+  return {verified:hosted?false:complete,...(hosted?{provisionalVerified:complete}:{}),
     checks:checks.map(c=>({check:c.check,status:c.status,outputDigest:c.outputDigest})),
     receiptPath:receiptFile,artifactDigest:req.artifactDigest,sourceRevision:req.sourceRevision};
+  } catch(error) {
+    if(hosted){try{observe("REFUSED");}catch{ /* Sticky refusal cannot revive this lifetime. */ }}
+    throw error;
+  }
 }
 if(process.argv[1]&&basename(process.argv[1])==="jarvis-independent-check-runner.mjs"){
   try{

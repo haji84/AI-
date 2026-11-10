@@ -230,7 +230,6 @@ test("automatic recovery excludes Work unless explicitly enabled", () => {
     "goriq-local-capability",
     "chat",
     "free-external",
-    "codex",
   ]);
 
   assert.deepEqual(configuredRepairEngineIds({
@@ -243,6 +242,17 @@ test("automatic recovery excludes Work unless explicitly enabled", () => {
     "goriq-local-capability",
     "chat",
     "work",
+    "free-external",
+  ]);
+  assert.deepEqual(configuredRepairEngineIds({
+    ...baseEnv,
+    GORIQ_ALLOW_CODEX_AUTOMATION: "1",
+  }, true, runtime), [
+    "goriq-deterministic",
+    "goriq-learned",
+    "goriq-local-code",
+    "goriq-local-capability",
+    "chat",
     "free-external",
     "codex",
   ]);

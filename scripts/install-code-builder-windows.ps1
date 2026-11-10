@@ -68,26 +68,18 @@ function Resolve-PreferredEnginePath {
   return $source
 }
 
+# Local Ollama is the default. A leftover Codex command or exhausted quota
+# must never become the worker's automatic execution engine.
 $detected = @()
-foreach ($candidate in @('codex','aider')) {
-  $commandInfo = Get-Command $candidate -ErrorAction SilentlyContinue
-  if ($commandInfo) {
-    $detected += [ordered]@{
-      id = $candidate
-      path = (Resolve-PreferredEnginePath -Command $commandInfo)
-    }
+$selectedEngine = 'goriq-ollama-repair'
+if ($Engine -and $Engine -ne 'goriq-ollama-repair') {
+  if ($env:GORIQ_ALLOW_LEGACY_CODE_BUILDER -ne '1') {
+    throw "External coding engines require explicit legacy opt-in"
   }
-}
-
-if ($Engine -and -not (Get-Command $Engine -ErrorAction SilentlyContinue)) {
-  throw "Requested engine is not installed or not on PATH"
-}
-
-$selectedEngine = ''
-if ($Engine) {
-  $selectedEngine = Resolve-PreferredEnginePath -Command (Get-Command $Engine -ErrorAction Stop)
-} elseif ($detected.Count -gt 0) {
-  $selectedEngine = [string]$detected[0].path
+  $commandInfo = Get-Command $Engine -ErrorAction SilentlyContinue
+  if (-not $commandInfo) { throw "Requested engine is not installed or not on PATH" }
+  $selectedEngine = Resolve-PreferredEnginePath -Command $commandInfo
+  $detected += [ordered]@{ id = $Engine; path = $selectedEngine }
 }
 
 $launcherLines = @(

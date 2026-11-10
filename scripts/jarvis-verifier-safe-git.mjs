@@ -4,6 +4,7 @@
  * during the call. No safe.directory bypass is granted for another principal.
  */
 import { execFileSync } from "node:child_process";
+import { observeHostedCiBudget } from "./jarvis-verifier-container.mjs";
 import { existsSync, realpathSync, statSync } from "node:fs";
 import { delimiter, isAbsolute, join, relative, sep } from "node:path";
 
@@ -55,7 +56,10 @@ function gitExecutable(cwd, env) {
   throw Error("VERIFIER_GIT_EXECUTABLE_UNAVAILABLE");
 }
 
-export function safeGit(cwd, args) {
+export function safeGit(cwd, args, trustedOptions) {
+  const hosted = !!trustedOptions && typeof trustedOptions === "object" && Object.hasOwn(trustedOptions, "hostedCiLifetime");
+  const lifetime = hosted ? Object.getOwnPropertyDescriptor(trustedOptions, "hostedCiLifetime").value : undefined;
+  if (hosted) observeHostedCiBudget(lifetime, "SAFE_GIT_BEFORE");
   const blobQuery = Array.isArray(args) && args.length === 3 && args[0] === "cat-file" && args[1] === "blob"
     && /^[a-f0-9]{40,64}$/.test(args[2]);
   const treeQuery = Array.isArray(args) && args.length === 5 && args.slice(0,4).join("\0") === "ls-tree\0-z\0HEAD\0--"
@@ -67,14 +71,21 @@ export function safeGit(cwd, args) {
   }
   const root = realpathSync(cwd), env = environment(), executable = gitExecutable(root, env);
   const invoke = (commandArgs, encoding = "utf8") => {
+    const budget = hosted ? observeHostedCiBudget(lifetime, "SAFE_GIT_BEFORE") : null;
+    const timeout = hosted ? Math.min(8000, budget.remainingMs) : 8000;
+    if (timeout <= 0) throw Error("HOSTED_CI_ACCEPTANCE_EXPIRED");
+    let value;
     try {
-      return execFileSync(executable, commandArgs, { cwd: root, env,
-        encoding, windowsHide: true, timeout: 8000, killSignal: "SIGKILL",
+      value = execFileSync(executable, commandArgs, { cwd: root, env,
+        encoding, windowsHide: true, timeout, killSignal: "SIGKILL",
         maxBuffer: 1024 * 1024, stdio: ["ignore", "pipe", "pipe"] });
     } catch {
+      if (hosted) observeHostedCiBudget(lifetime, "SAFE_GIT_AFTER");
       // Git diagnostics/config values can contain private local data.
       throw Error("VERIFIER_GIT_QUERY_FAILED");
     }
+    if (hosted) observeHostedCiBudget(lifetime, "SAFE_GIT_AFTER");
+    return value;
   };
   const version = /^git version (\d+)\.(\d+)\./.exec(invoke(["--version"]));
   // Older versions interpret core.fsmonitor=false as a hook pathname.

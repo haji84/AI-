@@ -116,13 +116,59 @@ function engineId(command: string): string {
   return name.replace(extname(name), "") || "unknown";
 }
 
-async function detectEngine(): Promise<{ id: string; command: string } | null> {
-  const candidates = explicitEngine ? [explicitEngine] : ["codex", "aider"];
-  for (const candidate of candidates) {
-    const command = await resolveCommand(candidate);
-    if (command) return { id: engineId(command), command };
-  }
-  return null;
+type SelectedBuilderEngine = { id: string; command: string; model?: string };
+
+/**
+ * Provider-free default. The presence of a Codex CLI says nothing about its
+ * quota, and must never select a billable or unavailable external engine.
+ * Only already-installed, strictly loopback Ollama models can be selected.
+ */
+async function installedLocalModel(): Promise<string | null> {
+  const endpoint = env.GORIQ_OLLAMA_URL?.trim() || "http://127.0.0.1:11434";
+  if (endpoint !== "http://127.0.0.1:11434") return null;
+  const preferred = env.GORIQ_OLLAMA_MODEL?.trim();
+  if (preferred && (!/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/.test(preferred)
+    || preferred.includes("://") || /-cloud(?::|$)/i.test(preferred))) return null;
+  try {
+    const response = await (options.repairFetchImpl ?? fetch)(endpoint + "/api/tags", {
+      method: "GET", redirect: "error", signal: AbortSignal.timeout(2500),
+    });
+    if (!response.ok || response.redirected) return null;
+    const contentLength = response.headers.get("content-length");
+    if (contentLength !== null && (!/^\d+$/.test(contentLength) || Number(contentLength) > 65536)) return null;
+    const reader = response.body?.getReader();
+    if (!reader) return null;
+    const chunks: Buffer[] = [];
+    let length = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      length += value.byteLength;
+      if (length > 65536) { await reader.cancel(); return null; }
+      chunks.push(Buffer.from(value));
+    }
+    const payload = JSON.parse(Buffer.concat(chunks).toString("utf8")) as { models?: unknown };
+    if (!Array.isArray(payload?.models) || payload.models.length > 256) return null;
+    const installed = new Set(payload.models.flatMap((entry: unknown) => {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
+      const model = entry as { name?: unknown; model?: unknown; remote_host?: unknown; remote_model?: unknown };
+      const name = model.name ?? model.model;
+      return typeof name === "string" && !model.remote_host && !model.remote_model
+        && !/-cloud(?::|$)/i.test(name) ? [name] : [];
+    }));
+    return [...new Set([preferred, "qwen2.5-coder:3b", "qwen2.5-coder:1.5b"].filter((value): value is string => Boolean(value)))]
+      .find((name) => installed.has(name)) ?? null;
+  } catch { return null; }
+}
+
+async function detectEngine(): Promise<SelectedBuilderEngine | null> {
+  const model = await installedLocalModel();
+  if (model) return { id: "goriq-ollama-repair", command: "goriq-ollama-repair", model };
+  // Existing legacy engines are opt-in only, never automatic fallback.
+  if (env.GORIQ_ALLOW_LEGACY_CODE_BUILDER !== "1" || !explicitEngine
+    || explicitEngine === "goriq-ollama-repair") return null;
+  const command = await resolveCommand(explicitEngine);
+  return command ? { id: engineId(command), command } : null;
 }
 
 function safeWorkspacePath(path: string): boolean {
@@ -290,7 +336,10 @@ async function runBuild(body: Record<string, unknown>) {
     return { status: 400, body: { ok: false, summary: "requested file escapes builder workspace", blocker: "BUILDER_PATH_REJECTED" } };
   }
   const engine = await detectEngine();
-  if (!engine) return { status: 503, body: { ok: false, summary: "No supported coding engine detected", blocker: "CODING_ENGINE_UNAVAILABLE" } };
+  if (!engine) return { status: 503, body: { ok: false, summary: "No verified local coding model available; no Codex or paid fallback", blocker: "LOCAL_CODING_MODEL_UNAVAILABLE" } };
+  if (engine.id === "goriq-ollama-repair" && !files.length) {
+    return { status: 422, body: { ok: false, summary: "Local repair requires explicit existing file paths", blocker: "LOCAL_BUILDER_ALLOWED_PATHS_REQUIRED" } };
+  }
 
   const prompt = [
     "You are a bounded code builder operating inside the current git workspace.",
@@ -320,7 +369,7 @@ async function runBuild(body: Record<string, unknown>) {
     try {
       // The HTTP job already owns admission. Run this trusted local engine in
       // the same call stack, without an environment flag or a nested lease.
-      const repaired = await runOllamaRepair({ workspace, model: env.GORIQ_OLLAMA_MODEL,
+      const repaired = await runOllamaRepair({ workspace, model: engine.model,
         endpoint: env.GORIQ_OLLAMA_URL, prompt: `AllowedPaths=${files.join(",")}\n${prompt}` }, {
         admit: async <T>(work: () => Promise<T>): Promise<T> => work(), fetchImpl: options.repairFetchImpl, timeoutMs: executionTimeoutMs,
       });
@@ -423,7 +472,7 @@ return createServer(async (request, response) => {
     if (!authorized(request)) return json(response, 401, { message: "unauthorized" });
     if (request.method === "GET" && url.pathname === "/health") {
       const engine = await detectEngine();
-      return json(response, 200, { ok: true, service: "code-builder-worker", workerId, workspace, engine: engine?.id ?? null, inference: { locality: inferenceLocality, networkAccess: inferenceNetworkAccess }, capabilities: engine ? ["code-builder", "filesystem"] : ["filesystem"] });
+      return json(response, 200, { ok: true, service: "code-builder-worker", workerId, workspace, engine: engine?.id ?? null, inference: engine?.id === "goriq-ollama-repair" ? { locality: "device", networkAccess: false } : { locality: inferenceLocality, networkAccess: inferenceNetworkAccess }, capabilities: engine ? ["code-builder", "filesystem"] : ["filesystem"] });
     }
     if (request.method === "POST" && url.pathname === "/verify") {
       const body = await readJson(request);

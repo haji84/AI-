@@ -133,7 +133,14 @@ test("configured local repair engine uses Builder admission once without reacqui
   const server = createCodeBuilderWorkerServer({ env: { ...process.env, CODE_BUILDER_TOKEN: "fixture-token", CODE_BUILDER_WORKSPACE: workspace,
     CODE_BUILDER_ENGINE: fileURLToPath(new URL("../scripts/goriq-ollama-repair.mjs", import.meta.url)) },
     admit: (work, options) => { admissions++; return fixtureResourceAdmission(work, options); },
-    repairFetchImpl: async () => { modelCalls++; return new Response(JSON.stringify({ message: { content: JSON.stringify({ edits: [{ path: "source.txt", content: "after" }] }) } })); },
+    repairFetchImpl: async (url) => {
+      if (String(url).endsWith("/api/tags")) {
+        return new Response(JSON.stringify({ models: [{ name: "qwen2.5-coder:3b" }] }));
+      }
+      assert.equal(String(url), "http://127.0.0.1:11434/api/chat");
+      modelCalls++;
+      return new Response(JSON.stringify({ message: { content: JSON.stringify({ edits: [{ path: "source.txt", content: "after" }] }) } }));
+    },
   });
   await serving(server, async url => {
     const result = await post(url, "/build", { goalId: "g", attemptId: "a", strategyId: "s", objective: "Fixture repair only", files: ["source.txt"] });

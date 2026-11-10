@@ -17,13 +17,15 @@ test("explicit dashboard surface buttons are recognized", () => {
   assert.equal(inferReasoningTaskSignals("Codexを使用").approvedSurface, "codex");
 });
 
-test("asks before using Codex for code-changing work", () => {
+test("routes code-changing work through bounded Chat without requiring Codex", () => {
   const decision = routeReasoningTask({ text: "Implement the repository code fix and run tests" });
-  assert.equal(decision.surface, "codex");
-  assert.equal(decision.status, "surface_approval_required");
-  assert.equal(decision.approvalRequired, true);
-  assert.equal(decision.approvalSurface, "codex");
-  assert.deepEqual(decision.continuationSurfaceOptions, ["chat", "codex"]);
+  assert.equal(decision.surface, "chat");
+  assert.equal(decision.status, "ready");
+  assert.equal(decision.approvalRequired, false);
+  assert.equal(decision.approvalSurface, null);
+  assert.equal(decision.executionMode, "chunked");
+  assert.equal(decision.maxChunkSteps, 10);
+  assert.deepEqual(decision.continuationSurfaceOptions, ["chat", "work"]);
 });
 
 test("owner can choose Chat instead of Codex and continue in bounded chunks", () => {
@@ -111,13 +113,15 @@ test("continues in chunked Chat without asking when heavy routing is explicitly 
   assert.equal(decision.maxChunkSteps, 10);
 });
 
-test("approval for a different heavy surface cannot authorize this step", () => {
+test("approval of Work cannot silently enable Codex for code work", () => {
   const decision = routeReasoningTask({
     text: "Implement repository code",
     changesCode: true,
     approvedSurface: "work",
   });
-  assert.equal(decision.surface, "codex");
-  assert.equal(decision.status, "surface_approval_required");
-  assert.equal(decision.approvalSurface, "codex");
+  assert.equal(decision.surface, "chat");
+  assert.equal(decision.status, "ready");
+  assert.equal(decision.approvalRequired, false);
+  assert.equal(decision.approvalSurface, null);
+  assert.equal(decision.executionMode, "chunked");
 });

@@ -122,7 +122,7 @@ test("satisfied approval is no longer promoted as a Human Gate", () => {
   assert.equal(feedback.humanApprovalRequired, false);
 });
 
-test("shows heavy-surface approval before budget consumption in the structured feedback packet", () => {
+test("keeps code work in bounded Chat when Codex budget is exhausted", () => {
   const { goal, state } = baseInput();
   const feedback = buildReasoningFeedback({
     goal,
@@ -133,11 +133,13 @@ test("shows heavy-surface approval before budget consumption in the structured f
     reasoningUsage: { work: 0, codex: 3 },
     reasoningSoftBudgets: { work: 2, codex: 3 },
   });
-  assert.equal(feedback.reasoningRoute.surface, "codex");
-  assert.equal(feedback.reasoningRoute.status, "surface_approval_required");
-  assert.equal(feedback.reasoningRoute.approvalRequired, true);
-  assert.equal(feedback.reasoningRoute.approvalSurface, "codex");
-  assert.equal(feedback.reasoningRoute.budgetRemaining, 0);
+  assert.equal(feedback.reasoningRoute.surface, "chat");
+  assert.equal(feedback.reasoningRoute.status, "ready");
+  assert.equal(feedback.reasoningRoute.approvalRequired, false);
+  assert.equal(feedback.reasoningRoute.approvalSurface, null);
+  assert.equal(feedback.reasoningRoute.executionMode, "chunked");
+  assert.equal(feedback.reasoningRoute.maxChunkSteps, 10);
+  assert.equal(feedback.reasoningRoute.budgetRemaining, null);
 });
 
 test("dashboard Chat choice applies to the existing heavy next action", () => {

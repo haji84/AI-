@@ -10,8 +10,6 @@ import { TextDecoder } from "node:util";
 import { localCandidateIdentity } from "../src/orchestrator/local-candidate-identity.ts";
 import { safeGit } from "./jarvis-verifier-safe-git.mjs";
 
-const git = (root, ...args) => safeGit(root,args);
-
 function safeRelative(value) {
   return typeof value === "string"
     && /^(?:src|scripts|tests|docs)\/[A-Za-z0-9_./-]+$/.test(value)
@@ -34,7 +32,8 @@ export function validateTrackedEditsManifest(value) {
   return [...value.files].sort((a,b) => a.path.localeCompare(b.path));
 }
 
-export function attestLocalCandidate({ workspace, baseRevision, targetPath, allowedUntracked, trackedEdits, maxBytes = 131072 }) {
+export function attestLocalCandidate({ workspace, baseRevision, targetPath, allowedUntracked, trackedEdits, maxBytes = 131072 }, trustedOptions) {
+  const git = (root, ...args) => safeGit(root,args,trustedOptions);
   const edits = validateTrackedEditsManifest(trackedEdits), paths = [...(Array.isArray(allowedUntracked) ? allowedUntracked : []), ...edits.map(edit => edit.path)];
   if (typeof workspace !== "string" || !isAbsolute(workspace) ||
       !/^[0-9a-f]{40}$/.test(baseRevision) ||

@@ -5810,7 +5810,7 @@
     },
     {
       "path": "src/orchestrator/reasoning-router.ts",
-      "sha256": "9aee5dd4cc092fa541230a322e10bb28c8c2d8d42602682ea81d2f4be5f6b5ff",
+      "sha256": "6bd6b341d9dde010a5ed84a921cd7943061dfe3b0bc5b45f29301a830ef97413",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-007",
@@ -6384,7 +6384,7 @@
     },
     {
       "path": "scripts/jarvis-independent-artifact-attestation.mjs",
-      "sha256": "95b9a30f3bb9fe2aceb78b819b7b228d50209552e1b4db16801b347a64c470a1",
+      "sha256": "ce3d2049819ee44ddd805421f81f34704dba356e7cc69d79510c17b3edcf0501",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -6396,7 +6396,7 @@
     },
     {
       "path": "scripts/jarvis-independent-check-runner.mjs",
-      "sha256": "7a94db1ee12e9393aca6b04e8c3e0168e8d9a3908b70084ea893b84debd0812d",
+      "sha256": "d49d5f302b6137c3fa220b0e872034611ef62c7d98f0bbe24434ee15ef3049bc",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -6420,7 +6420,7 @@
     },
     {
       "path": "scripts/jarvis-verifier-container.mjs",
-      "sha256": "76217aa6c0f4209cecf01e4d6802d3bad8d9fccb65c68ce63245d23660e233a6",
+      "sha256": "cdea9186875bf34fdd5848f231491ec5dca24fe481f14bdea058f61313e24233",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "CORE-010",
@@ -6431,7 +6431,7 @@
     },
     {
       "path": "scripts/jarvis-verifier-live-ci.mjs",
-      "sha256": "162a524acd473db6b26d4197183093a1d550e652eb5946f46b25267a2ab4cb14",
+      "sha256": "e01540cb2741338aec932df7e16dfd20b6a99d5e459e5c2f144c6bc281de09f7",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "CORE-010",
@@ -6453,7 +6453,7 @@
     },
     {
       "path": "scripts/jarvis-verifier-safe-git.mjs",
-      "sha256": "fb319bd6cdb15c65a26395415b83f071b0b7f18b5ef1696e6de194d5f7339a24",
+      "sha256": "634a7a636afb35ea64c8f5bce383ea53c9a42d05c3d7166806b7cd8d00b42e7c",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "CORE-010",

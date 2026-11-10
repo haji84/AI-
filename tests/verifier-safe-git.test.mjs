@@ -128,3 +128,11 @@ test("export inventory preserves leading whitespace in the first cached path", t
   f.git("add", "--", " leading.txt");
   assert.equal(safeGit(f.root, ["ls-files", "-z", "--cached"]), " leading.txt\0tracked.txt\0");
 });
+
+
+test("only an own registered hosted lifetime enables guarded Git while unrelated and inherited extras remain generic", t=>{
+ const f=fixture(t),args=["rev-parse","HEAD"],expected=safeGit(f.root,args);
+ assert.equal(safeGit(f.root,args,{unrelated:true}),expected);
+ assert.equal(safeGit(f.root,args,Object.create({hostedCiLifetime:{}})),expected);
+ for(const value of [{},null,undefined,"serialized-token"])assert.throws(()=>safeGit(f.root,args,{hostedCiLifetime:value}),/HOSTED_CI_/);
+});

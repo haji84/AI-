@@ -73,7 +73,8 @@ else
 fi
 
 ENGINE_DIR=""
-[[ -z "$ENGINE" ]] || ENGINE_DIR="$(dirname "$ENGINE")"
+# A builtin engine ID is not a filesystem path; never add "." to launchd PATH.
+[[ "$ENGINE" != */* ]] || ENGINE_DIR="$(dirname "$ENGINE")"
 BUILDER_RUNTIME_PATH="$NODE_DIR${ENGINE_DIR:+:$ENGINE_DIR}:$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 
 cat > "$PLIST" <<PLIST

@@ -1,0 +1,114 @@
+name: Owner cutover source-bound fixture isolation
+
+on:
+  push:
+    branches: [fix/1218-production-cutover-40]
+    paths:
+      - '.github/workflows/owner-cutover-fixture-isolation.yml'
+      - 'docs/evidence/1905-fixture-isolation.py'
+      - 'docs/evidence/1905-fixture-stage2.py'
+      - 'docs/evidence/1905-job-split.py'
+      - 'docs/evidence/1905-driver-boundary.py'
+      - 'docs/evidence/test_1905_driver_boundary.py'
+      - 'docs/evidence/1905-driver-pipeline-probe.py'
+      - 'docs/evidence/driver_start_pipeline.py'
+      - 'docs/evidence/test_1905_driver_pipeline.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: owner-cutover-fixture-isolation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  isolate:
+    if: github.repository == 'haji84/AI-' && github.ref == 'refs/heads/fix/1218-production-cutover-40'
+    runs-on: windows-2025
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24.19.0'
+      - name: Same-source decoder and exact cleanup guard diagnostics
+        run: python docs/evidence/1905-fixture-stage2.py --run
+      - name: Retain bounded diagnostic receipt only
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: pr1905-stage2-${{ github.run_id }}
+          path: ${{ runner.temp }}/pr1905-fixture-stage2/report.json
+          retention-days: 1
+          if-no-files-found: error
+
+  linux-batch-source-test:
+    name: Isolate original PowerShell batch failure on hosted Linux
+    if: github.repository == 'haji84/AI-' && github.ref == 'refs/heads/fix/1218-production-cutover-40'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24.19.0'
+      - name: Isolate unchanged private bootstrap batch and emit fixed phase codes
+        shell: bash
+        run: |
+          set -uo pipefail
+          test -x /usr/bin/pwsh || command -v pwsh
+          set +e
+          node --test --test-concurrency=1 \
+            --test-name-pattern='^private kernel backend observes' \
+            scripts/owner-code-cutover-private-bootstrap.test.mjs > "$RUNNER_TEMP/batch.log" 2>&1
+          status=$?
+          set -e
+          python3 - <<'PY'
+          import os,re
+          from pathlib import Path
+          log=Path(os.environ['RUNNER_TEMP'],'batch.log').read_text(errors='replace')
+          allowed=re.compile(r'(PUBLIC_FIXTURE_PROGRESS:|BATCH_BEGIN:|SCENARIO_[A-Z_]+_(?:BEGIN|DONE):|BATCH_DONE:)[^\\n]*')
+          matches=allowed.findall(log)
+          phases=re.findall(r'(?:BATCH_BEGIN|BATCH_DONE|SCENARIO_[A-Z_]+_(?:BEGIN|DONE)):[0-9]{1,5}',log)
+          print('BATCH_PHASE_CODES=' + ','.join(phases[:45]))
+          print('BATCH_PHASE_COUNT=' + str(len(phases)))
+          print('BATCH_FAILURE_MARKER=' + str('PUBLIC_FIXTURE_PROGRESS' in log))
+          print('BATCH_TEST_PASSED=' + str('not ok' not in log and '✖' not in log))
+          PY
+          exit "$status"
+
+  split-job-faults:
+    name: Original Job group2 versus real Windows Job
+    if: github.repository == 'haji84/AI-' && github.ref == 'refs/heads/fix/1218-production-cutover-40'
+    runs-on: windows-2025
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24.19.0'
+      - name: Collect original group2 and bounded driver input observations
+        run: |
+          python -B -m unittest discover -s docs/evidence -p 'test_1905_driver_*.py' -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -B docs/evidence/1905-driver-pipeline-probe.py --run
+      - name: Save closed observations and six exact public source files
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: pr1905-driver-boundary-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/pr1905-driver-boundary/report.json
+            ${{ runner.temp }}/pr1905-driver-boundary/public-sources.zip
+          retention-days: 1
+          if-no-files-found: error
