@@ -959,7 +959,7 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "d57e2c86e80551de5cd28033ea6ad4752e2c99078220fe9859843aa3ef0b3481",
+      "sha256": "b69c7c20b75951f810f5af698cd4a0ff760f389f41797ce19bcc350500817f58",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-003",
@@ -982,7 +982,7 @@
         "OPS-015",
         "OPS-016"
       ],
-      "reason": "Protected Broker now exposes bounded local-first voice discovery and synthesis while preserving existing owner authority and all prior Broker responsibilities. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim. #1858 approved host-selected completion integration and isolated verification; no live activation or physical acceptance inference. Protected Broker now exposes bounded local-first voice discovery and synthesis while preserving existing owner authority and all prior Broker responsibilities. #1219 only accepted nonterminal Goal resumed on changed verifier receipt; signature and authorizations still checked in child Executor. #1219 current vs historical authenticated WorkRun readback; existing parent requirements remain PARTIAL pending live evidence."
+      "reason": "Protected Broker now exposes bounded local-first voice discovery and synthesis while preserving existing owner authority and all prior Broker responsibilities. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim. #1858 approved host-selected completion integration and isolated verification; no live activation or physical acceptance inference. Protected Broker now exposes bounded local-first voice discovery and synthesis while preserving existing owner authority and all prior Broker responsibilities. #1219 only accepted nonterminal Goal resumed on changed verifier receipt; signature and authorizations still checked in child Executor. #1219 current vs historical authenticated WorkRun readback; existing parent requirements remain PARTIAL pending live evidence. Issue #1219: transient local writer contention returns an explicit non-owner process status, with bounded Broker rechecks of the same accepted Goal; no cross-host authority or live acceptance claim."
     },
     {
       "path": "scripts/jarvis-direct-commander-service.sh",
@@ -1075,7 +1075,7 @@
     },
     {
       "path": "scripts/jarvis-goal-executor.ts",
-      "sha256": "6f3d98d6227eaa20a0c5decc442f1b50c8b6e68549de0096c9e50b06377e3987",
+      "sha256": "60302875f057a5ed1b7de6ee43c7e1167533a464da778b3fce37bc12fcc29cdd",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "AUTO-001",
@@ -1083,7 +1083,7 @@
         "GOV-025",
         "OWN-001"
       ],
-      "reason": "Issues #1219/#1284 Direct Goal Bridge executor auto-routes accepted development intent from Daily Driver into the bounded Builder runtime when explicit self-development environment configuration is absent; existing capability, verifier, risk, Human Gate, and release controls remain authoritative. Physical iPhone E2E remains required before completion. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim. #1858 bounded host-pinned resident handoff and negative evidence recovery; no production or physical acceptance inference. #1219 scope pinning follows resident Ollama opt-in; no complete runtime E2E claim. Issues #1219/#1284 Direct Goal Bridge executor auto-routes accepted development intent from Daily Driver into the bounded Builder runtime when explicit self-development environment configuration is absent; existing capability, verifier, risk, Human Gate, and release controls remain authoritative. Physical iPhone E2E remains required before completion. #1219 scope pinning follows resident Ollama opt-in; no complete runtime E2E claim. #1219 bounded Codex-free TDD RED and local separate-process GREEN proof work; complete independent release verification and physical Goal E2E are not claimed. #1219 independently readback artifact bytes and hold unavailable evidence without discarding Change Set. #1219 independently signed local verifier receipts bound to exact Goal and Change Set before required checks may be accepted."
+      "reason": "Issues #1219/#1284 Direct Goal Bridge executor auto-routes accepted development intent from Daily Driver into the bounded Builder runtime when explicit self-development environment configuration is absent; existing capability, verifier, risk, Human Gate, and release controls remain authoritative. Physical iPhone E2E remains required before completion. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim. #1858 bounded host-pinned resident handoff and negative evidence recovery; no production or physical acceptance inference. #1219 scope pinning follows resident Ollama opt-in; no complete runtime E2E claim. Issues #1219/#1284 Direct Goal Bridge executor auto-routes accepted development intent from Daily Driver into the bounded Builder runtime when explicit self-development environment configuration is absent; existing capability, verifier, risk, Human Gate, and release controls remain authoritative. Physical iPhone E2E remains required before completion. #1219 scope pinning follows resident Ollama opt-in; no complete runtime E2E claim. #1219 bounded Codex-free TDD RED and local separate-process GREEN proof work; complete independent release verification and physical Goal E2E are not claimed. #1219 independently readback artifact bytes and hold unavailable evidence without discarding Change Set. #1219 independently signed local verifier receipts bound to exact Goal and Change Set before required checks may be accepted. Issue #1219: transient local writer contention returns an explicit non-owner process status, with bounded Broker rechecks of the same accepted Goal; no cross-host authority or live acceptance claim."
     },
     {
       "path": "scripts/jarvis-mac-broker-service.sh",

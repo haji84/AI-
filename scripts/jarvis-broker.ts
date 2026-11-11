@@ -125,6 +125,8 @@ const deviceDevelopmentIntake = new DeviceDevelopmentIntake({
   },
 });
 const activeGoalExecutions = new Map<string, ReturnType<typeof spawn>>();
+const writerBusyAttempts = new Map<string, number>();
+const writerBusyTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const approvedNextWork = new CompassApprovedNextWork(compass);
 const nextInspectionFlag = process.env.GORIQ_APPROVED_NEXT_WORK_INSPECTION_ONLY?.trim();
 if (nextInspectionFlag && nextInspectionFlag !== "1") throw Error("Invalid host next-work inspection restriction");
@@ -206,10 +208,50 @@ function encodeGoalExecutionContext(context: unknown[]): string {
   return encoded;
 }
 
+/** Bounded, non-authoritative wake after a losing local writer contender.
+ * Only the canonical existing Goal/WorkRun can be retried. The contender must
+ * never write a failed/blocked state or create a second controller. */
+function scheduleWriterBusyRetry(goalId: string): void {
+  if (shuttingDown || writerBusyTimers.has(goalId)) return;
+  const attempt = (writerBusyAttempts.get(goalId) ?? 0) + 1;
+  if (attempt > 5) {
+    console.error("[goriq-goal]", goalId, "execution_writer_busy_retry_budget_exhausted");
+    return;
+  }
+  writerBusyAttempts.set(goalId, attempt);
+  const delay = Math.min(500 * 2 ** (attempt - 1), 4000);
+  const timer = setTimeout(() => {
+    writerBusyTimers.delete(goalId);
+    void (async () => {
+      if (shuttingDown || activeGoalExecutions.has(goalId) || compass.getState().status === "PAUSED") return;
+      const active = (await new CompassGoalRegistryAdapter(compass).listActive()).find(item => item.goalId === goalId);
+      const run = await workRuns.getByGoal(goalId);
+      if (!active || !run || !["QUEUED", "PLANNING", "RUNNING", "VERIFYING", "RECOVERING"].includes(run.phase)
+        || run.resourceWait || run.continuationWait) {
+        writerBusyAttempts.delete(goalId);
+        return;
+      }
+      scheduleGoalExecution({
+        action: "CONTINUE_GOAL", goalId, resolution: {
+          kind: "EXISTING_GOAL", intent: "COMMAND", goal: active,
+          reason: "retry_after_local_writer_contention",
+          intake: { id: "writer-retry-" + goalId, source: "event", text: "Retry accepted Goal after exclusive writer release",
+            sourceContext: {}, idempotencyKey: "writer-retry-" + goalId, goalHint: goalId },
+        },
+      }, goalExecutionContexts.get(goalId));
+    })().catch(error => console.error("[goriq-goal]", goalId, "writer_retry_readback_failed",
+      error instanceof Error ? error.name : "unknown"));
+  }, delay);
+  timer.unref();
+  writerBusyTimers.set(goalId, timer);
+}
+
 function scheduleGoalExecution(decision: GoalControllerDecision, context: unknown[] = []): boolean {
   if (shuttingDown || compass.getState().status === "PAUSED") return false;
   if (decision.goalId && context.length) goalExecutionContexts.put(decision.goalId, context);
   if (decision.action !== "CONTINUE_GOAL" || !decision.goalId) return false;
+  const pendingWriterRetry = writerBusyTimers.get(decision.goalId);
+  if (pendingWriterRetry) { clearTimeout(pendingWriterRetry); writerBusyTimers.delete(decision.goalId); }
   if (activeGoalExecutions.has(decision.goalId)) return true;
   const goalId = decision.goalId;
   // Run autonomous continuation outside the Broker process. Goal execution can
@@ -237,6 +279,12 @@ function scheduleGoalExecution(decision: GoalControllerDecision, context: unknow
   });
   child.once("exit", (code, signal) => {
     activeGoalExecutions.delete(goalId);
+    if (code === 75 && signal === null) {
+      // Temporary same-filesystem writer contention is not Goal failure.
+      scheduleWriterBusyRetry(goalId);
+      return;
+    }
+    writerBusyAttempts.delete(goalId);
     if (code !== 0) {
       console.error("[goriq-goal]", goalId, `executor_exit=${code ?? "null"} signal=${signal ?? "none"} ${stderr.trim()}`.trim());
     }
@@ -1180,6 +1228,8 @@ server.listen(port, host, () => {
 function shutdown(): void {
   shuttingDown = true;
   if (nextWorkTimer) clearTimeout(nextWorkTimer);
+  for (const timer of writerBusyTimers.values()) clearTimeout(timer);
+  writerBusyTimers.clear();
   if (verifierReceiptTimer) clearInterval(verifierReceiptTimer);
   resourceWaitScheduler.close();
   for (const child of activeGoalExecutions.values()) {

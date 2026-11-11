@@ -448,7 +448,12 @@ async function main(): Promise<void> {
   } catch (error) {
     // The losing process is not the owner. It must not overwrite the live
     // executor's WorkRun, resource wait or terminal result with BLOCKED.
-    if (error instanceof ResidentExecutionBusyError) return;
+    if (error instanceof ResidentExecutionBusyError) {
+      // Distinct transient status: the losing process changes no WorkRun,
+      // allowing only the Broker to recheck current Goal and retry boundedly.
+      process.exitCode = 75;
+      return;
+    }
     if (!executionWriter) {
       console.error("[goriq-goal-executor]", goalId, "execution_writer_unavailable");
       process.exitCode = 1;
