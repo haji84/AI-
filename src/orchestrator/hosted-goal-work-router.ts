@@ -48,9 +48,9 @@ export function routeDurableGoalJobs(jobs: readonly DurableGoalJob[], nodes: rea
       !Number.isFinite(node.incrementalCost) || node.incrementalCost < 0 ||
       !Number.isFinite(node.reliability) || !Number.isFinite(node.latencyMs) ||
       !Array.isArray(node.capabilities) || node.capabilities.length > 64 ||
-      node.capabilities.some((name) => typeof name !== "string" || !idSafe(name)) ||
+      node.capabilities.some((name: string) => typeof name !== "string" || !idSafe(name)) ||
       !Array.isArray(node.evidenceModes) ||
-      node.evidenceModes.some((mode) => !["LOCAL", "ONLINE", "CONNECTED", "DEVICE"].includes(mode))) {
+      node.evidenceModes.some((mode: string) => !["LOCAL", "ONLINE", "CONNECTED", "DEVICE"].includes(mode))) {
       throw new Error("GOAL_ROUTING_INVALID_NODE");
     }
     if (nodeIds.has(node.id)) throw new Error("GOAL_ROUTING_DUPLICATE_NODE");
@@ -61,7 +61,7 @@ export function routeDurableGoalJobs(jobs: readonly DurableGoalJob[], nodes: rea
     if (!item || !idSafe(item.goalId) || !idSafe(item.job?.id)
       || !Array.isArray(item.job.requiredCapabilities)
       || item.job.requiredCapabilities.length > 32
-      || item.job.requiredCapabilities.some((s) => typeof s !== "string" || !idSafe(s))
+      || item.job.requiredCapabilities.some((s: string) => typeof s !== "string" || !idSafe(s))
       || !["secret", "sensitive", "public"].includes(item.job.privacy)
       || !["low", "medium", "high", "critical"].includes(item.job.risk)
       || !["current", "historical", "static"].includes(item.job.freshness)
