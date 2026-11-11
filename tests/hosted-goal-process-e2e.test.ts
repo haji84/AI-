@@ -16,7 +16,7 @@ test("hosted Goal intake starts A, survives actual Node process restart, verifie
   // Deliberately do NOT inherit any repository, owner, cloud-model or private
   // verifier token into these ephemeral fixture subprocesses.
   const safeKeys=["PATH","SystemRoot","WINDIR","HOME","TMP","TEMP","TMPDIR","GITHUB_SHA","GITHUB_RUN_ID","RUNNER_ENVIRONMENT","RUNNER_OS","CI"];
-  const env:NodeJS.ProcessEnv={GORIQ_CI_FIXTURE_ONLY:"1"};
+  const env:NodeJS.ProcessEnv={GORIQ_CI_FIXTURE_ONLY:"1",NODE_ENV:"test"};
   for(const key of safeKeys)if(process.env[key]!==undefined)env[key]=process.env[key];
   const snapshots:ProcessSnapshot[]=[];
   const run=(stage:string):ProcessSnapshot=>{
@@ -43,9 +43,9 @@ test("hosted Goal intake starts A, survives actual Node process restart, verifie
     assert.deepEqual(initial.starts,[0,0]);
     const first=run("first");
     assert.equal(first.goalId,initial.goalId);
-    assert.deepEqual(first.phases,["COMPLETED","QUEUED"]);
+    assert.deepEqual(first.phases,["VERIFYING","QUEUED"]);
     assert.deepEqual(first.starts,[1,0]);
-    assert.deepEqual(first.acceptance,["hosted-a"]);
+    assert.deepEqual(first.acceptance,[]);
     const resumed=run("resume");
     assert.equal(resumed.goalId,initial.goalId);
     assert.deepEqual(resumed.jobIds,initial.jobIds);
@@ -71,6 +71,7 @@ test("hosted Goal intake starts A, survives actual Node process restart, verifie
       sourceSha:process.env.GITHUB_SHA??null,
       goalId:initial.goalId,jobIds:resumed.jobIds,jobStarts:resumed.starts,
       processRestartCount:3,uniquePids:4,
+      originalJobRecoveredFromVerifying:true,
       canonicalGoalCriteria:resumed.acceptance,
       noDuplicateOnReplay:true,realNodeProcesses:true,
       actualExternalVerifier:false,ownerCredentialUsed:false,

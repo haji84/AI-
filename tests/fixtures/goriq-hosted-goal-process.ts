@@ -135,6 +135,9 @@ try {
         return changeSet;
       },
       async readVerifierReceipt(job){
+        // Stage 1 stops with the signed receipt present on disk but not yet
+        // adopted. A fresh process must perform independent receipt acceptance.
+        if(stage==="first")return null;
         const path=join(root,"receipt-"+job.jobId+".json");
         return existsSync(path)?JSON.parse(readFileSync(path,"utf8")) as SignedLocalVerifierReceipt:null;
       },
@@ -164,7 +167,7 @@ try {
     });
     const bridge=new GoalControllerExecutionBridge(adapter);
     const result=await bridge.executeUntilGoalTerminal(decision,{maxRuns:stage==="first"?1:3});
-    if(stage==="first")assert.equal(result.reason,"goal_continuation_budget_exhausted");
+    if(stage==="first")assert.equal(result.reason,"verification_wait");
     else assert.equal(result.reason,"goal_complete");
   }
   const finalJobs=await new JsonFileDevelopmentJobStore(files.jobs).getByGoal(goalId);
