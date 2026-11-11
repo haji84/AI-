@@ -78,7 +78,6 @@ test("actual Goal Controller -> hosted Job A -> fixture-signed verification -> d
     assert.equal(decision.action, "CONTINUE_GOAL");
     assert.equal(decision.goalId, goalId);
     const jobs = new JsonFileDevelopmentJobStore(jobsPath);
-    const changes = new JsonFileDevelopmentChangeSetStore(changesPath);
     for (const b of bindings(goalId)) {
       await jobs.put(createDevelopmentJob({
         jobId: b.jobId, goalId, requirementIds: ["AUTO-010"], acceptanceCriteria: [b.jobId],
