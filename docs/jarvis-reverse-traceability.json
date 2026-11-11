@@ -5499,6 +5499,17 @@
       "reason": "Capability dispatch checks execution-context completeness and outbound privacy before routing. Not proof of real Worker execution."
     },
     {
+      "path": "src/orchestrator/hosted-goal-work-router.ts",
+      "sha256": "803f3e0aac975c012fda819a2e9be9fb09e88fd1ffc3ac10810214514554f724",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-007",
+        "AUTO-010",
+        "AUTO-012"
+      ],
+      "reason": "Issue #1219 GitHub-hosted-first read-only per-Job capability routing candidate. Reuses existing fabric routing to preserve Goal/Job identity and independent verification, Human Gate and privacy boundaries; source presence does not prove live dispatch, durable next-Job E2E or physical acceptance."
+    },
+    {
       "path": "src/orchestrator/http-development-release-capability.ts",
       "sha256": "7cd0f4fd355977df077b54b9481b805ccd6a9fcb0017a67327e082dedc6eb897",
       "classification": "COVERED_BY_REQUIREMENT",
