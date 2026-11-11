@@ -3,12 +3,17 @@
 const BROKER = "http://127.0.0.1:8787";
 const BUILDER = "http://127.0.0.1:8796";
 const GOAL_ID = /^[a-zA-Z0-9][a-zA-Z0-9:_.-]{5,159}$/;
+const DIGEST = /^[a-f0-9]{64}$/;
+const JOB_PHASES = new Set(["QUEUED","PLANNING","IMPLEMENTING","WAITING_FOR_CONNECTIVITY",
+  "WAITING_FOR_RESOURCE","VERIFYING","RECOVERING","READY_TO_PUBLISH","PUBLISHING",
+  "HUMAN_GATE","BLOCKED","COMPLETED","CANCELLED"]);
 
 function hold(reason, detail={}) {
   return {
     status:"HOLD", reason,
     brokerAuthenticated:false,builderAuthenticated:false,
-    goalWorkRunObserved:false,builderAcknowledged:false,
+    goalWorkRunObserved:false,jobReadbackObserved:false,jobReadbackPhase:null,jobRecordSha256:null,
+    builderAcknowledged:false,
     actualBuilderReceiptId:null,actualTaskId:null,
     writeAuthorized:false,mergeAuthorized:false,
     ...detail,
@@ -33,7 +38,7 @@ function boundedIdentity(value) {
 
 export async function probeLiveGoriqConnection({
   brokerUrl = BROKER, builderUrl = BUILDER,
-  ownerToken, builderToken, goalId, mode = "combined",
+  ownerToken, builderToken, goalId, jobId, mode = "combined",
   fetchImpl = fetch,
 } = {}) {
   if(!onlyLoopback(brokerUrl,BROKER)||
@@ -45,6 +50,11 @@ export async function probeLiveGoriqConnection({
   if((mode!=="builder" && (typeof ownerToken!=="string"||ownerToken.trim().length<8))||
      (mode!=="broker" && (typeof builderToken!=="string"||builderToken.trim().length<8)))
     return hold("EXISTING_SCOPED_CREDENTIALS_REQUIRED");
+  // A Job request must be explicitly bound to one well-formed owner Goal.
+  if(jobId!==undefined && (mode==="builder" || typeof goalId!=="string" ||
+     !GOAL_ID.test(goalId) || goalId.includes("..") ||
+     typeof jobId!=="string" || !GOAL_ID.test(jobId) || jobId.includes("..")))
+    return hold("INVALID_JOB_IDENTIFIER");
   if(goalId!==undefined && (mode==="builder"||
      !GOAL_ID.test(goalId)||goalId.includes("..")))
     return hold("INVALID_GOAL_IDENTIFIER");
@@ -107,6 +117,7 @@ export async function probeLiveGoriqConnection({
   }
 
   let run=null;
+  let boundJob=null;
   if(goalId!==undefined) {
     try {run=await read(BROKER+"/api/jarvis/admin/work/"+goalId,ownerToken);}
     catch {return hold("GOAL_RUN_NOT_AUTHENTICATED_OR_FOUND",{
@@ -128,6 +139,26 @@ export async function probeLiveGoriqConnection({
         brokerAuthenticated:true,builderAuthenticated:mode!=="broker",
         builderIdentity:builder?boundedIdentity(builder.workerId):null,
       });
+    if(jobId!==undefined) {
+      const proof=run.jobReadback;
+      const matches=Array.isArray(proof?.jobs) ? proof.jobs.filter(job=>job?.jobId===jobId) : [];
+      const exact=matches.length===1 ? matches[0] : null;
+      const scope=exact?.approvalScope;
+      if(proof?.kind!=="LOCAL_PERSISTED_JOBS" || proof.goalId!==goalId ||
+         !DIGEST.test(proof.goalDigest??"") ||
+         !Array.isArray(proof.jobs) || proof.jobs.length>32 ||
+         !exact || !JOB_PHASES.has(exact.phase) || !DIGEST.test(exact.recordSha256??"") ||
+         typeof scope?.taskScopeId!=="string" || !scope.taskScopeId.trim() ||
+         !["low","medium","high","critical"].includes(scope.maxRisk) ||
+         (scope.expiresAt!==undefined &&
+           (typeof scope.expiresAt!=="string" || !Number.isFinite(Date.parse(scope.expiresAt)) ||
+            Date.parse(scope.expiresAt)<=Date.now())))
+        return hold("JOB_READBACK_NOT_AUTHENTICATED",{
+          brokerAuthenticated:true,builderAuthenticated:mode!=="broker",
+          goalWorkRunObserved:true,
+        });
+      boundJob=exact;
+    }
   }
   return {
     status:mode==="broker"?"BROKER_AUTHENTICATED_READONLY":
@@ -138,6 +169,9 @@ export async function probeLiveGoriqConnection({
     builderCapabilityPresent:mode!=="broker",
     goalWorkRunObserved:run!==null,
     goalWorkRunPhase:run?.run?.phase??null,
+    jobReadbackObserved:boundJob!==null,
+    jobReadbackPhase:boundJob?.phase??null,
+    jobRecordSha256:boundJob?.recordSha256??null,
     // The Broker /work/:goalId endpoint does NOT furnish an authenticated
     // Builder's task acceptance receipt. Never infer that from run phase.
     builderAcknowledged:false,
@@ -152,6 +186,7 @@ if(process.argv[1]?.endsWith("goriq-ai09-live-broker-builder-probe.mjs")){
     ownerToken:process.env.JARVIS_OWNER_TOKEN,
     builderToken:process.env.CODE_BUILDER_LOCAL_TOKEN||process.env.CODE_BUILDER_TOKEN,
     goalId:process.env.GORIQ_AI09_GOAL_ID||undefined,
+    jobId:process.env.GORIQ_AI09_JOB_ID||undefined,
     mode:process.env.GORIQ_AI09_CONNECT_MODE||"combined",
   }).then(result=>{
     console.log("AI09_LIVE_CONNECTION="+JSON.stringify(result));
