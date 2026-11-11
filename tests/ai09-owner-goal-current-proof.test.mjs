@@ -1,0 +1,71 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { probeLiveGoriqConnection } from "../scripts/goriq-ai09-live-broker-builder-probe.mjs";
+
+const ownerToken = "fixture-only-owner-credential";
+const goalId = "goal-fcc81c97e09153f7";
+const response = body => ({ ok: true, status: 200, text: async () => JSON.stringify(body) });
+
+function host(proof) {
+  const calls = [];
+  return {
+    calls,
+    async fetchImpl(url, options) {
+      calls.push({ url, method: options.method, redirect: options.redirect });
+      if (url === "http://127.0.0.1:8787/health") return response({ ok: true, service: "jarvis-broker" });
+      if (url === "http://127.0.0.1:8787/api/jarvis/admin/bridge/events?goalId=ai09-connection-probe")
+        return response({ events: [] });
+      if (url === "http://127.0.0.1:8787/api/jarvis/admin/work/" + goalId)
+        return response({ run: { goalId, phase: "HUMAN_GATE" }, ...proof });
+      throw Error("unexpected host request");
+    },
+  };
+}
+
+test("owner Goal probe refuses a legacy run that lacks current Compass authority", async () => {
+  const local = host({});
+  const checked = await probeLiveGoriqConnection({
+    mode: "broker", ownerToken, goalId, fetchImpl: local.fetchImpl,
+  });
+  assert.equal(checked.status, "HOLD");
+  assert.equal(checked.reason, "GOAL_AUTHORITY_NOT_VERIFIED");
+  assert.equal(checked.brokerAuthenticated, true);
+  assert.equal(checked.goalWorkRunObserved, false);
+  assert.equal(checked.writeAuthorized, false);
+  assert.equal(checked.builderAcknowledged, false);
+  assert.equal(local.calls.length, 3);
+});
+
+test("owner Goal probe rejects historical and mismatched authority even for a matching WorkRun", async () => {
+  const invalid = [
+    { kind: "HISTORICAL_WORK_RUN", goalId, current: false },
+    { kind: "CURRENT_COMPASS_GOAL", goalId: "goal-foreign", current: true },
+    { kind: "CURRENT_COMPASS_GOAL", goalId, current: false },
+    { kind: "CURRENT_COMPASS_GOAL", goalId, current: "true" },
+  ];
+  for (const goalAuthority of invalid) {
+    const local = host({ goalAuthority });
+    const checked = await probeLiveGoriqConnection({
+      mode: "broker", ownerToken, goalId, fetchImpl: local.fetchImpl,
+    });
+    assert.equal(checked.status, "HOLD");
+    assert.equal(checked.reason, "GOAL_AUTHORITY_NOT_VERIFIED");
+    assert.equal(checked.goalWorkRunObserved, false);
+    assert.equal(checked.builderAcknowledged, false);
+  }
+});
+
+test("current Compass Goal readback is status-only, including an existing Human Gate", async () => {
+  const local = host({ goalAuthority: { kind: "CURRENT_COMPASS_GOAL", goalId, current: true } });
+  const checked = await probeLiveGoriqConnection({
+    mode: "broker", ownerToken, goalId, fetchImpl: local.fetchImpl,
+  });
+  assert.equal(checked.status, "BROKER_AUTHENTICATED_READONLY");
+  assert.equal(checked.goalWorkRunObserved, true);
+  assert.equal(checked.goalWorkRunPhase, "HUMAN_GATE");
+  assert.equal(checked.completionClaim, false);
+  assert.equal(checked.writeAuthorized, false);
+  assert.equal(checked.mergeAuthorized, false);
+  assert.equal(checked.builderAcknowledged, false);
+  assert.ok(local.calls.every(call => call.method === "GET" && call.redirect === "error"));
+});
