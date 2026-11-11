@@ -57,7 +57,8 @@ function evidenceValid(job: DevelopmentJob, verifierId: string): boolean {
 
 function routingPhase(phase: DevelopmentJobPhase): DurableGoalJob["phase"] {
   if (phase === "QUEUED" || phase === "VERIFYING" || phase === "COMPLETED" || phase === "BLOCKED") return phase;
-  if (phase === "HUMAN_GATE" || phase === "CANCELLED" || phase === "WAITING_FOR_RESOURCE" || phase === "WAITING_FOR_CONNECTIVITY") return "BLOCKED";
+  if (phase === "HUMAN_GATE") return "QUEUED"; // Human Gate wins before routing.
+  if (phase === "CANCELLED" || phase === "WAITING_FOR_RESOURCE" || phase === "WAITING_FOR_CONNECTIVITY") return "BLOCKED";
   return "RUNNING"; // Do not duplicate existing partial/in-flight work.
 }
 
@@ -170,7 +171,7 @@ export class HostedGoalControllerAdapter implements GoalExecutionAdapter {
     if (authoritative.blockers.length || authoritative.status === "BLOCKED") {
       return this.report(original, authoritative.blockers.length ? authoritative.blockers : ["goal_work_state_blocked"]);
     }
-    if (authoritative.status === "COMPLETED" && original.some(job => !evidenceValid(job, this.options.verifierId))) {
+    if (authoritative.status === "COMPLETED" && original.some(job => ["QUEUED", "PLANNING", "IMPLEMENTING"].includes(job.phase))) {
       return this.report(original, ["goal_state_completed_before_jobs_verified"]);
     }
     if (gate.paused) return { ...await this.report(original), stopReason: "paused" };
@@ -210,8 +211,11 @@ export class HostedGoalControllerAdapter implements GoalExecutionAdapter {
     const first = routes.find(route => route.disposition === "RUN_HOSTED");
     if (!first?.nodeId) {
       if (original.every(job => evidenceValid(job, this.options.verifierId))) return this.report(original);
-      const unavailable = routes.some(route => route.disposition === "HUMAN_REQUIRED");
-      return this.report(original, unavailable ? ["human_gate"] : [], unavailable ? undefined : "resource_wait:hosted_capability_or_verified_predecessor");
+      if (routes.some(route => route.disposition === "HUMAN_REQUIRED")) return this.report(original, ["human_gate"]);
+      if (routes.some(route => route.disposition === "BLOCKED")) return this.report(original, ["persisted_job_blocked"]);
+      if (routes.some(route => route.disposition === "PAUSED")) return { ...await this.report(original), stopReason: "paused" };
+      if (routes.some(route => route.disposition === "WAITING_FOR_VERIFICATION")) return this.report(original, [], "independent_verifier_pending:completed_job");
+      return this.report(original, [], "resource_wait:hosted_capability_or_verified_predecessor");
     }
     const job = original.find(item => item.jobId === first.jobId)!;
     if (job.phase !== "QUEUED" || first.goalId !== goalId) throw Error("HOSTED_GOAL_DISPATCH_STATE_INVALID");

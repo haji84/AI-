@@ -12,7 +12,7 @@ import { mergeDefinitionOfDoneResults } from "../src/orchestrator/work-state.ts"
 import { GoalControllerRuntime } from "../src/orchestrator/goal-controller-runtime.ts";
 import { GoalControllerExecutionBridge } from "../src/orchestrator/goal-controller-execution-bridge.ts";
 import { HostedGoalControllerAdapter, type HostedJobAuthority, type HostedJobBinding } from "../src/orchestrator/hosted-goal-controller-adapter.ts";
-import { createDevelopmentJob } from "../src/orchestrator/development-job.ts";
+import { createDevelopmentJob, DevelopmentJobStateController } from "../src/orchestrator/development-job.ts";
 import { JsonFileDevelopmentJobStore } from "../src/orchestrator/development-job-store.ts";
 import { createDevelopmentChangeSet } from "../src/orchestrator/development-change-set.ts";
 import { JsonFileDevelopmentChangeSetStore } from "../src/orchestrator/development-change-set-store.ts";
@@ -193,6 +193,21 @@ test("actual Goal Controller -> hosted Job A -> fixture-signed verification -> d
     assert.equal(duplicate.reason, "goal_complete");
     assert.deepEqual(calls, ["start:hosted-a", "start:hosted-b"]);
     assert.equal((await new JsonFileDevelopmentJobStore(jobsPath).getByGoal(goalId)).length, 2);
+    console.log("GORIQ_HOSTED_GOAL_CI_E2E=" + JSON.stringify({
+      proofClass: "CI_FIXTURE_NOT_PRODUCTION",
+      goalId,
+      jobIds: after.map(job => job.jobId),
+      jobStartOrder: calls,
+      persistedPhases: after.map(job => job.phase),
+      verifiedReceiptKinds: after.map(job => job.evidence[0]?.kind ?? null),
+      restartedCompassStore: true,
+      separateVerifierContentReadProcess: true,
+      fixtureSignerNotIndependentPrincipal: true,
+      runnerEnvironment: process.env.RUNNER_ENVIRONMENT ?? "local",
+      githubRunId: process.env.GITHUB_RUN_ID ?? null,
+      finalReason: result.reason,
+      success: true,
+    }));
   } finally {
     compass?.close();
     rmSync(root, { recursive: true, force: true });
@@ -218,5 +233,96 @@ test("hosted Goal adapter rejects a missing durable Job rather than creating wor
       },
     });
     await assert.rejects(() => adapter.run("goal-candidate"), /HOSTED_GOAL_PERSISTED_JOB_SET_MISMATCH/);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test("canonical WorkState blocker cannot be bypassed by a healthy GitHub-hosted node", async () => {
+  const root = mkdtempSync(join(tmpdir(), "goriq-hosted-blocked-"));
+  try {
+    const goalId = "goal-hosted-blocked";
+    const jobs = new JsonFileDevelopmentJobStore(join(root, "jobs.json"));
+    await jobs.put(createDevelopmentJob({
+      jobId: "hosted-a", goalId, requirementIds: ["AUTO-010"], acceptanceCriteria: ["only approved work"],
+      definitionOfDone: [{ id: "hosted-a", description: "signed acceptance", required: true }],
+      baseRevision, approvalScope: { taskScopeId: scope, maxRisk: "low" },
+      workItems: [{ id: "hosted-a:work", objective: "bounded", dependsOn: [],
+        requiredCapabilities: ["repository.inspect"] }],
+    }));
+    let started = 0;
+    const adapter = new HostedGoalControllerAdapter({
+      goalId, baseRevision, taskScopeId: scope,
+      builderId: "fixture-builder", verifierId: "fixture-verifier",
+      verifierPublicKeyPem: "fixture-public-key",
+      bindings: bindings(goalId).slice(0, 1), nodes: hostedNodes, jobs,
+      goalWorkState: {
+        async get() { return {
+          goalId, objective: "blocked", definitionOfDone: [{ id: "hosted-a", description: "required", required: true }],
+          currentState: "owner gate pending", status: "BLOCKED" as const, riskClass: "R0" as const,
+          constraints: [], decisions: [], artifacts: [], verificationResults: [],
+          childWorkItems: [], blockers: ["human_gate"], updatedAt: new Date().toISOString(),
+        }; },
+        async put() { assert.fail("unauthorized state mutation"); },
+        async appendEvent() { assert.fail("unauthorized audit event"); },
+      },
+      changes: new JsonFileDevelopmentChangeSetStore(join(root, "changes.json")),
+      authority: {
+        async assertEligible() { started++; },
+        async currentGate() { return { paused: false, blockers: [] }; },
+        async build() { assert.fail("blocked Job cannot build"); },
+        async readVerifierReceipt() { return null; },
+        async verifyArtifactAcceptance() { return false; },
+      },
+    });
+    const result = await adapter.run(goalId);
+    assert.equal(result.stopReason, "blocked");
+    assert.equal(started, 0);
+    assert.equal((await jobs.get("hosted-a"))?.phase, "QUEUED");
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test("persisted development Human Gate remains an approval stop, never a resource wait or dispatch", async () => {
+  const root = mkdtempSync(join(tmpdir(), "goriq-hosted-human-gate-"));
+  try {
+    const goalId = "goal-human-gate";
+    const jobs = new JsonFileDevelopmentJobStore(join(root, "jobs.json"));
+    const original = createDevelopmentJob({
+      jobId: "hosted-a", goalId, requirementIds: ["AUTO-010"], acceptanceCriteria: ["signed approval"],
+      definitionOfDone: [{ id: "hosted-a", description: "signed acceptance", required: true }],
+      baseRevision, approvalScope: { taskScopeId: scope, maxRisk: "low" },
+      workItems: [{ id: "hosted-a:work", objective: "bounded", dependsOn: [],
+        requiredCapabilities: ["repository.inspect"] }],
+    });
+    await jobs.put(new DevelopmentJobStateController().apply(original, {
+      transitionId: "hosted-a:human-gate", actor: "state-controller",
+      to: "HUMAN_GATE", reason: "existing owner approval needed",
+    }));
+    let started = 0;
+    const adapter = new HostedGoalControllerAdapter({
+      goalId, baseRevision, taskScopeId: scope,
+      builderId: "fixture-builder", verifierId: "fixture-verifier", verifierPublicKeyPem: "fixture-public-key",
+      bindings: bindings(goalId).slice(0, 1), nodes: hostedNodes, jobs,
+      goalWorkState: {
+        async get() { return {
+          goalId, objective: "approval", definitionOfDone: [{ id: "hosted-a", description: "required", required: true }],
+          currentState: "waiting for owner", status: "IN_PROGRESS" as const, riskClass: "R0" as const,
+          constraints: [], decisions: [], artifacts: [], verificationResults: [],
+          childWorkItems: [], blockers: [], updatedAt: new Date().toISOString(),
+        }; },
+        async put() { assert.fail("no authority to mutate Goal"); },
+        async appendEvent() { assert.fail("no authority to append event"); },
+      },
+      changes: new JsonFileDevelopmentChangeSetStore(join(root, "changes.json")),
+      authority: {
+        async assertEligible() { started++; },
+        async currentGate() { return { paused: false, blockers: [] }; },
+        async build() { assert.fail("Human Gate prevents build"); },
+        async readVerifierReceipt() { return null; },
+        async verifyArtifactAcceptance() { return false; },
+      },
+    });
+    const report = await adapter.run(goalId);
+    assert.equal(report.stopReason, "approval_required");
+    assert.equal(started, 0);
+    assert.equal((await jobs.get("hosted-a"))?.phase, "HUMAN_GATE");
   } finally { rmSync(root, { recursive: true, force: true }); }
 });

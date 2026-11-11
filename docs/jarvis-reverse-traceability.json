@@ -5500,7 +5500,7 @@
     },
     {
       "path": "src/orchestrator/hosted-goal-controller-adapter.ts",
-      "sha256": "e94726f38a710bc9029c23b75e8cb45022693bc498b2430454ba897fd1dbd4eb",
+      "sha256": "181c65dd9a32ab5e0f4fa052d7eaf1410893d5e2b227b6a7de40498d0f864fd1",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-002",
