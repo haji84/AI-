@@ -690,10 +690,30 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
     }
     if (method === "GET" && path.startsWith("/api/jarvis/admin/work/")) {
       const goalId = decodeURIComponent(path.slice("/api/jarvis/admin/work/".length));
+      // Owner authentication above is necessary, but an arbitrary persisted
+      // WorkRun ID is not proof that the run belongs to the current Compass Goal.
+      const goalRegistry = new CompassGoalRegistryAdapter(compass);
+      const authoritative = (await goalRegistry.listActive())[0];
+      if (!authoritative || authoritative.goalId !== goalId) {
+        return json(response, 409, {
+          code: "GOAL_AUTHORITY_MISMATCH", message: "現在のCompass正本Goalとは一致しません", goalId,
+        });
+      }
       const run = await workRuns.getByGoal(goalId);
       if (!run) return json(response, 404, { message: "Work Runがありません", goalId });
       const completion = (await completionWorkState.getCompletionHistory(goalId)).at(-1) ?? null;
-      return json(response, 200, { run, progress: workRunProgress(run), completion });
+      // Re-read after awaited store operations. A late Goal replacement must
+      // never be projected as a current authorized Goal's progress.
+      const rechecked = (await goalRegistry.listActive())[0];
+      if (!rechecked || rechecked.goalId !== goalId) {
+        return json(response, 409, {
+          code: "GOAL_AUTHORITY_MISMATCH", message: "現在のCompass正本Goalとは一致しません", goalId,
+        });
+      }
+      return json(response, 200, {
+        run, progress: workRunProgress(run), completion,
+        goalAuthority: { kind: "CURRENT_COMPASS_GOAL", goalId, current: true },
+      });
     }
     if (method === "POST" && path.startsWith("/api/jarvis/admin/work/")) {
       if (body.length > 8_192) return json(response, 413, { message: 'notification receipt too large' });
