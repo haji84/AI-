@@ -50,14 +50,20 @@ const expected = {
 };
 
 test("CI reviewer preserves fixed prerequisite diagnostics without leaking unknown errors or inferring past budgets",async t=>{
-  const root=fileURLToPath(new URL("../",import.meta.url));
-  const trusted=execFileSync("git",["rev-parse","HEAD"],{cwd:root,encoding:"utf8"}).trim();
+  const reviewer=fileURLToPath(new URL("../scripts/goriq-ai09-ci-review.mjs",import.meta.url));
+  // Independent verification deliberately exports source without .git. Give
+  // the real CLI its own trusted-checkout fixture, never the source snapshot.
+  const checkout=mkdtempSync(join(tmpdir(),"ai09-trusted-checkout-"));t.after(()=>rmSync(checkout,{recursive:true,force:true}));
+  const git=(...args)=>execFileSync("git",args,{cwd:checkout,encoding:"utf8",stdio:["ignore","pipe","pipe"]}).trim();
+  git("init","-q");
+  git("-c","user.name=AI09 fixture","-c","user.email=fixture@example.invalid","-c","commit.gpgsign=false","commit","--allow-empty","-qm","trusted checkout fixture");
+  const trusted=git("rev-parse","HEAD");
   for(const unknown of [false,true])await t.test(unknown?"unknown error stays private":"31 files stay blocked before inference",t=>{
     const temp=mkdtempSync(join(tmpdir(),"ai09-diagnostic-"));t.after(()=>rmSync(temp,{recursive:true,force:true}));
     const comparison={status:"ahead",ahead_by:1,total_commits:1,base_commit:{sha:shaA},commits:[{sha:shaB}],files:Array.from({length:31},(_,i)=>({filename:`src/file${i}.ts`,additions:1,deletions:0,patch:"@@ -0,0 +1 @@\n+export const value = 1;"}))};
     const preload=join(temp,"fetch.mjs"),output=join(temp,"goriq-ai09-report.json");
     writeFileSync(preload,`globalThis.fetch = async url => {\n${unknown?'throw Error("DO_NOT_PRINT_PRIVATE_CONFIGURATION");':`if (String(url).includes('/pulls/')) return Response.json(${JSON.stringify(pr)});\nif (String(url).includes('/compare/')) return Response.json(${JSON.stringify(comparison)});\nthrow Error("INFERENCE_MUST_NOT_RUN");`}\n};\n`);
-    const result=spawnSync(process.execPath,["--import",pathToFileURL(preload).href,"scripts/goriq-ai09-ci-review.mjs"],{cwd:root,encoding:"utf8",timeout:15000,
+    const result=spawnSync(process.execPath,["--import",pathToFileURL(preload).href,reviewer],{cwd:checkout,encoding:"utf8",timeout:15000,
       env:{PATH:process.env.PATH??"",SystemRoot:process.env.SystemRoot??"",GORIQ_AI09_REPOSITORY:repo.full_name,GORIQ_AI09_PR_NUMBER:String(pr.number),GORIQ_AI09_HEAD:shaB,GORIQ_AI09_BASE:shaA,
         GORIQ_AI09_TRUSTED_SHA:trusted,GORIQ_AI09_CI_RUN_ID:String(run.id),GORIQ_AI09_CI_CONCLUSION:"success",GORIQ_AI09_REPORT_FILE:output,RUNNER_TEMP:temp,GITHUB_TOKEN:"fixture-unprivileged-token"}});
     assert.equal(result.status,0,result.stdout+result.stderr);

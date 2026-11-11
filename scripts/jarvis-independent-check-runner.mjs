@@ -40,6 +40,11 @@ export function verifierCheckTimeoutMs(name) {
   verifierCommand(name); // the same fixed enum; no request/environment override
   return name === "unit" || name === "integration" ? 300000 : 180000;
 }
+function assertVerifierOperator() {
+  if(process.env.GORIQ_VERIFIER_OPERATOR_ISOLATED!=="1")throw Error("VERIFIER_SEPARATE_PRINCIPAL_NOT_ACKNOWLEDGED");
+  if(!/^[a-z0-9][a-z0-9._/:@-]*@sha256:[0-9a-f]{64}$/.test(process.env.GORIQ_VERIFIER_CONTAINER_IMAGE??""))
+    throw Error("VERIFIER_TRUSTED_CONTAINER_IMAGE_REQUIRED");
+}
 function canonical(payload) {
   return JSON.stringify({
     version:payload.version,verifierId:payload.verifierId,goalId:payload.goalId,
@@ -230,9 +235,7 @@ export async function runIndependentVerifier(req, options = {}) {
   const transport=Object.hasOwn(options,"signerTransport")?createTrustedVerifierSigner(options.signerTransport):null;
   const mode={externalSigner:transport!==null};
   validateVerifierRunRequest(req,mode);
-  if(process.env.GORIQ_VERIFIER_OPERATOR_ISOLATED!=="1")throw Error("VERIFIER_SEPARATE_PRINCIPAL_NOT_ACKNOWLEDGED");
-  if(!/^[a-z0-9][a-z0-9._/:@-]*@sha256:[0-9a-f]{64}$/.test(process.env.GORIQ_VERIFIER_CONTAINER_IMAGE??""))
-    throw Error("VERIFIER_TRUSTED_CONTAINER_IMAGE_REQUIRED");
+  assertVerifierOperator();
   const candidate=exactGitRoot(req.candidateWorkspace),runner=exactGitRoot(req.verifierWorkspace);
   if(candidate===runner)throw Error("VERIFIER_MUST_HAVE_DISTINCT_RUNNER_WORKSPACE");
   if(git(runner,"rev-parse","HEAD")!==req.baseRevision||git(runner,"status","--porcelain","-uall")!=="")
@@ -269,6 +272,7 @@ export async function runIndependentVerifier(req, options = {}) {
   const issuedAt=new Date().toISOString(),checks=[];
   for(const name of req.requiredChecks) {
     validateVerifierRunRequest(req,mode);
+    assertVerifierOperator();
     const [command,args]=verifierCommand(name);
     // Untrusted generated code must NEVER execute with this signer's host
     // identity or have access to the Ed25519 private key. A preinstalled,
@@ -280,7 +284,9 @@ export async function runIndependentVerifier(req, options = {}) {
     // Host shell never interprets paths or caller-controlled instructions.
     // The helper is part of the pinned image, never the untrusted /source tree.
     // It admits only a byte-matching, already-installed offline dependency set.
-    const staticScript="node /opt/goriq-verifier/jarvis-verifier-offline-workspace.mjs && cd /tmp/verify && exec "+[command,...args].join(" ");
+    // Reserve Docker's infrastructure exit 125 for preparation failure too;
+    // no unavailable dependency set may masquerade as a definitive check FAIL.
+    const staticScript="node /opt/goriq-verifier/jarvis-verifier-offline-workspace.mjs || exit 125; cd /tmp/verify || exit 125; exec "+[command,...args].join(" ");
     const dockerArgs=["run","--rm","--pull=never","--network=none","--read-only",
       "--cap-drop=ALL","--security-opt=no-new-privileges","--pids-limit=128",
       "--memory=2g","--cpus=2","--user=65534:65534",
@@ -294,7 +300,12 @@ export async function runIndependentVerifier(req, options = {}) {
       timeoutMs,maxBuffer:2*1024*1024,env:{
         PATH:process.env.PATH??"",SystemRoot:process.env.SystemRoot??"",
       }});
-    const status=output.error||output.status===null?"inconclusive":output.status===0?"passed":"failed";
+    // Only a closed, cleaned, normally exited command can produce PASS/FAIL.
+    // Docker reserves 125/126/127 for execution failures; higher exits can
+    // encode fatal signals/resource loss and stay inconclusive conservatively.
+    const completed=!output.error&&output.closeObserved===true&&output.cleanup?.confirmed===true
+      &&!output.signal&&Number.isInteger(output.status)&&output.status>=0&&output.status<125;
+    const status=!completed?"inconclusive":output.status===0?"passed":"failed";
     const log=JSON.stringify({
       sourceRevision:before.candidateRevision,fileHashes:before.fileHashes,
       command, args, timeoutMs, executionProfile:name==="build"?"next-webpack-v1":null,
@@ -308,7 +319,7 @@ export async function runIndependentVerifier(req, options = {}) {
     externalPath(candidate,runner,logDirectory);
     writeFileSync(join(logDirectory,name+".json"),log,{flag:"wx",mode:0o600});
     checks.push({check:name,status,outputDigest,recordedAt:new Date().toISOString()});
-    if(status!=="passed")break;
+    if(status==="inconclusive")break;
   }
   const after=attestLocalCandidate({workspace:candidate,baseRevision:req.baseRevision,
     targetPath:req.targetPath,allowedUntracked:req.allowedUntracked,trackedEdits:req.trackedEdits});
@@ -319,6 +330,7 @@ export async function runIndependentVerifier(req, options = {}) {
   if(runnerAfter.candidateRevision!==before.candidateRevision)
     throw Error("VERIFIER_RUNNER_CHANGED_DURING_EXECUTION");
   validateVerifierRunRequest(req,mode);
+  assertVerifierOperator();
   const expiry=new Date(Math.min(Date.now()+20*60_000,
     req.expiresAt===undefined?Infinity:Date.parse(req.expiresAt))).toISOString();
   const payload={version:1,verifierId:req.verifierId,goalId:req.goalId,
@@ -328,6 +340,7 @@ export async function runIndependentVerifier(req, options = {}) {
   const bytes=Buffer.from(canonical(payload));
   const signatureBase64=transport?await transport(bytes):sign(null,bytes,key).toString("base64");
   validateVerifierRunRequest(req,mode); // an asynchronous signer cannot extend expired scope
+  assertVerifierOperator();
   const receipt={payload,signatureBase64};
   externalPath(candidate,runner,receiptFile);
   mkdirSync(dirname(receiptFile),{recursive:true});

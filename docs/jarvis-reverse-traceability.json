@@ -6441,7 +6441,7 @@
     },
     {
       "path": "scripts/jarvis-independent-check-runner.mjs",
-      "sha256": "7a94db1ee12e9393aca6b04e8c3e0168e8d9a3908b70084ea893b84debd0812d",
+      "sha256": "e4803a3d88fbde8c8757bb6d75dd6e86e1301a085a0c470348eb6188783f73bd",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -6449,7 +6449,7 @@
         "AUTO-004",
         "GOV-025"
       ],
-      "reason": "#1219 explicit locally provisioned isolated verifier runner with immutable container image requirement, no-network Docker check execution from a separate verifier workspace, exact Change Set digest recheck and separately held Ed25519 signing. OS/container trust and physical deployment still unverified. #1219 additionally excludes both the candidate and verifier workspaces from trusted Docker executable resolution; source tests do not establish physical isolation. #1219 makes existing noexec explicit and tightens temporary storage to UID/GID65534 mode0700; execution/network/resource restrictions remain in force. #1219 records an explicit supported Next production Webpack build profile and actual fixed arguments; Turbopack compatibility is not inferred. #1219 retains bounded Docker CLI timing in the existing signed output digest; no check or acceptance change."
+      "reason": "#1219 explicit locally provisioned isolated verifier runner with immutable container image requirement, no-network Docker check execution from a separate verifier workspace, exact Change Set digest recheck and separately held Ed25519 signing. OS/container trust and physical deployment still unverified. #1219 additionally excludes both the candidate and verifier workspaces from trusted Docker executable resolution; source tests do not establish physical isolation. #1219 makes existing noexec explicit and tightens temporary storage to UID/GID65534 mode0700; execution/network/resource restrictions remain in force. #1219 records an explicit supported Next production Webpack build profile and actual fixed arguments; Turbopack compatibility is not inferred. #1219 retains bounded Docker CLI timing in the existing signed output digest; no check or acceptance change. #1219 continues all required checks after a definitive completed FAIL, while timeout, infrastructure exits and uncertain cleanup remain INCONCLUSIVE stops; retains scope and operator isolation at every stage. No production signer or Goal acceptance claim."
     },
     {
       "path": "scripts/jarvis-local-ollama-tdd-verifier.mjs",
@@ -6661,14 +6661,14 @@
     },
     {
       "path": "scripts/jarvis-verifier-request-transfer.mjs",
-      "sha256": "b286576bfb5d3630b87ca28176363f853c51a59bb3cd5d604fc1727e732bc004",
+      "sha256": "be06752e3ad3f84b8f4248e43f623def7066d9ca613de5c8ff9b6e2e1a986b69",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
         "AUTO-004",
         "GOV-025"
       ],
-      "reason": "#1219 bounded verifier request transfer and offline preparation; implementation mapping only, no physical completion claim."
+      "reason": "#1219 bounded verifier request transfer and offline preparation; implementation mapping only, no physical completion claim. #1219 preserves version-1 transfer and adds exact host-pinned tracked version-2 candidate transfer with Git baseline blob validation before writes, immutable candidate binding and bounded replay. Transport authentication and production key custody remain external prerequisites."
     },
     {
       "path": "src/orchestrator/resident-verifier-request.ts",

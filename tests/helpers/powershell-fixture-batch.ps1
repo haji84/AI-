@@ -70,7 +70,9 @@ foreach($scenario in $request.scenarios) {
     $pipeline.Dispose();$runspace.Dispose()
     # A changed process environment is a failure, and must not reach later cases.
     foreach($key in @([Environment]::GetEnvironmentVariables().Keys)) {
-      if(-not $initialEnvironment.Contains($key)) {[Environment]::SetEnvironmentVariable([string]$key,$null)}
+      # An untyped $null binds to an empty string on current PowerShell/.NET;
+      # use a typed null to actually remove a case-created environment entry.
+      if(-not $initialEnvironment.Contains($key)) {[Environment]::SetEnvironmentVariable([string]$key,[NullString]::Value)}
     }
     foreach($key in $initialEnvironment.Keys) {[Environment]::SetEnvironmentVariable([string]$key,[string]$initialEnvironment[$key])}
     [Environment]::CurrentDirectory=$initialDirectory

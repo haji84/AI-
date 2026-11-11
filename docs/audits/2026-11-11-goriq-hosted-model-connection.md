@@ -197,12 +197,131 @@ is neither a substitute for the production signer nor a blanket Goal blocker.
 | `src/orchestrator/tracked-repair-resident-runtime.ts` | `2d7aa397bb2a8141155e653681b5965398e69568353a74a4dd34670814516d2b` |
 | `scripts/jarvis-tracked-repair-actions.mjs` | `4ea0dcdd02bb6e30c1f69466ec5ca5f9b3dde50fda4814cf26a885e24747c1cc` |
 | `scripts/goriq-ai09-ci-review.mjs` | `c24c3cbfccee8cf8a6755c550b44fcd8968ae0b5ef63889d2cac0bfa44b4f82b` |
+| `scripts/jarvis-verifier-request-transfer.mjs` | `be06752e3ad3f84b8f4248e43f623def7066d9ca613de5c8ff9b6e2e1a986b69` |
+| `scripts/jarvis-independent-check-runner.mjs` | `e4803a3d88fbde8c8757bb6d75dd6e86e1301a085a0c470348eb6188783f73bd` |
 
 Existing tracked source rows in `docs/jarvis-reverse-traceability.json` were
 updated without changing their requirement assignments. The audit passed with
 622 surfaces and 341 requirements and explicitly made no functional completion
 claim. The AI09 script is outside that audit's existing root selection; its
 fingerprint is recorded here without widening the audit contract.
+
+## Verification connection continuation
+
+Follow-up inspection found two concrete source blockers in the existing
+verification path. The transfer helper accepted only version-1 new-file packets,
+although tracked repair publishes a version-2 tracked-edits packet. Separately,
+the check runner stopped on the first non-PASS. A genuine third-check unit FAIL
+therefore could not produce the complete six-check receipt required for repair.
+
+The corrected transfer keeps version 1 and adds only the existing exact version-2
+schema. It validates the host-pinned whole-request digest, scope/expiry, all six
+checks, identities, contents, tracked edits and candidate digest. Every
+destination and the real base Git blob are verified before writes. Original
+before bytes and the same packet's exact after bytes support recovery; a
+different old candidate is refused. Aliases, hard links, unsafe index state and
+undeclared changes remain blocked. No packet can select host signing authority.
+
+The corrected runner continues after a definitive, completed check FAIL, keeping
+every real result and log. Timeout, signal, uncertain close/cleanup, infrastructure
+exit codes, lost scope or lost operator isolation remain bounded stops. Offline
+preparation failure is distinguished from a test failure. All six required checks,
+300000ms unit/integration bounds, 180000ms other bounds, container restrictions and
+signature validation remain. No unexecuted check receives a synthetic outcome.
+
+Focused RED produced 13 intended failures out of 32. GREEN passed all 32;
+related regression passed 127 tests with no failure or skip in 63.867 seconds.
+Independent source review found no unresolved Critical/Important/Minor findings.
+Fixture signing/container substitutes in these tests are not production trust.
+
+The actual malformed model candidate from the earlier experiment was then
+transferred into new detached candidate/verifier worktrees at
+`2026-11-11T13:43:55Z`. Its candidate revision and artifact digest were identical,
+and replay left all bytes unchanged. The frozen probe again exited 1 with the
+same missing-catch/finally SyntaxError. No key or receipt was created. This proves
+transfer of that actual failed artifact, without claiming authenticated production
+delivery, a complete independently signed FAIL, another inference or Goal progress.
+The record is `docs/evidence/1219-20261111-verifier-connection.json`; its ZIP retains
+the failure, transfer, regressions and local validation records.
+
+Whole-project local lint and typecheck passed; the explicit security suite passed
+332/332. The initial local build refused an external `node_modules` symlink.
+After copying the unchanged lockfile-matched dependencies into this worktree,
+the normal production build and its built-server health check passed. The first
+build failure is retained, and no application/configuration change was made to
+work around it. The local whole-suite timeout remains separate.
+
+### First published continuation CI
+
+The first reviewed source/evidence tree was published as
+`945bd23dbfcd0f338df56e3c380a7f1c5dcf717f`, tree
+`5f34bb50f995c192a8c5def95ea81c7efdafcd2c`, with an expected-HEAD non-forced update.
+Exact [CI 43031102373](https://github.com/haji84/AI-/actions/runs/43031102373) failed
+the independent container while the other three jobs succeeded. Normal tests
+completed 3678 PASS / 0 FAIL / 26 existing conditional SKIP; security was 332/332.
+
+The independent artifact records lint 16.563s and typecheck 14.659s PASS. Unit was
+INCONCLUSIVE at 300007.765ms with ETIMEDOUT/SIGKILL and confirmed cleanup. It also
+emitted one actual assertion failure: the new AI09 diagnostic test required
+`.git` in the source root, whereas the restricted snapshot intentionally excludes
+Git metadata. Integration/security/build were not run. This is not six-check
+success. Artifact: [13861149647](https://github.com/haji84/AI-/actions/runs/43031102373/artifacts/13861149647).
+
+The AI09 test setup now creates a separate disposable trusted-checkout fixture
+and starts the actual CLI by absolute source path. The production trusted-SHA
+check and the source snapshot's exclusion of `.git` remain unchanged. The same
+Git-free source snapshot reproduced RED, then passed 22 tests after the fix;
+normal AI09 regression passed 38 tests, with no failures/skips. The 300-second
+performance issue requires the separately measured remedy below and a completed
+run of the next exact HEAD.
+
+### Second measured CI correction
+
+The next correction retains the existing tests and check budgets. Another 57
+inert PowerShell script variants across the preflight, diagnostics and
+failure-details wrappers now use fresh runspaces. All 57 complete parsed JSON
+results, exit statuses and stderr matched their original separate-process
+invocations. The six source-generating expressions were independently checked
+for byte-equivalent AST provenance. Windows/native process routes remain.
+
+The narrow dispatcher permits only the original `PSModulePath` or the exact
+normalization performed by the existing production script, then restores the
+original value in `finally`. All other process-environment mutations remain
+failures. A new strict-absence regression also exposed a cleanup defect in this
+continuation's first helper: untyped `$null` left an empty environment key on the
+tested PowerShell/.NET runtime. Typed `[NullString]::Value` removes that key.
+The state-mutating case remains failed; the next case proves restoration.
+All 84 earlier fixture output hashes still match the original parity evidence.
+
+The combined six wrappers and two helpers passed 135 of 143 tests with zero
+failures and the same eight existing conditional skips in 29.155 seconds.
+Failure-details wall time changed 24.576s -> 14.527s; diagnostics/preflight
+changed 10.477s -> 9.537s in the paired local comparisons.
+
+The two Broker sequence variants own separate temporary stores, keys, loopback
+servers and child processes. They now run with suite concurrency 2 only on Linux
+and 1 elsewhere. Their complete original 14107-byte test loop/body, assertions,
+four-process restart sequence and 180000ms per-variant bounds are unchanged.
+Under CPU affinity 0,1, the sequential comparison passed in 37.169s and the
+parallel comparison in 19.756s. The actual edited file subsequently passed both
+variants in 20.418s. Corrected sampling observed at most 648540160 bytes of
+summed live-descendant RSS, 10 processes and 69 threads. These are samples, not
+exact peaks or a whole-suite container resource guarantee.
+
+The first scratch resource sampler could not traverse the unavailable task
+children proc files. Its raw records are retained, and those aggregate resource
+fields are explicitly unknown. The corrected sampler reads process status.
+The scratch parity recorder's initial variable-name error is also retained
+alongside the completed clean run; neither is relabelled as a passing run.
+
+Exact file fingerprints, paired timings, parity results, regressions and these
+limitations are preserved in `docs/evidence/1219-20261111-ci-second-correction.json`
+and its ZIP. Independent review of all nine performance files and the AI09
+test correction found no unresolved Critical/Important/Minor findings; review
+is separate from runtime acceptance. Local overlapping test savings cannot be added into a prediction of
+whole-suite wall time. The next published HEAD must still complete all required
+hosted checks at the unchanged 300000ms Unit/Integration limits and existing
+2-CPU, 2GiB, 128-PID container limits.
 
 ## Remaining production conditions and rollback
 
@@ -213,11 +332,9 @@ fingerprint is recorded here without widening the audit contract.
    accepts an injected signer transport; a deployed transport was not verified
    here. Owner-pinned public identity, complete checks and candidate binding
    remain required. Restricted connector reads cannot establish absence of keys.
-   Follow-up source inspection also identified two remaining connection defects:
-   the transfer helper currently accepts only version-1 new-file requests while
-   tracked repair emits version 2, and the runner stops after its first non-PASS
-   instead of collecting a complete definitive FAIL. The next bounded source
-   correction must preserve full request binding and all required checks.
+   The version-2 transfer and complete-definitive-FAIL source connections are
+   corrected above; they do not provide a production signer or authenticated
+   delivery by themselves.
 3. Connect the canonical state path to an actual shared authority store. Existing
    durable runtime interfaces expose lease, epoch, fencing and CAS, but reviewed
    Memory/JSON implementations and local SQLite/writer locks do not prove

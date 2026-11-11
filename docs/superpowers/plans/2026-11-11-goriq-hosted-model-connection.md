@@ -36,7 +36,11 @@ tracked-repair updates, and the existing two resident execution plans.
 - [x] Reproduce the dominant avoidable overhead with the actual runtime.
 - [x] Make the smallest coverage-preserving execution change and retain the
   existing security assertions, process-isolation requirements and limits.
-- [ ] Verify the affected fixtures, then inspect the complete exact-head CI.
+- [x] Verify the affected fixtures, including complete native/batched parity.
+- [ ] Inspect the complete exact-head CI; the first published continuation
+  `945bd23` still timed out and exposed a gitless diagnostic-test setup defect.
+  The corrected setup, 57 additional inert variants and two independent Broker
+  variants have scoped passing evidence; this is not whole-suite acceptance.
 
 Files are limited to the measured fixture/runner path and its meaningful
 regressions; record the causal experiment and final file list in the audit.
@@ -94,16 +98,19 @@ Files: `scripts/goriq-ai09-ci-review.mjs`,
 Inspection found source blockers in the existing transfer/runner boundary, not
 only inaccessible deployment configuration. Continue within the same Issue/PR:
 
-- [ ] Extend `scripts/jarvis-verifier-request-transfer.mjs` to strictly bind the
+- [x] Extend `scripts/jarvis-verifier-request-transfer.mjs` to strictly bind the
   existing version-2 tracked request, candidate bytes and original baseline;
   keep version-1 compatibility and refuse mismatches before writes.
-- [ ] Update `scripts/jarvis-independent-check-runner.mjs` to collect all required
+- [x] Update `scripts/jarvis-independent-check-runner.mjs` to collect all required
   results after a definitive completed check FAIL. Preserve bounded stops for
   timeout, inconclusive infrastructure, expiry or missing authority. Never fill
   unexecuted checks with fabricated outcomes.
-- [ ] Prove both behaviors and negative boundaries in the existing transfer and
-  snapshot test files, then independently review and publish the source.
-- [ ] Keep actual signer transport/host authority separate from these source
+- [x] Prove both behaviors and negative boundaries in the existing transfer and
+  snapshot test files, then independently review the source (127 related tests
+  passed; no unresolved review findings).
+- [ ] Publish those reviewed source changes with the measured CI corrections
+  and inspect the complete exact-head result.
+- [x] Keep actual signer transport/host authority separate from these source
   fixes. Do not create keys, loosen receipt completeness or reset the real attempt.
 
 ## Rollback

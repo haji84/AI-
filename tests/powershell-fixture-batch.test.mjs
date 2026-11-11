@@ -26,7 +26,7 @@ switch ($Scenario) {
  'multiple' { 'first-line'; 'second-line' }
  'closure' { $script:called=0; function Invoke-FixtureCallback {$script:called++}; $callback={Invoke-FixtureCallback}.GetNewClosure(); & $callback; @{value=$script:called}|ConvertTo-Json -Compress }
  'environment' { $env:GORIQ_FIXTURE_BATCH_LEAK='must-not-leak'; '{}' }
- 'after' { if($env:GORIQ_FIXTURE_BATCH_LEAK){throw 'CASE_ENVIRONMENT_LEAK'}; '{"value":8}' }
+ 'after' { if([Environment]::GetEnvironmentVariables().Contains('GORIQ_FIXTURE_BATCH_LEAK')){throw 'CASE_ENVIRONMENT_LEAK'}; '{"value":8}' }
 }
 `);
     const scenarios = ['first', 'second', 'exit', 'throw', 'error', 'warning', 'host', 'multiple', 'closure', 'environment', 'after'];
@@ -47,6 +47,8 @@ switch ($Scenario) {
     assert.deepEqual(JSON.parse(run('closure').stdout), { value: 1 });
     assert.notEqual(run('environment').status, 0);
     assert.match(run('environment').stderr, /PS_FIXTURE_PROCESS_STATE_CHANGED/);
+    assert.equal(run('after').status, 0, run('after').stderr);
+    assert.equal(run('after').stderr, '');
     assert.deepEqual(JSON.parse(run('after').stdout), { value: 8 });
     assert.throws(() => run('unregistered'), /PS_FIXTURE_CASE_UNKNOWN/);
   } finally { rmSync(root, { recursive: true, force: true }); }

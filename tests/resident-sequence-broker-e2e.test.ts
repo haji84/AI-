@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync,
 import { createServer } from "node:http";
 import { homedir, tmpdir } from "node:os";
 import { join, resolve, sep } from "node:path";
-import test from "node:test";
+import test, { describe } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { CompassStore } from "../src/compass/store.ts";
 import { CompassWorkStateStoreAdapter } from "../src/orchestrator/compass-work-state-store.ts";
@@ -24,6 +24,8 @@ const delay = (ms: number) => new Promise(resolveDelay => setTimeout(resolveDela
 // This is a real Broker/executor process regression with mock inference and
 // fixture signatures and synthetic resource telemetry. Admission policy and its
 // lease remain real. It does not certify native resources, reboot or signer isolation.
+// Each variant owns its stores, keys, servers and child processes.
+describe("isolated Broker sequence variants", { concurrency: process.platform === "linux" ? 2 : 1 }, () => {
 for (const hosted of [false, true]) test(`authenticated Broker sequence resumes after process restart and automatically creates the next Job (${hosted ? "hosted admission; " : ""}fixture signer/Ollama)`,
   { timeout: 180_000 }, async () => {
     const root = mkdtempSync(join(tmpdir(), "goriq-broker-sequence-"));
@@ -189,3 +191,4 @@ for (const hosted of [false, true]) test(`authenticated Broker sequence resumes 
       assert.ok(resolve(root).startsWith(resolve(tmpdir()) + sep)); rmSync(root, { recursive: true, force: true });
     }
   });
+});

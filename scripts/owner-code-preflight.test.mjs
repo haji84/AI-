@@ -5,10 +5,17 @@ import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
+import {runPreflightPowerShellBatch} from '../tests/helpers/powershell-preflight-batch.mjs';
 const script=resolve('scripts/owner-code-preflight-1218.ps1');
 const shell=process.platform==='win32'?join(process.env.SystemRoot,'System32/WindowsPowerShell/v1.0/powershell.exe'):'pwsh';
 const quote=s=>"'"+s.replaceAll("'","''")+"'";
 function ps(code){const r=spawnSync(shell,['-NoProfile','-NonInteractive','-Command',`$ErrorActionPreference='Stop'; . ${quote(script)}; ${code}`],{encoding:'utf8',timeout:25000});assert.equal(r.error,undefined);assert.equal(r.status,0,r.stderr);return JSON.parse(r.stdout.trim());}
+function psMany(codes){
+ if(process.platform!=='linux')return codes.map(code=>ps(code));
+ return runPreflightPowerShellBatch({shell,sources:codes.map(code=>`$ErrorActionPreference='Stop'; . ${quote(script)}; ${code}`)}).map(r=>{
+  assert.equal(r.error,undefined);assert.equal(r.status,0,r.stderr);assert.equal(r.stderr,'');return JSON.parse(r.stdout.trim());
+ });
+}
 function fixture(fn){const dir=mkdtempSync(join(tmpdir(),'owner-preflight-'));try{return fn(dir);}finally{rmSync(dir,{recursive:true,force:true});}}
 test('encrypted-byte metadata is read only and never emits contents',()=>fixture(dir=>{
  const f=join(dir,'config.dpapi'),value='never-disclose-fixture-owner-value';writeFileSync(f,value);
@@ -17,12 +24,13 @@ test('encrypted-byte metadata is read only and never emits contents',()=>fixture
 }));
 test('metadata refuses directories, oversized files and missing files',()=>fixture(dir=>{
  const f=join(dir,'large.dpapi');writeFileSync(f,'123456');
- assert.equal(ps(`Get-1218FileMetadata ${quote(dir)} | ConvertTo-Json -Compress`).state,'not-regular');
- assert.equal(ps(`Get-1218FileMetadata ${quote(f)} -Limit 3 | ConvertTo-Json -Compress`).state,'oversize');
- assert.equal(ps(`Get-1218FileMetadata ${quote(join(dir,'missing.dpapi'))} | ConvertTo-Json -Compress`).state,'missing');
+ const values=psMany([`Get-1218FileMetadata ${quote(dir)} | ConvertTo-Json -Compress`,`Get-1218FileMetadata ${quote(f)} -Limit 3 | ConvertTo-Json -Compress`,`Get-1218FileMetadata ${quote(join(dir,'missing.dpapi'))} | ConvertTo-Json -Compress`]);
+ assert.equal(values[0].state,'not-regular');
+ assert.equal(values[1].state,'oversize');
+ assert.equal(values[2].state,'missing');
 }));
 test('metadata refuses UNC, relative and alternate data stream paths',()=>{
- for(const path of ['\\\\untrusted.invalid\\share\\config.dpapi','relative/config.dpapi','C:\\safe\\config.dpapi:stream'])assert.equal(ps(`Get-1218FileMetadata ${quote(path)} | ConvertTo-Json -Compress`).state,'rejected-path');
+ for(const value of psMany(['\\\\untrusted.invalid\\share\\config.dpapi','relative/config.dpapi','C:\\safe\\config.dpapi:stream'].map(path=>`Get-1218FileMetadata ${quote(path)} | ConvertTo-Json -Compress`)))assert.equal(value.state,'rejected-path');
 });
 test('metadata refuses a reparse point in any ancestor',()=>fixture(dir=>{
  const target=join(dir,'real'),link=join(dir,'link');mkdirSync(target);writeFileSync(join(target,'config.dpapi'),'unchanged');symlinkSync(target,link,process.platform==='win32'?'junction':'dir');
@@ -57,11 +65,13 @@ test('reparse ancestors are rejected before looking up their child',()=>fixture(
 const diagnostic=(name,args)=>`if (Get-Command ${name} -ErrorAction SilentlyContinue) { ${name} ${args} | ConvertTo-Json -Depth 6 -Compress } else { '{"state":"diagnostic-unavailable"}' }`;
 test('practical metadata distinguishes a read lock from ciphertext drift without exposing bytes',()=>fixture(dir=>{
  const f=join(dir,'config.dpapi'),marker='public-ciphertext-fixture-only';writeFileSync(f,marker);const sha=createHash('sha256').update(marker).digest('hex');
- const ready=ps(diagnostic('Get-1218EncryptedReadLock',`-Path ${quote(f)} -ExpectedSha256 ${quote(sha)}`));
+ const [ready,drift,locked]=psMany([
+  diagnostic('Get-1218EncryptedReadLock',`-Path ${quote(f)} -ExpectedSha256 ${quote(sha)}`),
+  diagnostic('Get-1218EncryptedReadLock',`-Path ${quote(f)} -ExpectedSha256 ${quote('a'.repeat(64))}`),
+  `$held=[IO.File]::Open(${quote(f)},[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::None); try { ${diagnostic('Get-1218EncryptedReadLock',`-Path ${quote(f)} -ExpectedSha256 ${quote(sha)}`)} } finally { $held.Dispose() }`,
+ ]);
  assert.deepEqual(ready,{state:'ready',reasonCode:'READ_LOCK_AND_HASH_MATCHED'});
- const drift=ps(diagnostic('Get-1218EncryptedReadLock',`-Path ${quote(f)} -ExpectedSha256 ${quote('a'.repeat(64))}`));
  assert.deepEqual(drift,{state:'rejected',reasonCode:'CONFIGURATION_CHANGED_UNDER_LOCK'});
- const locked=ps(`$held=[IO.File]::Open(${quote(f)},[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::None); try { ${diagnostic('Get-1218EncryptedReadLock',`-Path ${quote(f)} -ExpectedSha256 ${quote(sha)}`)} } finally { $held.Dispose() }`);
  assert.deepEqual(locked,{state:'rejected',reasonCode:'READ_LOCK_UNAVAILABLE'});
  for(const v of [ready,drift,locked])assert.equal(JSON.stringify(v).includes(marker),false);
  assert.equal(readFileSync(f,'utf8'),marker);
@@ -73,8 +83,10 @@ test('practical metadata rejects reparse paths before reading ACL or ciphertext'
 }));
 const aclFixture=`function Get-Acl { param([string]$LiteralPath) $owner=[pscustomobject]@{Value=$script:fixtureOwner}; $acl=[pscustomobject]@{Access=@()}; $acl | Add-Member ScriptMethod GetOwner { param($type) [pscustomobject]@{Value=$script:fixtureOwner} }; if($script:fixtureWriter) { $principal=[pscustomobject]@{}; $principal | Add-Member ScriptMethod Translate { param($type) [pscustomobject]@{Value=$script:fixtureWriter} }; $acl.Access=@([pscustomobject]@{AccessControlType=[Security.AccessControl.AccessControlType]::Allow;FileSystemRights=[Security.AccessControl.FileSystemRights]::Write;IdentityReference=$principal}) }; return $acl };`;
 test('practical metadata separates unrelated write grants and wrong owner with closed codes',t=>fixture(dir=>{
- for(const [owner,writer,expected] of [['fixture-owner','','PATH_PROTECTION_MATCHED'],['fixture-other','','PUBLIC_PATH_OWNER_UNSUITABLE'],['fixture-owner','fixture-other','PUBLIC_DIRECTORY_PROTECTION_UNSUITABLE']]){
-  const v=ps(`. ${quote(resolve('scripts/install-owner-code-windows.ps1'))}; $fixtureInput=${quote(dir)}; $fixtureProfile=Get-OwnerCodeInstallPath $fixtureInput; $script:fixtureOwner=${quote(owner)};$script:fixtureWriter=${quote(writer)};${aclFixture} $observationJson=${diagnostic('Get-1218OwnerPathProtection',`-Path $fixtureInput -OwnerProfile $fixtureProfile -OwnerSid 'fixture-owner'`)}; $observation=$observationJson | ConvertFrom-Json; @{fixtureCanonicalizationDiffered=($fixtureProfile -cne $fixtureInput);observation=$observation} | ConvertTo-Json -Depth 6 -Compress`);
+ const cases=[['fixture-owner','','PATH_PROTECTION_MATCHED'],['fixture-other','','PUBLIC_PATH_OWNER_UNSUITABLE'],['fixture-owner','fixture-other','PUBLIC_DIRECTORY_PROTECTION_UNSUITABLE']];
+ const values=psMany(cases.map(([owner,writer])=>`. ${quote(resolve('scripts/install-owner-code-windows.ps1'))}; $fixtureInput=${quote(dir)}; $fixtureProfile=Get-OwnerCodeInstallPath $fixtureInput; $script:fixtureOwner=${quote(owner)};$script:fixtureWriter=${quote(writer)};${aclFixture} $observationJson=${diagnostic('Get-1218OwnerPathProtection',`-Path $fixtureInput -OwnerProfile $fixtureProfile -OwnerSid 'fixture-owner'`)}; $observation=$observationJson | ConvertFrom-Json; @{fixtureCanonicalizationDiffered=($fixtureProfile -cne $fixtureInput);observation=$observation} | ConvertTo-Json -Depth 6 -Compress`));
+ for(const [index,[,,expected]] of cases.entries()){
+  const v=values[index];
   assert.equal(typeof v.fixtureCanonicalizationDiffered,'boolean');
   if(expected==='PATH_PROTECTION_MATCHED')t.diagnostic('fixtureCanonicalizationDiffered='+v.fixtureCanonicalizationDiffered);
   assert.deepEqual(v.observation,{state:expected==='PATH_PROTECTION_MATCHED'?'ready':'rejected',reasonCode:expected});
