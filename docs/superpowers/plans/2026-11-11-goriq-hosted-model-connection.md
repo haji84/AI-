@@ -48,7 +48,7 @@ regressions; record the causal experiment and final file list in the audit.
 ## Task 2: Connect the available Ollama model protocol explicitly
 
 Files: `src/orchestrator/tracked-repair-resident-runtime.ts` and
-`tests/tracked-repair-runtime.test.ts`.
+`tests/autonomous-tracked-repair-runtime.test.ts`.
 
 - [x] Demonstrate that the current tracked-source profile accepts only the
   llama.cpp `/completion` protocol although the hosted asset prepares Ollama.
@@ -113,7 +113,23 @@ only inaccessible deployment configuration. Continue within the same Issue/PR:
 - [x] Keep actual signer transport/host authority separate from these source
   fixes. Do not create keys, loosen receipt completeness or reset the real attempt.
 
-## Rollback
+## Follow-up: preserve every test while eliminating the late file tail
+
+- [x] Retain exact `1d59543` CI failure, complete normal results and incomplete
+  independent checks; do not weaken `LIVE_CHECK_SET_INVALID` or rerun unchanged.
+- [x] Record real file lifecycle events for the same 669 files in both orders,
+  with concurrency 2 and a 300000ms outer bound. Compare all result identities.
+- [x] Move the byte-identical tracked runtime test earlier through its descriptive
+  basename; retain process isolation, global Date-mock serialization and bounds.
+- [x] Measure isolated approved-next fixtures with Linux concurrency 2 and cancel
+  only their losing stop timer. Preserve all four case bodies, real expiry waits,
+  assertions and 3000ms SIGKILL boundary; retain raw before/after results.
+- [x] Independently review both final test-file corrections; no unresolved
+  Critical, Important or Minor findings. Reject the unhelpful extra-cache variant.
+- [ ] Inspect the next exact hosted six-check result. Local scheduling evidence
+  is not that result.
+
+## Rollback policy
 
 Revert only this continuation's source/doc commits. Preserve existing failed
 candidates, inference records, Goal/Job history and receipts. No data migration,

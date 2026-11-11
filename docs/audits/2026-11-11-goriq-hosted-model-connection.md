@@ -323,7 +323,120 @@ whole-suite wall time. The next published HEAD must still complete all required
 hosted checks at the unchanged 300000ms Unit/Integration limits and existing
 2-CPU, 2GiB, 128-PID container limits.
 
-## Remaining production conditions and rollback
+## Continued CI diagnosis and remaining production conditions
+
+### Further exact-head failure and scheduling diagnosis
+
+The second continuation was published as
+`1d59543bbf533b33f533a4856b41ef7032ef3846`. Its exact
+[CI 43037545951](https://github.com/haji84/AI-/actions/runs/43037545951) again
+failed the independent container while all other three jobs passed. Normal
+tests completed 3695 PASS / 0 FAIL / 26 existing conditional SKIP in 319.832s;
+security 332/332, production build and built-server health passed. Independent
+lint/typecheck passed, but Unit stopped at 300006.186ms, ETIMEDOUT/SIGKILL with
+close and cleanup confirmed. It emitted 3479 success-result lines, no failure
+lines and 18 skip lines, without a completed summary. Integration/security/build
+did not run. The corrected AI09 test no longer failed. The later
+`LIVE_CHECK_SET_INVALID` follows from the incomplete check set; it is not a reason
+to relax six-check completeness.
+
+Verifier artifact [13862999934](https://github.com/haji84/AI-/actions/runs/43037545951/artifacts/13862999934)
+SHA256 is `4b82aa7c3cbbf65a10c4efc0fbff051ef7ba6ad39446a4aebd44acbe67ee71e4`.
+Resource artifact 13864257233 has SHA256
+`2d47ec63bc4efa70e14c434e6c8d651fd7387910b914997008e3109a43577f37`.
+Actual independent Broker suite time was 20.494s, versus the preceding 51.764s
+sequential sum, so that targeted improvement existed but was insufficient.
+
+Pinned Node v24.19.0's standard discovery sorts file paths. The long tracked
+runtime file was 631st of 669, leaving it late in the two-worker queue. Normal
+reporter output alone could not prove worker utilization because it is buffered.
+A scratch driver therefore recorded actual parent file enqueue/dequeue/complete
+events using a monotonic clock, with the exact pinned default discovery pattern,
+process isolation and concurrency 2. Both whole-suite runs used CPU affinity
+0,1, a 300000ms outer budget and a fresh private compile cache matching the
+existing image's inheritance behavior. Local Node v24.22.1 and affinity are not
+equivalent to the hosted v24.19.0 Docker quota.
+
+| Whole-suite scheduling observation | Original order | Tracked file early |
+| --- | ---: | ---: |
+| Files, with the same paths/content | 669 | 669 |
+| Test results: PASS / FAIL / existing SKIP | 3693 / 2 / 26 | 3693 / 2 / 26 |
+| Controller wall seconds | 287.658 | 273.352 |
+| Child CPU seconds | 458.412 | 459.325 |
+| Final single-file tail | 38.555s | 0.023s |
+| Tracked file ordinal | 631 | 85 |
+
+Every pass, failure and skip identity matched. The two failures are the same
+unchanged network-local-runtime cases: unavailable interface enumeration and
+the bounded private-ingress retry expectation. These local runs are not all-pass
+or hosted acceptance. The tracked file passed all 48 cases in both runs. The
+14.306s observed saving removes an actual file-queue tail while doing essentially
+the same CPU work; it is not a promise about a future hosted duration.
+
+The source correction renames the entire unchanged file to
+`tests/autonomous-tracked-repair-runtime.test.ts`, with SHA256
+`88948f1117cd2d73d3e1ffe78af4c8bc6d4a1f1a74850f88c3dbc765f3040d87`.
+Every byte, assertion, mock, subprocess, fixture and deadline is preserved.
+Only this file moves in standard discovery order; all other relative ordering
+and the global concurrency of 2 remain. Its process-wide Date mock is why
+parallelizing its individual cases was rejected.
+
+A separate cache experiment passed all 48 cases at 62.636s without a cache and
+46.809s with a fresh private cache, but it was not adopted: the independent image
+already enables that cache for the inherited readback path. Reusing its normal
+environment saving as independent-CI evidence would be incorrect. Repeated Git
+configuration and candidate checks were also retained. The scratch driver's
+convenience lifecycle JSON has a `type` field collision on enqueue/dequeue;
+the unchanged raw events preserve the actual event type, and the derived
+statistics use those raw events. No rerun or altered result was needed.
+
+### Approved-next Broker fixture lifecycle
+
+The four existing approved-next HTTP fixtures own separate temporary repositories,
+Compass/Broker stores, XDG state, ports and child processes. On Linux only, their
+suite now permits two cases at a time; other platforms remain serial. Every case
+body, assertion, real Broker restart, 2000ms expiry, 5500ms observation and existing
+45000/20000/30000/20000ms case bound is retained.
+
+The old `stop()` raced process exit against a referenced 3000ms delay without
+cancelling the losing timer. A normally exited child therefore left a timer that
+could keep its test process alive. The replacement clears that timer in `finally`;
+the SIGTERM-to-SIGKILL bound remains 3000ms. A scratch source-contract check ran
+the actual extracted old/new functions against children ignoring SIGTERM: both
+issued SIGKILL after approximately three seconds and cleared their child handle.
+
+| Actual file, CPU affinity 0,1 | Wall seconds | Results |
+| --- | ---: | --- |
+| Original sequential cases | 18.707 | 4 PASS / 0 FAIL / 0 SKIP |
+| Linux concurrency 2 | 12.473 | 4 PASS / 0 FAIL / 0 SKIP |
+| Concurrency 2 and cleared losing timer | 9.543 | 4 PASS / 0 FAIL / 0 SKIP |
+
+Between the final two measurements, the suite body remained approximately 9.1s
+while file completion lost the redundant three seconds. The final measurement
+sampled 409141248 bytes total RSS, five processes and 38 threads; sampled values
+are not true peaks or a Docker resource acceptance result. These timings are
+separate local experiments, not additive promises about whole-suite CI savings.
+A bounded private-cache variant also passed all four cases in 9.628s, without
+improving the 9.543s candidate, so no additional cache was adopted. Independent
+source review reported no Critical, Important or Minor findings for the two
+test-file corrections. The 5130-byte approved-next case-body suffix has SHA256
+`47f2dabceff43006b24ed9b46f284d00ba307d57a860daf6a7fe1b27820456ce`.
+The complete records, prior failed exact-head CI and raw lifecycle events are
+retained in `docs/evidence/1219-20261111-ci-scheduling-correction.json` and its ZIP.
+The next published HEAD must still finish every required hosted check.
+
+### Existing owner origin read
+
+GitHub repository metadata and the existing production-sync workflow both name
+`https://jarvis-fawn-iota.vercel.app`. A browser GET to the existing Goal route
+at that origin rendered Vercel's `404 DEPLOYMENT_NOT_FOUND`. Authentication was
+not reached. This does not prove that the Goal, the owner host or another
+deployment is absent. No credential value was read and no production mutation
+was performed. The available protected-main read-only Mac workflow still has
+no input for the target Goal ID. A current existing authenticated connection
+is required before reading the original canonical Goal/Job and approval scope.
+
+### Outstanding production acceptance
 
 1. Read/authenticate the existing Goal and Job from their live canonical store,
    including current approval scope, failed attempts and unfinished work.

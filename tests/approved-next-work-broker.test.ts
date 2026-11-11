@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test, { type TestContext } from "node:test";
+import test, { describe, type TestContext } from "node:test";
 import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -50,7 +50,16 @@ async function fixture(t:TestContext){
     NODE_ENV:"test",JARVIS_BROKER_HOST:"127.0.0.1",JARVIS_BROKER_PORT:String(port),JARVIS_OWNER_TOKEN:owner,JARVIS_DB_PATH:join(root,"broker.sqlite"),JARVIS_COMPASS_DB_PATH:compassPath,
     JARVIS_PUBLIC_BROKER_URL:"",JARVIS_WORKER_INSTALL_URL:"",JARVIS_WORKER_APK_PATH:"",XDG_STATE_HOME:join(root,"state")};
   let child:ChildProcess|undefined,diagnostics="";
-  const stop=async()=>{if(child&&child.exitCode===null&&child.signalCode===null){const done=once(child,"exit");child.kill();await Promise.race([done,delay(3000)]);if(child.exitCode===null)child.kill("SIGKILL");}child=undefined;};
+  const stop=async()=>{
+    if(child&&child.exitCode===null&&child.signalCode===null){
+      const done=once(child,"exit");child.kill();
+      let timeout:ReturnType<typeof setTimeout>|undefined;
+      try{await Promise.race([done,new Promise<void>(resolveStop=>{timeout=setTimeout(resolveStop,3000);})]);}
+      finally{clearTimeout(timeout);}
+      if(child.exitCode===null)child.kill("SIGKILL");
+    }
+    child=undefined;
+  };
   t.after(async()=>{await stop();rmSync(root,{recursive:true,force:true});});
   const wait=async(label:string,check:()=>Promise<boolean>,timeout=15000)=>{const until=Date.now()+timeout;while(Date.now()<until){if(child?.exitCode!==null&&child?.exitCode!==undefined)assert.fail(label+": "+diagnostics);if(await check())return;await delay(50);}assert.fail(label+": "+diagnostics);};
   const start=async()=>{child=spawn(process.execPath,[join(repositoryRoot,"scripts/jarvis-broker.ts")],{cwd:executionRoot,env,stdio:["ignore","ignore","pipe"]});child.stderr?.on("data",c=>{diagnostics=(diagnostics+String(c)).slice(-12000);});
@@ -63,6 +72,8 @@ async function fixture(t:TestContext){
   return {root,compassPath,predecessor,predecessorId,url,headers,start,stop,wait,post,list,read,complete,request};
 }
 
+// Each fixture owns its repository, stores, server port and Broker processes.
+describe("isolated approved-next Broker fixtures", { concurrency: process.platform === "linux" ? 2 : 1 }, () => {
 test("Owner-approved next work starts once after verified completion, including duplicate and Broker restart",{timeout:45000},async t=>{
   const f=await fixture(t);await f.start();const body=f.request();
   assert.equal((await f.post(body,false)).status,401);
@@ -109,4 +120,5 @@ test("successor envelope cannot dispatch a standalone device action",{timeout:20
   const response=await f.post(f.request({text:"wake",idempotencyKey:"not-a-goal-device-command"}));
   assert.equal(response.status,409);assert.equal((await response.json() as {accepted:boolean}).accepted,false);
   assert.deepEqual((await snapshot()).tasks,before.tasks);assert.deepEqual(await f.list(),[]);assert.deepEqual((await f.read()).goal,f.predecessor);
+});
 });

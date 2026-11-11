@@ -34,7 +34,7 @@ names and recorded hypothesis; never invent missing test output from a digest.
 
 ## Tasks and verification
 
-1. Add failing behavioral tests to `tests/tracked-repair-runtime.test.ts` for
+1. Add failing behavioral tests to `tests/autonomous-tracked-repair-runtime.test.ts` for
    signed FAIL -> changed second inference -> independent PASS, restart without
    duplicate inference, immutable first-attempt evidence, finite opt-in bounds,
    stale/forged receipt refusal, interrupted inference and path collisions.
