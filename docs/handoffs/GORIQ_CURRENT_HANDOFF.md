@@ -1,11 +1,11 @@
 # GORIQ GitHub current handoff (Issue #1219)
 
-Last reviewed: 2026-11-12 01:00 JST (2026-11-11 UTC)
+Last reviewed: 2026-11-12 JST (2026-11-11 UTC)
 Repository: haji84/AI- (public)
 Canonical issue: https://github.com/haji84/AI-/issues/1219
 Existing Draft PR: https://github.com/haji84/AI-/pull/1907
 Branch: feature/1219-hosted-goal-job-routing-20261111
-Reviewed implementation HEAD: 5be1fc1ceb58ae69753d6dc75a0786f840715910
+Reviewed implementation HEAD: 5c07a013f8ccc1864a8fbe51c6cecda5ba1040a2
 Reviewed PR base/main: 6737e15033eced135461076d72f792516e83c9b3
 This handoff is a repository record, NOT an authenticated Compass Goal-state transition. The documentation commit following the reviewed HEAD requires its own exact-HEAD CI. Every future reader must refresh refs, statuses and logs.
 
@@ -22,6 +22,15 @@ Evidence and correction sequence:
 Achieved in source: protected API differentiates current Compass Goal from historic persisted WorkRun without removing past notices; tests and source fingerprints have been saved on GitHub. Not yet demonstrated: CI GREEN for revised source; authenticated readback of **the actual owner Goal** `goal-fcc81c97e09153f7` from running owner Broker; actual independent signer/key custody; cross-host durable store/lease/fencing and resumed original `rotation-recovery-37`; real Goal -> verified candidate -> next Job -> artifact. Original Goal remains NOT_ACHIEVED and all acceptance gates remain intact.
 
 Next authorized engineering step: (1) fetch latest PR HEAD and exact-head Actions, inspect project-checks and six-check verifier, repair the FIRST actual failure on this branch without relaxing requirements; (2) when source CI is good, authenticate existing owner Goal via the already-authorized live Broker and independently bind its status/digest without inventing a Goal; (3) require owner-authorized isolated signer and explicit durable cross-host authority before any real resume/signed production claim. Do NOT create signer secrets, new identity, replica Controller, main merge or deployment as a shortcut. Keep original evidence and all historical attempts.
+
+## 2026-11-12 JST: production completion gate map
+
+Current latest reviewed PR HEAD: `5c07a013f8ccc1864a8fbe51c6cecda5ba1040a2`; same-HEAD GitHub Actions [#43064482325](https://github.com/haji84/AI-/actions/runs/43064482325) is 4/4 SUCCESS (normal 3700 PASS / 0 FAIL / 26 conditional SKIP, P8 332 PASS, independent CI-container six checks PASS). **This is source/CI acceptance, not a real original Goal, production signer or cross-host state acceptance.**
+
+A new single-source checklist maps the remaining Goal to precise production gate and proof requirements:
+[GORIQ_GOAL_TO_PRODUCTION_GATES.md](./GORIQ_GOAL_TO_PRODUCTION_GATES.md).
+
+First unfinished action remains **G1: authenticated readback of original `goal-fcc81c97e09153f7` and `rotation-recovery-37` from the live owner Compass/Broker including authority/approval scope**, not a GitHub-text reconstruction. Next blockers: real shared CAS+epoch+fencing/attempt archive, independent operator-controlled production verifier signing, real failed candidate→repaired candidate, cross-host resume, next Job, authorized release and independent artifact/behavior verification. No credential, signer, production or Goal state was changed by this documentation commit. Read the PR/CI at its exact NEW HEAD before claiming any additional CI pass.
 
 ## Owner's locked north-star GOAL
 
