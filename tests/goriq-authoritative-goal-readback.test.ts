@@ -76,8 +76,15 @@ test("authenticated Work Run readback is bound to the current Compass Goal acros
         }, "only the current canonical Goal can be reported as authoritative");
 
         const stale = await fetch(staleUrl, { headers });
-        assert.equal(stale.status, 409, "orphan historical WorkRun must not masquerade as active Goal");
-        assert.equal((await stale.json() as { code?: string }).code, "GOAL_AUTHORITY_MISMATCH");
+        assert.equal(stale.status, 200, "owner may review historical notices and evidence");
+        const historical = await stale.json() as {
+          run: { goalId: string; phase: string };
+          goalAuthority: { kind: string; goalId: string; current: boolean };
+        };
+        assert.equal(historical.run.phase, "COMPLETED");
+        assert.deepEqual(historical.goalAuthority, {
+          kind: "HISTORICAL_WORK_RUN", goalId: "goal-obsolete-unbound", current: false,
+        }, "historical record cannot authorize a current Goal");
       } finally {
         if (child.exitCode === null && child.signalCode === null) {
           const exited = once(child, "exit");

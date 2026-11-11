@@ -16,7 +16,13 @@ type WorkRun = {
   evidenceRefs: string[];
   updatedAt: string;
 };
-type WorkResponse = { run?: WorkRun; completion?: CompletionCycle | null; progress?: { determinate: boolean; value: number | null }; message?: string };
+type WorkResponse = {
+  run?: WorkRun;
+  completion?: CompletionCycle | null;
+  progress?: { determinate: boolean; value: number | null };
+  goalAuthority?: { kind: "CURRENT_COMPASS_GOAL" | "HISTORICAL_WORK_RUN"; goalId: string; current: boolean };
+  message?: string;
+};
 
 export function CompletionDetails({ completion }: { completion: CompletionCycle }) {
   const labels = { PREPARED: '未読', DELIVERED: '表示済み・回答待ち', ANSWERED: '回答記録あり' };
@@ -87,6 +93,9 @@ export default function GoalBridgeStatus() {
   }, [selectedGoal, result?.completion]);
 
   const run = result?.run;
+  const authority = result?.goalAuthority;
+  const authorityCurrent = run != null && authority?.kind === "CURRENT_COMPASS_GOAL"
+    && authority.current === true && authority.goalId === run.goalId;
   return <section ref={panel} className="panel jarvis-section">
     <div className="section-heading">
       <div><p className="section-kicker">DIRECT GOAL BRIDGE</p><h2>ChatGPT / GORIQ Goal状態</h2></div>
@@ -100,6 +109,11 @@ export default function GoalBridgeStatus() {
     </div>
     {error && <p className="jarvis-alert" role="alert">{error}</p>}
     {receiptError && <p className="jarvis-alert" role="alert">{receiptError}</p>}
+    {run && !authorityCurrent && <p className="jarvis-alert" role="status">
+      {authority?.kind === "HISTORICAL_WORK_RUN"
+        ? "過去のWorkRunの記録です。現在のGoalや実行許可を示しません。"
+        : "Compass正本Goalとの照合が未確認です。記録を実行許可として扱わないでください。"}
+    </p>}
     {result?.completion && <CompletionDetails completion={result.completion} />}
     {run && <div className="jarvis-table-wrap"><table className="jarvis-table"><tbody>
       <tr><th>Goal</th><td>{run.goalId}</td></tr>

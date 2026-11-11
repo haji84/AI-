@@ -30,6 +30,9 @@ test('real Broker owner route displays notices and acknowledges only displayed I
     assert.equal(ready, true, errors);
     assert.equal((await fetch(url)).status, 401);
     const before = await (await fetch(url, { headers })).json();
+    assert.deepEqual(before.goalAuthority, {
+      kind: 'HISTORICAL_WORK_RUN', goalId, current: false,
+    }, 'historical notice does not grant current Goal authority');
     assert.equal(before.completion.notifications[0].status, 'PREPARED');
     assert.equal(before.completion.notifications[0].operation, 'Allow screen sharing');
     const payload = { cycleId: cycle.cycleId, notificationIds: [cycle.notifications[0].id] };

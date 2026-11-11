@@ -33,6 +33,8 @@ test("GORIQ owner UI exposes bridged Goal status and evidence", () => {
   assert.match(status, /Evidence/);
   assert.match(status, /次の自律Action/);
   assert.match(status, /Recovery/);
+  assert.match(status, /goalAuthority/);
+  assert.match(status, /過去のWorkRun/);
 });
 
 test("GORIQ emits provider-neutral outbound events for chat clients", () => {
