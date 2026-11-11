@@ -3,12 +3,16 @@ import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { mkdtempSync, rmSync } from "node:fs";
 import { createServer } from "node:net";
+import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { CompassStore } from "../src/compass/store.ts";
 import { CompassGoalRegistryAdapter } from "../src/orchestrator/compass-goal-controller.ts";
 import { CompassWorkRunStore } from "../src/orchestrator/compass-work-run-store.ts";
+import { createDevelopmentJob } from "../src/orchestrator/development-job.ts";
+import { JsonFileDevelopmentJobStore } from "../src/orchestrator/development-job-store.ts";
+import { residentDevelopmentGoalDigest } from "../src/orchestrator/resident-development-sequence.ts";
 import { createQueuedWorkRun } from "../src/orchestrator/work-run-state.ts";
 
 async function freePort(): Promise<number> {
@@ -32,6 +36,16 @@ test("authenticated Work Run readback is bound to the current Compass Goal acros
   const runs = new CompassWorkRunStore(db);
   await runs.put({ ...createQueuedWorkRun(active.goalId), phase: "HUMAN_GATE", blockers: ["approval_required"] });
   await runs.put({ ...createQueuedWorkRun("goal-obsolete-unbound"), phase: "COMPLETED" });
+  const persistedJob = createDevelopmentJob({
+    jobId: "fixture-current-development-job", goalId: active.goalId,
+    requirementIds: ["CORE-014"], acceptanceCriteria: ["authorized Goal readback"],
+    definitionOfDone: [{ id: "criterion-1", description: "authorized Goal readback", required: true }],
+    baseRevision: "a".repeat(40),
+    approvalScope: { taskScopeId: "issue:1219", maxRisk: "low" },
+    workItems: [{ id: "fixture-current-development-job:implement",
+      objective: "Demonstrate current owner Job readback", dependsOn: [], requiredCapabilities: ["code-builder"] }],
+  });
+  await new JsonFileDevelopmentJobStore(join(dir, "self-development", "jobs.json")).put(persistedJob);
   db.close();
 
   try {
@@ -74,6 +88,24 @@ test("authenticated Work Run readback is bound to the current Compass Goal acros
         assert.deepEqual(body.goalAuthority, {
           kind: "CURRENT_COMPASS_GOAL", goalId: active.goalId, current: true,
         }, "only the current canonical Goal can be reported as authoritative");
+        const readback = body as unknown as {
+          jobReadback?: {
+            kind: string; goalId: string; goalDigest: string | null;
+            remoteAuthorityVerified: boolean;
+            jobs: { jobId: string; phase: string; recordSha256: string;
+              approvalScope: { taskScopeId: string; maxRisk: string } }[];
+          };
+        };
+        assert.equal(readback.jobReadback?.kind, "LOCAL_PERSISTED_JOBS");
+        assert.equal(readback.jobReadback?.goalId, active.goalId);
+        assert.equal(readback.jobReadback?.goalDigest, residentDevelopmentGoalDigest(active.goal));
+        assert.equal(readback.jobReadback?.remoteAuthorityVerified, false,
+          "a same-host reader cannot claim cross-host consensus");
+        assert.deepEqual(readback.jobReadback?.jobs, [{
+          jobId: persistedJob.jobId, phase: persistedJob.phase,
+          recordSha256: createHash("sha256").update(JSON.stringify(persistedJob)).digest("hex"),
+          approvalScope: { taskScopeId: "issue:1219", maxRisk: "low" },
+        }], "Job scope and exact stored bytes must match current Goal without leaking instructions");
 
         const stale = await fetch(staleUrl, { headers });
         assert.equal(stale.status, 200, "owner may review historical notices and evidence");
@@ -85,6 +117,8 @@ test("authenticated Work Run readback is bound to the current Compass Goal acros
         assert.deepEqual(historical.goalAuthority, {
           kind: "HISTORICAL_WORK_RUN", goalId: "goal-obsolete-unbound", current: false,
         }, "historical record cannot authorize a current Goal");
+        assert.equal((historical as unknown as { jobReadback?: { kind: string } })
+          .jobReadback?.kind, "HISTORICAL_ONLY");
       } finally {
         if (child.exitCode === null && child.signalCode === null) {
           const exited = once(child, "exit");
