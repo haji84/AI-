@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "source_main": "b064fda706eacfe2805d8f03065a8be4329d89aa",
+  "source_main": "6737e15033eced135461076d72f792516e83c9b3",
   "scope": "Declared audit roots; no functional or physical completion inference",
   "surfaces": [
     {
@@ -1075,7 +1075,7 @@
     },
     {
       "path": "scripts/jarvis-goal-executor.ts",
-      "sha256": "754dbf5f7241512640efcbde42cf8a8b5b1ec72fec09b2b781534d34a1f02f2b",
+      "sha256": "e3ad2b8aa1ed5718aadaae4dbd9234d3ae506527692fcbb188ab94cf5bef8472",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "AUTO-001",
@@ -2948,7 +2948,7 @@
     },
     {
       "path": "src/compass/store.ts",
-      "sha256": "3864d349f6f65abe5a5e33c715ffc09bc9e46abc41da7b5450f9b3bb4b557de8",
+      "sha256": "08582c6dba957beea2940ea366f711c609c69489e9529f88cacaaa9e4e387455",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
@@ -4979,7 +4979,7 @@
     },
     {
       "path": "src/orchestrator/compass-goal-controller.ts",
-      "sha256": "c0a1bc2230a1f3151192bee42d4c3dd6337e6b6b4da635f2510610c32da36b96",
+      "sha256": "067268df0c550f2564fc01f2e7fea4c7fe799325d71bb541833154d8a76cee80",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
@@ -4990,7 +4990,7 @@
     },
     {
       "path": "src/orchestrator/compass-goal-execution-adapter.ts",
-      "sha256": "81b88c21120ef46efd30278f03cb9d4709b3fdb099b73abac56d14a4c388111b",
+      "sha256": "00a5460545bacbadb997362c65e3b422de783aa5daedc7a8052bd1e585293167",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
@@ -5401,7 +5401,7 @@
     },
     {
       "path": "src/orchestrator/goal-controller-runtime.ts",
-      "sha256": "8e165a2bedac0622a0d82179f61a0b3e2c2eeb1038db278e9f38641d32782733",
+      "sha256": "1c8268707638c78863fcb0a0d3268a339882b84222cb22562b61e0ed4e251ba6",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-002",
@@ -5594,7 +5594,7 @@
     },
     {
       "path": "src/orchestrator/local-development-builder.ts",
-      "sha256": "e8fd1bae4b12af905c374520fcfed961ddfb01492d86b0566d1411a2fb7f6e65",
+      "sha256": "0e8331cee43502eeef674ad16ae0b65c6c1d1e508c8baf691397563f91a12480",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-008",
@@ -5918,8 +5918,19 @@
       "reason": "Declared research-transport.ts responsibility implements/supports Fact Verification Engine; 110. Provenance and Reproducibility. Parent ownership is not functional or physical acceptance evidence."
     },
     {
+      "path": "src/orchestrator/resident-development-admission.ts",
+      "sha256": "bf6049fac8455e91836249165d40afc07a0d267ca66b75e143961e7719391b7c",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-002",
+        "CORE-014",
+        "AUTO-015"
+      ],
+      "reason": "Issue #1219 reuses the existing OS-backed Compass writer lease for the resident path. A non-serializable live claim binds the existing Goal and local authority path; busy, pause and release checks grant no distributed ownership or production activation."
+    },
+    {
       "path": "src/orchestrator/resident-development-goal-host.ts",
-      "sha256": "8324fc2dc94435dc8ff8d057484315a825b14f6ca13bcf5f85ade3815d9778e7",
+      "sha256": "d4159faafe3b568af04a83dcdb8285672a74ded4d3b8cc5f44561f236686f3e4",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -5957,7 +5968,7 @@
     },
     {
       "path": "src/orchestrator/runtime-builder-capability.ts",
-      "sha256": "e017a514cde42c6659d9f6a20664e5e35366c7d5945f9c0168db566b070757fd",
+      "sha256": "8d9ea0d2be98e2bea5fd82da77b1b6450849a50da054b9b446e94f70cc17ca56",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -5997,7 +6008,7 @@
     },
     {
       "path": "src/orchestrator/runtime-local-ollama-builder.ts",
-      "sha256": "6888fc79f1b99bbf44751555257ed5398fe0378a32f67f29095eea993f090c07",
+      "sha256": "fc891c75401d004d6e7f5a4922f985b3c5dd182dfe27adfef82d4c4f077785be",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-008",
@@ -6030,6 +6041,17 @@
         "AUTO-001"
       ],
       "reason": "#1219 opt-in local review checkpoint and declaration: binds candidate, deterministic-check evidence and PR identity to an immutable local observation. Cache replay is not formal AI09 approval, GitHub review, deployment, physical or Actions-cross-run acceptance."
+    },
+    {
+      "path": "src/orchestrator/runtime-resident-admission.ts",
+      "sha256": "7522391b557266e40d1559c8c7c3f1070068232590cb0fef3da4c29fd7323e1f",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-010",
+        "AUTO-012"
+      ],
+      "reason": "Issue #1219 pinned host admission applies the existing per-Job router to actual durable resident Jobs. It preserves scope, risk, privacy, zero-cost routing, existing in-flight phases and canonical writer ownership. Source integration does not prove live hosted dispatch, remote persistence or independent production acceptance."
     },
     {
       "path": "src/orchestrator/safe-pr-capability.ts",
@@ -6616,7 +6638,7 @@
     },
     {
       "path": "src/orchestrator/sequenced-resident-runtime.ts",
-      "sha256": "f23cba3c365f0d9976a0a6041dbf778034a8b01c7ff857b2dccc0a2e9405c68a",
+      "sha256": "fe458155c55b58476fd44b3470829e1997d532fafef281c85e3d4990730581be",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -6673,7 +6695,7 @@
     },
     {
       "path": "src/orchestrator/tracked-repair-resident-runtime.ts",
-      "sha256": "840623cf4d6523491656c5d19ac4466a1f34defbb71599d4aae0f0c4653efb47",
+      "sha256": "2edc170dd0c50fd400c79187e2b1473941135cf14be7a7277ea785663625683a",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",

@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import { ResourceWaitError } from "../gai/development-resource-admission.ts";
 import { nextResourceWait, resourceWaitExhausted } from "./development-resource-wait.ts";
+import { evaluateRecovery } from "./recovery-policy.ts";
+import { ResidentExecutionStop, type ResidentDevelopmentAdmission, type ResidentDevelopmentAdmissionStage, type ResidentDevelopmentRunInput } from "./resident-development-admission.ts";
 
 import type { BoundedRunReport } from "./bounded-runner.ts";
 import type { DevelopmentChangeSet } from "./development-change-set.ts";
@@ -55,7 +57,7 @@ export interface ResidentDevelopmentStages {
   builderId?: string;
   /** Only an explicitly opted-in local verifier may suspend on missing receipts. */
   deferMissingVerification?: boolean;
-  build(input: { job: DevelopmentJob; goal: Goal; context: ContextItem[]; workItemId: string }): Promise<DevelopmentChangeSet>;
+  build(input: { job: DevelopmentJob; goal: Goal; context: ContextItem[]; workItemId: string; beforeWrite?: () => Promise<void> }): Promise<DevelopmentChangeSet>;
   /** Optional independent RED attestation. The Builder cannot declare its own test failure. */
   verifyRed?(input: { job: DevelopmentJob; changeSet: DevelopmentChangeSet; goal: Goal; context: ContextItem[] }): Promise<{ digest: string; issuer: string }>;
   verify(input: { job: DevelopmentJob; changeSet: DevelopmentChangeSet; plan: DevelopmentVerificationPlan; goal: Goal; context: ContextItem[] }): Promise<DevelopmentVerificationEvidence[]>;
@@ -110,6 +112,7 @@ export class ResidentDevelopmentGoalHost {
   private readonly changeSets: JsonFileDevelopmentChangeSetStore;
   private readonly stages: ResidentDevelopmentStages;
   private readonly planning: ResidentDevelopmentPlanning;
+  private readonly admission?: ResidentDevelopmentAdmission;
   private readonly controller = new DevelopmentJobStateController();
 
   constructor(options: {
@@ -118,12 +121,14 @@ export class ResidentDevelopmentGoalHost {
     changeSets: JsonFileDevelopmentChangeSetStore;
     stages: ResidentDevelopmentStages;
     planning: ResidentDevelopmentPlanning;
+    admission?: ResidentDevelopmentAdmission;
   }) {
     this.now = options.now ?? (() => new Date());
     this.jobs = options.jobs;
     this.changeSets = options.changeSets;
     this.stages = options.stages;
     this.planning = options.planning;
+    this.admission = options.admission;
   }
 
   matches(goal: Goal): boolean {
@@ -153,31 +158,44 @@ export class ResidentDevelopmentGoalHost {
     return result;
   }
 
-  async run(input: { goalId: string; goal: Goal; context: ContextItem[] }): Promise<BoundedRunReport> {
+  private async assertAuthority(input: ResidentDevelopmentRunInput): Promise<void> {
+    input.writer?.assertHeld();
+    await input.assertExecutionAuthority?.();
+    await this.admission?.assertAuthority({ goalId: input.goalId, goal: input.goal, writer: input.writer });
+    input.writer?.assertHeld();
+  }
+
+  async run(input: ResidentDevelopmentRunInput): Promise<BoundedRunReport> {
     const report = async (achieved: boolean, reason: string, blockers: string[] = []) =>
       this.report(input.goal, await this.jobs.getByGoal(input.goalId), achieved, reason, blockers);
-    const selection = await this.selectJob(input);
-    let current = selection.job;
-    let activeJobId = current?.jobId;
-    if (!current && !selection.goalJobs.length && selection.persistedJobs.length) {
-      return report(false, "development job cancelled", ["development_job_cancelled"]);
-    }
-    if (current?.phase === "WAITING_FOR_RESOURCE") {
-      if (!current.resourceWait) return report(false, "resource wait checkpoint missing", ["resource_wait_checkpoint_missing"]);
-      if (resourceWaitExhausted(current.resourceWait, this.now())) {
-        current = this.transition(current, { transitionId: current.jobId + ":resource-wait-exhausted:" + current.resourceWait.checks, actor: "state-controller", to: "BLOCKED", reason: "bounded resource wait exhausted", blockers: ["resource_wait_budget_exhausted"] });
-        await this.jobs.put(current);
-        return report(false, "bounded resource wait exhausted", current.blockers);
-      }
-      if (this.now().getTime() < Date.parse(current.resourceWait.retryAt)) {
-        return { ...await report(false, "resource_wait:" + current.resourceWait.reason), resourceWait: current.resourceWait };
-      }
-      current = this.transition(current, { transitionId: current.jobId + ":resource-probe:" + current.resourceWait.checks, actor: "state-controller", to: "RECOVERING", reason: "resource wait due; recheck before execution" });
-      await this.jobs.put(current);
-    }
+    let activeJobId: string | undefined;
     try {
+      const selection = await this.selectJob(input);
+      let current = selection.job;
+      activeJobId = current?.jobId;
+      await this.assertAuthority(input);
+      if (!current && !selection.goalJobs.length && selection.persistedJobs.length) {
+        return report(false, "development job cancelled", ["development_job_cancelled"]);
+      }
+      if (current?.phase === "WAITING_FOR_RESOURCE") {
+        if (!current.resourceWait) return report(false, "resource wait checkpoint missing", ["resource_wait_checkpoint_missing"]);
+        if (resourceWaitExhausted(current.resourceWait, this.now())) {
+          current = this.transition(current, { transitionId: current.jobId + ":resource-wait-exhausted:" + current.resourceWait.checks, actor: "state-controller", to: "BLOCKED", reason: "bounded resource wait exhausted", blockers: ["resource_wait_budget_exhausted"] });
+          await this.jobs.put(current);
+          return report(false, "bounded resource wait exhausted", current.blockers);
+        }
+        if (this.now().getTime() < Date.parse(current.resourceWait.retryAt)) {
+          return { ...await report(false, "resource_wait:" + current.resourceWait.reason), resourceWait: current.resourceWait };
+        }
+        current = this.transition(current, { transitionId: current.jobId + ":resource-probe:" + current.resourceWait.checks, actor: "state-controller", to: "RECOVERING", reason: "resource wait due; recheck before execution" });
+        await this.jobs.put(current);
+      }
       return await this.runStage(input, job => { activeJobId = job.jobId; });
     } catch (error) {
+      if (error instanceof ResidentExecutionStop) {
+        return { ...await report(false, error.message, error.mode === "human_gate" ? ["human_gate"] : error.mode === "blocked" ? [error.message] : []),
+          stopReason: error.mode === "paused" ? "paused" : error.mode === "human_gate" ? "approval_required" : "blocked" };
+      }
       if (!(error instanceof ResourceWaitError)) throw error;
       // A late admission result belongs to the exact attempted Job. Never
       // select its completed predecessor or mutate a newly eligible successor.
@@ -188,6 +206,12 @@ export class ResidentDevelopmentGoalHost {
       if (latest.phase === "BLOCKED") return report(false, "development release is blocked", latest.blockers);
       const refreshed = await this.selectJob(input);
       if (refreshed.job?.jobId !== latest.jobId) return report(false, "development job selection changed", ["resource_wait_job_changed"]);
+      try { await this.assertAuthority(input); }
+      catch (stop) {
+        if (!(stop instanceof ResidentExecutionStop)) throw stop;
+        return { ...await report(false, stop.message, stop.mode === "human_gate" ? ["human_gate"] : stop.mode === "blocked" ? [stop.message] : []),
+          stopReason: stop.mode === "paused" ? "paused" : stop.mode === "human_gate" ? "approval_required" : "blocked" };
+      }
       const checkpoint = nextResourceWait(latest.resourceWait, error.outcome, this.now());
       const waiting = this.transition(latest, {
         transitionId: latest.jobId + ":resource-wait:" + checkpoint.checks, actor: "state-controller", to: "WAITING_FOR_RESOURCE",
@@ -246,8 +270,9 @@ export class ResidentDevelopmentGoalHost {
     return { persistedJobs, sequence, selected, goalJobs, job };
   }
 
-  private async runStage(input: { goalId: string; goal: Goal; context: ContextItem[] }, onSelected: (job: DevelopmentJob) => void): Promise<BoundedRunReport> {
+  private async runStage(input: ResidentDevelopmentRunInput, onSelected: (job: DevelopmentJob) => void): Promise<BoundedRunReport> {
     const selection = await this.selectJob(input);
+    await this.assertAuthority(input);
     const { sequence, selected, goalJobs } = selection;
     let job = selection.job;
     const report = (achieved: boolean, reason: string, blockers: string[] = []): BoundedRunReport => {
@@ -286,6 +311,20 @@ export class ResidentDevelopmentGoalHost {
     if (job.phase === "HUMAN_GATE") return report(false, "development release requires Human Gate", ["human_gate"]);
     if (job.phase === "BLOCKED") return report(false, "development release is blocked", job.blockers);
 
+    const admit = async (stage: ResidentDevelopmentAdmissionStage, workItemId?: string): Promise<void> => {
+      await this.assertAuthority(input);
+      const latest = await this.jobs.get(job!.jobId);
+      if (!latest || JSON.stringify(latest) !== JSON.stringify(job)) {
+        throw new ResidentExecutionStop("blocked", "development_job_changed_during_execution");
+      }
+      await this.admission?.check({ job: latest, goal: input.goal, stage, workItemId,
+        writer: input.writer });
+      // Store reads and host admission can yield; close that gap before a
+      // model result reaches its synchronous candidate write or state commit.
+      await this.assertAuthority(input);
+    };
+    await admit("build");
+
     const implementationItem = job.workItems.find((item) => item.id.endsWith(":implement")) ?? job.workItems[1] ?? job.workItems[0]!;
     const testItem = job.workItems.find((item) => item.id.endsWith(":test"));
     const assertSequenceChangeSet = (candidate: DevelopmentChangeSet): void => {
@@ -295,6 +334,18 @@ export class ResidentDevelopmentGoalHost {
       }
     };
     const historicalChangeSets = (await this.changeSets.list()).filter((candidate) => candidate.jobId === job!.jobId);
+    // The canonical Job records the diagnosis before the candidate index changes.
+    // Reconcile an interrupted second write without re-verifying or rebuilding
+    // an already diagnosed candidate, and without losing its failure budget.
+    for (let index = 0; index < historicalChangeSets.length; index++) {
+      const candidate = historicalChangeSets[index]!;
+      if (candidate.status !== "REJECTED" && job.history.some(entry => entry.failureSignature
+        && entry.transitionId === `${job!.jobId}:verification-failed:${candidate.changeSetId}:${entry.failureSignature}`)) {
+        const rejected = { ...candidate, status: "REJECTED" as const, updatedAt: nextTimestamp(candidate.updatedAt) };
+        await this.changeSets.put(rejected);
+        historicalChangeSets[index] = rejected;
+      }
+    }
     const storedChangeSets = historicalChangeSets.filter((candidate) => candidate.status !== "REJECTED");
     let changeSet = storedChangeSets.find((candidate) => candidate.workItemId === implementationItem.id) ?? null;
     if (!changeSet) {
@@ -306,15 +357,24 @@ export class ResidentDevelopmentGoalHost {
         job = this.transition(job, { transitionId: `${job.jobId}:implementing`, actor: "state-controller", to: "IMPLEMENTING", reason: "resident Builder selected" });
         await this.jobs.put(job);
       }
+      if (job.phase === "RECOVERING") {
+        job = this.transition(job, { transitionId: `${job.jobId}:reimplementing:${job.attempts.length}`,
+          actor: "state-controller", to: "IMPLEMENTING", reason: "resume persisted diagnosis with a different candidate" });
+        await this.jobs.put(job);
+      }
       const existingTest = testItem ? storedChangeSets.find((candidate) => candidate.workItemId === testItem.id) : undefined;
       if (testItem && !existingTest) {
-        let testChangeSet = await this.stages.build({ job, goal: input.goal, context: input.context, workItemId: testItem.id });
+        await admit("build", testItem.id);
+        let testChangeSet = await this.stages.build({ job, goal: input.goal, context: input.context, workItemId: testItem.id,
+          beforeWrite: () => admit("build", testItem.id) });
+        await admit("commit", testItem.id);
         if (testChangeSet.jobId !== job.jobId || testChangeSet.baseRevision !== job.baseRevision || testChangeSet.workItemId !== testItem.id) throw new Error("resident Builder returned an unbound TDD test Change Set");
         assertSequenceChangeSet(testChangeSet);
         if (testChangeSet.tddPhase !== "red" || !testChangeSet.tddEvidenceDigest) throw new Error("resident Builder did not supply a TDD test candidate");
         const independentRed = this.stages.verifyRed
           ? await this.stages.verifyRed({ job, changeSet: testChangeSet, goal: input.goal, context: input.context })
           : null;
+        await admit("commit", testItem.id);
         if (this.stages.verifyRed && (!independentRed || !/^[a-f0-9]{64}$/.test(independentRed.digest)
           || !independentRed.issuer || independentRed.issuer === testChangeSet.deviceId)) {
           throw new Error("independent RED attestation rejected");
@@ -326,7 +386,10 @@ export class ResidentDevelopmentGoalHost {
         job = this.transition(job, { transitionId: `${job.jobId}:tdd-red`, actor: "state-controller", to: "IMPLEMENTING", reason: "failing test Work Item persisted before implementation", evidence: [{ id: `${job.jobId}:tdd-red`, criterionId: "repository-tdd", kind: "development-tdd-red", issuer: independentRed?.issuer ?? testChangeSet.deviceId, verified: true, sourceRevision: testChangeSet.candidateRevision, artifactDigest: testChangeSet.tddEvidenceDigest, recordedAt: testChangeSet.updatedAt }] });
         await this.jobs.put(job);
       }
-      changeSet = await this.stages.build({ job, goal: input.goal, context: input.context, workItemId: implementationItem.id });
+      await admit("build", implementationItem.id);
+      changeSet = await this.stages.build({ job, goal: input.goal, context: input.context, workItemId: implementationItem.id,
+        beforeWrite: () => admit("build", implementationItem.id) });
+      await admit("commit", implementationItem.id);
       if (changeSet.jobId !== job.jobId || changeSet.baseRevision !== job.baseRevision || changeSet.workItemId !== implementationItem.id) {
         throw new Error("resident Builder returned an unbound Change Set");
       }
@@ -346,7 +409,6 @@ export class ResidentDevelopmentGoalHost {
       if (historicalChangeSets.some((old) => old.workItemId === implementationItem.id && old.status === "REJECTED"
         && (old.artifactDigest === changeSet!.artifactDigest || old.patchDigest === changeSet!.patchDigest))) {
         changeSet = { ...changeSet, status: "REJECTED", updatedAt: nextTimestamp(changeSet.updatedAt) };
-        await this.changeSets.put(changeSet);
         job = this.transition(job, {
           transitionId: `${job.jobId}:candidate-equivalent:${changeSet.changeSetId}`,
           actor: "state-controller", to: "BLOCKED",
@@ -354,6 +416,7 @@ export class ResidentDevelopmentGoalHost {
           blockers: ["equivalent_failed_candidate"],
         });
         await this.jobs.put(job);
+        await this.changeSets.put(changeSet);
         return report(false, "Builder repeated a previously rejected implementation", ["equivalent_failed_candidate"]);
       }
       await this.changeSets.put(changeSet);
@@ -384,7 +447,9 @@ export class ResidentDevelopmentGoalHost {
     const localCompletion = sequence?.completionMode === "verified-local-artifact";
     let localEvidence: DevelopmentEvidence[] = [];
     if (changeSet.status === "LOCAL") {
+      await admit("verify");
       const evidence = await this.stages.verify({ job, changeSet, plan: verificationPlan, goal: input.goal, context: input.context });
+      await admit("commit");
       if (sequence && evidence.some(item => Date.parse(item.recordedAt) < Date.parse(changeSet!.createdAt) - 60_000
         || Date.parse(item.recordedAt) > Date.now() + 60_000)) {
         return report(false, "independent verification evidence predates the candidate or is future-dated", ["verification_evidence_stale"]);
@@ -394,20 +459,48 @@ export class ResidentDevelopmentGoalHost {
         // Missing independent check receipts are WAITING, not failed code.
         // Preserve the exact candidate and durable VERIFYING checkpoint rather
         // than rejecting a good artifact and rerunning a now-dirty Builder.
-        // Only genuinely failed/stale/inconsistent evidence enters recovery.
+        // Only a genuine check failure may enter implementation recovery.
         const outstanding = verification.reasons.every(reason => reason.startsWith("missing_evidence:"));
         if (outstanding && this.stages.deferMissingVerification === true) {
           return report(false, `independent_verifier_pending:${verification.reasons.join(",")}`);
         }
         const signature = createHash("sha256").update(verification.reasons.slice().sort().join("\n")).digest("hex");
-        const strategyId = `verify-recovery-${job.attempts.length + 1}`;
+        // Only a complete, correctly bound independent FAIL is a coding repair.
+        // Missing, inconclusive, stale or non-independent evidence cannot grant
+        // another implementation attempt. The normal receipt-wait remains above.
+        const repairable = verification.reasons.every(reason => reason.startsWith("check_not_passed:"))
+          && verificationPlan.requiredChecks.every(check => {
+            const records = evidence.filter(item => item.check === check);
+            return records.length === 1 && ["passed", "failed"].includes(records[0]!.status);
+          });
+        const recovery = repairable ? evaluateRecovery({
+          failureSignature: signature, failureClass: "implementation",
+          attemptsForSignature: job.attempts.filter(attempt => attempt.signature === signature).length + 1,
+          strategyPivots: job.attempts.filter(attempt => attempt.strategyId.startsWith("verify-pivot-")).length,
+          totalAttempts: job.attempts.length + 1,
+        }) : null;
+        const strategyId = `verify-${recovery?.action === "strategy_pivot" ? "pivot" : "recovery"}-${job.attempts.length + 1}`;
+        const canRepair = recovery !== null && !recovery.blocked;
+        job = this.transition(job, {
+          transitionId: `${job.jobId}:verification-failed:${changeSet.changeSetId}:${signature}`,
+          actor: "state-controller", to: canRepair ? "RECOVERING" : "BLOCKED",
+          reason: recovery?.reason ?? "verification cannot authorize implementation recovery",
+          blockers: recovery?.blocked ? ["verification_recovery_exhausted"] : canRepair ? [] : verification.reasons,
+          evidence: evidence.map((item) => ({ id: `${job!.jobId}:failed-check:${changeSet!.changeSetId}:${item.check}:${signature}`,
+            criterionId: "repository-verification", kind: `development-check:${item.check}`, issuer: item.verifierId,
+            verified: false, sourceRevision: item.sourceRevision, artifactDigest: item.artifactDigest, recordedAt: item.recordedAt })),
+          failure: { signature, strategyId, hypothesis: verification.reasons.join(",") + (recovery ? `; ${recovery.reason}` : "") },
+        });
+        // Failure evidence, attempt count and terminal decision share one Job write.
+        await this.jobs.put(job);
         changeSet = { ...changeSet, status: "REJECTED", updatedAt: nextTimestamp(changeSet.updatedAt) };
         await this.changeSets.put(changeSet);
-        job = this.transition(job, { transitionId: `${job.jobId}:verification-failed:${changeSet.changeSetId}:${signature}`, actor: "state-controller", to: "RECOVERING", reason: "independent verification failed; a materially different Builder attempt is required", evidence: evidence.map((item) => ({ id: `${job!.jobId}:failed-check:${changeSet!.changeSetId}:${item.check}:${signature}`, criterionId: "repository-verification", kind: `development-check:${item.check}`, issuer: item.verifierId, verified: false, sourceRevision: item.sourceRevision, artifactDigest: item.artifactDigest, recordedAt: item.recordedAt })), failure: { signature, strategyId, hypothesis: verification.reasons.join(",") } });
-        await this.jobs.put(job);
-        return report(false, "independent verification failed; recovery persisted", verification.reasons);
+        if (!canRepair) return report(false, job.history.at(-1)!.reason, job.blockers);
+        if (recovery) return report(false, `verification_recovery:${recovery.action}:${signature}`);
       }
+      await admit("acceptance");
       const acceptanceEvidence = await this.stages.acceptanceEvidence?.({ job, changeSet, plan: verificationPlan, goal: input.goal, context: input.context }) ?? [];
+      await admit("commit");
       const invalidAcceptance = acceptanceEvidence.filter((item) =>
         !job!.definitionOfDone.some((criterion) => criterion.id === item.criterionId)
         || !item.verified
@@ -453,7 +546,9 @@ export class ResidentDevelopmentGoalHost {
       }
     }
 
+    await admit("release");
     const releaseState = await this.stages.releaseState({ job, changeSet, goal: input.goal, context: input.context });
+    await admit("commit");
     if (releaseState.taskScopeId !== job.approvalScope.taskScopeId) {
       job = this.transition(job, { transitionId: `${job.jobId}:scope-mismatch`, actor: "state-controller", to: "HUMAN_GATE", reason: "release authorization scope does not match durable Job", blockers: ["release_authorization_scope_mismatch"] });
       await this.jobs.put(job);
@@ -560,7 +655,9 @@ export class ResidentDevelopmentGoalHost {
     const operationId = `${job.jobId}:${gate.action}:${changeSet.changeSetId}:${changeSet.candidateRevision}`;
     job = this.transition(job, { transitionId: operationId, actor: "state-controller", to: "PUBLISHING", reason: `durable idempotent release operation requested:${gate.action}`, evidence: [{ id: operationId, criterionId: "repository-release", kind: `release-operation:${gate.action}`, issuer: "resident-release-gate", verified: false, sourceRevision: changeSet.candidateRevision, artifactDigest: changeSet.artifactDigest, recordedAt: new Date().toISOString() }] });
     await this.jobs.put(job);
+    await admit("release");
     await this.stages.executeRelease(gate.action, { operationId, job, changeSet, goal: input.goal, context: input.context });
+    await admit("commit");
     return report(false, `release action executed:${gate.action}`);
   }
 }

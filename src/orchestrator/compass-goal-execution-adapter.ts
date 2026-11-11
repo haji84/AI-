@@ -26,6 +26,8 @@ import type { ResidentDevelopmentProgress } from "./resident-development-goal-ho
 import { residentDevelopmentGoalDigest } from "./resident-development-sequence.ts";
 import type { DefinitionOfDoneResult, WorkState } from "./work-state.ts";
 import type { CompletionSource } from './completion-execution.ts';
+import { acquireResidentExecutionWriter, isResidentExecutionWriter, ResidentExecutionStop, type ResidentDevelopmentRunInput, type ResidentExecutionWriter } from "./resident-development-admission.ts";
+import { CompassWorkRunStore } from "./compass-work-run-store.ts";
 
 export interface CognitiveRuntimeOptions {
   /** Explicit host opt-in; absent preserves the existing development execution path. */
@@ -46,7 +48,7 @@ export interface CognitiveRuntimeOptions {
 
 export interface DevelopmentGoalRuntime {
   matches(goal: Goal, context: unknown[]): boolean;
-  run(input: { goalId: string; goal: Goal; context: ContextItem[] }): Promise<BoundedRunReport>;
+  run(input: ResidentDevelopmentRunInput): Promise<BoundedRunReport>;
   /** Explicit trusted host contract; generic runtime reports alone cannot certify criteria. */
   getVerifiedProgress?(input: { goalId: string; goal: Goal }): Promise<ResidentDevelopmentProgress | null>;
 }
@@ -54,6 +56,8 @@ export interface DevelopmentGoalRuntime {
 export interface DevelopmentRuntimeOptions {
   /** Explicit host opt-in; absent preserves the existing Builder path. */
   runtime: DevelopmentGoalRuntime;
+  /** Existing executor may retain this same-filesystem writer across bounded runs and WorkRun updates. */
+  writer?: ResidentExecutionWriter;
 }
 
 /** Host-selected catalog shared by execution and read-only status validation. */
@@ -172,8 +176,18 @@ export class CompassGoalExecutionAdapter implements GoalExecutionAdapter {
     const compass = new CompassStore(this.dbPath);
     let releaseLease: (() => Promise<void>) | undefined;
     const leasePath = `${this.dbPath}.cognitive-run.lock`;
+    let writer = this.developmentOptions?.writer;
     try {
       if (this.cognitiveOptions.useCore === true) releaseLease = await acquireCognitiveLease(leasePath);
+      if (this.developmentOptions) {
+        if (writer) {
+          if (!isResidentExecutionWriter(writer, goalId, leasePath)) throw Error("RESIDENT_EXECUTION_WRITER_BINDING_INVALID");
+          writer.assertHeld();
+        } else {
+          writer = await acquireResidentExecutionWriter(leasePath, goalId);
+          releaseLease = () => writer!.release();
+        }
+      }
       const record = compass.getGoal();
       if (!record) throw new Error("Compass goal is not set");
       const goal = compassGoalToLoopGoal(record);
@@ -219,7 +233,27 @@ export class CompassGoalExecutionAdapter implements GoalExecutionAdapter {
           contextSource.collect({ goal }),
           new EntryContextSource(input.context ?? []).collect(),
         ]);
-        const report = await runtime.run({ goalId: authoritativeGoalId, goal, context: context.flat() });
+        const assertExecutionAuthority = async (): Promise<void> => {
+          if (!isResidentExecutionWriter(writer, authoritativeGoalId, leasePath)) throw new ResidentExecutionStop("blocked", "RESIDENT_EXCLUSIVE_WRITER_REQUIRED");
+          const [run, work, canonicalBlockers] = await Promise.all([
+            new CompassWorkRunStore(compass).getByGoal(authoritativeGoalId),
+            new CompassWorkStateStoreAdapter(compass).get(authoritativeGoalId),
+            new CompassStateStoreAdapter(compass).completionBlockers(goal),
+          ]);
+          // Read Goal and stop state after the final await, not from an earlier snapshot.
+          const latest = compass.getGoal();
+          if (!latest || residentDevelopmentGoalDigest(compassGoalToLoopGoal(latest)) !== residentDevelopmentGoalDigest(goal)) {
+            throw new ResidentExecutionStop("blocked", "resident_goal_changed_during_execution");
+          }
+          const state = compass.getState();
+          if (state.status === "PAUSED") throw new ResidentExecutionStop("paused", "project_paused");
+          if (run?.phase === "HUMAN_GATE") throw new ResidentExecutionStop("human_gate", "human_gate");
+          if (run && !["QUEUED", "PLANNING", "RUNNING", "VERIFYING", "RECOVERING"].includes(run.phase)) {
+            throw new ResidentExecutionStop("blocked", "resident_work_run_no_longer_runnable");
+          }
+          if (state.blockers.length || work?.blockers.length || canonicalBlockers.length) throw new ResidentExecutionStop("blocked", "resident_authority_blocked");
+        };
+        const report = await runtime.run({ goalId: authoritativeGoalId, goal, context: context.flat(), assertExecutionAuthority, writer });
         const progress = await runtime.getVerifiedProgress?.({ goalId: authoritativeGoalId, goal });
         return progress ? await projectResidentProgress(compass, authoritativeGoalId, goal, report, progress) : report;
       }

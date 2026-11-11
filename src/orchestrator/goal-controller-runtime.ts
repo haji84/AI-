@@ -60,6 +60,12 @@ export interface GoalRegistry {
 export interface GoalDecisionStore {
   get(idempotencyKey: string): Promise<GoalControllerDecision | null>;
   put(idempotencyKey: string, decision: GoalControllerDecision): Promise<void>;
+  /** A durable authority may bind Goal creation and its intake decision atomically. */
+  createGoalAndPut?(
+    registry: GoalRegistry,
+    input: Parameters<GoalRegistry["create"]>[0],
+    decisionForGoal: (goal: ActiveGoal) => GoalControllerDecision,
+  ): Promise<GoalControllerDecision>;
 }
 
 export interface ClassifierCapability {
@@ -104,6 +110,17 @@ export function normalizeIntake(input: UnifiedIntakeRequest): NormalizedIntake {
     goalHint: input.goalHint?.trim() || undefined,
     goalContract,
   };
+}
+
+/** Entry-point changes may replay a request; changed work must use a new key. */
+export function assertIntakeReplayMatches(decision: GoalControllerDecision, intake: NormalizedIntake): void {
+  const accepted = decision.resolution.intake;
+  const sameTarget = !intake.goalHint || intake.goalHint === accepted.goalHint
+    || intake.goalHint === decision.goalId || intake.goalHint === decision.resolution.goal?.goal.title;
+  if (intake.text !== accepted.text || !sameTarget
+    || JSON.stringify(intake.goalContract ?? null) !== JSON.stringify(accepted.goalContract ?? null)) {
+    throw new Error("INTAKE_IDEMPOTENCY_CONFLICT");
+  }
 }
 
 const questionPattern = /[?？]$|^(what|why|how|when|where|who|is|are|can|could|would|should)\b|^(何|なぜ|どう|いつ|どこ|誰|教えて|意味)/i;
@@ -165,6 +182,10 @@ export class GoalResolver {
     const match = hinted ?? (ranked[0]?.score >= 0.25 ? ranked[0].entry : undefined);
 
     if (match) {
+      if (intake.goalContract && (
+        JSON.stringify(intake.goalContract.successCriteria) !== JSON.stringify(match.goal.successCriteria)
+        || JSON.stringify(intake.goalContract.constraints ?? []) !== JSON.stringify(match.goal.constraints)
+      )) throw new Error("GOAL_CONTRACT_CONFLICT: explicitly change the accepted Goal before supplying different obligations");
       const goalChange = /(goal|ゴール|目的).*(変更|変え|change|replace)/i.test(intake.text);
       return {
         kind: goalChange ? "GOAL_CHANGE_REQUEST" : "EXISTING_GOAL",
@@ -175,20 +196,29 @@ export class GoalResolver {
       };
     }
     if (intent === "GOAL") {
-      const created = await this.registry.create({
-        title: intake.text.slice(0, 120),
-        description: intake.text,
-        successCriteria: intake.goalContract?.successCriteria ?? (developmentPattern.test(intake.text) ? [intake.text] : []),
-        constraints: intake.goalContract?.constraints ?? [],
-      });
-      return { kind: "NEW_GOAL", intent, intake, goal: created, reason: "new_goal_intent" };
+      // Resolution is read-only: the controller commits creation with its
+      // durable intake decision when the authority supports that transaction.
+      return { kind: "NEW_GOAL", intent, intake, reason: "new_goal_intent" };
     }
     return { kind: "STANDALONE_ACTION", intent, intake, reason: "no_related_active_goal" };
   }
 }
 
+function decisionFromResolution(resolution: GoalResolution, state?: WorkState | null): GoalControllerDecision {
+  if (resolution.kind === "NO_GOAL") {
+    return { resolution, action: resolution.intent === "INSPECTION" ? "INSPECT" : "ANSWER" };
+  }
+  if (resolution.kind === "STANDALONE_ACTION") return { resolution, action: "EXECUTE_BOUNDED" };
+  const remainingCriteria = state
+    ? state.definitionOfDone.filter((item) => !state.verificationResults.some((r) => r.itemId === item.id && (r.passed || r.waived))).map((item) => item.id)
+    : resolution.goal?.goal.successCriteria.map((_, index) => `criterion-${index + 1}`) ?? [];
+  return { resolution, action: "CONTINUE_GOAL", goalId: resolution.goal?.goalId,
+    nextAction: state?.nextAction ?? null, remainingCriteria };
+}
+
 export class GoalControllerRuntime {
   private readonly resolver: GoalResolver;
+  private readonly registry: GoalRegistry;
   private readonly classifier?: ClassifierCapability;
   private readonly workStateStore?: WorkStateStore;
   private readonly decisionStore?: GoalDecisionStore;
@@ -202,6 +232,7 @@ export class GoalControllerRuntime {
   }
 
   constructor(input: { registry: GoalRegistry; classifier?: ClassifierCapability; workStateStore?: WorkStateStore; decisionStore?: GoalDecisionStore }) {
+    this.registry = input.registry;
     this.resolver = new GoalResolver(input.registry);
     this.classifier = input.classifier;
     this.workStateStore = input.workStateStore;
@@ -212,33 +243,33 @@ export class GoalControllerRuntime {
     const intake = normalizeIntake(request);
     const existing = this.seen.get(intake.idempotencyKey) ?? await this.decisionStore?.get(intake.idempotencyKey) ?? undefined;
     if (existing) {
+      assertIntakeReplayMatches(existing, intake);
       this.seen.set(intake.idempotencyKey, existing);
       return existing;
     }
     const intent = await classifyIntent(intake, this.classifier);
     const resolution = await this.resolver.resolve(intake, intent);
 
-    let decision: GoalControllerDecision;
-    if (resolution.kind === "NO_GOAL") {
-      decision = { resolution, action: intent === "INSPECTION" ? "INSPECT" : "ANSWER" };
-    } else if (resolution.kind === "STANDALONE_ACTION") {
-      decision = { resolution, action: "EXECUTE_BOUNDED" };
-    } else {
-      const goalId = resolution.goal?.goalId;
-      const state = goalId && this.workStateStore ? await this.workStateStore.get(goalId) : resolution.goal?.workState;
-      const remainingCriteria = state
-        ? state.definitionOfDone.filter((item) => !state.verificationResults.some((r) => r.itemId === item.id && (r.passed || r.waived))).map((item) => item.id)
-        : resolution.goal?.goal.successCriteria.map((_, index) => `criterion-${index + 1}`) ?? [];
-      decision = {
-        resolution,
-        action: "CONTINUE_GOAL",
-        goalId,
-        nextAction: state?.nextAction ?? null,
-        remainingCriteria,
+    if (resolution.kind === "NEW_GOAL") {
+      const input = {
+        title: intake.text.slice(0, 120),
+        description: intake.text,
+        successCriteria: intake.goalContract?.successCriteria ?? (developmentPattern.test(intake.text) ? [intake.text] : []),
+        constraints: intake.goalContract?.constraints ?? [],
       };
+      if (this.decisionStore?.createGoalAndPut) {
+        const decision = await this.decisionStore.createGoalAndPut(this.registry, input,
+          goal => decisionFromResolution({ ...resolution, goal }, goal.workState));
+        this.seen.set(intake.idempotencyKey, decision);
+        return decision;
+      }
+      resolution.goal = await this.registry.create(input);
     }
-    this.seen.set(intake.idempotencyKey, decision);
+    const goalId = resolution.goal?.goalId;
+    const state = goalId && this.workStateStore ? await this.workStateStore.get(goalId) : resolution.goal?.workState;
+    const decision = decisionFromResolution(resolution, state);
     await this.decisionStore?.put(intake.idempotencyKey, decision);
+    this.seen.set(intake.idempotencyKey, decision);
     return decision;
   }
 }

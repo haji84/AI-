@@ -57,3 +57,53 @@ main deployment or resident ZBook/Mac process is changed by this proposal.
 Remove the new source module, tests, and this proposed decision if rejected;
 existing Issue #1219, PR #1905, runtime state, CI and protected main remain
 unchanged. No database migration or task credential changes are involved.
+
+## 2026-11-11 integration update in the same PR
+
+The selected production code path is the existing
+`jarvis-goal-executor -> CompassGoalExecutionAdapter -> ResidentDevelopmentGoalHost`.
+`HostedGoalControllerAdapter` remains a source/fixture contract; it is not installed
+as a second production authority. The normal, sequence and tracked-repair factory
+branches all receive the same host-owned admission dependency.
+
+The executor retains the existing OS-backed Compass writer for the entire bounded
+continuation and WorkRun writeback. The adapter can acquire that writer itself for
+direct callers. Its non-serializable live capability binds the Goal and authority
+path, expires on release and cannot be supplied as Goal/context JSON. A competing
+executor leaves the active WorkRun unchanged. This is **one local filesystem**;
+copying a database, cache or artifact between Actions runs does not create shared
+ownership or consensus.
+
+Explicit hosted execution requires an already provisioned signed execution
+profile, plus these trusted host settings:
+
+| Setting | Required value and binding |
+| --- | --- |
+| `GORIQ_EXECUTION_HOST_MODE` | `hosted`; invalid explicit modes fail closed |
+| `GORIQ_EXECUTION_HOST_ID` | Actual configured execution node ID |
+| `GORIQ_HOSTED_ROUTING_FILE` | Absolute host-owned file outside runtime/candidate workspaces |
+| `GORIQ_HOSTED_ROUTING_SHA256` | SHA256 of those exact configuration bytes |
+
+The configuration has exactly `version`, `authorityPath`, `goalId`, `goalDigest`, `taskScopeId`,
+`executionContractDigest`, `expiresAt`, `hostId`, `privacy`, and `nodes`.
+Version is 1. The authority path pins the existing Compass database and its writer
+lock, must match the executor path, and must be outside candidate workspaces.
+Goal ID/digest and task scope must match the accepted existing Goal
+and Job. The execution contract digest references the existing validated sequence
+or tracked-repair manifest; this file cannot define a new Goal, Job, criterion,
+Builder, verifier or approval. Nodes use the existing `FabricNode` schema.
+
+Admission reloads and checks the pin, expiry and scope at stage boundaries. The
+hosted node must satisfy the actual Job's capabilities, public privacy, LOW risk,
+LOCAL evidence mode and zero incremental cost. A resumed in-flight Job keeps its
+real phase and requires the live canonical writer and the same current-host
+eligibility rules. Missing capability uses the existing durable bounded resource
+wait. HIGH/CRITICAL remains a Human Gate. Missing/invalid explicit configuration
+does not fall back to a different runtime or coding provider.
+
+The host checks canonical stop/Goal state before and after awaited stages. The
+local Ollama and tracked-repair Builders also check immediately before candidate
+writes. Generic external HTTP workers do not gain this local write guarantee.
+No workflow schedule, token, signer key, remote state service or device service is
+provisioned by these changes. The complete Issue #1219 runtime acceptance remains
+open, including attempt-aware real-model repair and off-run authority continuity.

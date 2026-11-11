@@ -226,18 +226,22 @@ for (const condition of ["PAUSED", "compass_blocker"] as const) {
       assert.ok(stopped.goalEvaluation?.remainingGaps.includes(condition === "PAUSED" ? "project_paused" : "owner_review_pending"));
     } finally { db.close(); }
 
-    const before = f.counts(), completedJobs = await f.jobs().getByGoal(goalId);
-    assert.ok(completedJobs.every(job => job.phase === "COMPLETED"), "verified Jobs remain available for safe resume");
+    const before = f.counts(), stoppedJobs = await f.jobs().getByGoal(goalId);
+    assert.deepEqual(stoppedJobs.map(job => job.phase), ["COMPLETED", "VERIFYING"],
+      "the late stop must prevent both Job completion and Goal completion, retaining the candidate");
     const stillStopped = await f.adapter().run(goalId);
     assert.equal(stillStopped.goalEvaluation?.achieved, false);
     assert.deepEqual(f.counts(), before, "restart must preserve the stop without invoking the host");
     const resumedDb = new CompassStore(f.dbPath);
     try { resumedDb.updateState({ status: "READY", blockers: [] }); }
     finally { resumedDb.close(); }
+    f.stages.acceptanceEvidence = original;
     const resumed = await f.adapter().run(goalId);
     assert.equal(resumed.stopReason, "goal_complete");
     assert.equal(resumed.goalEvaluation?.achieved, true);
     assert.equal(f.counts().builds, before.builds, "resume reuses the verified candidate without rebuilding");
-    assert.deepEqual(await f.jobs().getByGoal(goalId), completedJobs);
+    const completedJobs = await f.jobs().getByGoal(goalId);
+    assert.ok(completedJobs.every(job => job.phase === "COMPLETED"));
+    assert.deepEqual(completedJobs.map(job => job.jobId), stoppedJobs.map(job => job.jobId));
   });
 }

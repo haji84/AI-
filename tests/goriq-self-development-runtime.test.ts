@@ -289,13 +289,18 @@ test("repeated verification failure records distinct attempts and identical reje
       title: "Implement bounded recovery", successCriteria: ["independently passing tests"], constraints: [],
     }, context: [] };
     const first = await runtime().run(input);
-    assert.ok(first.goalEvaluation?.blockers.includes("check_not_passed:unit"));
+    assert.equal(first.stopReason, "cycle_budget_exhausted");
+    assert.deepEqual(first.goalEvaluation?.blockers, []);
+    assert.match(first.goalEvaluation!.remainingGaps[0]!, /^verification_recovery:repair:/);
     const second = await runtime().run(input);
-    assert.ok(second.goalEvaluation?.blockers.includes("check_not_passed:unit"));
+    assert.equal(second.stopReason, "cycle_budget_exhausted");
+    assert.deepEqual(second.goalEvaluation?.blockers, []);
+    assert.match(second.goalEvaluation!.remainingGaps[0]!, /^verification_recovery:repair:/);
     const before = (await new JsonFileDevelopmentJobStore(jobsPath).getByGoal("g-retry"))[0]!;
     assert.equal(before.phase, "RECOVERING");
     assert.equal(before.attempts.length, 2);
     assert.equal(before.failureSignatures.length, 1);
+    assert.ok(before.attempts.every(attempt => attempt.hypothesis.includes("check_not_passed:unit")));
     assert.equal(before.history.filter((item) => item.failureSignature).length, 2);
     assert.equal(new Set(before.history.filter((item) => item.failureSignature).map((item) => item.transitionId)).size, 2);
     assert.equal((await changes.list()).filter((item) => item.status === "REJECTED").length, 2);

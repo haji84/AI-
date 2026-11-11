@@ -16,6 +16,7 @@ import { createDevelopmentVerificationPlan } from "../src/orchestrator/developme
 import { localOllamaFixtureSourcePath, localOllamaFixtureTestPath } from "../src/orchestrator/local-ollama-tdd.ts";
 import { residentDevelopmentGoalDigest } from "../src/orchestrator/resident-development-sequence.ts";
 import { canonicalLocalVerifierPayload, type SignedLocalVerifierPayload } from "../src/orchestrator/signed-local-verifier-receipt.ts";
+import { goalWorkStateId } from "../src/orchestrator/work-state-integration.ts";
 
 const sha = (value: string) => createHash("sha256").update(value).digest("hex");
 const delay = (ms: number) => new Promise(resolveDelay => setTimeout(resolveDelay, ms));
@@ -23,7 +24,7 @@ const delay = (ms: number) => new Promise(resolveDelay => setTimeout(resolveDela
 // This is a real Broker/executor process regression with mock inference and
 // fixture signatures and synthetic resource telemetry. Admission policy and its
 // lease remain real. It does not certify native resources, reboot or signer isolation.
-test("authenticated Broker sequence resumes after process restart and automatically creates the next Job (fixture signer/Ollama)",
+for (const hosted of [false, true]) test(`authenticated Broker sequence resumes after process restart and automatically creates the next Job (${hosted ? "hosted admission; " : ""}fixture signer/Ollama)`,
   { timeout: 180_000 }, async () => {
     const root = mkdtempSync(join(tmpdir(), "goriq-broker-sequence-"));
     const repositoryRoot = fileURLToPath(new URL("../", import.meta.url));
@@ -73,6 +74,13 @@ test("authenticated Broker sequence resumes after process restart and automatica
           description: goal.successCriteria[index]!, expectedFiles: [{ path: localOllamaFixtureSourcePath, sha256: sha(content) }] }] }));
       const manifest = JSON.stringify({ version: 1, sequence, executions }), manifestFile = join(root, "manifest.json");
       writeFileSync(manifestFile, manifest);
+      const routingFile = join(root, "host-routing.json");
+      const routing = JSON.stringify({ version: 1, authorityPath: compassPath, goalId: goalWorkStateId(goal), goalDigest: sequence.goalDigest,
+        taskScopeId: sequence.taskScopeId, executionContractDigest: sha(manifest), expiresAt: sequence.expiresAt,
+        hostId: "fixture-hosted-node", privacy: "public", nodes: [{ id: "fixture-hosted-node", kind: "cloud",
+          capabilities: ["code-builder", "filesystem"], online: true, healthy: true, privacy: "public-ok",
+          incrementalCost: 0, reliability: 1, latencyMs: 1, evidenceModes: ["LOCAL"] }] });
+      if (hosted) writeFileSync(routingFile, routing);
       mockOllama.listen(0, "127.0.0.1"); await once(mockOllama, "listening");
       const modelPort = (mockOllama.address() as { port: number }).port;
       const socket = createServer(); socket.listen(0, "127.0.0.1"); await once(socket, "listening");
@@ -89,6 +97,8 @@ test("authenticated Broker sequence resumes after process restart and automatica
         JARVIS_DB_PATH: join(root, "broker.db"), JARVIS_COMPASS_DB_PATH: compassPath,
         JARVIS_PUBLIC_BROKER_URL: "", JARVIS_WORKER_INSTALL_URL: "", JARVIS_WORKER_APK_PATH: "",
         GORIQ_SELF_DEVELOPMENT_SEQUENCE_FILE: manifestFile, GORIQ_SELF_DEVELOPMENT_SEQUENCE_SHA256: sha(manifest),
+        GORIQ_EXECUTION_HOST_MODE: hosted ? "hosted" : "", GORIQ_EXECUTION_HOST_ID: hosted ? "fixture-hosted-node" : "",
+        GORIQ_HOSTED_ROUTING_FILE: hosted ? routingFile : "", GORIQ_HOSTED_ROUTING_SHA256: hosted ? sha(routing) : "",
         GORIQ_LOCAL_OLLAMA_BUILDER_ENABLED: "1", GAI_LOCAL_MODEL_NAME: "fixture-model", GAI_LOCAL_MODEL_ENDPOINT: `http://127.0.0.1:${modelPort}`,
         GORIQ_LOCAL_TDD_PYTHON: realpathSync(python), PYTHON_MANAGER_AUTOMATIC_INSTALL: "false" };
       const startBroker = () => {

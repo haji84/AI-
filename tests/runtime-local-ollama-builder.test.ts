@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { createRuntimeBuilderRouter as runtimeBuilderRouter } from "../src/orchestrator/runtime-builder-capability.ts";
 import { fixtureResourceAdmission } from "./helpers/resource-admission-fixture.ts";
 import { ResourceWaitError } from "../src/gai/development-resource-admission.ts";
+import { ResidentExecutionStop } from "../src/orchestrator/resident-development-admission.ts";
 
 const createRuntimeBuilderRouter = (env: Record<string, string | undefined>, fetchImpl?: typeof fetch,
   admission = fixtureResourceAdmission) => runtimeBuilderRouter(env, fetchImpl, admission);
@@ -73,6 +74,21 @@ test("scoped local Ollama Builder produces one file and no Codex/paid fallback",
     assert.equal(readFileSync(join(p.isolated, file), "utf8"), "safe-test\n");
     assert.equal(run(p.isolated, "status", "--porcelain", "-uall"), `?? ${file}`);
     assert.equal(run(p.main, "status", "--porcelain", "-uall"), "");
+    assert.equal(counts.generate, 1);
+  } finally { p.clean(); }
+});
+
+test("a canonical pause after model generation prevents the actual local candidate write", async () => {
+  const p = sandbox();
+  try {
+    const counts = { tags: 0, generate: 0 };
+    const router = runtimeBuilderRouter(env(p.isolated), mockOllama(counts), {
+      resourceAdmission: fixtureResourceAdmission,
+      async beforeWrite() { assert.equal(counts.generate, 1); throw new ResidentExecutionStop("paused", "project_paused"); },
+    });
+    await assert.rejects(router.execute(request(p.head), []), ResidentExecutionStop);
+    assert.equal(existsSync(join(p.isolated, file)), false);
+    assert.equal(run(p.isolated, "status", "--porcelain", "-uall"), "");
     assert.equal(counts.generate, 1);
   } finally { p.clean(); }
 });

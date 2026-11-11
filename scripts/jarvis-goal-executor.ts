@@ -24,7 +24,10 @@ import { HttpDevelopmentReleaseCapability } from "../src/orchestrator/http-devel
 import { createTaskCompletionAuthorization, normalizeTaskCompletionAuthorization } from "../src/orchestrator/task-authorization.ts";
 import { buildRepositoryDevelopmentContext } from "../src/orchestrator/repository-development-context.ts";
 import { createSequencedResidentRuntime } from "../src/orchestrator/sequenced-resident-runtime.ts";
-import { assertTrackedRepairProfileExclusive, createTrackedRepairResidentRuntime } from "../src/orchestrator/tracked-repair-resident-runtime.ts";
+import { assertTrackedRepairProfileExclusive, createTrackedRepairResidentRuntime, readTrackedRepairManifest } from "../src/orchestrator/tracked-repair-resident-runtime.ts";
+import { readResidentExecutionManifest } from "../src/orchestrator/resident-execution-manifest.ts";
+import { createRuntimeResidentAdmission } from "../src/orchestrator/runtime-resident-admission.ts";
+import { acquireResidentExecutionWriter, ResidentExecutionBusyError, type ResidentExecutionWriter } from "../src/orchestrator/resident-development-admission.ts";
 import type { Goal } from "../src/orchestrator/goal-loop.ts";
 import { ResourceWaitError } from "../src/gai/development-resource-admission.ts";
 import { nextResourceWait, resourceWaitExhausted, resourceWaitFromEvidence, type DevelopmentResourceWait } from "../src/orchestrator/development-resource-wait.ts";
@@ -85,16 +88,29 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
   } finally {
     goalStore.close();
   }
+  const routingRequested = Boolean(process.env.GORIQ_EXECUTION_HOST_MODE || process.env.GORIQ_HOSTED_ROUTING_FILE || process.env.GORIQ_HOSTED_ROUTING_SHA256);
+  if (routingRequested && !persistedGoal) throw Error("HOSTED_PERSISTED_GOAL_REQUIRED");
+  let executionContractDigest: string | undefined;
+  let candidateWorkspaces: string[] = [];
+  if (routingRequested && (process.env.GORIQ_TRACKED_REPAIR_MANIFEST_FILE || process.env.GORIQ_TRACKED_REPAIR_MANIFEST_SHA256)) {
+    const tracked = readTrackedRepairManifest(process.env, persistedGoal);
+    if (tracked) { executionContractDigest = tracked.pin; candidateWorkspaces = [tracked.manifest.workspace, tracked.manifest.baselineWorkspace]; }
+  } else if (routingRequested && (process.env.GORIQ_SELF_DEVELOPMENT_SEQUENCE_FILE || process.env.GORIQ_SELF_DEVELOPMENT_SEQUENCE_SHA256)) {
+    const sequence = readResidentExecutionManifest(process.env, process.cwd(), persistedGoal);
+    if (sequence) { executionContractDigest = process.env.GORIQ_SELF_DEVELOPMENT_SEQUENCE_SHA256!.trim(); candidateWorkspaces = sequence.executions.map(item => item.workspace); }
+  }
+  const admission = persistedGoal ? createRuntimeResidentAdmission({ env: process.env, runtimeRoot: process.cwd(), compassPath, goal: persistedGoal,
+    executionContractDigest, workspaces: candidateWorkspaces }) : undefined;
   if (process.env.GORIQ_TRACKED_REPAIR_MANIFEST_FILE || process.env.GORIQ_TRACKED_REPAIR_MANIFEST_SHA256) {
     if (!persistedGoal) throw Error("TRACKED_REPAIR_PERSISTED_GOAL_REQUIRED");
     if (process.env.GORIQ_SELF_DEVELOPMENT_SEQUENCE_FILE || process.env.GORIQ_SELF_DEVELOPMENT_SEQUENCE_SHA256) throw Error("TRACKED_REPAIR_MULTIPLE_RUNTIME_PROFILES");
-    const runtime = createTrackedRepairResidentRuntime({ env: process.env, runtimeRoot: process.cwd(), compassPath, goal: persistedGoal });
+    const runtime = createTrackedRepairResidentRuntime({ env: process.env, runtimeRoot: process.cwd(), compassPath, goal: persistedGoal, admission });
     if (!runtime) throw Error("TRACKED_REPAIR_MANIFEST_REQUIRED");
     return { runtime };
   }
   if (process.env.GORIQ_SELF_DEVELOPMENT_SEQUENCE_FILE || process.env.GORIQ_SELF_DEVELOPMENT_SEQUENCE_SHA256) {
     if (!persistedGoal) throw Error("RESIDENT_SEQUENCE_PERSISTED_GOAL_REQUIRED");
-    const runtime = createSequencedResidentRuntime({ env: process.env, runtimeRoot: process.cwd(), compassPath, goal: persistedGoal });
+    const runtime = createSequencedResidentRuntime({ env: process.env, runtimeRoot: process.cwd(), compassPath, goal: persistedGoal, admission });
     if (!runtime) throw Error("RESIDENT_SEQUENCE_CONFIGURATION_REQUIRED");
     return { runtime };
   }
@@ -137,7 +153,6 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
     return [{ path: rel.replaceAll("\\", "/"), content: content.slice(0, 100_000) }];
   });
   const repositoryContext = buildRepositoryDevelopmentContext({ objective: "resident self-development", preferredFiles: resolvedTargets, entries, maxChars: 40_000 });
-  const router = createRuntimeBuilderRouter();
   const verifier = createRuntimeDevelopmentVerifier();
   const verifierReceipt = process.env.GORIQ_LOCAL_VERIFIER_RECEIPT_FILE?.trim();
   const verifierPublicKey = process.env.GORIQ_LOCAL_VERIFIER_PUBLIC_KEY_FILE?.trim();
@@ -169,6 +184,7 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
   const release = releaseUrl && releaseToken ? new HttpDevelopmentReleaseCapability({ url: releaseUrl, token: releaseToken }) : undefined;
   const stateRoot = join(dirname(compassPath), "self-development");
   const host = new ResidentDevelopmentGoalHost({
+    admission,
     jobs: new JsonFileDevelopmentJobStore(join(stateRoot, "jobs.json")),
     changeSets: new JsonFileDevelopmentChangeSetStore(join(stateRoot, "change-sets.json")),
     planning: {
@@ -182,7 +198,7 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
     stages: {
       builderId: "builder:resident",
       deferMissingVerification: executionScope.localOllama,
-      async build({ job, context: runtimeContext, workItemId }) {
+      async build({ job, context: runtimeContext, workItemId, beforeWrite }) {
         const workItem = job.workItems.find((item) => item.id === workItemId);
         if (!workItem) throw new Error("resident Builder Work Item is not in the durable Job");
         const tddPhase = workItem.id.endsWith(":test") ? "red" as const : "green" as const;
@@ -206,6 +222,7 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
             tddPhase,
           },
         };
+        const router = createRuntimeBuilderRouter(process.env, fetch, { beforeWrite });
         const result = await router.execute(action, [...runtimeContext, { source: "repository.development-context", summary: `Selected ${repositoryContext.selectedPaths.length} repository files`, data: repositoryContext }]);
         if (!result.ok) throw (result.blocker === "WAITING_FOR_RESOURCE" ? resourceWaitFromEvidence(result.evidence) : null) ?? new Error(result.blocker ?? result.summary);
         const envelope = (result.evidence as { changeSet?: { baseRevision?: string | null; changedPaths?: string[]; patchDigest?: string; candidateRevision?: string; artifactDigest?: string; artifactRef?: string; tddPhase?: "red" | "green"; tddEvidenceDigest?: string; builderId?: string } } | undefined)?.changeSet;
@@ -310,7 +327,7 @@ async function updateWorkRun(compassPath: string, goalId: string, phase: "RUNNIN
     const store = new CompassWorkRunStore(compass);
     const current = await store.getByGoal(goalId);
     if (!current) throw new Error("Accepted Goal has no durable Work Run");
-    if (compass.getState().status === "PAUSED" || current.phase === "HUMAN_GATE" && phase !== "HUMAN_GATE") return;
+    if (compass.getState().status === "PAUSED" || ["HUMAN_GATE", "BLOCKED", "COMPLETED", "FAILED"].includes(current.phase)) return;
     await store.put({ ...current, phase, resourceWait: resourceWait === undefined ? current.resourceWait : resourceWait ?? undefined, blockers: phase === "BLOCKED" ? [reason ?? "execution_failed"] : [], nextAction: phase === "COMPLETED" ? null : reason, updatedAt: new Date().toISOString() });
   } finally {
     compass.close();
@@ -322,7 +339,11 @@ async function main(): Promise<void> {
   const compassPath = requiredEnv("JARVIS_GOAL_EXECUTION_COMPASS_PATH");
   const context = decodeContext(process.env.JARVIS_GOAL_EXECUTION_CONTEXT_B64);
   const decision = executorDecision(goalId);
+  let executionWriter: ResidentExecutionWriter | undefined;
   try {
+    // One existing writer covers validation, continuation and status writeback.
+    // A losing process exits before changing any WorkRun or constructing a Builder.
+    executionWriter = await acquireResidentExecutionWriter(`${compassPath}.cognitive-run.lock`, goalId);
     assertTrackedRepairProfileExclusive(process.env);
     const inspectionFlag = process.env.JARVIS_GOAL_EXECUTION_INSPECTION_ONLY?.trim();
     if (inspectionFlag && inspectionFlag !== "1") throw Error("INSPECTION_RESTRICTION_INVALID");
@@ -352,11 +373,14 @@ async function main(): Promise<void> {
     })();
     // Validate an explicit host handoff before inspecting text for development
     // intent. Invalid handoffs must never fall back to another model/controller.
+    if ((completionSource || inspectionOnly) && (process.env.GORIQ_EXECUTION_HOST_MODE === "hosted" || process.env.GORIQ_HOSTED_ROUTING_FILE || process.env.GORIQ_HOSTED_ROUTING_SHA256)) {
+      throw Error("HOSTED_ROUTING_REQUIRES_RESIDENT_RUNTIME");
+    }
     const developmentRuntime = completionSource || inspectionOnly ? undefined : configuredDevelopmentRuntime(compassPath, context);
     const adapter = completionSource
       ? new CompassGoalExecutionAdapter(compassPath, {}, {}, undefined, completionSource)
       : developmentRuntime
-        ? new CompassGoalExecutionAdapter(compassPath, {}, {}, developmentRuntime)
+        ? new CompassGoalExecutionAdapter(compassPath, {}, {}, { ...developmentRuntime, writer: executionWriter })
         : inspectionOnly
         ? new CompassGoalExecutionAdapter(compassPath, {}, {}, undefined, undefined, { inspectionOnly: true })
         : new CompassGoalExecutionAdapter(compassPath);
@@ -383,6 +407,14 @@ async function main(): Promise<void> {
       console.error("[goriq-goal-executor]", goalId, result.reason);
     }
   } catch (error) {
+    // The losing process is not the owner. It must not overwrite the live
+    // executor's WorkRun, resource wait or terminal result with BLOCKED.
+    if (error instanceof ResidentExecutionBusyError) return;
+    if (!executionWriter) {
+      console.error("[goriq-goal-executor]", goalId, "execution_writer_unavailable");
+      process.exitCode = 1;
+      return;
+    }
     if (error instanceof ResourceWaitError) {
       const compass = new CompassStore(compassPath);
       try {
@@ -408,6 +440,8 @@ async function main(): Promise<void> {
     }
     console.error("[goriq-goal-executor]", goalId, error instanceof Error ? error.message : "execution_failed");
     process.exitCode = 1;
+  } finally {
+    await executionWriter?.release();
   }
 }
 

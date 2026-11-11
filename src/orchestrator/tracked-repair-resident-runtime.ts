@@ -8,6 +8,7 @@ import { createDevelopmentChangeSet } from "./development-change-set.ts";
 import { JsonFileDevelopmentJobStore } from "./development-job-store.ts";
 import { JsonFileDevelopmentChangeSetStore } from "./development-change-set-store.ts";
 import { ResidentDevelopmentGoalHost } from "./resident-development-goal-host.ts";
+import type { ResidentDevelopmentAdmission } from "./resident-development-admission.ts";
 import { validateResidentDevelopmentSequence, type ResidentDevelopmentSequence } from "./resident-development-sequence.ts";
 import { assertExternalRuntimePath, readBoundedRuntimeFile } from "./resident-runtime-files.ts";
 import { validateSignedLocalVerifierReceipt } from "./signed-local-verifier-receipt.ts";
@@ -99,7 +100,7 @@ export function readTrackedRepairManifest(env:Record<string,string|undefined>,go
 }
 
 export function createTrackedRepairResidentRuntime(input:{env:Record<string,string|undefined>;runtimeRoot:string;compassPath:string;goal:Goal;
-  fetchImpl?:typeof fetch;resourceAdmission?:typeof withDevelopmentResourceAdmission}):ResidentDevelopmentGoalHost|null {
+  fetchImpl?:typeof fetch;resourceAdmission?:typeof withDevelopmentResourceAdmission;admission?:ResidentDevelopmentAdmission}):ResidentDevelopmentGoalHost|null {
   const loaded=readTrackedRepairManifest(input.env,input.goal); if(!loaded)return null;
   const {manifest:m,pin}=loaded;
   if(contains(m.workspace,input.runtimeRoot)||contains(input.runtimeRoot,m.workspace))throw Error("TRACKED_REPAIR_RUNTIME_OVERLAP");
@@ -162,10 +163,12 @@ export function createTrackedRepairResidentRuntime(input:{env:Record<string,stri
     return {prepared:p,trackedEdits,identity:attest(m.workspace,trackedEdits)};
   };
   return new ResidentDevelopmentGoalHost({jobs:new JsonFileDevelopmentJobStore(join(stateRoot,"jobs.json")),
+    admission:input.admission,
     changeSets:new JsonFileDevelopmentChangeSetStore(join(stateRoot,"change-sets.json")),
     planning:{requirementIds:["CORE-014"],baseRevision:base,taskScopeId:sequence.taskScopeId,maxRisk:"low",targetFiles:sequence.jobs[0]!.targetFiles,contextDigest:sequence.goalDigest,sequence},
     stages:{builderId,deferMissingVerification:true,
-      async build({job,workItemId}){
+      async build({job,workItemId,beforeWrite}){
+        await beforeWrite?.();
         scope(); ensureProbe(m.workspace);
         if(workItemId.endsWith(":test")){
           const identity=attest(m.workspace);
@@ -195,6 +198,7 @@ export function createTrackedRepairResidentRuntime(input:{env:Record<string,stri
             const rendered=JSON.parse(await modelBody(await fetcher(templateUrl,{method:"POST",redirect:"error",signal:AbortSignal.timeout(10000),headers:{"content-type":"application/json"},
               body:JSON.stringify({messages:[{role:"system",content:"You are a bounded source repair capability. Return only the requested JSON."},{role:"user",content:prompt}],add_generation_prompt:true,chat_template_kwargs:{enable_thinking:false}})})));
             if(typeof rendered.prompt!=="string"||Buffer.byteLength(rendered.prompt)>65536||!rendered.prompt.endsWith("<|im_start|>assistant\n"))throw Error("TRACKED_REPAIR_MODEL_TEMPLATE_INVALID");
+            await beforeWrite?.();
             writeFileSync(intent,JSON.stringify({binding:hash(pin+"\0"+job.jobId),model:m.model,workItemId,prompt,renderedPrompt:rendered.prompt,promptSha256:hash(prompt),at:new Date().toISOString()}),{flag:"wx",mode:0o600});
             const reply=await fetcher(m.model.endpoint,{method:"POST",redirect:"error",signal:AbortSignal.timeout(m.model.timeoutMs),headers:{"content-type":"application/json"},
               body:JSON.stringify({prompt:rendered.prompt,n_predict:m.model.nPredict,temperature:0,cache_prompt:false,json_schema:{type:"object",properties:{edits:{type:"array",minItems:1,maxItems:m.slots.length,
@@ -214,10 +218,12 @@ export function createTrackedRepairResidentRuntime(input:{env:Record<string,stri
           const changed=[...content].filter(([path,value])=>hash(value)!==m.trackedFiles.find(p=>p.path===path)!.beforeSha256).map(([path,content])=>({path,content}));
           if(!changed.some(f=>f.path===m.targetPath))throw Error("TRACKED_REPAIR_NO_TARGET_CHANGE");
           const bookkeeping=updateBookkeeping(changed);if(bookkeeping!==undefined)changed.push({path:bookkeepingPath,content:bookkeeping});
+          await beforeWrite?.();
           scope();attest(m.workspace);
           for(const f of filePins)if(hash(readBoundedRuntimeFile(join(m.workspace,f.path),fileLimit(f.path)))!==f.beforeSha256)throw Error("TRACKED_REPAIR_SOURCE_CHANGED_DURING_INFERENCE");
           writeFileSync(preparedPath(job.jobId),JSON.stringify({binding:hash(pin+"\0"+job.jobId),files:changed,responseSha256:hash(response),promptSha256:hash(prompt)}),{flag:"wx",mode:0o600});
         }
+        await beforeWrite?.();
         const prepared=loadPrepared(job.jobId);
         for(const f of prepared.files){
           const target=assertExternalRuntimePath(join(m.workspace,f.path),[]),current=hash(readBoundedRuntimeFile(target,fileLimit(f.path)));

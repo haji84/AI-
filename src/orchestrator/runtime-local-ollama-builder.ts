@@ -29,6 +29,8 @@ export interface LocalOllamaBuilderOptions {
   preparedWrite?: PreparedLocalWriteCheckpoint;
   /** Trusted host dependency; never accepted from a Goal, environment or model. */
   resourceAdmission?: typeof withDevelopmentResourceAdmission;
+  /** Recheck the canonical writer and gates after inference, before any candidate write. */
+  beforeWrite?: () => Promise<void>;
 }
 
 function isolatedWorkspace(workspace: string): string {
@@ -162,6 +164,7 @@ export function createLocalOllamaBuilder(input: LocalOllamaBuilderOptions): Buil
               const red = runLocalTddVerification(workspace, request.baseRevision, "red");
               if (!red.ok) throw Error(red.blocker ?? "PREPARED_WRITE_RED_UNPROVEN");
             }
+            await input.beforeWrite?.();
             checkState(); writeFileSync(target, prepared, { flag: "wx" });
           }
           checkState();
@@ -196,6 +199,7 @@ export function createLocalOllamaBuilder(input: LocalOllamaBuilderOptions): Buil
         return { ok: false, summary: "Isolated workspace is dirty or its revision changed", blocker: "local_model_workspace_not_clean" };
       }
       if (fixtureTdd && request.tddPhase === "red") {
+        await input.beforeWrite?.();
         input.preparedWrite?.prepare(localOllamaFixtureTest);
         writeFileSync(target, localOllamaFixtureTest, { flag: "wx" });
         if (readFileSync(target, "utf8") !== localOllamaFixtureTest || git(workspace, "status", "--porcelain", "-uall") !== `?? ${path}`) {
@@ -238,6 +242,7 @@ export function createLocalOllamaBuilder(input: LocalOllamaBuilderOptions): Buil
         return { ok: false, summary: "Ollama output violated the scoped edit schema", blocker: "local_model_proposal_rejected" };
       }
       // Optimistic pre-write fence. No overwrite, no use of Codex, and no Git mutation.
+      await input.beforeWrite?.();
       if (git(workspace, "rev-parse", "HEAD") !== request.baseRevision || git(workspace, "status", "--porcelain", "-uall") !== expectedStatus ||
           (expectedStatus && readFileSync(resolve(workspace, localOllamaFixtureTestPath), "utf8") !== localOllamaFixtureTest)) {
         return { ok: false, summary: "Workspace changed during inference", blocker: "local_model_workspace_changed" };
@@ -268,7 +273,7 @@ export function createLocalOllamaBuilder(input: LocalOllamaBuilderOptions): Buil
 }
 
 export function configuredLocalOllamaBuilder(env: Record<string, string | undefined> = process.env, fetchImpl: typeof fetch = fetch,
-  hostOptions: { preparedWrite?: PreparedLocalWriteCheckpoint; resourceAdmission?: typeof withDevelopmentResourceAdmission } | typeof withDevelopmentResourceAdmission = {}): BuilderCapability | null {
+  hostOptions: { preparedWrite?: PreparedLocalWriteCheckpoint; resourceAdmission?: typeof withDevelopmentResourceAdmission; beforeWrite?: () => Promise<void> } | typeof withDevelopmentResourceAdmission = {}): BuilderCapability | null {
   const trustedOptions = typeof hostOptions === "function" ? { resourceAdmission: hostOptions } : hostOptions;
   const profile = env.GORIQ_LOCAL_OLLAMA_TDD_PROFILE?.trim();
   if (profile && profile !== "python_add_v1") throw new Error("Unknown local Ollama TDD profile");
@@ -283,5 +288,5 @@ export function configuredLocalOllamaBuilder(env: Record<string, string | undefi
     fallbackModels: env.GORIQ_LOCAL_OLLAMA_FALLBACK_MODELS ? env.GORIQ_LOCAL_OLLAMA_FALLBACK_MODELS.split(",") : [],
     endpoint: env.GAI_LOCAL_MODEL_ENDPOINT, fetchImpl,
     tddProfile: env.GORIQ_LOCAL_OLLAMA_TDD_PROFILE === "python_add_v1" ? "python_add_v1" : undefined,
-    preparedWrite: trustedOptions.preparedWrite, resourceAdmission: trustedOptions.resourceAdmission });
+    preparedWrite: trustedOptions.preparedWrite, resourceAdmission: trustedOptions.resourceAdmission, beforeWrite: trustedOptions.beforeWrite });
 }

@@ -242,6 +242,38 @@ export class CompassStore {
     };
   }
 
+  /** Intake may adopt an identical Goal, but cannot replace another accepted Goal. */
+  createGoalIfAbsent(input: {
+    title: string;
+    description?: string;
+    successCriteria?: unknown[];
+    constraints?: unknown[];
+  }, commitIntake?: (goal: GoalRecord, active: unknown[]) => unknown[]): GoalRecord {
+    assertNonEmpty(input.title, "title");
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      // Acquire SQLite's writer lock before comparing. A different process may
+      // have accepted a Goal after the resolver observed an empty registry.
+      const existing = this.getGoal();
+      if (existing && (existing.title !== input.title
+        || existing.description !== (input.description ?? "")
+        || encode(existing.successCriteria) !== encode(input.successCriteria ?? [])
+        || encode(existing.constraints) !== encode(input.constraints ?? []))) {
+        throw new Error("active Compass Goal already exists; resolve or explicitly change it before creating a new Goal");
+      }
+      const goal = existing ?? this.setGoal(input);
+      // The intake decision and its Goal must commit together. A rejected key
+      // or failed state write rolls back the prospective Goal as well.
+      if (commitIntake) {
+        const active = commitIntake(goal, this.getState().active);
+        this.db.prepare("UPDATE state SET active = ?, updated_at = ? WHERE project_id = ?")
+          .run(encode(active), nowIso(), PROJECT_ID);
+      }
+      this.db.exec("COMMIT");
+      return goal;
+    } catch (error) { this.db.exec("ROLLBACK"); throw error; }
+  }
+
   setGoal(input: {
     title: string;
     description?: string;
