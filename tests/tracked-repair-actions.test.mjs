@@ -52,6 +52,12 @@ test('checkpoint roundtrip preserves the exact accepted Job and candidate bytes'
   assert.deepEqual(decodeCheckpoint(encoded.b64,encoded.sha256),cp);
 });
 
+test('legacy checkpoint refuses recovery profiles whose rejected history it cannot transport',()=>{
+  const cp=fixture(),m=manifest(cp);
+  m.recoveryAttempts=[{workspace:FIXED_ROOT+'/candidate-2',receiptFile:FIXED_ROOT+'/receipt-2.json'}];replaceManifest(cp,m);
+  assert.throws(()=>validateCheckpoint(cp),/TRACKED_ACTIONS_RECOVERY_TRANSPORT_REQUIRED/);
+});
+
 test('checkpoint refuses path escape and secret or Git metadata files before restore',()=>{
   for(const path of ['../outside.txt','/tmp/outside.txt','candidate/.git/config','private.pem','owner-token','candidate/scripts/../../escape.mjs']){
     const cp=fixture();cp.files.push(file(path,'forbidden bytes'));

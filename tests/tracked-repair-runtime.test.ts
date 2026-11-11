@@ -3,7 +3,7 @@ import test, { type TestContext } from "node:test";
 import { createResidentReceiptWakes } from "../src/orchestrator/resident-receipt-wakes.ts";
 import { createHash, createPrivateKey, createPublicKey, sign } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { createTrackedRepairResidentRuntime, type TrackedRepairManifest } from "../src/orchestrator/tracked-repair-resident-runtime.ts";
@@ -70,6 +70,137 @@ function fixture(t:TestContext,bookkeeping=false,rows="valid"){
     changes:()=>new JsonFileDevelopmentChangeSetStore(join(stateRoot,"change-sets.json")),
     repin:()=>{bytes=JSON.stringify(manifest);writeFileSync(manifestFile,bytes);env.GORIQ_TRACKED_REPAIR_MANIFEST_SHA256=hash(bytes);}};
 }
+
+type RuntimeFixture = ReturnType<typeof fixture>;
+function recoveryFixture(t:TestContext,bookkeeping=false){
+  const f=fixture(t,bookkeeping),workspace=join(f.root,"repair-attempt-2"),receiptFile=join(f.root,"receipt-attempt-2.json");
+  execFileSync("git",["worktree","add","--detach",workspace,f.manifest.sequence.jobs[0]!.baseRevision],{cwd:f.baselineWorkspace,stdio:"pipe"});
+  Object.assign(f.manifest,{recoveryAttempts:[{workspace,receiptFile}]});f.repin();
+  const prompts:string[]=[];let calls=0;
+  const fetchImpl:typeof fetch=async(url,options)=>{
+    if(String(url).endsWith("/apply-template")){
+      prompts.push(JSON.parse(String(options?.body)).messages[1].content);
+      return new Response(JSON.stringify({prompt:"<|im_start|>assistant\n"}));
+    }
+    calls++;
+    return new Response(JSON.stringify({model:"fixture-model",stop:true,truncated:false,stop_type:"eos",
+      content:JSON.stringify({edits:[{slot:1,after:calls===1?"41":"42"}]})}));
+  };
+  return {...f,recoveryWorkspace:workspace,recoveryReceipt:receiptFile,repairFetch:fetchImpl,prompts,repairCalls:()=>calls};
+}
+async function fixtureReceipt(f:RuntimeFixture,file:string,failed=false){
+  const job=(await f.jobs().getByGoal(f.goalId))[0]!,change=(await f.changes().list()).find(c=>c.workItemId.endsWith(":implement")&&c.status!=="REJECTED")!;
+  const at=new Date().toISOString(),payload:SignedLocalVerifierPayload={version:1,verifierId:"fixture-not-independent",goalId:f.goalId,
+    jobId:job.jobId,changeSetId:change.changeSetId,builderId:change.deviceId,baseRevision:change.baseRevision,
+    sourceRevision:change.candidateRevision,artifactDigest:change.artifactDigest,issuedAt:at,expiresAt:new Date(Date.now()+600000).toISOString(),
+    checks:["lint","typecheck","unit","integration","security","build"].map(check=>({check:check as "lint",
+      status:failed&&check==="unit"?"failed":"passed",outputDigest:hash("fixture:"+check),recordedAt:at}))};
+  const bytes=JSON.stringify({payload,signatureBase64:sign(null,Buffer.from(canonicalLocalVerifierPayload(payload)),fixtureKey).toString("base64")});
+  writeFileSync(file,bytes,{flag:"wx"});return {bytes,job,change};
+}
+
+test("tracked recovery uses the signed failure to create a distinct candidate after restart and preserves rejected evidence",async t=>{
+  const f=recoveryFixture(t),input={goalId:f.goalId,goal:f.goal,context:[]};
+  await f.create({fetchImpl:f.repairFetch}).run(input);
+  assert.equal(spawnSync(process.execPath,["--test",f.manifest.probe.targetPath],{cwd:f.workspace}).status,1);
+  const first=await fixtureReceipt(f,f.manifest.verifier.receiptFile,true);
+  const firstRequest=readFileSync(f.manifest.verifier.receiptFile+".request.json");
+  await f.create({fetchImpl:f.repairFetch}).run(input);
+  assert.equal((await f.jobs().getByGoal(f.goalId))[0]!.phase,"RECOVERING");
+  const journal=join(f.stateRoot,"tracked-repair"),before=new Map(readdirSync(journal).map(name=>[name,readFileSync(join(journal,name))]));
+  await f.create({fetchImpl:f.repairFetch}).run(input);
+  assert.equal(f.repairCalls(),2);
+  assert.match(f.prompts[1]!,/check_not_passed:unit/);
+  assert.match(f.prompts[1]!,/export const answer = 41/);
+  assert.notEqual(f.prompts[0],f.prompts[1]);
+  assert.equal(readFileSync(join(f.workspace,"scripts/logic.mjs"),"utf8"),"export const answer = 41;\n");
+  assert.equal(readFileSync(join(f.recoveryWorkspace,"scripts/logic.mjs"),"utf8"),"export const answer = 42;\n");
+  assert.equal(spawnSync(process.execPath,["--test",f.manifest.probe.targetPath],{cwd:f.recoveryWorkspace}).status,0);
+  assert.deepEqual(readFileSync(f.manifest.verifier.receiptFile+".request.json"),firstRequest);
+  assert.equal(readFileSync(f.manifest.verifier.receiptFile,"utf8"),first.bytes);
+  for(const [name,bytes] of before)assert.deepEqual(readFileSync(join(journal,name)),bytes,name);
+  const secondRequest=JSON.parse(readFileSync(f.recoveryReceipt+".request.json","utf8"));
+  assert.equal(secondRequest.request.jobId,first.job.jobId);
+  assert.notEqual(secondRequest.request.changeSetId,first.change.changeSetId);
+  assert.notEqual(secondRequest.request.artifactDigest,first.change.artifactDigest);
+  const second=await fixtureReceipt(f,f.recoveryReceipt);
+  const noModel:typeof fetch=async()=>{assert.fail("receipt resume must not infer again");};
+  const result=await f.create({fetchImpl:noModel}).run(input);
+  assert.equal(result.goalEvaluation?.achieved,true);
+  const jobs=await f.jobs().getByGoal(f.goalId);assert.equal(jobs.length,1);assert.equal(jobs[0]!.phase,"COMPLETED");
+  assert.equal(jobs[0]!.attempts.length,1);assert.equal(f.repairCalls(),2);
+  assert.equal((await f.changes().get(first.change.changeSetId))!.status,"REJECTED");
+  assert.notEqual(second.change.changeSetId,first.change.changeSetId);
+});
+
+test("tracked recovery watches each pinned receipt and refuses path aliases before inference",t=>{
+  const f=recoveryFixture(t);
+  assert.deepEqual(createResidentReceiptWakes(f.env,process.cwd()).map(w=>w.path),[f.manifest.verifier.receiptFile,f.recoveryReceipt]);
+  const attempts=(f.manifest as TrackedRepairManifest & {recoveryAttempts:Array<{workspace:string;receiptFile:string}>}).recoveryAttempts;
+  attempts[0]!.receiptFile=join(f.root,"alias","..","receipt.json");f.repin();
+  assert.throws(()=>f.create(),/OVERLAP/);assert.equal(f.repairCalls(),0);
+});
+
+test("tracked recovery never grants a second inference without a host-pinned attempt",async t=>{
+  const f=fixture(t),input={goalId:f.goalId,goal:f.goal,context:[]};
+  await f.create().run(input);await fixtureReceipt(f,f.manifest.verifier.receiptFile,true);await f.create().run(input);
+  const report=await f.create({fetchImpl:async()=>{assert.fail("no attempt authority");}}).run(input);
+  assert.ok(report.goalEvaluation?.blockers.includes("tracked_repair_attempt_limit"));
+  assert.equal((await f.jobs().getByGoal(f.goalId))[0]!.attempts.length,1);
+});
+
+test("tracked recovery refuses a previous candidate receipt at the new receipt path",async t=>{
+  const f=recoveryFixture(t),input={goalId:f.goalId,goal:f.goal,context:[]};
+  await f.create({fetchImpl:f.repairFetch}).run(input);const first=await fixtureReceipt(f,f.manifest.verifier.receiptFile,true);
+  await f.create({fetchImpl:f.repairFetch}).run(input);await f.create({fetchImpl:f.repairFetch}).run(input);
+  writeFileSync(f.recoveryReceipt,first.bytes);
+  await assert.rejects(()=>f.create({fetchImpl:async()=>{assert.fail("stale receipt must not infer");}}).run(input),/SIGNED_VERIFIER_BINDING_INVALID/);
+  assert.equal((await f.jobs().getByGoal(f.goalId))[0]!.phase,"VERIFYING");assert.equal(f.repairCalls(),2);
+});
+
+test("tracked recovery retains a consumed failure when its external receipt is replaced",async t=>{
+  const f=recoveryFixture(t),input={goalId:f.goalId,goal:f.goal,context:[]};
+  await f.create({fetchImpl:f.repairFetch}).run(input);const first=await fixtureReceipt(f,f.manifest.verifier.receiptFile,true);
+  await f.create({fetchImpl:f.repairFetch}).run(input);
+  writeFileSync(f.manifest.verifier.receiptFile,"{\"untrusted\":true}");
+  await f.create({fetchImpl:f.repairFetch}).run(input);
+  assert.equal(f.repairCalls(),2);
+  const archived=readdirSync(join(f.stateRoot,"tracked-repair")).map(name=>readFileSync(join(f.stateRoot,"tracked-repair",name),"utf8"));
+  assert.ok(archived.includes(first.bytes));
+});
+
+test("tracked recovery prepared output resumes partial materialization without another inference",async t=>{
+  const f=recoveryFixture(t,true),input={goalId:f.goalId,goal:f.goal,context:[]};
+  await f.create({fetchImpl:f.repairFetch}).run(input);const first=await fixtureReceipt(f,f.manifest.verifier.receiptFile,true);
+  await f.create({fetchImpl:f.repairFetch}).run(input);
+  const put=JsonFileDevelopmentChangeSetStore.prototype.put;let interrupted=false;
+  JsonFileDevelopmentChangeSetStore.prototype.put=async function(value,now){
+    if(value.workItemId.endsWith(":implement")&&value.changeSetId!==first.change.changeSetId&&!interrupted){interrupted=true;throw Error("second candidate checkpoint interrupted");}
+    return put.call(this,value,now);
+  };
+  try{await assert.rejects(()=>f.create({fetchImpl:f.repairFetch}).run(input),/second candidate checkpoint interrupted/);}
+  finally{JsonFileDevelopmentChangeSetStore.prototype.put=put;}
+  assert.equal(interrupted,true);assert.equal(f.repairCalls(),2);
+  const bookkeeping="docs/jarvis-reverse-traceability.json";
+  writeFileSync(join(f.recoveryWorkspace,bookkeeping),readFileSync(join(f.baselineWorkspace,bookkeeping)));
+  await f.create({fetchImpl:async()=>{assert.fail("prepared retry must not infer");}}).run(input);
+  assert.equal((await f.jobs().getByGoal(f.goalId))[0]!.phase,"VERIFYING");
+  assert.equal(JSON.parse(readFileSync(join(f.recoveryWorkspace,bookkeeping),"utf8")).surfaces[0].sha256,hash("export const answer = 42;\n"));
+  assert.equal(readFileSync(join(f.workspace,"scripts/logic.mjs"),"utf8"),"export const answer = 41;\n");
+});
+
+test("tracked recovery does not reissue interrupted second inference or exceed its last pinned attempt",async t=>{
+  const f=recoveryFixture(t),input={goalId:f.goalId,goal:f.goal,context:[]};
+  await f.create({fetchImpl:f.repairFetch}).run(input);await fixtureReceipt(f,f.manifest.verifier.receiptFile,true);
+  await f.create({fetchImpl:f.repairFetch}).run(input);let calls=0;
+  const interrupted:typeof fetch=async(url,options)=>{
+    if(String(url).endsWith("/apply-template"))return f.repairFetch(url,options);
+    calls++;throw Error("model connection interrupted");
+  };
+  await assert.rejects(()=>f.create({fetchImpl:interrupted}).run(input),/model connection interrupted/);
+  await assert.rejects(()=>f.create({fetchImpl:async()=>{assert.fail("interrupted inference cannot replay");}}).run(input),/TRACKED_REPAIR_INFERENCE_INTERRUPTED_NO_RETRY/);
+  assert.equal(calls,1);assert.equal(f.repairCalls(),1);
+});
 
 test("tracked repair profile is selected fail-closed before a Broker can ignore an incomplete host pin",()=>{
   assert.throws(()=>createResidentReceiptWakes({GORIQ_TRACKED_REPAIR_MANIFEST_FILE:"/tmp/not-configured.json"},process.cwd()),/TRACKED_REPAIR_MANIFEST_PIN_REQUIRED/);
