@@ -69,3 +69,68 @@ test("current Compass Goal readback is status-only, including an existing Human 
   assert.equal(checked.builderAcknowledged, false);
   assert.ok(local.calls.every(call => call.method === "GET" && call.redirect === "error"));
 });
+
+const expectedJob = "fixture-rotation-recovery";
+const scopedJob = {
+  kind: "LOCAL_PERSISTED_JOBS",
+  goalId,
+  goalDigest: "b".repeat(64),
+  remoteAuthorityVerified: false,
+  jobs: [{
+    jobId: expectedJob, phase: "VERIFYING", recordSha256: "c".repeat(64),
+    approvalScope: { taskScopeId: "issue:1219", maxRisk: "low" },
+  }],
+};
+const currentGoal = { kind: "CURRENT_COMPASS_GOAL", goalId, current: true };
+
+test("existing owner probe binds exact stored Job and scope without claiming execution", async () => {
+  const fixture = host({ goalAuthority: currentGoal, jobReadback: scopedJob });
+  const checked = await probeLiveGoriqConnection({
+    mode: "broker", ownerToken, goalId, jobId: expectedJob, fetchImpl: fixture.fetchImpl,
+  });
+  assert.equal(checked.status, "BROKER_AUTHENTICATED_READONLY");
+  assert.equal(checked.goalWorkRunObserved, true);
+  assert.equal(checked.jobReadbackObserved, true);
+  assert.equal(checked.jobReadbackPhase, "VERIFYING");
+  assert.equal(checked.jobRecordSha256, "c".repeat(64));
+  assert.equal(checked.writeAuthorized, false);
+  assert.equal(checked.mergeAuthorized, false);
+  assert.equal(checked.builderAcknowledged, false);
+  assert.ok(fixture.calls.every(row => row.method === "GET"));
+});
+
+test("owner probe refuses a missing, foreign or unscoped Job even with an authenticated Goal", async () => {
+  const invalid = [
+    undefined,
+    { ...scopedJob, kind: "HISTORICAL_ONLY" },
+    { ...scopedJob, goalId: "goal-someone-else" },
+    { ...scopedJob, jobs: [] },
+    { ...scopedJob, jobs: [{ ...scopedJob.jobs[0], jobId: "fixture-foreign" }] },
+    { ...scopedJob, jobs: [{ ...scopedJob.jobs[0], recordSha256: "not-a-sha" }] },
+    { ...scopedJob, jobs: [{ ...scopedJob.jobs[0], approvalScope: { taskScopeId: "", maxRisk: "low" } }] },
+  ];
+  for (const jobReadback of invalid) {
+    const fixture = host({ goalAuthority: currentGoal, jobReadback });
+    const checked = await probeLiveGoriqConnection({
+      mode: "broker", ownerToken, goalId, jobId: expectedJob, fetchImpl: fixture.fetchImpl,
+    });
+    assert.equal(checked.status, "HOLD");
+    assert.equal(checked.reason, "JOB_READBACK_NOT_AUTHENTICATED");
+    assert.equal(checked.jobReadbackObserved, false);
+    assert.equal(checked.builderAcknowledged, false);
+  }
+});
+
+test("owner probe cannot request a Job without a well-formed bound Goal and never contacts host", async () => {
+  const fixture = host({ goalAuthority: currentGoal, jobReadback: scopedJob });
+  for (const input of [
+    { mode: "broker", ownerToken, jobId: expectedJob },
+    { mode: "builder", builderToken: "fixture-builder-token", goalId, jobId: expectedJob },
+    { mode: "broker", ownerToken, goalId, jobId: "../etc/passwd" },
+  ]) {
+    const checked = await probeLiveGoriqConnection({ ...input, fetchImpl: fixture.fetchImpl });
+    assert.equal(checked.status, "HOLD");
+    assert.equal(checked.reason, "INVALID_JOB_IDENTIFIER");
+  }
+  assert.equal(fixture.calls.length, 0);
+});
