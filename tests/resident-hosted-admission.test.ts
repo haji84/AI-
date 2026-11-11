@@ -301,9 +301,17 @@ test("the competing real executor leaves the current owner's WorkRun runnable", 
   try {
     const before = { ...createQueuedWorkRun(f.goalId), phase: "VERIFYING" as const, nextAction: "Await signed independent receipt", evidenceRefs: ["sha256:existing-authority-evidence"] };
     await runs.put(before);
-    await promisify(execFile)(process.execPath, [executor], { timeout: 5000, env: executorEnv(f) });
-    await promisify(execFile)(process.execPath, [executor], { timeout: 5000,
-      env: { ...executorEnv(f), JARVIS_GOAL_EXECUTION_INSPECTION_ONLY: "2" } });
+    const losingWriterStatus = (error: unknown): boolean => {
+      assert.equal((error as { code?: number }).code, 75,
+        "the losing executor must expose the transient busy status to Broker");
+      return true;
+    };
+    await assert.rejects(promisify(execFile)(process.execPath, [executor], {
+      timeout: 5000, env: executorEnv(f),
+    }), losingWriterStatus);
+    await assert.rejects(promisify(execFile)(process.execPath, [executor], {
+      timeout: 5000, env: { ...executorEnv(f), JARVIS_GOAL_EXECUTION_INSPECTION_ONLY: "2" },
+    }), losingWriterStatus);
     const run = await runs.getByGoal(f.goalId);
     assert.deepEqual(run, before, "the losing executor must not modify phase, next action, evidence or timestamps");
   } finally { await release(); db.close(); }
