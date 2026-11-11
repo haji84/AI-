@@ -119,6 +119,15 @@ export async function probeLiveGoriqConnection({
       return hold("UNTRUSTED_GOAL_RUN_RECEIPT",{
         brokerAuthenticated:true,builderAuthenticated:mode!=="broker",
       });
+    // The owner-authenticated WorkRun endpoint also serves historical records.
+    // A matching run ID or phase is never proof that this is today's canonical Goal.
+    if(run.goalAuthority?.kind!=="CURRENT_COMPASS_GOAL"||
+       run.goalAuthority.goalId!==goalId||
+       run.goalAuthority.current!==true)
+      return hold("GOAL_AUTHORITY_NOT_VERIFIED",{
+        brokerAuthenticated:true,builderAuthenticated:mode!=="broker",
+        builderIdentity:builder?boundedIdentity(builder.workerId):null,
+      });
   }
   return {
     status:mode==="broker"?"BROKER_AUTHENTICATED_READONLY":
