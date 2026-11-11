@@ -274,7 +274,7 @@ test("canonical WorkState blocker cannot be bypassed by a healthy GitHub-hosted 
       },
     });
     const result = await adapter.run(goalId);
-    assert.equal(result.stopReason, "blocked");
+    assert.equal(result.stopReason, "approval_required");
     assert.equal(started, 0);
     assert.equal((await jobs.get("hosted-a"))?.phase, "QUEUED");
   } finally { rmSync(root, { recursive: true, force: true }); }
