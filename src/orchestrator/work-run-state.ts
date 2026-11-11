@@ -29,7 +29,7 @@ export function nextGoalContinuation(previous:GoalContinuationWait|undefined,now
 }
 
 /** One authoritative mapping used by WorkRun writeback. */
-export function goalExecutionPhase(reason:string|undefined):WorkRunPhase{
+export function goalExecutionPhase(reason:string|undefined):"RUNNING"|"COMPLETED"|"BLOCKED"|"HUMAN_GATE"{
  if(reason==="goal_complete")return "COMPLETED";
  if(reason==="human_gate")return "HUMAN_GATE";
  if(reason==="publication_wait"||reason==="resource_wait"||
