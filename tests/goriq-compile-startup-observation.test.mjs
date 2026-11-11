@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { log } from "node:console";
+import { getCompileCacheDir } from "node:module";
+import process from "node:process";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
@@ -10,7 +13,7 @@ import { pathToFileURL } from "node:url";
 
 // A bounded source-startup observation, not a benchmark acceptance gate.
 // No tests, test outcomes, owner state or verifier receipts are cached.
-test("G0 observes repeated real source imports with and without a fresh compile cache", { timeout: 45000 }, () => {
+test("G0 records source startup without overriding an existing compile cache", { timeout: 45000 }, () => {
   const paths = [
     "src/compass/store.ts",
     "src/orchestrator/compass-goal-controller.ts",
@@ -20,13 +23,20 @@ test("G0 observes repeated real source imports with and without a fresh compile 
   const sources = paths.map(path => ({ path,
     sha256: createHash("sha256").update(readFileSync(path)).digest("hex") }));
   const code = `await Promise.all(${JSON.stringify(paths.map(path => pathToFileURL(resolve(path)).href))}.map(path => import(path))); console.log("GORIQ_IMPORT_PROBE_OK");`;
-  const cache = mkdtempSync(join(tmpdir(), "goriq-startup-probe-"));
+  const existingCache = getCompileCacheDir();
+  const cache = existingCache === undefined ? mkdtempSync(join(tmpdir(), "goriq-startup-probe-")) : null;
+  const modes = cache === null ? Array(6).fill("existing") : ["disabled", "fresh", "disabled", "warm", "disabled", "warm"];
   const observations = [];
   try {
-    for (const mode of ["disabled", "fresh", "disabled", "warm", "disabled", "warm"]) {
-      const env = { ...process.env, NODE_COMPILE_CACHE: cache };
-      if (mode === "disabled") env.NODE_DISABLE_COMPILE_CACHE = "1";
-      else delete env.NODE_DISABLE_COMPILE_CACHE;
+    for (const mode of modes) {
+      const env = { ...process.env };
+      // Image-owned preload/cache guards remain unchanged. Never override or
+      // disable an existing trusted cache just to manufacture a comparison.
+      if (cache !== null) {
+        env.NODE_COMPILE_CACHE = cache;
+        if (mode === "disabled") env.NODE_DISABLE_COMPILE_CACHE = "1";
+        else delete env.NODE_DISABLE_COMPILE_CACHE;
+      }
       const started = performance.now();
       const child = spawnSync(process.execPath, ["--input-type=module", "-e", code], {
         env, encoding: "utf8", timeout: 6000, maxBuffer: 65536, windowsHide: true,
@@ -38,12 +48,12 @@ test("G0 observes repeated real source imports with and without a fresh compile 
       assert.equal(child.status, 0, "source import must exit successfully");
       assert.equal(child.stdout.trim(), "GORIQ_IMPORT_PROBE_OK");
     }
-    console.log(`GORIQ_COMPILE_STARTUP_PROBE ${JSON.stringify({
+    log(`GORIQ_COMPILE_STARTUP_PROBE ${JSON.stringify({
       version: 1, evidenceKind: "SOURCE_STARTUP_OBSERVATION_ONLY", acceptanceGranted: false,
       node: process.version, platform: process.platform, arch: process.arch,
-      testResultsCached: false, sources, observations,
+      testResultsCached: false, cacheInitiallyEnabled: existingCache !== undefined, sources, observations,
     })}`);
   } finally {
-    rmSync(cache, { recursive: true, force: true });
+    if (cache !== null) rmSync(cache, { recursive: true, force: true });
   }
 });
