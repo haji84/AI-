@@ -3,10 +3,11 @@ import test from "node:test";
 import { mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { decodeXlsx, LocalSpreadsheetCapability } from "../src/orchestrator/local-spreadsheet-capability.ts";
+import { LocalSpreadsheetCapability } from "../src/orchestrator/local-spreadsheet-capability.ts";
+import { createOoxmlZip, readOoxmlZip } from "../src/orchestrator/ooxml-zip.ts";
 import type { WorkAction } from "../src/orchestrator/work-capability.ts";
 
-function action(operation: string, path: string, input: Record<string, unknown> = {}): WorkAction {
+function action(operation: string, path: string, rows?: unknown): WorkAction {
   return {
     goalId: "g",
     jobId: "j",
@@ -15,116 +16,136 @@ function action(operation: string, path: string, input: Record<string, unknown> 
     capability: "spreadsheet.local",
     domain: "spreadsheet",
     operation,
-    input: { path, ...input },
+    input: { path, rows },
     scope: [{ kind: "filesystem", ids: ["workspace"] }],
     expectedOutputs: [],
     risk: "low",
     access: operation === "read" ? "read" : "write",
     externalSideEffect: false,
     irreversible: false,
-    verifier: { kind: "spreadsheet.cells_exact", required: true, spec: {} },
+    verifier: { kind: "spreadsheet", required: true, spec: {} },
   };
 }
 
-test("local spreadsheet adapter writes a real OOXML xlsx and round-trips supported cells", async () => {
+test("local spreadsheet adapter creates a real XLSX and round-trips primitive cells", async () => {
   const root = await mkdtemp(join(tmpdir(), "jarvis-xlsx-"));
   try {
     const capability = new LocalSpreadsheetCapability(root);
-    assert.equal(await capability.available(), true);
-    const cells = [
-      { sheet: "Summary", cell: "A1", value: "hello & <xlsx>" },
-      { sheet: "Summary", cell: "B2", value: 21 },
-      { sheet: "Summary", cell: "C2", value: true },
-      { sheet: "Summary", cell: "D2", formula: "B2*2", value: 42 },
-      { sheet: "Other", cell: "A1", value: null },
+    const rows = [
+      ["name", "count", "enabled", "formula-looking"],
+      ["alpha & <beta>", 42.5, true, "=SUM(A1:A2)"],
+      ["", -7, false, null],
     ];
 
-    const written = await capability.execute(action("write", "artifacts/report.xlsx", { workbook: { cells } }));
+    const written = await capability.execute(action("write", "reports/data.xlsx", rows));
     assert.equal(written.ok, true);
+    assert.equal(written.outputs.rowCount, 3);
+    assert.equal(written.outputs.columnCount, 4);
     assert.match(String(written.outputs.sha256), /^[a-f0-9]{64}$/);
-    assert.equal(written.evidence[0]?.kind, "spreadsheet.artifact");
 
-    const bytes = await readFile(join(root, "artifacts/report.xlsx"));
+    const bytes = await readFile(join(root, "reports/data.xlsx"));
     assert.equal(bytes.readUInt32LE(0), 0x04034b50);
-    const packageText = bytes.toString("latin1");
-    for (const part of [
-      "[Content_Types].xml",
-      "_rels/.rels",
-      "xl/workbook.xml",
-      "xl/_rels/workbook.xml.rels",
-      "xl/worksheets/sheet1.xml",
-    ]) {
-      assert.match(packageText, new RegExp(part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-    }
+    const entries = readOoxmlZip(bytes);
+    assert.ok(entries.has("[Content_Types].xml"));
+    assert.ok(entries.has("xl/workbook.xml"));
+    assert.ok(entries.has("xl/worksheets/sheet1.xml"));
+    assert.match(entries.get("xl/worksheets/sheet1.xml")!.toString("utf8"), /t="inlineStr"/);
+    assert.doesNotMatch(entries.get("xl/worksheets/sheet1.xml")!.toString("utf8"), /<f[ >]/);
 
-    const read = await capability.execute(action("read", "artifacts/report.xlsx"));
+    const read = await capability.execute(action("read", "reports/data.xlsx"));
     assert.equal(read.ok, true);
-    assert.deepEqual(read.outputs.workbook, { cells });
+    assert.deepEqual(read.outputs.rows, [rows[0], rows[1], ["", -7, false]]);
     assert.equal(read.outputs.sha256, written.outputs.sha256);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
 });
 
-test("local spreadsheet adapter reads an independently deflated OOXML fixture", () => {
-  const fixture = Buffer.from("UEsDBBQAAAAIAGYSNl29XP2Q8gAAABwCAAATAAAAW0NvbnRlbnRfVHlwZXNdLnhtbK2RvU7DMBDHX8XyWsVOOyCEknQodASG8gCHc0ms+Es+t4S3x0kLAyqwMJ3s/8fvZFfbyRp2wkjau5qvRckZOuVb7fqavxz2xS3fNtXhPSCxbHVU8yGlcCclqQEtkPABXVY6Hy2kfIy9DKBG6FFuyvJGKu8SulSkuYM31T12cDSJPUz5+oyNaIiz3dk4s2oOIRitIGVdnlz7jVJcCCInFw8NOtAqG7i8SpiVnwGX3FN+h6hbZM8Q0yPY7JKTkW8+jq/ej+L3kitb+q7TCluvjjZHBIWI0NKAmKwRyxQWtFv9zV/MJJex/udFvvo/95DLdzcfUEsDBBQAAAAIAGYSNl0cSfe+pAAAABYBAAALAAAAX3JlbHMvLnJlbHONz8EOwiAMBuBXIb07pgdjzNguxmRXMx8AWcfIBiWAOt9ejs548Nj0/7+mVbPYmT0wRENOwLYogaFT1BunBVy78+YATV1dcJYpJ+JofGS54qKAMSV/5DyqEa2MBXl0eTNQsDLlMWjupZqkRr4ryz0PnwasTdb2AkLbb4F1L4//2DQMRuGJ1N2iSz9OfCWyLIPGJGCZ+ZPCdCOaiowCryu+erB+A1BLAwQUAAAACABmEjZdNDeeZrQAAAATAQAADwAAAHhsL3dvcmtib29rLnhtbI2PQQ6CQAxFrzLpXgddGEMAN0riXg8wQpGJTEvaQTm+E9S9q7b57fv9xWEOg3miqGcqYbPOwCA13Hq6l3C91Ks9HKrixfK4MT9M2iYtoY9xzK3VpsfgdM0jUlI6luBiGuVudRR0rfaIMQx2m2U7G5wn+BBy+YfBXecbPHIzBaT4gQgOLqZftfejQlUsDvqthlzAEk5zRCE31H6OkyCYRTy3KR8YyX1q5NxuwFaF/d3bX8TqDVBLAwQUAAAACABmEjZd8KZigaYAAAAXAQAAGgAAAHhsL19yZWxzL3dvcmtib29rLnhtbC5yZWxzjc9LCsIwEADQq4TZ22ldiEjTbkToVuoBQjpNSpsPSfzd3uBCLLhwNczvDVO3D7OwG4U4OcuhKkpgZKUbJqs4XPrTZg9tU59pESlPRD35yPKKjRx0Sv6AGKUmI2LhPNncGV0wIuU0KPRCzkIRbstyh+HbgLXJuoFD6IYKWP/09I/txnGSdHTyasimHyfw7sIcNVHKqAiKEodPKeI7VEVWAZsaVx82L1BLAwQUAAAACABmEjZdmEi+NsMAAAAYAQAAGAAAAHhsL3dvcmtzaGVldHMvc2hlZXQxLnhtbE2P3WrDMAyFX8X4ctAqKWWU4bj0h77AtgcwidyYxnaQRdrHn1xG6Y2QPh3pSGb/iJNakErIqdPtutEKU5+HkK6d/v25rHZ6b809062MiKxEnkqnR+b5C6D0I0ZX1nnGJB2fKTqWkq5QZkI3PIfiBJum+YToQtLWPNnZsbOG8l2R2Arta3JoteJOhzSFhN9MwkOxhq2nHFcD+skxGmBroHLo/+eOdcNitxsDyxs+Veztsf2Qhq+K3falADGX+HYNvN60f1BLAQIUAxQAAAAIAGYSNl29XP2Q8gAAABwCAAATAAAAAAAAAAAAAACAAQAAAABbQ29udGVudF9UeXBlc10ueG1sUEsBAhQDFAAAAAgAZhI2XRxJ976kAAAAFgEAAAsAAAAAAAAAAAAAAIABIwEAAF9yZWxzLy5yZWxzUEsBAhQDFAAAAAgAZhI2XTQ3nma0AAAAEwEAAA8AAAAAAAAAAAAAAIAB8AEAAHhsL3dvcmtib29rLnhtbFBLAQIUAxQAAAAIAGYSNl3wpmKBpgAAABcBAAAaAAAAAAAAAAAAAACAAdECAAB4bC9fcmVscy93b3JrYm9vay54bWwucmVsc1BLAQIUAxQAAAAIAGYSNl2YSL42wwAAABgBAAAYAAAAAAAAAAAAAACAAa8DAAB4bC93b3Jrc2hlZXRzL3NoZWV0MS54bWxQSwUGAAAAAAUABQBFAQAAqAQAAAAA", "base64");
-  assert.deepEqual(decodeXlsx(fixture), {
-    cells: [
-      { sheet: "ExternalFixture", cell: "A1", value: "from-deflate" },
-      { sheet: "ExternalFixture", cell: "B1", value: 42 },
-      { sheet: "ExternalFixture", cell: "C1", value: 84, formula: "B1*2" },
-    ],
-  });
-});
-
-test("local spreadsheet adapter is idempotent and blocks conflicting replacement", async () => {
-  const root = await mkdtemp(join(tmpdir(), "jarvis-xlsx-policy-"));
+test("local spreadsheet adapter accepts shared-string XLSX input", async () => {
+  const root = await mkdtemp(join(tmpdir(), "jarvis-xlsx-shared-"));
   try {
-    const capability = new LocalSpreadsheetCapability(root);
-    const firstCells = [{ sheet: "Sheet1", cell: "A1", value: "original" }];
-    const changedCells = [{ sheet: "Sheet1", cell: "A1", value: "different" }];
-    const first = await capability.execute(action("write", "result.xlsx", { cells: firstCells }));
-    assert.equal(first.ok, true);
-    assert.equal(first.changes[0]?.operation, "create");
-    const repeated = await capability.execute(action("write", "result.xlsx", { cells: firstCells }));
-    assert.equal(repeated.ok, true);
-    assert.equal(repeated.outputs.idempotent, true);
-    assert.deepEqual(repeated.changes, []);
-    const replacement = await capability.execute(action("write", "result.xlsx", { cells: changedCells }));
-    assert.equal(replacement.ok, false);
-    assert.equal(replacement.status, "blocked");
-    assert.equal(replacement.failureClass, "policy");
-    assert.equal(replacement.evidence[0]?.kind, "spreadsheet.overwrite_blocked");
-    const read = await capability.execute(action("read", "result.xlsx"));
-    assert.deepEqual(read.outputs.workbook, { cells: firstCells });
+    const workbook = createOoxmlZip([
+      xml("[Content_Types].xml", `<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"/>`),
+      xml("xl/workbook.xml", `<?xml version="1.0"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Imported" sheetId="1" r:id="rId7"/></sheets></workbook>`),
+      xml("xl/_rels/workbook.xml.rels", `<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId7" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/import.xml"/></Relationships>`),
+      xml("xl/sharedStrings.xml", `<?xml version="1.0"?><sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><si><t>Hello &amp; world</t></si><si><r><t>rich</t></r><r><t> text</t></r></si></sst>`),
+      xml("xl/worksheets/import.xml", `<?xml version="1.0"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c><c r="C1"><v>12.25</v></c><c r="D1" t="b"><v>1</v></c></row></sheetData></worksheet>`),
+    ]);
+    await writeFile(join(root, "import.xlsx"), workbook);
+
+    const result = await new LocalSpreadsheetCapability(root).execute(action("read", "import.xlsx"));
+    assert.equal(result.ok, true);
+    assert.deepEqual(result.outputs.rows, [["Hello & world", "rich text", 12.25, true]]);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
 });
 
-test("local spreadsheet adapter fails closed on path/symlink escape and malformed workbook", async () => {
+test("local spreadsheet adapter is idempotent and blocks conflicting replacement", async () => {
+  const root = await mkdtemp(join(tmpdir(), "jarvis-xlsx-conflict-"));
+  try {
+    const capability = new LocalSpreadsheetCapability(root);
+    const first = await capability.execute(action("write", "result.xlsx", [["one"]]));
+    assert.equal(first.ok, true);
+    assert.equal(first.changes[0]?.operation, "create");
+
+    const repeat = await capability.execute(action("write", "result.xlsx", [["one"]]));
+    assert.equal(repeat.ok, true);
+    assert.equal(repeat.outputs.idempotent, true);
+    assert.deepEqual(repeat.changes, []);
+
+    const conflict = await capability.execute(action("write", "result.xlsx", [["two"]]));
+    assert.equal(conflict.ok, false);
+    assert.equal(conflict.status, "blocked");
+    assert.equal(conflict.failureClass, "policy");
+    assert.equal(conflict.evidence[0]?.kind, "spreadsheet.overwrite_blocked");
+
+    const read = await capability.execute(action("read", "result.xlsx"));
+    assert.deepEqual(read.outputs.rows, [["one"]]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("local spreadsheet adapter rejects traversal, symlink escape, wrong extension and DTD", async () => {
   const root = await mkdtemp(join(tmpdir(), "jarvis-xlsx-root-"));
   const outside = await mkdtemp(join(tmpdir(), "jarvis-xlsx-outside-"));
   try {
     const capability = new LocalSpreadsheetCapability(root);
-    const cells = [{ sheet: "Sheet1", cell: "A1", value: "safe" }];
-    const traversal = await capability.execute(action("write", "../escape.xlsx", { cells }));
-    assert.equal(traversal.ok, false);
-    assert.match(traversal.error ?? "", /escapes allowed root/);
-    await writeFile(join(outside, "outside.xlsx"), Buffer.from("not-an-xlsx"));
-    await symlink(outside, join(root, "escape"), process.platform === "win32" ? "junction" : "dir");
-    const symlinkRead = await capability.execute(action("read", "escape/outside.xlsx"));
-    assert.equal(symlinkRead.ok, false);
-    assert.match(symlinkRead.error ?? "", /escapes allowed root/);
-    await writeFile(join(root, "broken.xlsx"), Buffer.from("not-an-xlsx"));
-    const malformed = await capability.execute(action("read", "broken.xlsx"));
-    assert.equal(malformed.ok, false);
-    assert.match(malformed.error ?? "", /invalid xlsx zip/);
-    const wrongExtension = await capability.execute(action("write", "report.csv", { cells }));
-    assert.equal(wrongExtension.ok, false);
-    assert.match(wrongExtension.error ?? "", /only supports \.xlsx/);
+    assert.equal((await capability.execute(action("write", "../escape.xlsx", [[1]]))).ok, false);
+    assert.equal((await capability.execute(action("write", "not-a-sheet.txt", [[1]]))).ok, false);
+
+    await symlink(outside, join(root, "link"), process.platform === "win32" ? "junction" : "dir");
+    const escaped = await capability.execute(action("write", "link/escape.xlsx", [[1]]));
+    assert.equal(escaped.ok, false);
+    await assert.rejects(readFile(join(outside, "escape.xlsx")));
+
+    const dtdWorkbook = createOoxmlZip([
+      xml("[Content_Types].xml", `<?xml version="1.0"?><Types/>`),
+      xml("xl/workbook.xml", `<?xml version="1.0"?><!DOCTYPE workbook [<!ENTITY x "boom">]><workbook><sheets><sheet r:id="rId1"/></sheets></workbook>`),
+      xml("xl/_rels/workbook.xml.rels", `<Relationships/>`),
+    ]);
+    await writeFile(join(root, "dtd.xlsx"), dtdWorkbook);
+    const dtd = await capability.execute(action("read", "dtd.xlsx"));
+    assert.equal(dtd.ok, false);
+    assert.match(dtd.error ?? "", /DTD\/entity/);
   } finally {
     await rm(root, { recursive: true, force: true });
     await rm(outside, { recursive: true, force: true });
   }
 });
+
+test("OOXML ZIP reader fails closed on corruption", () => {
+  const archive = createOoxmlZip([xml("safe.xml", "<safe>payload</safe>")]);
+  const corrupted = Buffer.from(archive);
+  const marker = Buffer.from("safe.xml");
+  const localName = corrupted.indexOf(marker);
+  assert.ok(localName > 0);
+  const dataOffset = localName + marker.length;
+  corrupted[dataOffset] ^= 0xff;
+  assert.throws(() => readOoxmlZip(corrupted));
+});
+
+function xml(name: string, value: string): { name: string; data: Buffer } {
+  return { name, data: Buffer.from(value, "utf8") };
+}

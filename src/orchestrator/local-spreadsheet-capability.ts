@@ -1,349 +1,15 @@
-import { inflateRawSync } from "node:zlib";
-import { posix } from "node:path";
-import { LocalFileCapability } from "./local-file-capability.ts";
-import type { SpreadsheetCell, SpreadsheetWorkbook } from "./spreadsheet-sandbox-capability.ts";
+import { posix as pathPosix } from "node:path";
 import type { WorkAction, WorkCapability, WorkResult } from "./work-capability.ts";
+import { createOoxmlZip, readOoxmlZip } from "./ooxml-zip.ts";
+import { ArtifactConflictError, ScopedArtifactStore } from "./scoped-artifact-store.ts";
 
-const MAX_XLSX_BYTES = 16 * 1024 * 1024;
-const MAX_ZIP_ENTRIES = 256;
-const MAX_ENTRY_BYTES = 8 * 1024 * 1024;
-const MAX_TOTAL_UNCOMPRESSED_BYTES = 32 * 1024 * 1024;
+const MAX_ROWS = 5_000;
+const MAX_COLUMNS = 256;
+const MAX_CELLS = 100_000;
+const MAX_CELL_TEXT = 32_767;
 
-interface ZipEntry { name: string; bytes: Buffer }
-interface CentralEntry {
-  name: string;
-  method: number;
-  crc32: number;
-  compressedSize: number;
-  uncompressedSize: number;
-  localHeaderOffset: number;
-}
-interface SheetDescriptor { name: string; target: string }
-
-function xmlEscape(value: string): string {
-  return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
-    .replaceAll("\"", "&quot;").replaceAll("'", "&apos;");
-}
-
-function xmlUnescape(value: string): string {
-  return value.replaceAll("&lt;", "<").replaceAll("&gt;", ">").replaceAll("&quot;", "\"")
-    .replaceAll("&apos;", "'").replaceAll("&amp;", "&");
-}
-
-function crc32(bytes: Buffer): number {
-  let crc = 0xffffffff;
-  for (const byte of bytes) {
-    crc ^= byte;
-    for (let bit = 0; bit < 8; bit += 1) crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
-  }
-  return (crc ^ 0xffffffff) >>> 0;
-}
-
-function makeZip(entries: ZipEntry[]): Buffer {
-  const localParts: Buffer[] = [];
-  const centralParts: Buffer[] = [];
-  let offset = 0;
-  for (const entry of entries) {
-    const name = Buffer.from(entry.name, "utf8");
-    const checksum = crc32(entry.bytes);
-    const local = Buffer.alloc(30);
-    local.writeUInt32LE(0x04034b50, 0);
-    local.writeUInt16LE(20, 4);
-    local.writeUInt16LE(0, 6);
-    local.writeUInt16LE(0, 8);
-    local.writeUInt16LE(0, 10);
-    local.writeUInt16LE(33, 12);
-    local.writeUInt32LE(checksum, 14);
-    local.writeUInt32LE(entry.bytes.length, 18);
-    local.writeUInt32LE(entry.bytes.length, 22);
-    local.writeUInt16LE(name.length, 26);
-    local.writeUInt16LE(0, 28);
-    localParts.push(local, name, entry.bytes);
-
-    const central = Buffer.alloc(46);
-    central.writeUInt32LE(0x02014b50, 0);
-    central.writeUInt16LE(20, 4);
-    central.writeUInt16LE(20, 6);
-    central.writeUInt16LE(0, 8);
-    central.writeUInt16LE(0, 10);
-    central.writeUInt16LE(0, 12);
-    central.writeUInt16LE(33, 14);
-    central.writeUInt32LE(checksum, 16);
-    central.writeUInt32LE(entry.bytes.length, 20);
-    central.writeUInt32LE(entry.bytes.length, 24);
-    central.writeUInt16LE(name.length, 28);
-    central.writeUInt16LE(0, 30);
-    central.writeUInt16LE(0, 32);
-    central.writeUInt16LE(0, 34);
-    central.writeUInt16LE(0, 36);
-    central.writeUInt32LE(0, 38);
-    central.writeUInt32LE(offset, 42);
-    centralParts.push(central, name);
-    offset += local.length + name.length + entry.bytes.length;
-  }
-  const centralDirectory = Buffer.concat(centralParts);
-  const end = Buffer.alloc(22);
-  end.writeUInt32LE(0x06054b50, 0);
-  end.writeUInt16LE(0, 4);
-  end.writeUInt16LE(0, 6);
-  end.writeUInt16LE(entries.length, 8);
-  end.writeUInt16LE(entries.length, 10);
-  end.writeUInt32LE(centralDirectory.length, 12);
-  end.writeUInt32LE(offset, 16);
-  end.writeUInt16LE(0, 20);
-  return Buffer.concat([...localParts, centralDirectory, end]);
-}
-
-function findEndOfCentralDirectory(bytes: Buffer): number {
-  const minimum = Math.max(0, bytes.length - 65_557);
-  for (let offset = bytes.length - 22; offset >= minimum; offset -= 1) {
-    if (bytes.readUInt32LE(offset) === 0x06054b50) return offset;
-  }
-  throw new Error("invalid xlsx zip: end of central directory not found");
-}
-
-function safeZipName(name: string): void {
-  if (!name || name.includes("\\") || name.startsWith("/") || name.split("/").some((part) => part === "..")) {
-    throw new Error("unsafe xlsx zip entry path");
-  }
-}
-
-function parseZip(bytes: Buffer): Map<string, Buffer> {
-  if (bytes.length > MAX_XLSX_BYTES) throw new Error("xlsx exceeds size limit");
-  if (bytes.length < 22) throw new Error("invalid xlsx zip");
-  const eocd = findEndOfCentralDirectory(bytes);
-  const disk = bytes.readUInt16LE(eocd + 4);
-  const centralDisk = bytes.readUInt16LE(eocd + 6);
-  const diskEntries = bytes.readUInt16LE(eocd + 8);
-  const entryCount = bytes.readUInt16LE(eocd + 10);
-  const centralSize = bytes.readUInt32LE(eocd + 12);
-  const centralOffset = bytes.readUInt32LE(eocd + 16);
-  if (disk !== 0 || centralDisk !== 0 || diskEntries !== entryCount) throw new Error("multi-disk xlsx zip is not supported");
-  if (entryCount > MAX_ZIP_ENTRIES) throw new Error("xlsx has too many zip entries");
-  if (centralOffset + centralSize > eocd) throw new Error("invalid xlsx central directory");
-
-  const entries: CentralEntry[] = [];
-  let cursor = centralOffset;
-  let totalUncompressed = 0;
-  for (let index = 0; index < entryCount; index += 1) {
-    if (cursor + 46 > bytes.length || bytes.readUInt32LE(cursor) !== 0x02014b50) throw new Error("invalid xlsx central directory entry");
-    const flags = bytes.readUInt16LE(cursor + 8);
-    const method = bytes.readUInt16LE(cursor + 10);
-    const checksum = bytes.readUInt32LE(cursor + 16);
-    const compressedSize = bytes.readUInt32LE(cursor + 20);
-    const uncompressedSize = bytes.readUInt32LE(cursor + 24);
-    const nameLength = bytes.readUInt16LE(cursor + 28);
-    const extraLength = bytes.readUInt16LE(cursor + 30);
-    const commentLength = bytes.readUInt16LE(cursor + 32);
-    const localHeaderOffset = bytes.readUInt32LE(cursor + 42);
-    const end = cursor + 46 + nameLength + extraLength + commentLength;
-    if (end > bytes.length) throw new Error("truncated xlsx central directory");
-    if ((flags & 0x1) !== 0) throw new Error("encrypted xlsx entries are not supported");
-    if (method !== 0 && method !== 8) throw new Error(`unsupported xlsx zip compression method: ${method}`);
-    if (compressedSize === 0xffffffff || uncompressedSize === 0xffffffff || localHeaderOffset === 0xffffffff) throw new Error("zip64 xlsx is not supported");
-    if (uncompressedSize > MAX_ENTRY_BYTES) throw new Error("xlsx entry exceeds size limit");
-    totalUncompressed += uncompressedSize;
-    if (totalUncompressed > MAX_TOTAL_UNCOMPRESSED_BYTES) throw new Error("xlsx expanded size exceeds limit");
-    const name = bytes.toString("utf8", cursor + 46, cursor + 46 + nameLength);
-    safeZipName(name);
-    entries.push({ name, method, crc32: checksum, compressedSize, uncompressedSize, localHeaderOffset });
-    cursor = end;
-  }
-
-  const result = new Map<string, Buffer>();
-  for (const entry of entries) {
-    const offset = entry.localHeaderOffset;
-    if (offset + 30 > bytes.length || bytes.readUInt32LE(offset) !== 0x04034b50) throw new Error("invalid xlsx local file header");
-    const nameLength = bytes.readUInt16LE(offset + 26);
-    const extraLength = bytes.readUInt16LE(offset + 28);
-    const dataStart = offset + 30 + nameLength + extraLength;
-    const dataEnd = dataStart + entry.compressedSize;
-    if (dataEnd > bytes.length) throw new Error("truncated xlsx zip entry");
-    const compressed = bytes.subarray(dataStart, dataEnd);
-    const expanded = entry.method === 0 ? Buffer.from(compressed) : inflateRawSync(compressed);
-    if (expanded.length !== entry.uncompressedSize) throw new Error("xlsx zip entry size mismatch");
-    if (crc32(expanded) !== entry.crc32) throw new Error("xlsx zip entry checksum mismatch");
-    if (result.has(entry.name)) throw new Error("duplicate xlsx zip entry");
-    result.set(entry.name, expanded);
-  }
-  return result;
-}
-
-function attribute(xml: string, name: string): string | undefined {
-  const match = new RegExp(`\\b${name}="([^"]*)"`).exec(xml);
-  return match ? xmlUnescape(match[1]) : undefined;
-}
-
-function validateSheetName(name: string): void {
-  if (!name || name.length > 31 || /[\\/*?:[\]]/.test(name)) throw new Error(`invalid spreadsheet sheet name: ${name || "<empty>"}`);
-}
-
-function validateCellRef(cell: string): string {
-  const normalized = cell.toUpperCase();
-  if (!/^[A-Z]{1,3}[1-9][0-9]*$/.test(normalized)) throw new Error(`invalid spreadsheet cell reference: ${cell}`);
-  return normalized;
-}
-
-function normalizeWorkbook(raw: unknown): SpreadsheetWorkbook {
-  if (!raw || typeof raw !== "object" || !Array.isArray((raw as SpreadsheetWorkbook).cells)) throw new Error("workbook.cells must be an array");
-  const cells: SpreadsheetCell[] = [];
-  const seen = new Set<string>();
-  for (const rawCell of (raw as SpreadsheetWorkbook).cells) {
-    if (!rawCell || typeof rawCell !== "object") throw new Error("spreadsheet cell must be an object");
-    const sheet = String(rawCell.sheet ?? "");
-    validateSheetName(sheet);
-    const cell = validateCellRef(String(rawCell.cell ?? ""));
-    const key = `${sheet}!${cell}`;
-    if (seen.has(key)) throw new Error(`duplicate spreadsheet cell: ${key}`);
-    seen.add(key);
-    const formula = rawCell.formula;
-    if (formula !== undefined && typeof formula !== "string") throw new Error(`invalid formula at ${key}`);
-    const value = rawCell.value;
-    if (value !== undefined && value !== null && typeof value !== "string" && typeof value !== "number" && typeof value !== "boolean") throw new Error(`unsupported spreadsheet value at ${key}`);
-    if (typeof value === "number" && !Number.isFinite(value)) throw new Error(`non-finite spreadsheet value at ${key}`);
-    cells.push({ sheet, cell, ...(value !== undefined ? { value } : {}), ...(formula !== undefined ? { formula } : {}) });
-  }
-  return { cells };
-}
-
-function sheetXml(cells: SpreadsheetCell[]): string {
-  const sorted = [...cells].sort((a, b) => a.cell.localeCompare(b.cell, "en", { numeric: true }));
-  const rendered = sorted.map((item) => {
-    const ref = validateCellRef(item.cell);
-    const formula = item.formula === undefined ? "" : `<f>${xmlEscape(item.formula.replace(/^=/, ""))}</f>`;
-    if (typeof item.value === "string") {
-      if (item.formula !== undefined) return `<c r="${ref}" t="str">${formula}<v>${xmlEscape(item.value)}</v></c>`;
-      return `<c r="${ref}" t="inlineStr"><is><t xml:space="preserve">${xmlEscape(item.value)}</t></is></c>`;
-    }
-    if (typeof item.value === "boolean") return `<c r="${ref}" t="b">${formula}<v>${item.value ? "1" : "0"}</v></c>`;
-    if (typeof item.value === "number") return `<c r="${ref}">${formula}<v>${item.value}</v></c>`;
-    return `<c r="${ref}">${formula}</c>`;
-  });
-  const byRow = new Map<number, string[]>();
-  for (const cell of rendered) {
-    const match = /\br="(?:[A-Z]+)([0-9]+)"/.exec(cell);
-    const row = Number(match?.[1] ?? 1);
-    const group = byRow.get(row) ?? [];
-    group.push(cell);
-    byRow.set(row, group);
-  }
-  const rows = [...byRow.entries()].sort(([a], [b]) => a - b)
-    .map(([row, values]) => `<row r="${row}">${values.join("")}</row>`).join("");
-  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
-    `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${rows}</sheetData></worksheet>`;
-}
-
-export function encodeXlsx(workbookInput: SpreadsheetWorkbook): Buffer {
-  const workbook = normalizeWorkbook(workbookInput);
-  const sheetNames = [...new Set(workbook.cells.map((cell) => cell.sheet))];
-  if (sheetNames.length === 0) sheetNames.push("Sheet1");
-  if (sheetNames.length > 32) throw new Error("too many spreadsheet sheets");
-  const workbookSheets = sheetNames.map((name, index) => `<sheet name="${xmlEscape(name)}" sheetId="${index + 1}" r:id="rId${index + 1}"/>`).join("");
-  const relationships = sheetNames.map((_, index) => `<Relationship Id="rId${index + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${index + 1}.xml"/>`).join("");
-  const overrides = sheetNames.map((_, index) => `<Override PartName="/xl/worksheets/sheet${index + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("");
-  const entries: ZipEntry[] = [
-    { name: "[Content_Types].xml", bytes: Buffer.from(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>${overrides}</Types>`) },
-    { name: "_rels/.rels", bytes: Buffer.from(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`) },
-    { name: "xl/workbook.xml", bytes: Buffer.from(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${workbookSheets}</sheets></workbook>`) },
-    { name: "xl/_rels/workbook.xml.rels", bytes: Buffer.from(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${relationships}</Relationships>`) },
-  ];
-  sheetNames.forEach((name, index) => entries.push({ name: `xl/worksheets/sheet${index + 1}.xml`, bytes: Buffer.from(sheetXml(workbook.cells.filter((cell) => cell.sheet === name))) }));
-  return makeZip(entries);
-}
-
-function parseRelationships(xml: string): Map<string, string> {
-  const result = new Map<string, string>();
-  for (const match of xml.matchAll(/<Relationship\b[^>]*\/?>/g)) {
-    const tag = match[0];
-    if (attribute(tag, "TargetMode")?.toLowerCase() === "external") throw new Error("external xlsx relationships are not supported");
-    const id = attribute(tag, "Id");
-    const target = attribute(tag, "Target");
-    if (id && target) result.set(id, target);
-  }
-  return result;
-}
-
-function sharedStrings(entries: Map<string, Buffer>): string[] {
-  const bytes = entries.get("xl/sharedStrings.xml");
-  if (!bytes) return [];
-  const xml = bytes.toString("utf8");
-  return [...xml.matchAll(/<si\b[^>]*>([\s\S]*?)<\/si>/g)].map((match) => [...match[1].matchAll(/<t\b[^>]*>([\s\S]*?)<\/t>/g)].map((text) => xmlUnescape(text[1])).join(""));
-}
-
-function sheetDescriptors(entries: Map<string, Buffer>): SheetDescriptor[] {
-  const workbookBytes = entries.get("xl/workbook.xml");
-  const relBytes = entries.get("xl/_rels/workbook.xml.rels");
-  if (!workbookBytes || !relBytes) throw new Error("xlsx is missing workbook metadata");
-  const rels = parseRelationships(relBytes.toString("utf8"));
-  const descriptors: SheetDescriptor[] = [];
-  for (const match of workbookBytes.toString("utf8").matchAll(/<sheet\b[^>]*\/?>/g)) {
-    const tag = match[0];
-    const name = attribute(tag, "name");
-    const relation = attribute(tag, "r:id");
-    if (!name || !relation) throw new Error("xlsx sheet metadata is incomplete");
-    validateSheetName(name);
-    const target = rels.get(relation);
-    if (!target) throw new Error(`xlsx sheet relationship missing: ${relation}`);
-    const normalized = posix.normalize(posix.join("xl", target));
-    if (!normalized.startsWith("xl/") || normalized.includes("../")) throw new Error("xlsx sheet relationship escapes workbook");
-    descriptors.push({ name, target: normalized });
-  }
-  if (descriptors.length === 0) throw new Error("xlsx contains no sheets");
-  return descriptors;
-}
-
-function parseSheet(sheet: SheetDescriptor, xml: string, strings: string[]): SpreadsheetCell[] {
-  const cells: SpreadsheetCell[] = [];
-  for (const match of xml.matchAll(/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
-    const attrs = match[1];
-    const body = match[2] ?? "";
-    const ref = attribute(attrs, "r");
-    if (!ref) continue;
-    const cell = validateCellRef(ref);
-    const type = attribute(attrs, "t");
-    const formulaMatch = /<f\b[^>]*>([\s\S]*?)<\/f>/.exec(body);
-    const formula = formulaMatch ? xmlUnescape(formulaMatch[1]) : undefined;
-    const valueMatch = /<v\b[^>]*>([\s\S]*?)<\/v>/.exec(body);
-    const inlineMatch = /<is\b[^>]*>([\s\S]*?)<\/is>/.exec(body);
-    let value: SpreadsheetCell["value"];
-    if (type === "inlineStr") {
-      const pieces = [...(inlineMatch?.[1] ?? "").matchAll(/<t\b[^>]*>([\s\S]*?)<\/t>/g)];
-      value = pieces.map((piece) => xmlUnescape(piece[1])).join("");
-    } else if (type === "s") {
-      if (!valueMatch) throw new Error(`shared-string xlsx cell is missing value: ${sheet.name}!${cell}`);
-      const index = Number(valueMatch[1]);
-      if (!Number.isInteger(index) || index < 0 || index >= strings.length) throw new Error(`invalid shared-string index at ${sheet.name}!${cell}`);
-      value = strings[index];
-    } else if (type === "b") value = valueMatch?.[1] === "1";
-    else if (type === "str") value = valueMatch ? xmlUnescape(valueMatch[1]) : "";
-    else if (valueMatch) {
-      const number = Number(valueMatch[1]);
-      if (!Number.isFinite(number)) throw new Error(`invalid numeric value at ${sheet.name}!${cell}`);
-      value = number;
-    } else value = null;
-    cells.push({ sheet: sheet.name, cell, ...(value !== undefined ? { value } : {}), ...(formula !== undefined ? { formula } : {}) });
-  }
-  return cells;
-}
-
-export function decodeXlsx(bytes: Buffer): SpreadsheetWorkbook {
-  const entries = parseZip(bytes);
-  if (!entries.has("[Content_Types].xml") || !entries.has("_rels/.rels")) throw new Error("not a valid xlsx OOXML package");
-  if (entries.has("xl/vbaProject.bin") || [...entries.keys()].some((name) => name.startsWith("xl/externalLinks/"))) throw new Error("macro or external-link xlsx content is not supported");
-  const strings = sharedStrings(entries);
-  const cells: SpreadsheetCell[] = [];
-  for (const sheet of sheetDescriptors(entries)) {
-    const content = entries.get(sheet.target);
-    if (!content) throw new Error(`xlsx worksheet is missing: ${sheet.target}`);
-    cells.push(...parseSheet(sheet, content.toString("utf8"), strings));
-  }
-  return normalizeWorkbook({ cells });
-}
-
-function ensureXlsxPath(path: unknown): string {
-  if (typeof path !== "string" || !path.toLowerCase().endsWith(".xlsx")) throw new Error("spreadsheet.local only supports .xlsx paths");
-  return path;
-}
+type SpreadsheetCell = string | number | boolean | null;
+type SpreadsheetRows = SpreadsheetCell[][];
 
 export class LocalSpreadsheetCapability implements WorkCapability {
   readonly name = "spreadsheet.local";
@@ -353,47 +19,65 @@ export class LocalSpreadsheetCapability implements WorkCapability {
   readonly externalSideEffect = false;
   readonly maxRisk = "low" as const;
   readonly requiresHumanApproval = false;
-  private readonly files: LocalFileCapability;
 
-  constructor(root: string) { this.files = new LocalFileCapability(root); }
-  async available() { return this.files.available(); }
+  private readonly store: ScopedArtifactStore;
+
+  constructor(root: string) {
+    this.store = new ScopedArtifactStore(root);
+  }
+
+  available(): Promise<boolean> {
+    return this.store.available();
+  }
 
   async execute(action: WorkAction): Promise<WorkResult> {
     try {
-      const path = ensureXlsxPath(action.input.path);
+      const path = requireXlsxPath(action.input.path);
       if (action.operation === "read") {
-        const artifact = await this.files.readBytes(path);
-        const workbook = decodeXlsx(artifact.bytes);
-        return this.ok(action, { path: artifact.target, sha256: artifact.sha256, workbook }, [], artifact.target, artifact.sha256, workbook);
+        const artifact = await this.store.read(path);
+        const rows = readWorkbook(artifact.bytes);
+        return this.ok(action, rows, artifact.path, artifact.sha256, false, false);
       }
+
       if (action.operation === "write") {
-        const workbook = normalizeWorkbook(action.input.workbook ?? { cells: action.input.cells });
-        const artifact = await this.files.createBytes(path, encodeXlsx(workbook));
-        if (artifact.status === "blocked") {
-          return {
-            ok: false,
-            status: "blocked",
-            outputs: { path: artifact.target, currentSha256: artifact.currentSha256, requestedSha256: artifact.sha256 },
-            changes: [],
-            evidence: [{ kind: "spreadsheet.overwrite_blocked", ref: `file:${artifact.target}`, data: { path: artifact.target, currentSha256: artifact.currentSha256, requestedSha256: artifact.sha256 } }],
-            failureClass: "policy",
-            error: "overwrite requires an approved replacement path",
-            provenance: { capability: this.name, attemptId: action.attemptId, strategyId: action.strategyId },
-          };
-        }
-        const persisted = await this.files.readBytes(path);
-        const decoded = decodeXlsx(persisted.bytes);
-        return this.ok(
-          action,
-          { path: persisted.target, sha256: persisted.sha256, workbook: decoded, ...(artifact.status === "idempotent" ? { idempotent: true } : {}) },
-          artifact.status === "created" ? [{ resource: persisted.target, operation: "create", reversible: true }] : [],
-          persisted.target,
-          persisted.sha256,
-          decoded,
-        );
+        const rows = normalizeRows(action.input.rows);
+        const workbook = writeWorkbook(rows);
+        const artifact = await this.store.create(path, workbook);
+        return this.ok(action, rows, artifact.path, artifact.sha256, artifact.created, artifact.idempotent);
       }
+
       throw new Error("unsupported spreadsheet operation");
     } catch (error) {
+      if (error instanceof ArtifactConflictError) {
+        return {
+          ok: false,
+          status: "blocked",
+          outputs: {
+            path: error.path,
+            currentSha256: error.currentSha256,
+            requestedSha256: error.requestedSha256,
+          },
+          changes: [],
+          evidence: [
+            {
+              kind: "spreadsheet.overwrite_blocked",
+              ref: `file:${error.path}`,
+              data: {
+                path: error.path,
+                currentSha256: error.currentSha256,
+                requestedSha256: error.requestedSha256,
+              },
+            },
+          ],
+          failureClass: "policy",
+          error: error.message,
+          provenance: {
+            capability: this.name,
+            attemptId: action.attemptId,
+            strategyId: action.strategyId,
+          },
+        };
+      }
       return {
         ok: false,
         status: "failed",
@@ -402,19 +86,290 @@ export class LocalSpreadsheetCapability implements WorkCapability {
         evidence: [],
         failureClass: "implementation",
         error: error instanceof Error ? error.message : "spreadsheet operation failed",
-        provenance: { capability: this.name, attemptId: action.attemptId, strategyId: action.strategyId },
+        provenance: {
+          capability: this.name,
+          attemptId: action.attemptId,
+          strategyId: action.strategyId,
+        },
       };
     }
   }
 
-  private ok(action: WorkAction, outputs: Record<string, unknown>, changes: WorkResult["changes"], path: string, sha256: string, workbook: SpreadsheetWorkbook): WorkResult {
+  private ok(
+    action: WorkAction,
+    rows: SpreadsheetRows,
+    path: string,
+    sha256: string,
+    created: boolean,
+    idempotent: boolean,
+  ): WorkResult {
+    const columnCount = rows.reduce((max, row) => Math.max(max, row.length), 0);
     return {
       ok: true,
       status: "completed",
-      outputs,
-      changes,
-      evidence: [{ kind: "spreadsheet.artifact", ref: `file:${path}`, data: { path, sha256, sheets: [...new Set(workbook.cells.map((cell) => cell.sheet))], cellCount: workbook.cells.length } }],
-      provenance: { capability: this.name, attemptId: action.attemptId, strategyId: action.strategyId },
+      outputs: {
+        path,
+        rows,
+        rowCount: rows.length,
+        columnCount,
+        sha256,
+        ...(idempotent ? { idempotent: true } : {}),
+      },
+      changes: created ? [{ resource: path, operation: "create", reversible: true }] : [],
+      evidence: [
+        {
+          kind: "spreadsheet.artifact",
+          ref: `file:${path}`,
+          data: { path, sha256, rowCount: rows.length, columnCount },
+        },
+      ],
+      provenance: {
+        capability: this.name,
+        attemptId: action.attemptId,
+        strategyId: action.strategyId,
+      },
     };
   }
+}
+
+function requireXlsxPath(value: unknown): string {
+  if (typeof value !== "string" || !value.trim()) throw new Error("path required");
+  if (!value.toLowerCase().endsWith(".xlsx")) throw new Error("spreadsheet path must end in .xlsx");
+  return value;
+}
+
+function normalizeRows(value: unknown): SpreadsheetRows {
+  if (!Array.isArray(value)) throw new Error("spreadsheet rows must be an array");
+  if (value.length > MAX_ROWS) throw new Error("spreadsheet row limit exceeded");
+  let cellCount = 0;
+  return value.map((row, rowIndex) => {
+    if (!Array.isArray(row)) throw new Error(`spreadsheet row ${rowIndex + 1} must be an array`);
+    if (row.length > MAX_COLUMNS) throw new Error("spreadsheet column limit exceeded");
+    cellCount += row.length;
+    if (cellCount > MAX_CELLS) throw new Error("spreadsheet cell limit exceeded");
+    return row.map((cell, columnIndex) => normalizeCell(cell, rowIndex, columnIndex));
+  });
+}
+
+function normalizeCell(value: unknown, rowIndex: number, columnIndex: number): SpreadsheetCell {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "string") {
+    if (value.length > MAX_CELL_TEXT) throw new Error(`spreadsheet cell ${cellRef(rowIndex, columnIndex)} exceeds text limit`);
+    return value;
+  }
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  throw new Error(`unsupported spreadsheet cell type at ${cellRef(rowIndex, columnIndex)}`);
+}
+
+function writeWorkbook(rows: SpreadsheetRows): Buffer {
+  const worksheetRows = rows
+    .map((row, rowIndex) => {
+      const cells = row
+        .map((cell, columnIndex) => writeCell(cell, rowIndex, columnIndex))
+        .filter(Boolean)
+        .join("");
+      return cells ? `<row r="${rowIndex + 1}">${cells}</row>` : `<row r="${rowIndex + 1}"/>`;
+    })
+    .join("");
+
+  const entries = [
+    xmlEntry(
+      "[Content_Types].xml",
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`,
+    ),
+    xmlEntry(
+      "_rels/.rels",
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`,
+    ),
+    xmlEntry(
+      "xl/workbook.xml",
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets></workbook>`,
+    ),
+    xmlEntry(
+      "xl/_rels/workbook.xml.rels",
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`,
+    ),
+    xmlEntry(
+      "xl/styles.xml",
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/></cellXfs></styleSheet>`,
+    ),
+    xmlEntry(
+      "xl/worksheets/sheet1.xml",
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${worksheetRows}</sheetData></worksheet>`,
+    ),
+  ];
+  return createOoxmlZip(entries);
+}
+
+function readWorkbook(bytes: Buffer): SpreadsheetRows {
+  const entries = readOoxmlZip(bytes);
+  const workbookXml = requiredXml(entries, "xl/workbook.xml");
+  const relationshipsXml = requiredXml(entries, "xl/_rels/workbook.xml.rels");
+  requiredXml(entries, "[Content_Types].xml");
+
+  const sheetMatch = workbookXml.match(/<sheet\b([^>]*)\/?\s*>/i);
+  if (!sheetMatch) throw new Error("spreadsheet has no worksheet");
+  const relationshipId = attribute(sheetMatch[1], "r:id");
+  if (!relationshipId) throw new Error("spreadsheet worksheet relationship missing");
+
+  const relationships = [...relationshipsXml.matchAll(/<Relationship\b([^>]*)\/?\s*>/gi)];
+  const relationship = relationships.find((match) => attribute(match[1], "Id") === relationshipId);
+  const target = relationship ? attribute(relationship[1], "Target") : null;
+  if (!target) throw new Error("spreadsheet worksheet target missing");
+  const sheetPath = resolveWorkbookTarget(target);
+  const worksheetXml = requiredXml(entries, sheetPath);
+
+  const sharedStrings = entries.has("xl/sharedStrings.xml")
+    ? readSharedStrings(requiredXml(entries, "xl/sharedStrings.xml"))
+    : [];
+  return readWorksheet(worksheetXml, sharedStrings);
+}
+
+function readWorksheet(xml: string, sharedStrings: string[]): SpreadsheetRows {
+  const rows: SpreadsheetRows = [];
+  let cells = 0;
+  let sequentialRow = 1;
+
+  for (const rowMatch of xml.matchAll(/<row\b([^>]*)>([\s\S]*?)<\/row>|<row\b([^>]*)\/>/gi)) {
+    const attrs = rowMatch[1] ?? rowMatch[3] ?? "";
+    const body = rowMatch[2] ?? "";
+    const explicitRow = parsePositiveInteger(attribute(attrs, "r"));
+    const rowNumber = explicitRow ?? sequentialRow;
+    if (rowNumber > MAX_ROWS) throw new Error("spreadsheet row limit exceeded");
+    sequentialRow = rowNumber + 1;
+    const row: SpreadsheetCell[] = rows[rowNumber - 1] ?? [];
+
+    for (const cellMatch of body.matchAll(/<c\b([^>]*)>([\s\S]*?)<\/c>/gi)) {
+      cells += 1;
+      if (cells > MAX_CELLS) throw new Error("spreadsheet cell limit exceeded");
+      const cellAttrs = cellMatch[1];
+      const cellBody = cellMatch[2];
+      const reference = attribute(cellAttrs, "r");
+      const columnIndex = reference ? columnIndexFromReference(reference) : row.length;
+      if (columnIndex >= MAX_COLUMNS) throw new Error("spreadsheet column limit exceeded");
+      row[columnIndex] = readCell(attribute(cellAttrs, "t"), cellBody, sharedStrings);
+    }
+
+    while (row.length && row[row.length - 1] === null) row.pop();
+    rows[rowNumber - 1] = row;
+  }
+
+  while (rows.length && (!rows[rows.length - 1] || rows[rows.length - 1].length === 0)) rows.pop();
+  return rows.map((row) => row ?? []);
+}
+
+function readCell(type: string | null, body: string, sharedStrings: string[]): SpreadsheetCell {
+  if (type === "inlineStr") {
+    const text = [...body.matchAll(/<t\b[^>]*>([\s\S]*?)<\/t>/gi)].map((match) => decodeXml(match[1])).join("");
+    return text;
+  }
+  const valueMatch = body.match(/<v\b[^>]*>([\s\S]*?)<\/v>/i);
+  if (!valueMatch) return null;
+  const raw = decodeXml(valueMatch[1]);
+  if (type === "s") {
+    const index = Number(raw);
+    if (!Number.isSafeInteger(index) || index < 0 || index >= sharedStrings.length) throw new Error("invalid shared string index");
+    return sharedStrings[index];
+  }
+  if (type === "b") return raw === "1";
+  if (type === "str" || type === "e") return raw;
+  const number = Number(raw);
+  if (!Number.isFinite(number)) throw new Error("invalid numeric spreadsheet value");
+  return number;
+}
+
+function readSharedStrings(xml: string): string[] {
+  const result: string[] = [];
+  for (const match of xml.matchAll(/<si\b[^>]*>([\s\S]*?)<\/si>/gi)) {
+    const text = [...match[1].matchAll(/<t\b[^>]*>([\s\S]*?)<\/t>/gi)].map((part) => decodeXml(part[1])).join("");
+    if (text.length > MAX_CELL_TEXT) throw new Error("shared string exceeds text limit");
+    result.push(text);
+    if (result.length > MAX_CELLS) throw new Error("shared string count exceeds limit");
+  }
+  return result;
+}
+
+function requiredXml(entries: Map<string, Buffer>, name: string): string {
+  const value = entries.get(name);
+  if (!value) throw new Error(`required OOXML part missing: ${name}`);
+  const xml = value.toString("utf8");
+  if (/<!DOCTYPE|<!ENTITY/i.test(xml)) throw new Error("DTD/entity declarations are not allowed in OOXML");
+  return xml;
+}
+
+function resolveWorkbookTarget(target: string): string {
+  if (!target || target.includes("\\") || target.startsWith("/") || target.split("/").includes("..")) {
+    throw new Error("unsafe spreadsheet relationship target");
+  }
+  const resolved = pathPosix.normalize(pathPosix.join("xl", target));
+  if (!resolved.startsWith("xl/") || resolved.includes("../")) throw new Error("unsafe spreadsheet relationship target");
+  return resolved;
+}
+
+function writeCell(value: SpreadsheetCell, rowIndex: number, columnIndex: number): string {
+  if (value === null) return "";
+  const reference = cellRef(rowIndex, columnIndex);
+  if (typeof value === "string") {
+    return `<c r="${reference}" t="inlineStr"><is><t xml:space="preserve">${escapeXml(value)}</t></is></c>`;
+  }
+  if (typeof value === "boolean") return `<c r="${reference}" t="b"><v>${value ? 1 : 0}</v></c>`;
+  return `<c r="${reference}"><v>${String(value)}</v></c>`;
+}
+
+function cellRef(rowIndex: number, columnIndex: number): string {
+  let column = columnIndex + 1;
+  let letters = "";
+  while (column > 0) {
+    const remainder = (column - 1) % 26;
+    letters = String.fromCharCode(65 + remainder) + letters;
+    column = Math.floor((column - 1) / 26);
+  }
+  return `${letters}${rowIndex + 1}`;
+}
+
+function columnIndexFromReference(reference: string): number {
+  const match = reference.match(/^([A-Z]+)[1-9][0-9]*$/i);
+  if (!match) throw new Error("invalid spreadsheet cell reference");
+  let value = 0;
+  for (const char of match[1].toUpperCase()) value = value * 26 + (char.charCodeAt(0) - 64);
+  return value - 1;
+}
+
+function xmlEntry(name: string, xml: string): { name: string; data: Buffer } {
+  return { name, data: Buffer.from(xml, "utf8") };
+}
+
+function attribute(source: string, name: string): string | null {
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = source.match(new RegExp(`(?:^|\\s)${escapedName}\\s*=\\s*(["'])([\\s\\S]*?)\\1`, "i"));
+  return match ? decodeXml(match[2]) : null;
+}
+
+function parsePositiveInteger(value: string | null): number | null {
+  if (!value || !/^[1-9][0-9]*$/.test(value)) return null;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) ? parsed : null;
+}
+
+function escapeXml(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+}
+
+function decodeXml(value: string): string {
+  return value.replace(/&#(x[0-9a-f]+|[0-9]+);|&(amp|lt|gt|quot|apos);/gi, (match, numeric: string | undefined, named: string | undefined) => {
+    if (numeric) {
+      const codePoint = numeric[0].toLowerCase() === "x" ? Number.parseInt(numeric.slice(1), 16) : Number.parseInt(numeric, 10);
+      if (!Number.isSafeInteger(codePoint) || codePoint < 0 || codePoint > 0x10ffff) throw new Error("invalid XML character reference");
+      return String.fromCodePoint(codePoint);
+    }
+    switch (named?.toLowerCase()) {
+      case "amp": return "&";
+      case "lt": return "<";
+      case "gt": return ">";
+      case "quot": return '"';
+      case "apos": return "'";
+      default: return match;
+    }
+  });
 }
