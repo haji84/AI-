@@ -5499,6 +5499,18 @@
       "reason": "Capability dispatch checks execution-context completeness and outbound privacy before routing. Not proof of real Worker execution."
     },
     {
+      "path": "src/orchestrator/hosted-goal-controller-adapter.ts",
+      "sha256": "ec1fa75c5514049c66187ed0fc4f77359d7265903f9a5e83debd85393eaf8766",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-002",
+        "AUTO-001",
+        "AUTO-010",
+        "AUTO-015"
+      ],
+      "reason": "Issue #1219 bounded GoalControllerExecutionBridge adapter for existing durable DevelopmentJob State Controller, signed independent checks, and per-Job hosted capability routing. Source and CI fixture are not proof of production dispatch or physical acceptance."
+    },
+    {
       "path": "src/orchestrator/hosted-goal-work-router.ts",
       "sha256": "803f3e0aac975c012fda819a2e9be9fb09e88fd1ffc3ac10810214514554f724",
       "classification": "COVERED_BY_REQUIREMENT",
