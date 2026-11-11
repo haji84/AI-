@@ -1,13 +1,27 @@
 # GORIQ GitHub current handoff (Issue #1219)
 
-Last reviewed: 2026-11-12 00:17 JST (2026-11-11 UTC)
+Last reviewed: 2026-11-12 01:00 JST (2026-11-11 UTC)
 Repository: haji84/AI- (public)
 Canonical issue: https://github.com/haji84/AI-/issues/1219
 Existing Draft PR: https://github.com/haji84/AI-/pull/1907
 Branch: feature/1219-hosted-goal-job-routing-20261111
-Reviewed implementation HEAD: d470c1498b8848ac7c74283ba5022cdd985aaf17
+Reviewed implementation HEAD: 5be1fc1ceb58ae69753d6dc75a0786f840715910
 Reviewed PR base/main: 6737e15033eced135461076d72f792516e83c9b3
 This handoff is a repository record, NOT an authenticated Compass Goal-state transition. The documentation commit following the reviewed HEAD requires its own exact-HEAD CI. Every future reader must refresh refs, statuses and logs.
+
+## 2026-11-12 01:00 JST: authentic current-vs-historical Goal readback patch
+
+This is the latest source review checkpoint, not a production pass. Review the PR HEAD and full CI again before work. Reviewed source HEAD: `5be1fc1ceb58ae69753d6dc75a0786f840715910`. Branch remains `feature/1219-hosted-goal-job-routing-20261111`, existing Draft PR #1907 and Issue #1219.
+
+Evidence and correction sequence:
+- RED regression added at commit `ff9244cb8a9d6018eddc0184326519bc75ffed37`, test `tests/goriq-authoritative-goal-readback.test.ts`. Actions run https://github.com/haji84/AI-/actions/runs/43050878172: project-checks failed exactly the new case, which showed `goalAuthority` missing (the expected RED, not a product pass).
+- Initial Broker-only fix `8b5752a754460adc9dadd9ce4b1c6122753bd884` made every non-current WorkRun return HTTP 409. Actions https://github.com/haji84/AI-/actions/runs/43051923211 failed project-checks (9 tests): one legitimate historical-notification owner flow was broken; eight canonical-requirement/traceability checks detected the un-reconciled `scripts/jarvis-broker.ts` SHA. Do not restore the over-strict 409 approach or hide these failures.
+- Revised source commit `5be1fc1ceb58ae69753d6dc75a0786f840715910` (six files): Broker now returns owner-authenticated WorkRun and completion history for both cases, but supplies `goalAuthority.kind=CURRENT_COMPASS_GOAL, current=true` only after two same-Compass current-Goal reads; historical/unbound runs return `HISTORICAL_WORK_RUN, current=false`, read-only. Existing POST notification acknowledgment and Human Gates are preserved; status read must not be an execution authorization. GoalBridgeStatus UI warns for historical or absent/mismatching authority. Regression tests cover two Broker restarts, unauthenticated denial, Human Gate persistence, historical old run, historical notification delivery, and UI warning. Canonical SHA-256 rows for Broker and UI are updated in `docs/jarvis-reverse-traceability.json` with the original requirement classification retained (no invented functional acceptance).
+- Revised-source exact SHA Actions run https://github.com/haji84/AI-/actions/runs/43053980721 was QUEUED at 2026-11-11 16:00 UTC. Not GREEN until every required job reports successful and logs confirm no skipped/changed acceptance. This document's own later commit has a DIFFERENT HEAD and requires independent CI.
+
+Achieved in source: protected API differentiates current Compass Goal from historic persisted WorkRun without removing past notices; tests and source fingerprints have been saved on GitHub. Not yet demonstrated: CI GREEN for revised source; authenticated readback of **the actual owner Goal** `goal-fcc81c97e09153f7` from running owner Broker; actual independent signer/key custody; cross-host durable store/lease/fencing and resumed original `rotation-recovery-37`; real Goal -> verified candidate -> next Job -> artifact. Original Goal remains NOT_ACHIEVED and all acceptance gates remain intact.
+
+Next authorized engineering step: (1) fetch latest PR HEAD and exact-head Actions, inspect project-checks and six-check verifier, repair the FIRST actual failure on this branch without relaxing requirements; (2) when source CI is good, authenticate existing owner Goal via the already-authorized live Broker and independently bind its status/digest without inventing a Goal; (3) require owner-authorized isolated signer and explicit durable cross-host authority before any real resume/signed production claim. Do NOT create signer secrets, new identity, replica Controller, main merge or deployment as a shortcut. Keep original evidence and all historical attempts.
 
 ## Owner's locked north-star GOAL
 
