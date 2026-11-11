@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { ResourceWaitScheduler } from "../src/orchestrator/development-resource-scheduler.ts";
 import { nextResourceWait, resourceWaitFromEvidence } from "../src/orchestrator/development-resource-wait.ts";
-import { createQueuedWorkRun } from "../src/orchestrator/work-run-state.ts";
+import { createQueuedWorkRun,nextGoalContinuation,GOAL_CONTINUATION_DELAY_MS,type WorkRunState } from "../src/orchestrator/work-run-state.ts";
 
 function fixture() {
   let time = Date.parse("2026-10-21T12:00:00Z");
@@ -52,4 +52,34 @@ test("malformed checkpoint fails visibly and untrusted nested/cyclic evidence is
   assert.equal(resourceWaitFromEvidence(cycle), null);
   assert.equal(resourceWaitFromEvidence({ resourceWait: { status: "WAITING_FOR_RESOURCE", retryAfterMs: Infinity } }), null);
   scheduler.close();
+});
+
+test("persisted Goal chunk continuation wakes once after due without a resource wait",async()=>{
+ let time=Date.parse("2026-11-11T00:00:00.000Z"),calls=0,delay=-1;
+ let timer:(()=>void)|undefined;
+ const run={...createQueuedWorkRun("g"),phase:"RUNNING" as const,continuationWait:nextGoalContinuation(undefined,new Date(time))!};
+ const scheduler=new ResourceWaitScheduler({
+   read:async()=>({active:true,run}),resume:async()=>{calls++},
+   now:()=>time,schedule:(callback,ms)=>{timer=callback;delay=ms;return callback},
+   cancel:()=>{timer=undefined},onError:error=>{throw error},
+ });
+ assert.equal(await scheduler.arm("g"),true);assert.equal(delay,GOAL_CONTINUATION_DELAY_MS);
+ timer?.();await new Promise(resolve=>setImmediate(resolve));assert.equal(calls,0,"not due cannot resume");
+ time+=GOAL_CONTINUATION_DELAY_MS+1;timer?.();await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(calls,1);timer?.();await new Promise(resolve=>setImmediate(resolve));assert.equal(calls,1);
+ scheduler.close();
+});
+test("Goal chunk continuation cannot bypass a paused run or overlap resource wait",async()=>{
+ const at=new Date("2026-11-11T00:00:00.000Z");
+ const run:WorkRunState={...createQueuedWorkRun("g"),phase:"RUNNING",continuationWait:nextGoalContinuation(undefined,at)!};
+ let timer:(()=>void)|undefined,calls=0;
+ const scheduler=new ResourceWaitScheduler({
+   read:async()=>({active:true,run}),resume:async()=>{calls++},
+   now:()=>at.getTime()+10000,schedule:callback=>{timer=callback;return callback},
+   cancel:()=>{timer=undefined},onError:error=>{throw error},
+ });
+ await scheduler.arm("g");run.phase="HUMAN_GATE";timer?.();await new Promise(resolve=>setImmediate(resolve));assert.equal(calls,0);
+ run.phase="RUNNING";run.resourceWait=nextResourceWait(undefined,{status:"WAITING_FOR_RESOURCE",reason:"pressure",retryAfterMs:30000,observedAt:at.toISOString()},at);
+ await assert.rejects(scheduler.arm("g"),/conflicting continuation/i);
+ scheduler.close();
 });
