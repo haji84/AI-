@@ -42,6 +42,9 @@ import { CompassWorkStateStoreAdapter } from "../src/orchestrator/compass-work-s
 import { GoalControllerRuntime, type GoalControllerDecision } from "../src/orchestrator/goal-controller-runtime.ts";
 import { CompassGoalRegistryAdapter, CompassGoalDecisionStoreAdapter } from "../src/orchestrator/compass-goal-controller.ts";
 import { CompassWorkRunStore } from "../src/orchestrator/compass-work-run-store.ts";
+import { JsonFileDevelopmentJobStore } from "../src/orchestrator/development-job-store.ts";
+import type { DevelopmentJob } from "../src/orchestrator/development-job.ts";
+import { residentDevelopmentGoalDigest } from "../src/orchestrator/resident-development-sequence.ts";
 import { CompassApprovedNextWork, approvedNextRuntimeReady } from "../src/orchestrator/approved-next-work.ts";
 import { CompassGoalBridgeEventStore } from "../src/orchestrator/compass-goal-bridge-event-store.ts";
 import { CompassGoalExecutionContextStore } from "../src/orchestrator/compass-goal-execution-context-store.ts";
@@ -95,6 +98,7 @@ const compassPath = process.env.JARVIS_COMPASS_DB_PATH?.trim() || (process.env.J
 const compass = new CompassStore(compassPath);
 const localStateBackups = new LocalStateBackups({ brokerPath: process.env.JARVIS_DB_PATH?.trim() || resolve(".jarvis", "jarvis.db"), compassPath });
 const workRuns = new CompassWorkRunStore(compass);
+const developmentJobs = new JsonFileDevelopmentJobStore(join(dirname(compassPath), "self-development", "jobs.json"));
 const completionWorkState = new CompassWorkStateStoreAdapter(compass);
 const goalBridgeEvents = new CompassGoalBridgeEventStore(compass);
 const goalExecutionContexts = new CompassGoalExecutionContextStore(compass);
@@ -744,14 +748,44 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
       // A persisted WorkRun alone never grants present Goal execution authority.
       const registry = new CompassGoalRegistryAdapter(compass);
       const before = (await registry.listActive())[0];
+      const expectedGoalDigest = before?.goalId === goalId
+        ? residentDevelopmentGoalDigest(before.goal) : null;
       const completion = (await completionWorkState.getCompletionHistory(goalId)).at(-1) ?? null;
+      // Same-host Job snapshots are evidence of persisted records, not a
+      // cross-host execution lease or approval to run them.
+      let jobs: DevelopmentJob[] = [];
+      try {
+        if (expectedGoalDigest) jobs = await developmentJobs.getByGoal(goalId);
+      } catch {
+        return json(response, 503, { code: "LOCAL_JOB_READBACK_UNAVAILABLE", goalId });
+      }
+      if (jobs.length > 32) {
+        return json(response, 409, { code: "LOCAL_JOB_READBACK_EXCEEDS_BOUND", goalId });
+      }
       const after = (await registry.listActive())[0];
-      const current = before?.goalId === goalId && after?.goalId === goalId;
+      const current = expectedGoalDigest !== null && after?.goalId === goalId
+        && residentDevelopmentGoalDigest(after.goal) === expectedGoalDigest;
       return json(response, 200, {
         run, progress: workRunProgress(run), completion,
         goalAuthority: {
           kind: current ? "CURRENT_COMPASS_GOAL" : "HISTORICAL_WORK_RUN",
           goalId, current,
+        },
+        jobReadback: {
+          kind: !current ? "HISTORICAL_ONLY" : jobs.length ? "LOCAL_PERSISTED_JOBS" : "LOCAL_JOBS_NOT_OBSERVED",
+          goalId,
+          goalDigest: current ? expectedGoalDigest : null,
+          remoteAuthorityVerified: false,
+          jobs: current ? jobs.map(job => ({
+            jobId: job.jobId,
+            phase: job.phase,
+            recordSha256: createHash("sha256").update(JSON.stringify(job)).digest("hex"),
+            approvalScope: {
+              taskScopeId: job.approvalScope.taskScopeId,
+              maxRisk: job.approvalScope.maxRisk,
+              ...(job.approvalScope.expiresAt ? { expiresAt: job.approvalScope.expiresAt } : {}),
+            },
+          })) : [],
         },
       });
     }

@@ -959,7 +959,7 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "b69c7c20b75951f810f5af698cd4a0ff760f389f41797ce19bcc350500817f58",
+      "sha256": "63700f09239c95f91b784f58e1bb7d97406cf0c762cb8e5593da277dd7a6a723",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-003",
@@ -982,7 +982,7 @@
         "OPS-015",
         "OPS-016"
       ],
-      "reason": "Protected Broker now exposes bounded local-first voice discovery and synthesis while preserving existing owner authority and all prior Broker responsibilities. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim. #1858 approved host-selected completion integration and isolated verification; no live activation or physical acceptance inference. Protected Broker now exposes bounded local-first voice discovery and synthesis while preserving existing owner authority and all prior Broker responsibilities. #1219 only accepted nonterminal Goal resumed on changed verifier receipt; signature and authorizations still checked in child Executor. #1219 current vs historical authenticated WorkRun readback; existing parent requirements remain PARTIAL pending live evidence. Issue #1219: transient local writer contention returns an explicit non-owner process status, with bounded Broker rechecks of the same accepted Goal; no cross-host authority or live acceptance claim."
+      "reason": "Protected Broker now exposes bounded local-first voice discovery and synthesis while preserving existing owner authority and all prior Broker responsibilities. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim. #1858 approved host-selected completion integration and isolated verification; no live activation or physical acceptance inference. Protected Broker now exposes bounded local-first voice discovery and synthesis while preserving existing owner authority and all prior Broker responsibilities. #1219 only accepted nonterminal Goal resumed on changed verifier receipt; signature and authorizations still checked in child Executor. #1219 current vs historical authenticated WorkRun readback; existing parent requirements remain PARTIAL pending live evidence. Issue #1219: transient local writer contention returns an explicit non-owner process status, with bounded Broker rechecks of the same accepted Goal; no cross-host authority or live acceptance claim. Issue #1219: owner-auth current Goal now binds actual same-host persisted DevelopmentJobs by digest, phase and scope without granting cross-host authority or execution approval."
     },
     {
       "path": "scripts/jarvis-direct-commander-service.sh",
