@@ -1,112 +1,85 @@
-# GORIQ GitHub current handoff (Issue #1219)
+# GORIQ current development handoff: Issue #1219 / Draft PR #1907
 
-Last reviewed: 2026-11-12 JST (2026-11-11 UTC)
-Repository: haji84/AI- (public)
-Canonical issue: https://github.com/haji84/AI-/issues/1219
-Existing Draft PR: https://github.com/haji84/AI-/pull/1907
-Branch: feature/1219-hosted-goal-job-routing-20261111
-Reviewed implementation HEAD: 5c07a013f8ccc1864a8fbe51c6cecda5ba1040a2
-Reviewed PR base/main: 6737e15033eced135461076d72f792516e83c9b3
-This handoff is a repository record, NOT an authenticated Compass Goal-state transition. The documentation commit following the reviewed HEAD requires its own exact-HEAD CI. Every future reader must refresh refs, statuses and logs.
+Reviewed 2026-11-12 JST (2026-11-11 UTC). This is development evidence, NOT a live Compass transition, an execution grant, a production acceptance, or a declaration that the original Goal exists in its current authoritative store.
 
-## 2026-11-12 01:00 JST: authentic current-vs-historical Goal readback patch
+## Read these before continuing
 
-This is the latest source review checkpoint, not a production pass. Review the PR HEAD and full CI again before work. Reviewed source HEAD: `5be1fc1ceb58ae69753d6dc75a0786f840715910`. Branch remains `feature/1219-hosted-goal-job-routing-20261111`, existing Draft PR #1907 and Issue #1219.
+- Repository: haji84/AI- (public).
+- Existing Issue: https://github.com/haji84/AI-/issues/1219
+- Existing Draft PR: https://github.com/haji84/AI-/pull/1907
+- Existing branch: feature/1219-hosted-goal-job-routing-20261111
+- Reviewed base/main: `6737e15033eced135461076d72f792516e83c9b3`.
+- Latest implementation checkpoint reviewed before this documentation commit: `b2adfc9aec13792e9b42e88dc9fb8636d04b1543`.
+- Its CI: https://github.com/haji84/AI-/actions/runs/43094319584 . At this document's preparation, the independent verifier had NOT finished. Normal test/security/build/health steps had succeeded; Windows fixture and repository-guard jobs had succeeded. Do not turn this observation into a complete CI pass.
+- THIS DOCUMENT CREATES A NEW HEAD. Refresh the PR HEAD and its own four required jobs, source bindings and logs. Neither the reviewed parent nor an older successful SHA accepts the new HEAD.
+- The preceding full handoff is preserved byte-for-byte as [GORIQ_HANDOFF_433d36c_ARCHIVE.md](./GORIQ_HANDOFF_433d36c_ARCHIVE.md), Git blob `4d9ac952ed9ead357507676b0b4fa0be31e84079`. It retains prior source changes, failed approaches, immutable evidence links and historical verification. Read it with the current checkpoint, not as current runtime truth.
+- [GORIQ_GOAL_TO_PRODUCTION_GATES.md](./GORIQ_GOAL_TO_PRODUCTION_GATES.md) remains the detailed G0-G13 acceptance map. Its historical G0 SOURCE_CI_PASS at `5c07a01` must NOT be applied to another HEAD.
 
-Evidence and correction sequence:
-- RED regression added at commit `ff9244cb8a9d6018eddc0184326519bc75ffed37`, test `tests/goriq-authoritative-goal-readback.test.ts`. Actions run https://github.com/haji84/AI-/actions/runs/43050878172: project-checks failed exactly the new case, which showed `goalAuthority` missing (the expected RED, not a product pass).
-- Initial Broker-only fix `8b5752a754460adc9dadd9ce4b1c6122753bd884` made every non-current WorkRun return HTTP 409. Actions https://github.com/haji84/AI-/actions/runs/43051923211 failed project-checks (9 tests): one legitimate historical-notification owner flow was broken; eight canonical-requirement/traceability checks detected the un-reconciled `scripts/jarvis-broker.ts` SHA. Do not restore the over-strict 409 approach or hide these failures.
-- Revised source commit `5be1fc1ceb58ae69753d6dc75a0786f840715910` (six files): Broker now returns owner-authenticated WorkRun and completion history for both cases, but supplies `goalAuthority.kind=CURRENT_COMPASS_GOAL, current=true` only after two same-Compass current-Goal reads; historical/unbound runs return `HISTORICAL_WORK_RUN, current=false`, read-only. Existing POST notification acknowledgment and Human Gates are preserved; status read must not be an execution authorization. GoalBridgeStatus UI warns for historical or absent/mismatching authority. Regression tests cover two Broker restarts, unauthenticated denial, Human Gate persistence, historical old run, historical notification delivery, and UI warning. Canonical SHA-256 rows for Broker and UI are updated in `docs/jarvis-reverse-traceability.json` with the original requirement classification retained (no invented functional acceptance).
-- Revised-source exact SHA Actions run https://github.com/haji84/AI-/actions/runs/43053980721 was QUEUED at 2026-11-11 16:00 UTC. Not GREEN until every required job reports successful and logs confirm no skipped/changed acceptance. This document's own later commit has a DIFFERENT HEAD and requires independent CI.
+## Locked final Goal and authority
 
-Achieved in source: protected API differentiates current Compass Goal from historic persisted WorkRun without removing past notices; tests and source fingerprints have been saved on GitHub. Not yet demonstrated: CI GREEN for revised source; authenticated readback of **the actual owner Goal** `goal-fcc81c97e09153f7` from running owner Broker; actual independent signer/key custody; cross-host durable store/lease/fencing and resumed original `rotation-recovery-37`; real Goal -> verified candidate -> next Job -> artifact. Original Goal remains NOT_ACHIEVED and all acceptance gates remain intact.
+An authenticated owner submits one Goal once. The existing Unified Intake/Goal Resolver/Controller persists that same Goal, selects eligible Jobs, performs actual model-produced changes, diagnoses genuine failures, makes a different authorized repair, obtains truly independent verification, resumes after process/Actions/host loss, starts the next Job without another owner instruction, and delivers a usable artifact whose bytes and actual behavior are independently checked. Human Gates, pause/cancel, budgets and authority remain enforced. No completed Job or green source CI completes an unfinished Goal.
 
-Next authorized engineering step: (1) fetch latest PR HEAD and exact-head Actions, inspect project-checks and six-check verifier, repair the FIRST actual failure on this branch without relaxing requirements; (2) when source CI is good, authenticate existing owner Goal via the already-authorized live Broker and independently bind its status/digest without inventing a Goal; (3) require owner-authorized isolated signer and explicit durable cross-host authority before any real resume/signed production claim. Do NOT create signer secrets, new identity, replica Controller, main merge or deployment as a shortcut. Keep original evidence and all historical attempts.
+Historical owner identifiers: `goal-fcc81c97e09153f7` / `rotation-recovery-37`. Their live canonical existence, present contract, scope and approval have NOT been authenticated in this continuation. Never recreate or approve them from this text.
 
-## 2026-11-12 JST: production completion gate map
+Keep the existing path: authenticated Broker -> GoalControllerRuntime/Compass -> jarvis-goal-executor -> GoalControllerExecutionBridge/CompassGoalExecutionAdapter -> ResidentDevelopmentGoalHost -> authorized Builder and independently controlled Verifier -> canonical WorkRun/GoalEvaluator -> durable continuation. Hosted routing is selection, not authority. No second controller, duplicate Goal/Job, Issue or PR.
 
-Current latest reviewed PR HEAD: `5c07a013f8ccc1864a8fbe51c6cecda5ba1040a2`; same-HEAD GitHub Actions [#43064482325](https://github.com/haji84/AI-/actions/runs/43064482325) is 4/4 SUCCESS (normal 3700 PASS / 0 FAIL / 26 conditional SKIP, P8 332 PASS, independent CI-container six checks PASS). **This is source/CI acceptance, not a real original Goal, production signer or cross-host state acceptance.**
+## What changed in this continuation
 
-A new single-source checklist maps the remaining Goal to precise production gate and proof requirements:
-[GORIQ_GOAL_TO_PRODUCTION_GATES.md](./GORIQ_GOAL_TO_PRODUCTION_GATES.md).
+GitHub file/tree/commit/ref write actions were available. The earlier chat's absence-of-write-tools limitation is not the current limitation. Actual changes were written to the existing PR, not main.
 
-First unfinished action remains **G1: authenticated readback of original `goal-fcc81c97e09153f7` and `rotation-recovery-37` from the live owner Compass/Broker including authority/approval scope**, not a GitHub-text reconstruction. Next blockers: real shared CAS+epoch+fencing/attempt archive, independent operator-controlled production verifier signing, real failed candidate→repaired candidate, cross-host resume, next Job, authorized release and independent artifact/behavior verification. No credential, signer, production or Goal state was changed by this documentation commit. Read the PR/CI at its exact NEW HEAD before claiming any additional CI pass.
+1. `5ef55228aef922f18aec2a40afa047dcab90bd10` added `tests/goriq-compile-startup-observation.test.mjs`, a bounded source-import observation. It does not cache test results or authorize acceptance. CI https://github.com/haji84/AI-/actions/runs/43093182673 failed: the added file omitted explicit process/console imports, producing six no-undef lint errors. This was an introduced diagnostic defect, NOT evidence that the old timeout was fixed or an intentionally planned production RED test.
+2. The existing pinned verifier image was then inspected. It ALREADY enables a private, image-owned Node compile cache through prepare-home.cjs and rejects externally enabled/disabled cache state. Therefore adding another suite cache or launcher was rejected; it would duplicate existing behavior and conflict with the guard. No package script, Dockerfile, workflow, timeout, quota or cache guard was changed.
+3. `b2adfc9aec13792e9b42e88dc9fb8636d04b1543` fixes the explicit imports and observes an existing cache WITHOUT overriding its environment or preload. Only an unguarded environment receives a new temporary comparison cache. That directory alone is removed. Exact returned Git blob: `60ae1c078ca4538ae328e5e687a3567a98686195`.
+4. A local Node22.16.0 mechanism regression reproduced the incompatible old probe against a disposable fake preload guard, then passed the corrected guarded and unguarded variants. Dummy TypeScript modules were used ONLY for this mechanism test. This is NOT Node24.19.0 full-source CI, not the real verifier image, and not owner-runtime acceptance. Local syntax checks also passed.
 
-## Owner's locked north-star GOAL
+The original 18-test diagnostic candidate from the preceding chat has NOT been integrated into the production live-CI script. Do not claim otherwise. No production runtime function was modified in this continuation. No optimization has yet been accepted as a causal fix for the original Unit timeout.
 
-One authorized owner Goal is accepted once through Unified Intake and the existing Goal Resolver/Controller. GORIQ persists that same Goal; decomposes it into Jobs; selects the available, authorized capability; performs real AI implementation; diagnoses an actual failure; makes an evidence-backed different repair; obtains true independent verification; automatically resumes the next Job; and returns a usable, verifiable artifact. A process, GitHub Actions run, node, or host restart must not strand the Goal. Human Gates, pause, budgets, security and authority remain in force. The original production Goal remains NOT_ACHIEVED.
+## Retained failure evidence and limits
 
-Existing owner Goal reference: goal-fcc81c97e09153f7
-Existing Job reference: rotation-recovery-37
-Their *live*, authoritative existence, state and approval scope have NOT been authenticated from Compass/Broker in this review. Do not recreate, reset, approve or claim execution of them from these text identifiers.
+Original source HEAD `433d36c00218f5f103a28566c355cfaf85dad5c9`, CI https://github.com/haji84/AI-/actions/runs/43077120854:
+- Main project, Windows fixture and repository-guard jobs succeeded; independent verifier failed.
+- Actual Unit log: timeoutMs=300000, elapsedMs=300011.129654, ETIMEDOUT/SIGKILL, close and cleanup confirmed, receipt inconclusive. Integration/security/build were absent after that bounded stop. Missing checks are the symptom; Unit's incomplete execution is the prior failure.
+- Artifact 13883221364 SHA256 `d7afcc16d13b1852eb6352448c30bb4999ab89f7da2e2b9e8c242f1c62dde834`.
+- Supplemental resource artifact 13883121411 SHA256 `35a568d01e9c89780f1afa032ae1c2a6cfed391dfbebad268d6793cbb034ea6a`. It is UNSIGNED_SUPPLEMENTAL, PARTIAL and non-accepting. CPU quota throttling is visible; this alone does not establish why this run exceeded the deadline.
+- Historical successful HEAD `5c07a013f8ccc1864a8fbe51c6cecda5ba1040a2`, CI43064482325, recorded Unit elapsed244352.91775ms. Its source and host differed. Do not attribute the timing delta to a particular change without a controlled comparison, or reuse that pass for another HEAD.
+- The initial new observation's failed CI43093182673 artifacts are retained by Actions: verifier13890013623, advertised SHA256 `4bdb0ba8709709bd2b50f59d9a4d54baacf9bed943f07baa32f9c679f7387b3e`; observer13889753846. Two connector download attempts for the verifier ZIP timed out. The new ZIP bytes and per-check details were NOT independently read in this review. The advertised digest is metadata, not a completed local verification.
 
-## Hard constraints
+The local workspace was a PARTIAL source candidate, not a clone. Its Node22 runtime, absent Docker/pwsh/pnpm and unavailable container GitHub DNS did not reproduce the required pinned six-check environment. No full local suite was claimed. GitHub's existing CI is the actual full-source execution path.
 
-- Preserve GitHub as code/development evidence and primary suitable GitHub-hosted execution surface; no universal ZBook/MacBook prerequisite. Device/local/GPU-only jobs may wait for actual capabilities. No Codex, CodeRabbit or Copilot.
-- Reuse the existing Issue #1219, Draft PR #1907, Goal Controller, Broker, resident execution path, Builder and verifier contracts; do NOT add a parallel production Controller, duplicate Goal/Job/PR, or pretend issue comments trigger runtime execution.
-- Preserve all source, model, intent, candidate, original failure, receipt, attempt, checkpoint and signature evidence. Never clear consumed failed attempts to obtain another inference.
-- Do not remove tests, add skips, relax 300-second Unit/Integration checks, independent verifier, scope/binding/signature rules, quotas or gates for an artificial PASS.
-- No uncontrolled main merge, production switching, credential/key/scope/ACL/network/firewall changes, paid capability, security/governance changes, destructive changes or external publication without the matching current Human Gate. Public repository: do not store secrets, internal connection details or private owner data here.
-- Only machine-reproduced behavior counts as completed. CODE IMPLEMENTED, CI GREEN, CI FIXTURE, real model inference, independent signed verification and real production Goal-E2E are different evidence classes.
+## Current gate interpretation
 
-## Architecture selected, not to be replaced
+G0: pending latest exact-HEAD all-job acceptance; original timeout's permanent resolution not proven.
+G1: HOLD, live authenticated original Goal/Job and current approval readback unproven.
+G2: partial source, actual owner intake-to-Job execution unproven.
+G3: HOLD, shared durable authoritative store/CAS/epoch/fencing/append-only attempt history across hosts unproven.
+G4: partial source, actual runner loss and same-Job cross-host continuation unproven.
+G5: partial source, isolated real Ollama failed candidate exists historically; original Goal's successful real repair unproven.
+G6: partial source, actual original attempt/candidate/receipt preservation and independent cross-run readback unproven.
+G7: HOLD, independently controlled production signing/transport and owner-pinned identity unproven.
+G8: partial source, real complete signed FAIL -> different authorized candidate -> independent acceptance unproven.
+G9: partial source, actual original Goal's automatic successor Job unproven.
+G10: HOLD, protected approved integration/release and exact production artifact unproven.
+G11: partial source, final actual artifact delivery and behavior verification unproven.
+G12: HOLD, real process/host/Actions/network/conflict failure injection and recovery unproven.
+G13: HOLD, full actual Goal end-to-end and repeatability unproven.
 
-Authenticated existing endpoint/Broker -> GoalControllerRuntime / Compass -> scripts/jarvis-goal-executor.ts -> GoalControllerExecutionBridge / CompassGoalExecutionAdapter -> ResidentDevelopmentGoalHost -> authorized Builder + independently controlled Verifier -> canonical WorkRun/GoalEvaluator -> durable next-Job/recovery.
+Historical CI/fixture signed receipts, advisory AI09, real model download/inference, local helper tests and workflow success are distinct evidence classes. Windows CI is not a physical owner Windows reboot test. Neither G1-G13 nor a production Goal was completed here.
 
-The hosted router selects candidates only; RUN_HOSTED does not establish execution authority. The source-only hosted adapter is not a second production Controller. Same-filesystem locks are not cross-run/cross-host ownership. Artifacts/caches alone do not confer a shared authority, lease, epoch or fencing.
+## Next executable work
 
-Read AGENTS.md, PROJECT_STATE.md, ROADMAP.md, docs/decisions/2026-11-11-hosted-goal-routing.md and the corresponding audit before code changes.
+1. Read the current PR/ref and exact-head CI. Inspect the first real failure and its retained check log; do not rerun unchanged solely to obtain green. If CI passes, record the exact SHA/run and six actual checks, but do not claim a permanent performance fix from one observation or promote it to production acceptance.
+2. Read the startup observation from the actual Unit log. It now reports source hashes and whether a cache was initially enabled. Do not propose adding a cache to the verifier again: its trusted image already owns one. Use actual same-environment evidence to identify avoidable work without deleting/skipping tests, changing assertions or raising the 300-second Unit/Integration bounds.
+3. In parallel with authorized source work, identify an ALREADY authorized live Broker/Compass read path and verify the original Goal, Job, digest, scope, stop state and approval. A GORIQ/Compass plugin search in this chat returned no matching tool; that is not proof the service, store or credentials do not exist. Do not create a new identity, copy secrets into chat/public GitHub, guess missing settings, or use a stale public deployment as runtime authority.
+4. After exact-source and live authority are established, connect existing independently controlled signing and shared state through current contracts, preserve all failed attempts, and perform real failed-candidate repair, restart recovery and next-Job acceptance. Stop at an actual Human Gate rather than manufacturing approval.
 
-## Verified change since the 2026-11-11 prior-chat handoff
+## Non-negotiable boundaries and next-chat protocol
 
-Prior handoff reference HEAD: 374d65e7e2b1d2109ddf97f9cf5c3a1e9716fac1, run 43001898750. That exact commit failed restricted independent Unit at the unchanged 300000ms. Do NOT restart this diagnosis blindly or use the old 41-file inventory.
+Read AGENTS.md, PROJECT_STATE.md, ROADMAP.md, Issue1219, current PR/comments/reviews, this handoff, the archived handoff, the routing ADR and gate map before changing code. Prefer exact-HEAD fetches: default-branch search was indexed at an older commit in this review.
 
-New reviewed PR HEAD: d470c1498b8848ac7c74283ba5022cdd985aaf17. PR remains Draft and unmerged; Issue #1219 open. PR changed-file inventory counted 73 entries at this check, including a test-file rename. The old PR description still discusses the preceding failed HEAD 1d59543; refresh exact HEAD before accepting its historical text as current.
+Keep public GitHub and GitHub-hosted priority without a universal PC dependency. No Codex/CodeRabbit/Copilot dependency. Device/GPU-only work requires actual authorized capability. Same-filesystem locks and copied artifacts are not cross-host ownership. Keep Builder away from signing keys; preserve exact source/candidate/artifact/Goal/Job/scope/expiry bindings and every real verification result.
 
-Latest **exact implementation-HEAD** GitHub Actions CI: https://github.com/haji84/AI-/actions/runs/43044736792, completed SUCCESS. Its four jobs were all SUCCESS:
-- repository-guard, job 130605577207
-- project-checks, job 130605577070
-- windows-runtime-byte-fixtures, job 130605577044
-- independent-verifier-container, job 130605576625
+No unapproved main merge, release, deployment, credential/key/permission/ACL/network/firewall change, paid service, destructive migration or external publication. Preserve protected existing owner services/ports/worktrees. No new task automation was created. Posting this handoff or a GitHub comment does not wake the Goal Controller.
 
-The independent job log reports status PASSED, baseRevision d470c1498b8848ac7c74283ba5022cdd985aaf17, containerExecutionVerified true, **physicalAcceptanceVerified false**. Artifact ID 13867421248. The final correction was test scheduling and cleaning a leftover stop timer; see docs/evidence/1219-20261111-ci-scheduling-correction.json and commit d470c1498b8848ac7c74283ba5022cdd985aaf17. No CI success of this documentation-only follow-up commit is implied.
+Before another handoff, persist actual HEAD/run/job IDs, evidence, unresolved cause, authority limits and the next bounded action in this existing handoff and existing Issue/PR. Use non-force expected-HEAD updates where possible; reconcile races. Read back the saved content. This document's status is only its recorded checkpoint and must be replaced by live evidence at the next read.
 
-An earlier source-only two-Job GitHub-hosted process-restart integration fixture was successful at HEAD 1fba7e56, run 42946087355. It used a **synthetic fixture signer**, not authorized owner credentials or real independent production evidence. Do not promote that test's Goal to production evidence.
-
-The real Ollama qwen2.5-coder:3b isolated experiment generated a real broken code candidate and a true SyntaxError; its failed attempt and re-read were retained. Corrected v2 verifier-packet transfer and definitive-FAIL runner are implemented. Neither the actual independent owner-controlled signing transport nor a successful second real repair is proven.
-
-AI-09 GitHub advisory on latest HEAD remains BLOCKED: comment https://github.com/haji84/AI-/pull/1907#issuecomment-6799640507. The automation workflow can succeed while the advisory result is BLOCKED. It is not a GitHub APPROVED review, cannot sign real verifier receipts, and cannot grant merge authority. Formal PR reviews counted zero in this read.
-
-## Remaining production acceptance, ordered by dependency
-
-1. Authenticate the original live Goal/Job and current task-scoped permission/approval against canonical Compass/Broker. Previous repository evidence reports that the historical production origin returned DEPLOYMENT_NOT_FOUND; that is NOT proof the Goal, state or credentials are missing. Never guess absence from connector limits.
-2. Connect a *real*, independently controlled signer/check runner transport through the existing verifier protocol and owner-pinned public identity, with candidate/base/artifact, Goal/Job, scope, deadline and all real check results bound. Builder must never access signer private key. Review available already-authorized assets first; an unapproved new credential remains gated.
-3. Demonstrate a real shared durable authority/state path across separate Actions runs/hosts: full trial history, lease/epoch/fencing/CAS, duplicate/replay resistance, stale-owner rejection, pause/cancel/gate checks, crash recovery. Existing same-filesystem locks and copied CI artifacts do not establish this.
-4. From an authorized external entrypoint, demonstrate the actual original Goal/Job (or an explicitly approved real acceptance Goal): real model code change -> genuine failed candidate -> different authorized repair -> independent signed evaluation -> automatic successor Job -> actual artifact and independent read-back. Keep Issue #1219 and PR #1907 open/Draft until production acceptance and applicable approvals.
-
-Next actual engineering action: inspect the existing authoritative owner-intake/Broker read path and the already-present signer/distributed-state implementations on the exact newest PR HEAD. Identify one **actual** missing connection that can be changed within current authority, implement it in existing code, run exact-HEAD CI and independently retain evidence. If required owner credentials, scope or live store cannot be accessed, document the precise boundary and progress other authorized source work; do not invent availability, switch the production destination, or expand permissions.
-
-## Key code and evidence locations
-
-- Intake/control: scripts/jarvis-broker.ts, scripts/jarvis-goal-executor.ts, src/compass/store.ts, src/orchestrator/goal-controller-runtime.ts, src/orchestrator/compass-goal-controller.ts, src/orchestrator/goal-controller-execution-bridge.ts, src/orchestrator/work-run-state.ts.
-- Runtime/host: src/orchestrator/compass-goal-execution-adapter.ts, src/orchestrator/resident-development-goal-host.ts, src/orchestrator/resident-development-admission.ts, src/orchestrator/hosted-goal-work-router.ts, src/orchestrator/development-resource-scheduler.ts.
-- Model/verifier: src/orchestrator/tracked-repair-resident-runtime.ts, src/orchestrator/runtime-local-ollama-builder.ts, scripts/jarvis-independent-check-runner.mjs, scripts/jarvis-verifier-request-transfer.mjs, src/orchestrator/signed-local-verifier-receipt.ts.
-- Governance/evidence: docs/audits/2026-11-11-goriq-hosted-model-connection.md, docs/audits/2026-11-11-goriq-execution-path-audit.md, docs/evidence/1219-20261111-ci-scheduling-correction.json, docs/evidence/1219-20261111-ollama-live-failure.json, docs/evidence/1219-20261111-verifier-connection.json.
-- Prior 2026-11-11 handoff originally lived in a separate saved file; this GitHub record now provides its essential locked constraints and latest verified changes. Historical evidence is preserved on Issue #1219 and PR #1907.
-
-## Mandatory protocol for EVERY new ChatGPT chat and outgoing handoff
-
-**Entering the next chat**
-1. Using the connected GitHub source, read this file at the actual PR branch/latest HEAD, Issue #1219 and its latest dated comments, PR #1907 current head/base/draft/changed paths/comments/reviews, AGENTS.md, PROJECT_STATE.md, relevant ADR and latest exact-head Actions jobs/logs. Prefer fetched branch refs to default-branch code search. Read any newly linked handoff before acting.
-2. Compare this checkpoint with current GitHub rather than copying an old HEAD, test result, failure diagnosis or next action. Keep the existing Goal/Job and preserved failed attempts. Distinguish documented status from authenticated runtime status.
-3. Continue the smallest safe implementation/test/verification on the existing PR, with no duplicate authority. Never stop at handoff repetition if an authorized engineering step is possible.
-
-**Leaving for another new chat**
-1. BEFORE ending the chat, write an updated GitHub handoff to this same file on the existing suitable development branch (or its exact successor after proper merge), AND post a concise Issue #1219 / existing PR #1907 checkpoint with the link.
-2. Include the reviewed UTC/JST date, actual repository/main/PR HEAD, changed files/commits, CI run/job IDs and outcomes, actual model/Verifier/production evidence, achieved vs incomplete conditions, active blockers, permission gates, and one immediately executable next step. Never cite an old HEAD's CI as the current HEAD's acceptance.
-3. Prefer a non-force commit and expected-HEAD compare-and-swap; on conflict, refresh and reconcile, never force overwrite. Read the committed file and PR/Issue comment back to confirm persistence. If write fails, explicitly report that GitHub handoff is NOT complete.
-4. Do not equate posting this document/comment with executing or waking the canonical Goal Controller. GitHub handoff is durable context for the next chat; Issue #1219 still must connect authenticated intake to real autonomous execution.
-
-## Rollback and current verdict
-
-This file is documentation-only. Roll back only the added documentation commit if necessary, without disturbing PR runtime history or evidence. The verified source/CI correction is ahead of the old handoff. **GORIQ actual production Goal remains NOT_ACHIEVED** as of this documented review. Next task is live authoritative connectivity and independent signing/true cross-run authority, not more simulated success.
+Rollback only the new observation/document changes if required, while retaining failed CI runs, original code/evidence, owner Goal/Job history, rejected candidates and receipts. The complete preceding handoff remains preserved byte-for-byte in the archive. Keep PR1907 Draft and Issue1219 open until actual acceptance and applicable approvals.
