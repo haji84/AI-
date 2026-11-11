@@ -100,6 +100,128 @@ async function fixtureReceipt(f:RuntimeFixture,file:string,failed=false,amend?:(
   writeFileSync(file,bytes,{flag:"wx"});return {bytes,job,change};
 }
 
+function ollamaFixture(f:RuntimeFixture){
+  Object.assign(f.manifest.model,{provider:"ollama",endpoint:"http://127.0.0.1:11434/api/generate",id:"qwen2.5-coder:3b"});f.repin();
+  const requests:Array<{path:string;body:Record<string,unknown>|null}>=[];
+  const model={name:f.manifest.model.id,model:f.manifest.model.id,digest:f.manifest.model.sha256,size:1024};
+  let generations=0,tags=0;
+  const state={before:[model],after:[model],loaded:[model],reply:{} as Record<string,unknown>,throwGeneration:false};
+  const fetchImpl:typeof fetch=async(url,options)=>{
+    const path=new URL(String(url)).pathname,body=options?.body?JSON.parse(String(options.body)):null;requests.push({path,body});
+    assert.equal(options?.redirect,"error");assert.ok(options?.signal);
+    if(path==="/api/tags")return Response.json({models:tags++===0?state.before:state.after});
+    if(path==="/api/ps")return Response.json({models:state.loaded});
+    assert.equal(path,"/api/generate");generations++;
+    if(state.throwGeneration)throw Error("ollama inference interrupted");
+    return Response.json({model:f.manifest.model.id+":local",done:true,done_reason:"stop",response:JSON.stringify({edits:[{slot:1,after:"42"}]}),...state.reply});
+  };
+  return {state,requests,fetchImpl,generations:()=>generations};
+}
+
+test("explicit pinned Ollama repairs through the resident factory and resumes prepared evidence without inference",async t=>{
+  const f=fixture(t),o=ollamaFixture(f),input={goalId:f.goalId,goal:f.goal,context:[]};
+  await f.create({fetchImpl:o.fetchImpl}).run(input);
+  assert.deepEqual(o.requests.map(r=>r.path),["/api/tags","/api/generate","/api/ps","/api/tags"]);
+  assert.equal(o.generations(),1);
+  const request=o.requests[1]!.body!;
+  assert.equal(request.model,f.manifest.model.id+":local");assert.equal(request.stream,false);assert.equal(request.think,false);
+  assert.equal(request.truncate,false);assert.equal(request.shift,false);
+  assert.deepEqual(request.options,{temperature:0,num_ctx:8192,num_predict:f.manifest.model.nPredict});
+  assert.ok(request.format);assert.match(String(request.prompt),/SOURCE scripts\/logic.mjs/);
+  assert.equal(readFileSync(join(f.workspace,"scripts/logic.mjs"),"utf8"),"export const answer = 42;\n");
+  const journal=join(f.stateRoot,"tracked-repair"),attestation=readdirSync(journal).find(n=>n.endsWith(".model-attestation.json"))!;
+  assert.ok(attestation,"actual selected model observations must be archived");
+  const observed=JSON.parse(readFileSync(join(journal,attestation),"utf8"));
+  assert.equal(observed.provider,"ollama");assert.equal(observed.modelId,f.manifest.model.id);assert.equal(observed.modelSha256,f.manifest.model.sha256);
+  assert.deepEqual(observed.observations.map((v:{stage:string})=>v.stage),["installed-before","loaded-after","installed-after"]);
+  const attestationFile=join(journal,attestation),attestationBytes=readFileSync(attestationFile);
+  writeFileSync(attestationFile,JSON.stringify({...observed,modelSha256:"b".repeat(64)}));
+  await assert.rejects(()=>f.create({fetchImpl:async()=>{assert.fail("changed provenance must not infer");}}).run(input),/TRACKED_REPAIR_MODEL_ATTESTATION_INVALID/);
+  writeFileSync(attestationFile,attestationBytes);
+  await fixtureReceipt(f,f.manifest.verifier.receiptFile);
+  const result=await f.create({fetchImpl:async()=>{assert.fail("prepared replay must make zero model calls");}}).run(input);
+  assert.equal(result.goalEvaluation?.achieved,true);
+});
+
+test("Ollama local-only selection prevents remote dispatch when a tag changes after inventory",async t=>{
+  const f=fixture(t),o=ollamaFixture(f),input={goalId:f.goalId,goal:f.goal,context:[]};
+  let remoteDispatches=0,requestedModel:unknown;
+  const fetchImpl:typeof fetch=async(url,options)=>{
+    if(new URL(String(url)).pathname==="/api/tags")return Response.json({models:o.state.before});
+    assert.equal(new URL(String(url)).pathname,"/api/generate");
+    requestedModel=JSON.parse(String(options?.body)).model;
+    // Ollama's source selector rejects a newly remote alias before proxying it.
+    if(requestedModel===f.manifest.model.id+":local")return Response.json({error:"model not found"},{status:404});
+    remoteDispatches++;
+    return Response.json({model:f.manifest.model.id,remote_host:"https://example.invalid",done:true,done_reason:"stop",response:"{}"});
+  };
+  await assert.rejects(()=>f.create({fetchImpl}).run(input),/TRACKED_REPAIR_MODEL_(?:HTTP_FAILED|REPLY_INVALID)/);
+  assert.equal(remoteDispatches,0,"a post-inference rejection cannot undo remote dispatch");
+  assert.equal(requestedModel,f.manifest.model.id+":local");
+  assert.equal(readFileSync(join(f.workspace,"scripts/logic.mjs"),"utf8"),"export const answer = 0;\n");
+  await assert.rejects(()=>f.create({fetchImpl:async()=>{assert.fail("consumed intent must not infer again");}}).run(input),/TRACKED_REPAIR_INFERENCE_INTERRUPTED_NO_RETRY/);
+});
+
+test("Ollama provider and endpoint are explicit, loopback-only and never inferred from a URL",t=>{
+  const f=fixture(t),o=ollamaFixture(f);void o;
+  for(const endpoint of ["http://localhost:11434/api/generate","https://127.0.0.1:11434/api/generate","http://127.0.0.1:11434/completion","http://127.0.0.1:11434/api/generate?q=1"]){
+    f.manifest.model.endpoint=endpoint;f.repin();assert.throws(()=>f.create(),/MODEL_ENDPOINT_INVALID/);
+  }
+  f.manifest.model.endpoint="http://127.0.0.1:11434/api/generate";
+  delete (f.manifest.model as {provider?:string}).provider;f.repin();assert.throws(()=>f.create(),/MODEL_ENDPOINT_INVALID/);
+  Object.assign(f.manifest.model,{provider:"automatic"});f.repin();assert.throws(()=>f.create(),/MODEL_INVALID/);
+  Object.assign(f.manifest.model,{provider:"ollama"});
+  for(const id of ["qwen3:cloud","qwen3-cloud","qwen3-cloud:latest","qwen3:8b:local","qwen3:local:local","qwen3:local:8b"]){f.manifest.model.id=id;f.repin();assert.throws(()=>f.create(),/MODEL_INVALID/);}
+});
+
+test("Ollama rejects missing, ambiguous, remote or mismatched pinned inventories before inference",async t=>{
+  for(const kind of ["absent","digest","duplicate","remote","too-many"]){
+    await t.test(kind,async t=>{
+      const f=fixture(t),o=ollamaFixture(f),model=o.state.before[0]!;
+      if(kind==="absent")o.state.before=[];
+      if(kind==="digest")o.state.before=[{...model,digest:"b".repeat(64)}];
+      if(kind==="duplicate")o.state.before=[model,model];
+      if(kind==="remote")o.state.before=[Object.assign({...model},{remote_host:"https://example.invalid"})];
+      if(kind==="too-many")o.state.before=Array(129).fill(model);
+      await assert.rejects(()=>f.create({fetchImpl:o.fetchImpl}).run({goalId:f.goalId,goal:f.goal,context:[]}),/TRACKED_REPAIR_OLLAMA_MODEL/);
+      assert.equal(o.generations(),0);assert.equal(readFileSync(join(f.workspace,"scripts/logic.mjs"),"utf8"),"export const answer = 0;\n");
+    });
+  }
+});
+
+test("Ollama rejects truncated, remote and changed model output without writing candidates or replaying inference",async t=>{
+  for(const kind of ["length","wrong-model","remote","loaded-digest","changed-tags","interrupted","oversized"]){
+    await t.test(kind,async t=>{
+      const f=fixture(t),o=ollamaFixture(f),input={goalId:f.goalId,goal:f.goal,context:[]};
+      if(kind==="length")o.state.reply.done_reason="length";
+      if(kind==="wrong-model")o.state.reply.model="other-model";
+      if(kind==="remote")o.state.reply.remote_model="cloud-model";
+      if(kind==="loaded-digest")o.state.loaded=[{...o.state.loaded[0]!,digest:"b".repeat(64)}];
+      if(kind==="changed-tags")o.state.after=[{...o.state.after[0]!,digest:"b".repeat(64)}];
+      if(kind==="interrupted")o.state.throwGeneration=true;
+      if(kind==="oversized")o.state.reply.response="x".repeat(131073);
+      await assert.rejects(()=>f.create({fetchImpl:o.fetchImpl}).run(input),/TRACKED_REPAIR_|ollama inference interrupted/);
+      assert.equal(o.generations(),1);assert.equal(readFileSync(join(f.workspace,"scripts/logic.mjs"),"utf8"),"export const answer = 0;\n");
+      await assert.rejects(()=>f.create({fetchImpl:async()=>{assert.fail("interrupted intent must not reinfer");}}).run(input),/TRACKED_REPAIR_INFERENCE_INTERRUPTED_NO_RETRY/);
+    });
+  }
+});
+
+test("Ollama signed FAIL recovery keeps both model observations and the original rejected source",async t=>{
+  const f=recoveryFixture(t),o=ollamaFixture(f),input={goalId:f.goalId,goal:f.goal,context:[]};
+  o.state.reply.response=JSON.stringify({edits:[{slot:1,after:"41"}]});
+  await f.create({fetchImpl:o.fetchImpl}).run(input);await fixtureReceipt(f,f.manifest.verifier.receiptFile,true);
+  await f.create({fetchImpl:o.fetchImpl}).run(input);
+  o.state.reply.response=JSON.stringify({edits:[{slot:1,after:"42"}]});
+  await f.create({fetchImpl:o.fetchImpl}).run(input);
+  assert.equal(o.generations(),2);
+  assert.equal(readFileSync(join(f.workspace,"scripts/logic.mjs"),"utf8"),"export const answer = 41;\n");
+  assert.equal(readFileSync(join(f.recoveryWorkspace,"scripts/logic.mjs"),"utf8"),"export const answer = 42;\n");
+  const records=readdirSync(join(f.stateRoot,"tracked-repair")).filter(n=>n.endsWith(".model-attestation.json"));assert.equal(records.length,2);
+  await fixtureReceipt(f,f.recoveryReceipt);
+  assert.equal((await f.create({fetchImpl:async()=>{assert.fail("receipt continuation must not infer");}}).run(input)).goalEvaluation?.achieved,true);
+});
+
 test("tracked recovery consumes a signed failure with optional evidence, creates a distinct candidate after restart and preserves rejected evidence",async t=>{
   const f=recoveryFixture(t),input={goalId:f.goalId,goal:f.goal,context:[]};
   await f.create({fetchImpl:f.repairFetch}).run(input);

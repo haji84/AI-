@@ -1,8 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readFileSync } from "node:fs";
+import { readFileSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { Buffer } from "node:buffer";
+import process from "node:process";
+import { execFileSync, spawnSync } from "node:child_process";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath, pathToFileURL, URL } from "node:url";
 import { assertCompleteComparison } from "../scripts/goriq-ai09-compare-coverage.mjs";
 import {
   eligibleCiPullRequest, compareToPatch, compareToReviewChunks, consolidateChunkReviews,
@@ -43,6 +48,26 @@ const expected = {
   repository: repo.full_name, prNumber: pr.number, headSha: shaB, baseSha: shaA,
   trustedSha: shaC, ciRunId: run.id,
 };
+
+test("CI reviewer preserves fixed prerequisite diagnostics without leaking unknown errors or inferring past budgets",async t=>{
+  const root=fileURLToPath(new URL("../",import.meta.url));
+  const trusted=execFileSync("git",["rev-parse","HEAD"],{cwd:root,encoding:"utf8"}).trim();
+  for(const unknown of [false,true])await t.test(unknown?"unknown error stays private":"31 files stay blocked before inference",t=>{
+    const temp=mkdtempSync(join(tmpdir(),"ai09-diagnostic-"));t.after(()=>rmSync(temp,{recursive:true,force:true}));
+    const comparison={status:"ahead",ahead_by:1,total_commits:1,base_commit:{sha:shaA},commits:[{sha:shaB}],files:Array.from({length:31},(_,i)=>({filename:`src/file${i}.ts`,additions:1,deletions:0,patch:"@@ -0,0 +1 @@\n+export const value = 1;"}))};
+    const preload=join(temp,"fetch.mjs"),output=join(temp,"goriq-ai09-report.json");
+    writeFileSync(preload,`globalThis.fetch = async url => {\n${unknown?'throw Error("DO_NOT_PRINT_PRIVATE_CONFIGURATION");':`if (String(url).includes('/pulls/')) return Response.json(${JSON.stringify(pr)});\nif (String(url).includes('/compare/')) return Response.json(${JSON.stringify(comparison)});\nthrow Error("INFERENCE_MUST_NOT_RUN");`}\n};\n`);
+    const result=spawnSync(process.execPath,["--import",pathToFileURL(preload).href,"scripts/goriq-ai09-ci-review.mjs"],{cwd:root,encoding:"utf8",timeout:15000,
+      env:{PATH:process.env.PATH??"",SystemRoot:process.env.SystemRoot??"",GORIQ_AI09_REPOSITORY:repo.full_name,GORIQ_AI09_PR_NUMBER:String(pr.number),GORIQ_AI09_HEAD:shaB,GORIQ_AI09_BASE:shaA,
+        GORIQ_AI09_TRUSTED_SHA:trusted,GORIQ_AI09_CI_RUN_ID:String(run.id),GORIQ_AI09_CI_CONCLUSION:"success",GORIQ_AI09_REPORT_FILE:output,RUNNER_TEMP:temp,GITHUB_TOKEN:"fixture-unprivileged-token"}});
+    assert.equal(result.status,0,result.stdout+result.stderr);
+    assert.match(result.stdout,new RegExp("AI09_REVIEW_BLOCKER="+(unknown?"review_prerequisite_or_model_unavailable":"invalid_or_oversized_comparison")));
+    assert.doesNotMatch(result.stdout+result.stderr,/DO_NOT_PRINT_PRIVATE_CONFIGURATION|INFERENCE_MUST_NOT_RUN|AI09_INFER_METRIC=/);
+    const report=JSON.parse(readFileSync(output,"utf8"));
+    assert.equal(report.reviewerResult.status,"BLOCKED");assert.equal(report.reviewerResult.mergeAuthorized,false);assert.deepEqual(report.reviewerResult.scope.paths,[]);
+    assert.equal(validateReviewReceipt(report,{...expected,trustedSha:trusted}),true);
+  });
+});
 
 test("CI webhook is only eligible for exact current same-repository PR and base", () => {
   assert.equal(eligibleCiPullRequest({ run, pr, repo }), true);

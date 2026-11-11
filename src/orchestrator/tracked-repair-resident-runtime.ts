@@ -34,12 +34,21 @@ export interface TrackedRepairManifest {
   version:1;profile:"tracked-source-repair-v1";sequence:ResidentDevelopmentSequence;
   workspace:string;baselineWorkspace:string;targetPath:string;trackedFiles:FilePin[];slots:Slot[];bookkeeping?:FilePin;
   probe:{file:string;sha256:string;targetPath:string;expectedRedText:string};
-  model:{endpoint:string;id:string;sha256:string;nPredict:number;timeoutMs:number};
+  model:{endpoint:string;id:string;sha256:string;nPredict:number;timeoutMs:number;provider?:"llama.cpp"|"ollama"};
   verifier:{publicKeyFile:string;publicKeySha256:string;receiptFile:string};
   /** Explicitly provisioned capacity; never reuse or reset a rejected worktree. */
   recoveryAttempts?:Array<{workspace:string;receiptFile:string}>;
 }
 interface Attestation {candidateRevision:string;artifactDigest:string;patchDigest:string;fileHashes:Record<string,string>}
+interface ModelObservation {stage:"installed-before"|"loaded-after"|"installed-after";modelId:string;modelSha256:string}
+const cloudModelName=(value:unknown)=>typeof value==="string"&&/(?:-cloud(?::[^:]*)?|:cloud)$/i.test(value);
+function remoteModelReference(value:unknown):boolean {
+  if(!value||typeof value!=="object"||Array.isArray(value))return true;
+  const model=value as Record<string,unknown>,details=model.details;
+  return Object.hasOwn(model,"remote_host")||Object.hasOwn(model,"remote_model")||model.remoteReferenceDetected===true
+    ||cloudModelName(model.name)||cloudModelName(model.model)
+    ||(!!details&&typeof details==="object"&&(Object.hasOwn(details,"remote_host")||Object.hasOwn(details,"remote_model")));
+}
 async function modelBody(reply:Response):Promise<string>{
   if(!reply.ok||!reply.body)throw Error("TRACKED_REPAIR_MODEL_HTTP_FAILED");
   const reader=reply.body.getReader(),chunks:Uint8Array[]=[];let size=0;
@@ -81,11 +90,14 @@ export function readTrackedRepairManifest(env:Record<string,string|undefined>,go
   if(!exact(m.probe,"expectedRedText,file,sha256,targetPath")||!isAbsolute(m.probe.file??"")||!digest(m.probe.sha256)
     ||!/^tests\/[A-Za-z0-9_/-]+\.test\.(mjs|ts)$/.test(m.probe.targetPath??"")||typeof m.probe.expectedRedText!=="string"
     ||!m.probe.expectedRedText.trim()||m.probe.expectedRedText.length>2000)throw Error("TRACKED_REPAIR_PROBE_INVALID");
-  if(!exact(m.model,"endpoint,id,nPredict,sha256,timeoutMs")||!digest(m.model.sha256)||typeof m.model.id!=="string"||!m.model.id||m.model.id.length>256
+  if(!(exact(m.model,"endpoint,id,nPredict,sha256,timeoutMs")||exact(m.model,"endpoint,id,nPredict,provider,sha256,timeoutMs"))
+    ||(m.model.provider!==undefined&&!["llama.cpp","ollama"].includes(m.model.provider))
+    ||!digest(m.model.sha256)||typeof m.model.id!=="string"||!m.model.id||m.model.id.length>256
+    ||(m.model.provider==="ollama"&&(!/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/.test(m.model.id)||m.model.id.includes("//")||m.model.id.includes("://")||cloudModelName(m.model.id)||/:local(?::|$)/i.test(m.model.id)))
     ||!Number.isInteger(m.model.nPredict)||m.model.nPredict<1||m.model.nPredict>2048||!Number.isInteger(m.model.timeoutMs)||m.model.timeoutMs<1||m.model.timeoutMs>600000)
     throw Error("TRACKED_REPAIR_MODEL_INVALID");
   const endpoint=new URL(m.model.endpoint);
-  if(endpoint.protocol!=="http:"||endpoint.hostname!=="127.0.0.1"||endpoint.pathname!=="/completion"||endpoint.username||endpoint.password||endpoint.search||endpoint.hash)
+  if(endpoint.protocol!=="http:"||endpoint.hostname!=="127.0.0.1"||endpoint.pathname!==(m.model.provider==="ollama"?"/api/generate":"/completion")||endpoint.username||endpoint.password||endpoint.search||endpoint.hash)
     throw Error("TRACKED_REPAIR_MODEL_ENDPOINT_INVALID");
   if(!exact(m.verifier,"publicKeyFile,publicKeySha256,receiptFile")||!isAbsolute(m.verifier.publicKeyFile??"")||!isAbsolute(m.verifier.receiptFile??"")||!digest(m.verifier.publicKeySha256))
     throw Error("TRACKED_REPAIR_VERIFIER_INVALID");
@@ -179,13 +191,23 @@ export function createTrackedRepairResidentRuntime(input:{env:Record<string,stri
     if(existsSync(safe)){if(!readBoundedRuntimeFile(safe,4194304,workspaces).equals(Buffer.from(bytes)))throw Error("TRACKED_REPAIR_JOURNAL_CONFLICT");}
     else writeFileSync(safe,bytes,{flag:"wx",mode:0o600});
   };
-  const loadPrepared=(jobId:string,attempt=1,recoveryDigest?:string):{binding:string;files:Array<{path:string;content:string}>;responseSha256:string;promptSha256:string;recoveryDigest?:string}=>{
+  const loadPrepared=(jobId:string,attempt=1,recoveryDigest?:string):{binding:string;files:Array<{path:string;content:string}>;responseSha256:string;promptSha256:string;recoveryDigest?:string;modelAttestationSha256?:string}=>{
     const record=JSON.parse(readBoundedRuntimeFile(preparedPath(jobId,attempt),4194304).toString("utf8"));
     if(record.binding!==hash(pin+"\0"+jobId+attemptSuffix(attempt))||(attempt>1&&record.recoveryDigest!==recoveryDigest)
       ||!Array.isArray(record.files)||!record.files.length||record.files.length>filePins.length
       ||record.files.some((f:{path:string;content:string})=>!filePins.some(p=>p.path===f.path)||typeof f.content!=="string"||Buffer.byteLength(f.content)>fileLimit(f.path))
       ||new Set(record.files.map((f:{path:string})=>f.path)).size!==record.files.length||!digest(record.responseSha256)||!digest(record.promptSha256))
       throw Error("TRACKED_REPAIR_PREPARED_BINDING_INVALID");
+    if(m.model.provider==="ollama"){
+      const bytes=readBoundedRuntimeFile(preparedPath(jobId,attempt)+".model-attestation.json",16384),observed=JSON.parse(bytes.toString("utf8"));
+      const stages=["installed-before","loaded-after","installed-after"];
+      if(!digest(record.modelAttestationSha256)||hash(bytes)!==record.modelAttestationSha256
+        ||!exact(observed,"at,modelId,modelSha256,observations,provider,responseSha256,version")||observed.version!==1||observed.provider!=="ollama"
+        ||observed.modelId!==m.model.id||observed.modelSha256!==m.model.sha256||observed.responseSha256!==record.responseSha256
+        ||typeof observed.at!=="string"||!Number.isFinite(Date.parse(observed.at))||!Array.isArray(observed.observations)||observed.observations.length!==3
+        ||observed.observations.some((v:ModelObservation,i:number)=>!exact(v,"modelId,modelSha256,stage")||v.stage!==stages[i]||v.modelId!==m.model.id||v.modelSha256!==m.model.sha256)
+        ||hash(readBoundedRuntimeFile(preparedPath(jobId,attempt)+".response.json",131072))!==record.responseSha256)throw Error("TRACKED_REPAIR_MODEL_ATTESTATION_INVALID");
+    }
     if(m.bookkeeping){
       const sourceFiles=record.files.filter((f:{path:string})=>f.path!==bookkeepingPath);
       const doc=record.files.find((f:{path:string})=>f.path===bookkeepingPath);
@@ -271,23 +293,51 @@ export function createTrackedRepairResidentRuntime(input:{env:Record<string,stri
             "Slots identify exact before strings; use each selected slot once. No paths/commands/permissions/tests may be added. Preserve unselected source.";
           if(Buffer.byteLength(prompt)>30000)throw Error("TRACKED_REPAIR_PROMPT_TOO_LARGE");
           const admit=input.resourceAdmission??withDevelopmentResourceAdmission;
+          const observations:ModelObservation[]=[],ollama=m.model.provider==="ollama";
+          // The server must reject a tag retargeted to a remote alias before
+          // sending the prompt; inspecting the response would be too late.
+          const generationModel=ollama?m.model.id+":local":m.model.id;
           const response=await admit(async()=>{
-            const fetcher=input.fetchImpl??fetch,templateUrl=new URL("/apply-template",m.model.endpoint).href;
-            const rendered=JSON.parse(await modelBody(await fetcher(templateUrl,{method:"POST",redirect:"error",signal:AbortSignal.timeout(10000),headers:{"content-type":"application/json"},
-              body:JSON.stringify({messages:[{role:"system",content:"You are a bounded source repair capability. Return only the requested JSON."},{role:"user",content:prompt}],add_generation_prompt:true,chat_template_kwargs:{enable_thinking:false}})})));
-            if(typeof rendered.prompt!=="string"||Buffer.byteLength(rendered.prompt)>65536||!rendered.prompt.endsWith("<|im_start|>assistant\n"))throw Error("TRACKED_REPAIR_MODEL_TEMPLATE_INVALID");
+            const fetcher=input.fetchImpl??fetch;
+            const observe=async(stage:ModelObservation["stage"])=>{
+              const url=new URL(stage==="loaded-after"?"/api/ps":"/api/tags",m.model.endpoint).href;
+              const inventory=JSON.parse(await modelBody(await fetcher(url,{method:"GET",redirect:"error",signal:AbortSignal.timeout(5000)})));
+              if(!inventory||!Array.isArray(inventory.models)||inventory.models.length>128)throw Error("TRACKED_REPAIR_OLLAMA_MODEL_INVENTORY_INVALID");
+              const matches=inventory.models.filter((v:Record<string,unknown>)=>v&&(v.name===m.model.id||v.model===m.model.id));
+              const selected=matches[0],selectedDigest=typeof selected?.digest==="string"&&/^(?:sha256:)?[a-fA-F0-9]{64}$/.test(selected.digest)?selected.digest.replace(/^sha256:/,"").toLowerCase():null;
+              if(matches.length!==1||remoteModelReference(selected)||selectedDigest!==m.model.sha256||!Number.isSafeInteger(selected.size)||selected.size<=0
+                ||(selected.name!==undefined&&selected.name!==m.model.id)||(selected.model!==undefined&&selected.model!==m.model.id))throw Error("TRACKED_REPAIR_OLLAMA_MODEL_PIN_MISMATCH");
+              observations.push({stage,modelId:m.model.id,modelSha256:selectedDigest});
+            };
+            let renderedPrompt:string;
+            if(ollama){await observe("installed-before");renderedPrompt=prompt;}
+            else {
+              const templateUrl=new URL("/apply-template",m.model.endpoint).href;
+              const rendered=JSON.parse(await modelBody(await fetcher(templateUrl,{method:"POST",redirect:"error",signal:AbortSignal.timeout(10000),headers:{"content-type":"application/json"},
+                body:JSON.stringify({messages:[{role:"system",content:"You are a bounded source repair capability. Return only the requested JSON."},{role:"user",content:prompt}],add_generation_prompt:true,chat_template_kwargs:{enable_thinking:false}})})));
+              if(typeof rendered.prompt!=="string"||Buffer.byteLength(rendered.prompt)>65536||!rendered.prompt.endsWith("<|im_start|>assistant\n"))throw Error("TRACKED_REPAIR_MODEL_TEMPLATE_INVALID");
+              renderedPrompt=rendered.prompt;
+            }
             await beforeWrite?.();
             scope();
             writeFileSync(intent,JSON.stringify({binding:hash(pin+"\0"+job.jobId+attemptSuffix(attempt)),model:m.model,workItemId,
-              ...(attempt>1?{attempt,workspace,recoveryDigest:recovery.digest}:{}),prompt,renderedPrompt:rendered.prompt,promptSha256:hash(prompt),at:new Date().toISOString()}),{flag:"wx",mode:0o600});
+              ...(attempt>1?{attempt,workspace,recoveryDigest:recovery.digest}:{}),prompt,renderedPrompt,promptSha256:hash(prompt),at:new Date().toISOString()}),{flag:"wx",mode:0o600});
+            const schema={type:"object",properties:{edits:{type:"array",minItems:1,maxItems:m.slots.length,
+              items:{type:"object",properties:{slot:{type:"integer",enum:m.slots.map(s=>s.id)},after:{type:"string",minLength:1,maxLength:16000}},required:["slot","after"],additionalProperties:false}}},required:["edits"],additionalProperties:false};
             const reply=await fetcher(m.model.endpoint,{method:"POST",redirect:"error",signal:AbortSignal.timeout(m.model.timeoutMs),headers:{"content-type":"application/json"},
-              body:JSON.stringify({prompt:rendered.prompt,n_predict:m.model.nPredict,temperature:0,cache_prompt:false,json_schema:{type:"object",properties:{edits:{type:"array",minItems:1,maxItems:m.slots.length,
-                items:{type:"object",properties:{slot:{type:"integer",enum:m.slots.map(s=>s.id)},after:{type:"string",minLength:1,maxLength:16000}},required:["slot","after"],additionalProperties:false}}},required:["edits"],additionalProperties:false}})});
-            const raw=await modelBody(reply);writeFileSync(preparedPath(job.jobId,attempt)+".response.json",raw,{flag:"wx",mode:0o600});return raw;
+              body:JSON.stringify(ollama?{model:generationModel,prompt:renderedPrompt,system:"You are a bounded source repair capability. Return only the requested JSON.",stream:false,think:false,truncate:false,shift:false,keep_alive:"1m",format:schema,options:{temperature:0,num_ctx:8192,num_predict:m.model.nPredict}}
+                :{prompt:renderedPrompt,n_predict:m.model.nPredict,temperature:0,cache_prompt:false,json_schema:schema})});
+            const raw=await modelBody(reply);writeFileSync(preparedPath(job.jobId,attempt)+".response.json",raw,{flag:"wx",mode:0o600});
+            if(ollama){
+              const payload=JSON.parse(raw);
+              if(remoteModelReference(payload)||payload.model!==generationModel||payload.done!==true||payload.done_reason!=="stop"||typeof payload.response!=="string")throw Error("TRACKED_REPAIR_MODEL_REPLY_INVALID");
+              await observe("loaded-after");await observe("installed-after");
+            }
+            return raw;
           },{kind:"local-model",directory:workspace});
           const payload=JSON.parse(response);
-          if(payload.stop!==true||payload.truncated!==false||!["eos","word"].includes(payload.stop_type)||payload.model!==m.model.id||typeof payload.content!=="string")throw Error("TRACKED_REPAIR_MODEL_REPLY_INVALID");
-          const answer=JSON.parse(payload.content);
+          if(!ollama&&(payload.stop!==true||payload.truncated!==false||!["eos","word"].includes(payload.stop_type)||payload.model!==m.model.id||typeof payload.content!=="string"))throw Error("TRACKED_REPAIR_MODEL_REPLY_INVALID");
+          const answer=JSON.parse(ollama?payload.response:payload.content);
           if(!exact(answer,"edits")||!Array.isArray(answer.edits)||!answer.edits.length||answer.edits.length>m.slots.length)throw Error("TRACKED_REPAIR_EDIT_SCHEMA_INVALID");
           const content=new Map(files.map(f=>[f.path,f.content])),seen=new Set<number>();
           for(const edit of answer.edits){
@@ -301,8 +351,13 @@ export function createTrackedRepairResidentRuntime(input:{env:Record<string,stri
           await beforeWrite?.();
           scope();attest(workspace);
           for(const f of filePins)if(hash(readBoundedRuntimeFile(join(workspace,f.path),fileLimit(f.path)))!==f.beforeSha256)throw Error("TRACKED_REPAIR_SOURCE_CHANGED_DURING_INFERENCE");
+          let modelAttestationSha256:string|undefined;
+          if(ollama){
+            const record=JSON.stringify({version:1,provider:"ollama",modelId:m.model.id,modelSha256:m.model.sha256,observations,responseSha256:hash(response),at:new Date().toISOString()});
+            writeOnce(preparedPath(job.jobId,attempt)+".model-attestation.json",record);modelAttestationSha256=hash(record);
+          }
           writeFileSync(preparedPath(job.jobId,attempt),JSON.stringify({binding:hash(pin+"\0"+job.jobId+attemptSuffix(attempt)),files:changed,
-            responseSha256:hash(response),promptSha256:hash(prompt),...(attempt>1?{recoveryDigest:recovery.digest}:{})}),{flag:"wx",mode:0o600});
+            responseSha256:hash(response),promptSha256:hash(prompt),...(modelAttestationSha256?{modelAttestationSha256}:{}),...(attempt>1?{recoveryDigest:recovery.digest}:{})}),{flag:"wx",mode:0o600});
         }
         await beforeWrite?.();
         scope();const prepared=loadPrepared(job.jobId,attempt,recovery.digest);

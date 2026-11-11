@@ -6695,7 +6695,7 @@
     },
     {
       "path": "src/orchestrator/tracked-repair-resident-runtime.ts",
-      "sha256": "38f60b16d097e6bbeaf6931ed8468aa0c9cfd8d452b6ec1f56aff77e97907dae",
+      "sha256": "2d7aa397bb2a8141155e653681b5965398e69568353a74a4dd34670814516d2b",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -6703,11 +6703,11 @@
         "AUTO-004",
         "GOV-025"
       ],
-      "reason": "#1219 opt-in host-pinned tracked-source repair, frozen baseline RED, bounded model edits, durable prepared candidate and signed six-check receipt continuation; implementation mapping only, no physical or global product completion claim."
+      "reason": "#1219 host-pinned tracked-source repair on the canonical resident runtime, including explicit loopback Ollama model/digest observation and immutable model evidence while preserving legacy llama.cpp, frozen baseline RED, signed-FAIL recovery and six-check acceptance. Source and isolated live inference do not establish production Goal completion or independent signing."
     },
     {
       "path": "scripts/jarvis-tracked-repair-actions.mjs",
-      "sha256": "23a82e88644840e4dec498d37b044f42045f93c25659d243c2b58b393c45c15a",
+      "sha256": "4ea0dcdd02bb6e30c1f69466ec5ca5f9b3dde50fda4814cf26a885e24747c1cc",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -6715,7 +6715,7 @@
         "AUTO-004",
         "GOV-025"
       ],
-      "reason": "#1219 owner-only Actions A/B recovery of an existing accepted tracked-repair checkpoint through the existing executor, with fixed nonsecret file transport and exact Job/candidate/receipt binding; source mapping only, no independent principal, real model, physical acceptance, next issue or global completion inference."
+      "reason": "#1219 existing owner-only Actions checkpoint transport with exact Job/candidate/receipt binding. Refuses recovery-attempt and Ollama profiles it cannot fully preserve; no cache/artifact copy grants distributed execution ownership or production completion."
     },
     {
       "path": "src/orchestrator/approved-next-work.ts",
