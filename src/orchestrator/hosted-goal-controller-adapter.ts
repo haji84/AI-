@@ -112,7 +112,7 @@ export class HostedGoalControllerAdapter implements GoalExecutionAdapter {
     const pendingJobs = jobs.filter(job => !evidenceValid(job, this.options.verifierId)).map(job => `pending_job:${job.jobId}`);
     return {
       cycles: [],
-      stopReason: blockers.length ? "blocked" : achieved ? "goal_complete" : "cycle_budget_exhausted",
+      stopReason: blockers.includes("human_gate") ? "approval_required" : blockers.length ? "blocked" : achieved ? "goal_complete" : "cycle_budget_exhausted",
       goalEvaluation: {
         achieved,
         verifiedRequired: evaluation?.verifiedRequired ?? [],
@@ -122,7 +122,7 @@ export class HostedGoalControllerAdapter implements GoalExecutionAdapter {
         remainingGaps: [
           ...(evaluation?.remainingGaps ?? []), ...pendingJobs,
           ...blocked.map(b => `blocker:${b}`),
-          ...(wait ? [wait] : []),
+          ...(!achieved && wait ? [wait] : []),
         ],
       },
     };
@@ -165,6 +165,14 @@ export class HostedGoalControllerAdapter implements GoalExecutionAdapter {
     const bindingById = new Map(this.options.bindings.map(item => [item.jobId, item]));
     if (original.length !== bindingById.size || original.some(job => !bindingById.has(job.jobId))) throw Error("HOSTED_GOAL_PERSISTED_JOB_SET_MISMATCH");
     const gate = await this.options.authority.currentGate(goalId);
+    const authoritative = await this.options.goalWorkState.get(goalId);
+    if (!authoritative) return this.report(original, ["goal_work_state_unavailable"]);
+    if (authoritative.blockers.length || authoritative.status === "BLOCKED") {
+      return this.report(original, authoritative.blockers.length ? authoritative.blockers : ["goal_work_state_blocked"]);
+    }
+    if (authoritative.status === "COMPLETED" && original.some(job => !evidenceValid(job, this.options.verifierId))) {
+      return this.report(original, ["goal_state_completed_before_jobs_verified"]);
+    }
     if (gate.paused) return { ...await this.report(original), stopReason: "paused" };
     if (!Array.isArray(gate.blockers) || gate.blockers.length) return this.report(original, Array.isArray(gate.blockers) ? gate.blockers : ["HOSTED_GOAL_GATE_INVALID"]);
     for (const job of original) {
@@ -201,6 +209,7 @@ export class HostedGoalControllerAdapter implements GoalExecutionAdapter {
     }
     const first = routes.find(route => route.disposition === "RUN_HOSTED");
     if (!first?.nodeId) {
+      if (original.every(job => evidenceValid(job, this.options.verifierId))) return this.report(original);
       const unavailable = routes.some(route => route.disposition === "HUMAN_REQUIRED");
       return this.report(original, unavailable ? ["human_gate"] : [], unavailable ? undefined : "resource_wait:hosted_capability_or_verified_predecessor");
     }
