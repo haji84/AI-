@@ -8,6 +8,7 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { CompassGoalExecutionAdapter, type DevelopmentRuntimeOptions } from "../src/orchestrator/compass-goal-execution-adapter.ts";
 import { CompassGoalBridgeEventStore } from "../src/orchestrator/compass-goal-bridge-event-store.ts";
 import { CompassWorkRunStore } from "../src/orchestrator/compass-work-run-store.ts";
+import { assertGoalContinuation, nextGoalContinuation, goalExecutionPhase, type GoalContinuationWait } from "../src/orchestrator/work-run-state.ts";
 import { GoalControllerExecutionBridge } from "../src/orchestrator/goal-controller-execution-bridge.ts";
 import { createGoalBridgeEvent } from "../src/orchestrator/goal-bridge-events.ts";
 import type { GoalControllerDecision } from "../src/orchestrator/goal-controller-runtime.ts";
@@ -321,17 +322,42 @@ async function appendEvent(
   }
 }
 
-async function updateWorkRun(compassPath: string, goalId: string, phase: "RUNNING" | "COMPLETED" | "BLOCKED" | "HUMAN_GATE", reason: string | null, resourceWait?: DevelopmentResourceWait | null): Promise<void> {
+async function updateWorkRun(compassPath: string, goalId: string, phase: "RUNNING" | "COMPLETED" | "BLOCKED" | "HUMAN_GATE", reason: string | null, resourceWait?: DevelopmentResourceWait | null, continuationWait?: GoalContinuationWait | null): Promise<void> {
   const compass = new CompassStore(compassPath);
   try {
     const store = new CompassWorkRunStore(compass);
     const current = await store.getByGoal(goalId);
     if (!current) throw new Error("Accepted Goal has no durable Work Run");
     if (compass.getState().status === "PAUSED" || ["HUMAN_GATE", "BLOCKED", "COMPLETED", "FAILED"].includes(current.phase)) return;
-    await store.put({ ...current, phase, resourceWait: resourceWait === undefined ? current.resourceWait : resourceWait ?? undefined, blockers: phase === "BLOCKED" ? [reason ?? "execution_failed"] : [], nextAction: phase === "COMPLETED" ? null : reason, updatedAt: new Date().toISOString() });
+    await store.put({ ...current, phase,
+      resourceWait: resourceWait === undefined ? current.resourceWait : resourceWait ?? undefined,
+      continuationWait: continuationWait === undefined ? current.continuationWait : continuationWait ?? undefined,
+      blockers: phase === "BLOCKED" ? [reason ?? "execution_failed"] : [],
+      nextAction: phase === "COMPLETED" ? null : reason, updatedAt: new Date().toISOString() });
   } finally {
     compass.close();
   }
+}
+
+async function checkpointGoalContinuation(compassPath:string,goalId:string):Promise<"queued"|"blocked"|"paused">{
+ const compass=new CompassStore(compassPath);
+ try{
+  if(compass.getState().status==="PAUSED")return "paused";
+  const store=new CompassWorkRunStore(compass);
+  const current=await store.getByGoal(goalId);
+  if(!current||current.phase!=="RUNNING")throw Error("GOAL_CONTINUATION_NOT_RUNNING");
+  if(current.resourceWait)throw Error("GOAL_CONTINUATION_CONFLICTS_WITH_RESOURCE_WAIT");
+  const next=nextGoalContinuation(current.continuationWait,new Date());
+  if(!next){
+    await store.put({...current,phase:"BLOCKED",continuationWait:undefined,
+      blockers:["goal_continuation_slice_limit"],nextAction:"goal_continuation_slice_limit",
+      updatedAt:new Date().toISOString()});
+    return "blocked";
+  }
+  await store.put({...current,phase:"RUNNING",continuationWait:next,
+    blockers:[],nextAction:"resume_bounded_goal_chunk",updatedAt:new Date().toISOString()});
+  return "queued";
+ }finally{compass.close();}
 }
 
 async function main(): Promise<void> {
@@ -353,6 +379,11 @@ async function main(): Promise<void> {
     try {
       const current = await new CompassWorkRunStore(compass).getByGoal(goalId);
       if (compass.getState().status === "PAUSED" || !current || !["QUEUED", "PLANNING", "RUNNING", "VERIFYING", "RECOVERING"].includes(current.phase)) return;
+      if(current.continuationWait){
+        assertGoalContinuation(current.continuationWait);
+        if(current.resourceWait)throw Error("GOAL_CONTINUATION_CONFLICTS_WITH_RESOURCE_WAIT");
+        if(Date.now()<Date.parse(current.continuationWait.retryAt))return;
+      }
       if (current.resourceWait) {
         if (resourceWaitExhausted(current.resourceWait, new Date())) {
           await updateWorkRun(compassPath, goalId, "BLOCKED", "resource_wait_budget_exhausted", null);
@@ -395,8 +426,15 @@ async function main(): Promise<void> {
         : result.reason === "blocked" || result.reason === "retry_exhausted"
           ? "GOAL_BLOCKED"
           : "IMPORTANT_UPDATE";
-    const phase = result.reason === "goal_complete" ? "COMPLETED" : result.reason === "human_gate" ? "HUMAN_GATE" : result.reason === "publication_wait" || result.reason === "resource_wait" || result.reason === "verification_wait" ? "RUNNING" : "BLOCKED";
-    await updateWorkRun(compassPath, goalId, phase, result.reason ?? report?.stopReason ?? "goal_execution_incomplete", report?.resourceWait ?? null);
+    if(result.reason==="goal_continuation_budget_exhausted"){
+      const checkpoint=await checkpointGoalContinuation(compassPath,goalId);
+      if(checkpoint==="paused")return;
+      await appendEvent(compassPath,{goalId,type:checkpoint==="blocked"?"GOAL_BLOCKED":"IMPORTANT_UPDATE",
+        summary:checkpoint==="blocked"?"goal_continuation_slice_limit":"goal_continuation_checkpointed",evidenceRefs:[]});
+      return;
+    }
+    const phase=goalExecutionPhase(result.reason);
+    await updateWorkRun(compassPath,goalId,phase,result.reason??report?.stopReason??"goal_execution_incomplete",report?.resourceWait??null,null);
     await appendEvent(compassPath, {
       goalId,
       type,
@@ -422,13 +460,13 @@ async function main(): Promise<void> {
         if (!current) throw new Error("Accepted Goal has no durable Work Run");
         const exhausted = current.resourceWait && resourceWaitExhausted(current.resourceWait, new Date());
         const wait = exhausted ? null : nextResourceWait(current.resourceWait, error.outcome, new Date());
-        await updateWorkRun(compassPath, goalId, exhausted ? "BLOCKED" : "RUNNING", exhausted ? "resource_wait_budget_exhausted" : "resource_wait:" + error.outcome.reason, wait);
+        await updateWorkRun(compassPath, goalId, exhausted ? "BLOCKED" : "RUNNING", exhausted ? "resource_wait_budget_exhausted" : "resource_wait:" + error.outcome.reason, wait, null);
         await appendEvent(compassPath, { goalId, type: exhausted ? "GOAL_BLOCKED" : "IMPORTANT_UPDATE", summary: exhausted ? "resource_wait_budget_exhausted" : "resource_wait", evidenceRefs: [] });
       } finally { compass.close(); }
       return;
     }
     try {
-      await updateWorkRun(compassPath, goalId, "BLOCKED", error instanceof Error ? error.message : "execution_failed");
+      await updateWorkRun(compassPath, goalId, "BLOCKED", error instanceof Error ? error.message : "execution_failed", null, null);
       await appendEvent(compassPath, {
         goalId,
         type: "GOAL_BLOCKED",
