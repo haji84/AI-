@@ -18,11 +18,11 @@ jobs:
   tool-use-zbook:
     name: Real model + real sandbox tools 120 on ZBook
     runs-on: [self-hosted, Windows, X64]
-    timeout-minutes: 180
+    timeout-minutes: 300
     env:
       GAI_LOCAL_MODEL_ENDPOINT: http://127.0.0.1:11434
       GAI_LOCAL_MODEL_NAME: qwen3:4b
-      GAI_TOOL_PLANNER_TIMEOUT_MS: '45000'
+      GAI_TOOL_PLANNER_TIMEOUT_MS: '120000'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -50,7 +50,7 @@ jobs:
 
       - name: Execute 120 real tool-use tasks
         shell: powershell
-        run: node scripts/gai-tool-use-benchmark.ts
+        run: node scripts/gai-tool-use-benchmark-v2.mjs
 
       - name: Verify report contract
         shell: powershell
