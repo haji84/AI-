@@ -88,22 +88,27 @@ function recoveryFixture(t:TestContext,bookkeeping=false){
   };
   return {...f,recoveryWorkspace:workspace,recoveryReceipt:receiptFile,repairFetch:fetchImpl,prompts,repairCalls:()=>calls};
 }
-async function fixtureReceipt(f:RuntimeFixture,file:string,failed=false){
+async function fixtureReceipt(f:RuntimeFixture,file:string,failed=false,amend?:(payload:SignedLocalVerifierPayload)=>void){
   const job=(await f.jobs().getByGoal(f.goalId))[0]!,change=(await f.changes().list()).find(c=>c.workItemId.endsWith(":implement")&&c.status!=="REJECTED")!;
   const at=new Date().toISOString(),payload:SignedLocalVerifierPayload={version:1,verifierId:"fixture-not-independent",goalId:f.goalId,
     jobId:job.jobId,changeSetId:change.changeSetId,builderId:change.deviceId,baseRevision:change.baseRevision,
     sourceRevision:change.candidateRevision,artifactDigest:change.artifactDigest,issuedAt:at,expiresAt:new Date(Date.now()+600000).toISOString(),
     checks:["lint","typecheck","unit","integration","security","build"].map(check=>({check:check as "lint",
       status:failed&&check==="unit"?"failed":"passed",outputDigest:hash("fixture:"+check),recordedAt:at}))};
+  amend?.(payload);
   const bytes=JSON.stringify({payload,signatureBase64:sign(null,Buffer.from(canonicalLocalVerifierPayload(payload)),fixtureKey).toString("base64")});
   writeFileSync(file,bytes,{flag:"wx"});return {bytes,job,change};
 }
 
-test("tracked recovery uses the signed failure to create a distinct candidate after restart and preserves rejected evidence",async t=>{
+test("tracked recovery consumes a signed failure with optional evidence, creates a distinct candidate after restart and preserves rejected evidence",async t=>{
   const f=recoveryFixture(t),input={goalId:f.goalId,goal:f.goal,context:[]};
   await f.create({fetchImpl:f.repairFetch}).run(input);
-  assert.equal(spawnSync(process.execPath,["--test",f.manifest.probe.targetPath],{cwd:f.workspace}).status,1);
-  const first=await fixtureReceipt(f,f.manifest.verifier.receiptFile,true);
+  const probeEnv:NodeJS.ProcessEnv={PATH:process.env.PATH??"",SystemRoot:process.env.SystemRoot??"",NODE_ENV:"test"};
+  const red=spawnSync(process.execPath,["--test",f.manifest.probe.targetPath],{cwd:f.workspace,env:probeEnv,encoding:"utf8"});
+  assert.equal(red.status,1,red.stdout+red.stderr);
+  const first=await fixtureReceipt(f,f.manifest.verifier.receiptFile,true,p=>{
+    p.checks.push({check:"visual",status:"inconclusive",outputDigest:hash("optional visual"),recordedAt:p.issuedAt});
+  });
   const firstRequest=readFileSync(f.manifest.verifier.receiptFile+".request.json");
   await f.create({fetchImpl:f.repairFetch}).run(input);
   assert.equal((await f.jobs().getByGoal(f.goalId))[0]!.phase,"RECOVERING");
@@ -115,7 +120,8 @@ test("tracked recovery uses the signed failure to create a distinct candidate af
   assert.notEqual(f.prompts[0],f.prompts[1]);
   assert.equal(readFileSync(join(f.workspace,"scripts/logic.mjs"),"utf8"),"export const answer = 41;\n");
   assert.equal(readFileSync(join(f.recoveryWorkspace,"scripts/logic.mjs"),"utf8"),"export const answer = 42;\n");
-  assert.equal(spawnSync(process.execPath,["--test",f.manifest.probe.targetPath],{cwd:f.recoveryWorkspace}).status,0);
+  const green=spawnSync(process.execPath,["--test",f.manifest.probe.targetPath],{cwd:f.recoveryWorkspace,env:probeEnv,encoding:"utf8"});
+  assert.equal(green.status,0,green.stdout+green.stderr);
   assert.deepEqual(readFileSync(f.manifest.verifier.receiptFile+".request.json"),firstRequest);
   assert.equal(readFileSync(f.manifest.verifier.receiptFile,"utf8"),first.bytes);
   for(const [name,bytes] of before)assert.deepEqual(readFileSync(join(journal,name)),bytes,name);
@@ -137,7 +143,7 @@ test("tracked recovery watches each pinned receipt and refuses path aliases befo
   const f=recoveryFixture(t);
   assert.deepEqual(createResidentReceiptWakes(f.env,process.cwd()).map(w=>w.path),[f.manifest.verifier.receiptFile,f.recoveryReceipt]);
   const attempts=(f.manifest as TrackedRepairManifest & {recoveryAttempts:Array<{workspace:string;receiptFile:string}>}).recoveryAttempts;
-  attempts[0]!.receiptFile=join(f.root,"alias","..","receipt.json");f.repin();
+  attempts[0]!.receiptFile=f.root+"/alias/../receipt.json";f.repin();
   assert.throws(()=>f.create(),/OVERLAP/);assert.equal(f.repairCalls(),0);
 });
 
@@ -189,7 +195,7 @@ test("tracked recovery prepared output resumes partial materialization without a
   assert.equal(readFileSync(join(f.workspace,"scripts/logic.mjs"),"utf8"),"export const answer = 41;\n");
 });
 
-test("tracked recovery does not reissue interrupted second inference or exceed its last pinned attempt",async t=>{
+test("tracked recovery does not reissue interrupted second inference",async t=>{
   const f=recoveryFixture(t),input={goalId:f.goalId,goal:f.goal,context:[]};
   await f.create({fetchImpl:f.repairFetch}).run(input);await fixtureReceipt(f,f.manifest.verifier.receiptFile,true);
   await f.create({fetchImpl:f.repairFetch}).run(input);let calls=0;
@@ -200,6 +206,89 @@ test("tracked recovery does not reissue interrupted second inference or exceed i
   await assert.rejects(()=>f.create({fetchImpl:interrupted}).run(input),/model connection interrupted/);
   await assert.rejects(()=>f.create({fetchImpl:async()=>{assert.fail("interrupted inference cannot replay");}}).run(input),/TRACKED_REPAIR_INFERENCE_INTERRUPTED_NO_RETRY/);
   assert.equal(calls,1);assert.equal(f.repairCalls(),1);
+});
+
+test("tracked recovery partial receipts stay pending without freezing incomplete evidence",async t=>{
+  const f=recoveryFixture(t),input={goalId:f.goalId,goal:f.goal,context:[]};
+  await f.create({fetchImpl:f.repairFetch}).run(input);
+  await fixtureReceipt(f,f.manifest.verifier.receiptFile,false,p=>{p.checks=p.checks.slice(0,2);});
+  await f.create({fetchImpl:async()=>{assert.fail("pending is not permission to infer");}}).run(input);
+  assert.equal((await f.jobs().getByGoal(f.goalId))[0]!.phase,"VERIFYING");
+  rmSync(f.manifest.verifier.receiptFile);await fixtureReceipt(f,f.manifest.verifier.receiptFile,true);
+  await f.create({fetchImpl:async()=>{assert.fail("consume only");}}).run(input);
+  assert.equal((await f.jobs().getByGoal(f.goalId))[0]!.phase,"RECOVERING");
+});
+
+test("hosted executor fences its authority file from every recovery workspace",async t=>{
+  const f=recoveryFixture(t),db=new CompassStore(f.compassPath);
+  const goal=compassGoalToLoopGoal(db.setGoal({title:f.goal.title,successCriteria:f.goal.successCriteria,constraints:f.goal.constraints}));
+  const goalId=goalWorkStateId(goal);db.updateState({status:"READY",blockers:[]});await new CompassWorkRunStore(db).put(createQueuedWorkRun(goalId));db.close();
+  f.manifest.sequence.goalDigest=residentDevelopmentGoalDigest(goal);f.repin();
+  const config={version:1,authorityPath:f.compassPath,goalId,goalDigest:residentDevelopmentGoalDigest(goal),taskScopeId:"issue:1219",
+    executionContractDigest:f.env.GORIQ_TRACKED_REPAIR_MANIFEST_SHA256,expiresAt:f.manifest.sequence.expiresAt,hostId:"github-hosted",privacy:"public",
+    nodes:[{id:"github-hosted",kind:"cloud",capabilities:["code-builder","filesystem"],online:true,healthy:true,privacy:"public-ok",incrementalCost:0,reliability:1,latencyMs:1,evidenceModes:["LOCAL"]}]};
+  const file=join(f.recoveryWorkspace,"host-owned.json"),bytes=JSON.stringify(config);writeFileSync(file,bytes);
+  const repositoryRoot=fileURLToPath(new URL("../",import.meta.url));
+  const run=spawnSync(process.execPath,[join(repositoryRoot,"scripts/jarvis-goal-executor.ts")],{cwd:repositoryRoot,encoding:"utf8",timeout:15000,
+    env:{PATH:process.env.PATH??"",SystemRoot:process.env.SystemRoot??"",NODE_ENV:"test",...f.env,
+      GORIQ_EXECUTION_HOST_MODE:"hosted",GORIQ_EXECUTION_HOST_ID:"github-hosted",GORIQ_HOSTED_ROUTING_FILE:file,GORIQ_HOSTED_ROUTING_SHA256:hash(bytes),
+      JARVIS_GOAL_EXECUTION_GOAL_ID:goalId,JARVIS_GOAL_EXECUTION_COMPASS_PATH:f.compassPath}});
+  assert.equal(run.status,1);assert.match(run.stderr,/RESIDENT_AUTHORITY_INSIDE_CANDIDATE/);
+  assert.equal((await f.jobs().getByGoal(goalId)).length,0,"authority must fail before planning or model execution");
+});
+
+test("tracked recovery uses the recorded consumption time for expired historical evidence",async t=>{
+  const f=recoveryFixture(t),input={goalId:f.goalId,goal:f.goal,context:[]};
+  await f.create({fetchImpl:f.repairFetch}).run(input);await fixtureReceipt(f,f.manifest.verifier.receiptFile,true);
+  await f.create({fetchImpl:f.repairFetch}).run(input);
+  t.mock.timers.enable({apis:["Date"],now:Date.now()+11*60000});
+  await f.create({fetchImpl:f.repairFetch}).run(input);
+  assert.equal(f.repairCalls(),2);assert.equal((await f.jobs().getByGoal(f.goalId))[0]!.phase,"VERIFYING");
+});
+
+test("tracked recovery refuses altered archived signatures before another inference",async t=>{
+  const f=recoveryFixture(t),input={goalId:f.goalId,goal:f.goal,context:[]};
+  await f.create({fetchImpl:f.repairFetch}).run(input);const first=await fixtureReceipt(f,f.manifest.verifier.receiptFile,true);
+  await f.create({fetchImpl:f.repairFetch}).run(input);
+  const root=join(f.stateRoot,"tracked-repair"),archive=readdirSync(root).find(name=>readFileSync(join(root,name),"utf8")===first.bytes)!;
+  assert.ok(archive);
+  const receipt=JSON.parse(first.bytes);receipt.payload.checks[0].outputDigest="0".repeat(64);writeFileSync(join(root,archive),JSON.stringify(receipt));
+  await assert.rejects(()=>f.create({fetchImpl:async()=>{assert.fail("tampered failure cannot authorize inference");}}).run(input),/SIGNED_VERIFIER_SIGNATURE_INVALID/);
+  assert.equal(f.repairCalls(),1);
+});
+
+test("tracked recovery stops at its final pinned attempt and keeps both rejected candidates",async t=>{
+  const f=recoveryFixture(t),input={goalId:f.goalId,goal:f.goal,context:[]};
+  await f.create({fetchImpl:f.repairFetch}).run(input);await fixtureReceipt(f,f.manifest.verifier.receiptFile,true);
+  await f.create({fetchImpl:f.repairFetch}).run(input);await f.create({fetchImpl:f.repairFetch}).run(input);
+  await fixtureReceipt(f,f.recoveryReceipt,true);await f.create({fetchImpl:f.repairFetch}).run(input);
+  const result=await f.create({fetchImpl:async()=>{assert.fail("no third pinned attempt");}}).run(input);
+  assert.ok(result.goalEvaluation?.blockers.includes("tracked_repair_attempt_limit"));assert.equal(f.repairCalls(),2);
+  assert.equal((await f.changes().list()).filter(c=>c.status==="REJECTED").length,2);
+});
+
+test("tracked recovery rejects equivalent model output even in a separate workspace",async t=>{
+  const f=recoveryFixture(t),input={goalId:f.goalId,goal:f.goal,context:[]};
+  await f.create({fetchImpl:f.repairFetch}).run(input);await fixtureReceipt(f,f.manifest.verifier.receiptFile,true);
+  await f.create({fetchImpl:f.repairFetch}).run(input);
+  const repeat:typeof fetch=async(url,options)=>{
+    const response=await f.repairFetch(url,options);
+    if(String(url).endsWith("/apply-template"))return response;
+    const body=await response.json() as {content:string};body.content=JSON.stringify({edits:[{slot:1,after:"41"}]});return new Response(JSON.stringify(body));
+  };
+  const result=await f.create({fetchImpl:repeat}).run(input);
+  assert.ok(result.goalEvaluation?.blockers.includes("equivalent_failed_candidate"));assert.equal(f.repairCalls(),2);
+  assert.equal((await f.changes().list()).filter(c=>c.status==="REJECTED").length,2);
+  assert.equal(existsSync(f.recoveryReceipt+".request.json"),false);
+});
+
+test("tracked recovery refuses dirty pre-provisioned workspaces before inference",async t=>{
+  const f=recoveryFixture(t),input={goalId:f.goalId,goal:f.goal,context:[]};
+  await f.create({fetchImpl:f.repairFetch}).run(input);await fixtureReceipt(f,f.manifest.verifier.receiptFile,true);
+  await f.create({fetchImpl:f.repairFetch}).run(input);
+  writeFileSync(join(f.recoveryWorkspace,"scripts/logic.mjs"),"export const answer = 999;\n");
+  await assert.rejects(()=>f.create({fetchImpl:async()=>{assert.fail("dirty workspace must not infer");}}).run(input),/INDEPENDENT_ARTIFACT_STATUS_MISMATCH/);
+  assert.equal(readFileSync(join(f.recoveryWorkspace,"scripts/logic.mjs"),"utf8"),"export const answer = 999;\n");
 });
 
 test("tracked repair profile is selected fail-closed before a Broker can ignore an incomplete host pin",()=>{
@@ -312,6 +401,7 @@ test("standalone executor refuses a valid legacy handoff when tracked profile is
 
 test("authenticated Broker selects tracked profile and restarts the same waiting Job without another model call",{timeout:45000},async t=>{
   const f=fixture(t),repositoryRoot=fileURLToPath(new URL("../",import.meta.url));let child:ChildProcess|undefined,diagnostics="",calls=0;
+  let acceptedGoalId=f.goalId;
   const model=createServer((request,response)=>{
     const chunks:Buffer[]=[];request.on("data",c=>chunks.push(Buffer.from(c)));request.once("end",()=>{
       response.setHeader("content-type","application/json");
@@ -333,14 +423,21 @@ test("authenticated Broker selects tracked profile and restarts the same waiting
   t.after(stop);
   const start=()=>{child=spawn(process.execPath,[join(repositoryRoot,"scripts/jarvis-broker.ts")],{cwd:repositoryRoot,env,stdio:["ignore","ignore","pipe"]});
     child.stderr?.on("data",c=>{diagnostics=(diagnostics+String(c)).slice(-12000);});};
-  const wait=async(label:string,check:()=>Promise<boolean>)=>{const until=Date.now()+15000;while(Date.now()<until){if(child?.exitCode!==null&&child?.exitCode!==undefined)assert.fail(label+diagnostics);
-    if(await check())return;await new Promise(r=>setTimeout(r,100));}assert.fail(label+diagnostics);};
+  const failureSnapshot=async()=>{
+    const jobs=await f.jobs().getByGoal(acceptedGoalId),journal=join(f.stateRoot,"tracked-repair");
+    return JSON.stringify({calls,jobs:jobs.map(job=>({jobId:job.jobId,phase:job.phase,attempts:job.attempts.length,
+      lastTransition:job.history.at(-1)})),journals:existsSync(journal)?readdirSync(journal):[],
+      receiptRequested:existsSync(f.manifest.verifier.receiptFile+".request.json")});
+  };
+  const wait=async(label:string,check:()=>Promise<boolean>)=>{const until=Date.now()+15000;while(Date.now()<until){if(child?.exitCode!==null&&child?.exitCode!==undefined)assert.fail(label+diagnostics+"\n"+await failureSnapshot());
+    if(await check())return;await new Promise(r=>setTimeout(r,100));}assert.fail(label+diagnostics+"\n"+await failureSnapshot());};
   const ready=()=>wait("Broker ready",async()=>{try{return(await fetch(url+"/bridge/events",{headers,signal:AbortSignal.timeout(500)})).ok;}catch{return false;}});
   start();await ready();
   const body=JSON.stringify({text:f.goal.title,goalContract:{successCriteria:f.goal.successCriteria,constraints:f.goal.constraints},idempotencyKey:"tracked-profile-intake"});
   assert.equal((await fetch(url+"/work",{method:"POST",headers:{"content-type":"application/json"},body})).status,401);
   const response=await fetch(url+"/work",{method:"POST",headers,body});assert.equal(response.status,202);
   const accepted=await response.json() as {goalId:string;executionScheduled:boolean};assert.equal(accepted.executionScheduled,true);
+  acceptedGoalId=accepted.goalId;
   await wait("tracked Job VERIFYING",async()=>{const jobs=await f.jobs().getByGoal(accepted.goalId);return jobs.length===1&&jobs[0]!.phase==="VERIFYING"&&existsSync(f.manifest.verifier.receiptFile+".request.json");});
   const before=(await f.jobs().getByGoal(accepted.goalId))[0]!;assert.equal(calls,1);const pid=child!.pid;
   await stop();start();await ready();assert.notEqual(child!.pid,pid);

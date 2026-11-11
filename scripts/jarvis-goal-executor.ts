@@ -95,7 +95,8 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
   let candidateWorkspaces: string[] = [];
   if (routingRequested && (process.env.GORIQ_TRACKED_REPAIR_MANIFEST_FILE || process.env.GORIQ_TRACKED_REPAIR_MANIFEST_SHA256)) {
     const tracked = readTrackedRepairManifest(process.env, persistedGoal);
-    if (tracked) { executionContractDigest = tracked.pin; candidateWorkspaces = [tracked.manifest.workspace, tracked.manifest.baselineWorkspace]; }
+    if (tracked) { executionContractDigest = tracked.pin; candidateWorkspaces = [tracked.manifest.workspace, tracked.manifest.baselineWorkspace,
+      ...(tracked.manifest.recoveryAttempts ?? []).map(attempt => attempt.workspace)]; }
   } else if (routingRequested && (process.env.GORIQ_SELF_DEVELOPMENT_SEQUENCE_FILE || process.env.GORIQ_SELF_DEVELOPMENT_SEQUENCE_SHA256)) {
     const sequence = readResidentExecutionManifest(process.env, process.cwd(), persistedGoal);
     if (sequence) { executionContractDigest = process.env.GORIQ_SELF_DEVELOPMENT_SEQUENCE_SHA256!.trim(); candidateWorkspaces = sequence.executions.map(item => item.workspace); }

@@ -1075,7 +1075,7 @@
     },
     {
       "path": "scripts/jarvis-goal-executor.ts",
-      "sha256": "0f812f4e88f0b32d39aa798d5cd9441e230c70633c7bc6a67e5119c1117355a7",
+      "sha256": "6f3d98d6227eaa20a0c5decc442f1b50c8b6e68549de0096c9e50b06377e3987",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "AUTO-001",
@@ -6602,7 +6602,7 @@
     },
     {
       "path": "src/orchestrator/resident-receipt-wakes.ts",
-      "sha256": "f8ffe782254a81ad87b77774ace0084f4664db3b8ef1a3920f1c42bd7c6d65ef",
+      "sha256": "fc94e8d35fd11c0823e8e3ca7d243f601b5cbe20e29cba014469bfc266fdffab",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -6695,7 +6695,7 @@
     },
     {
       "path": "src/orchestrator/tracked-repair-resident-runtime.ts",
-      "sha256": "2edc170dd0c50fd400c79187e2b1473941135cf14be7a7277ea785663625683a",
+      "sha256": "38f60b16d097e6bbeaf6931ed8468aa0c9cfd8d452b6ec1f56aff77e97907dae",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -6707,7 +6707,7 @@
     },
     {
       "path": "scripts/jarvis-tracked-repair-actions.mjs",
-      "sha256": "dfc236325609e183866b69f7c99b1f9d8f985a4c7f96fca2c46c09bbea1e68de",
+      "sha256": "23a82e88644840e4dec498d37b044f42045f93c25659d243c2b58b393c45c15a",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",

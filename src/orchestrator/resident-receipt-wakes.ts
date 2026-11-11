@@ -9,7 +9,8 @@ export function createResidentReceiptWakes(env: Record<string, string | undefine
     if (env.GORIQ_SELF_DEVELOPMENT_SEQUENCE_FILE || env.GORIQ_SELF_DEVELOPMENT_SEQUENCE_SHA256) throw Error("TRACKED_REPAIR_MULTIPLE_RUNTIME_PROFILES");
     const loaded = readTrackedRepairManifest(env);
     if (!loaded) throw Error("TRACKED_REPAIR_MANIFEST_REQUIRED");
-    return [new GoalVerifierReceiptWake(loaded.manifest.verifier.receiptFile)];
+    return [loaded.manifest.verifier.receiptFile,...(loaded.manifest.recoveryAttempts??[]).map(attempt=>attempt.receiptFile)]
+      .map(file=>new GoalVerifierReceiptWake(file));
   }
   if (env.GORIQ_SELF_DEVELOPMENT_SEQUENCE_FILE || env.GORIQ_SELF_DEVELOPMENT_SEQUENCE_SHA256) {
     if (env.GORIQ_LOCAL_OLLAMA_BUILDER_ENABLED !== "1") throw Error("RESIDENT_SEQUENCE_LOCAL_OPT_IN_REQUIRED");

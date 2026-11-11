@@ -106,4 +106,41 @@ local Ollama and tracked-repair Builders also check immediately before candidate
 writes. Generic external HTTP workers do not gain this local write guarantee.
 No workflow schedule, token, signer key, remote state service or device service is
 provisioned by these changes. The complete Issue #1219 runtime acceptance remains
-open, including attempt-aware real-model repair and off-run authority continuity.
+open, including actual-model repair acceptance and off-run authority continuity.
+
+## Bounded tracked-source repair continuation
+
+The tracked-source profile now accepts an optional host-pinned
+`recoveryAttempts: [{workspace, receiptFile}]` list (one to eight additional
+attempts). Every listed workspace must be a distinct pre-provisioned detached
+worktree at the original pinned base. All attempts retain the same Goal, Job,
+model, source slots, frozen probe, verifier public key, scope and expiry.
+The existing recovery policy can stop earlier than this capacity ceiling.
+Omitting the list preserves the one-attempt contract; a failure does not grant
+new inference capacity. Re-pinning the manifest cannot reuse an old Job because
+the full execution-contract digest remains part of its existing identity.
+
+The canonical controller's complete independent FAIL is required before selecting
+an additional attempt. The factory checks its rejected Change Set, exact failure
+transition, persisted attempt and archived signature. Consumed failure receipts
+are checked at their recorded consumption time; current host authority and
+manifest expiry are still checked at current time. Missing, incomplete, forged,
+stale or unrelated evidence is not permission to infer again.
+Additional recognized signed checks do not change required-check completeness;
+the receipt archive follows the canonical controller's same required-check gate.
+
+Each attempt has separate immutable intent, response, prepared data, candidate
+identity, verifier request and receipt. Failed worktrees remain untouched. A
+prepared attempt resumes without inference; an intent without prepared output
+cannot silently reissue inference. A repeated failed candidate is rejected by
+the existing controller. The Broker watches the exact predeclared receipt paths.
+All candidate workspaces also reach the production executor's hosted authority
+path checks.
+
+This is an extension of the existing source factory, not production activation.
+The legacy fixed Actions checkpoint format cannot preserve all failed attempts
+and therefore refuses manifests with `recoveryAttempts`; broadening a filename
+allowlist would not establish cross-run ownership or complete retention.
+The Python sequence profile remains a fixed fixture. Actual model provenance,
+shared off-run authority, independently controlled production signing, hosted
+continuation and released artifact readback still require real acceptance.
