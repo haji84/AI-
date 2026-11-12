@@ -263,10 +263,10 @@ export class GitHubCoordinatorStore implements CoordinatorStore {
     const current = await this.#read();
     this.#snapshot = current;
     if (current.sha !== observed.sha) return false;
-    return this.#write(current, lease, next);
+    return this.#write(current, lease, next, true);
   }
 
-  async #write(current: Snapshot, next: CoordinatorLease, checkpoint?: GitHubGoalCheckpoint): Promise<boolean> {
+  async #write(current: Snapshot, next: CoordinatorLease, checkpoint?: GitHubGoalCheckpoint, requireLiveClaim = false): Promise<boolean> {
     // Stage immutable history BEFORE publishing the single authoritative root.
     // A failed staging operation leaves the previous root intact. Concurrent
     // writers may leave unreferenced parts, never an accepted truncated Goal.
@@ -279,6 +279,11 @@ export class GitHubCoordinatorStore implements CoordinatorStore {
         archivePointer = await this.#archive.stage(checkpointJson(checkpoint), null);
       }
     } else if (archivePointer) fail("CHECKPOINT_HISTORY_INVALID");
+    // Chunks can take a long time to upload. A claim valid when staging starts
+    // must not publish after its lease expired. Require room for the bounded
+    // root request; otherwise the authenticated controller must renew first.
+    if (requireLiveClaim && Date.parse(current.lease.leaseUntil) <= Date.now() + 10_000)
+      fail("CLAIM_EXPIRED_BEFORE_PUBLICATION");
     const bytes = this.#seal(next, archivePointer ? undefined : checkpoint, archivePointer);
     const targetSha = blobSha(bytes);
     let response: Response;

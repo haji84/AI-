@@ -21,9 +21,9 @@ const checkpoint:GitHubGoalCheckpoint={version:1,goalId:'goal-fixture',goalContr
 const blob=(bytes:Buffer)=>createHash('sha1').update(Buffer.from(`blob ${bytes.length}\0`)).update(bytes).digest('hex');
 const sha256=(bytes:Buffer)=>createHash('sha256').update(bytes).digest('hex');
 function seal(plain:unknown){const iv=randomBytes(12), cipher=createCipheriv('aes-256-gcm',key,iv);cipher.setAAD(Buffer.from(JSON.stringify(['goriq-coordinator-v1',repository,stateBranch,rootPath,clusterId])));const content=Buffer.concat([cipher.update(JSON.stringify(plain)),cipher.final()]);return Buffer.from(JSON.stringify({version:1,algorithm:'aes-256-gcm',nonce:iv.toString('base64'),ciphertext:content.toString('base64'),tag:cipher.getAuthTag().toString('base64')}));}
-function fixture(originalCheckpoint:unknown=checkpoint){
- let root=seal({schema:2,lease,checkpoint:originalCheckpoint}); const parts=new Map<string,Buffer>();
- let rootWrites=0, partWrites=0, failPartAt=-1, tamperPart:string|null=null, rootConflict=false;
+function fixture(originalCheckpoint:unknown=checkpoint, initialLease:typeof lease=lease){
+ let root=seal({schema:2,lease:initialLease,checkpoint:originalCheckpoint}); const parts=new Map<string,Buffer>();
+ let rootWrites=0, partWrites=0, failPartAt=-1, tamperPart:string|null=null, rootConflict=false, partDelayMs=0;
  const fetchImpl=async (urlRaw:string|URL|Request,init:RequestInit={})=>{
   const url=new URL(String(urlRaw)); assert.equal(url.origin,'https://api.github.com');assert.equal(init.redirect,'error');
   assert.equal(new Headers(init.headers).get('authorization'),`Bearer ${token}`);
@@ -37,14 +37,15 @@ function fixture(originalCheckpoint:unknown=checkpoint){
   }
   assert.equal(init.method,'PUT'); const data=JSON.parse(String(init.body));assert.equal(data.branch,stateBranch);
   if(path===rootPath){rootWrites++;if(rootConflict||data.sha!==blob(root))return Response.json({}, {status:409});root=Buffer.from(data.content,'base64');return Response.json({content:{sha:blob(root)},commit:{sha:'a'.repeat(40)}});}
-  partWrites++; if(failPartAt===partWrites)return Response.json({}, {status:503});
+  partWrites++; if(partDelayMs>0)await new Promise(resolve=>setTimeout(resolve,partDelayMs));
+  if(failPartAt===partWrites)return Response.json({}, {status:503});
   assert.match(path,/^state\/history\/[a-f0-9]{64}\.enc\.json$/);
   assert.equal('sha' in data,false,'immutable history chunks are create-only');
   assert.equal(parts.has(path),false,'never replace an existing historical chunk');
   const value=Buffer.from(data.content,'base64');assert.equal(sha256(value),path.match(/([a-f0-9]{64})\.enc\.json$/)![1]);
   parts.set(path,value);return Response.json({content:{sha:blob(value)},commit:{sha:'b'.repeat(40)}},{status:201});
  };
- return {options:{repository,stateBranch,clusterId,token,key,minimumEpoch:1,fetchImpl:fetchImpl as typeof fetch},get rootWrites(){return rootWrites;},get partWrites(){return partWrites;},get partCount(){return parts.size;},get partPaths(){return [...parts.keys()];},get root(){return root;},corrupt(path:string){tamperPart=path;},failPartAt(n:number){failPartAt=n;},conflict(){rootConflict=true;}};
+ return {options:{repository,stateBranch,clusterId,token,key,minimumEpoch:1,fetchImpl:fetchImpl as typeof fetch},get rootWrites(){return rootWrites;},get partWrites(){return partWrites;},get partCount(){return parts.size;},get partPaths(){return [...parts.keys()];},get root(){return root;},corrupt(path:string){tamperPart=path;},failPartAt(n:number){failPartAt=n;},conflict(){rootConflict=true;},delayEachPart(ms:number){partDelayMs=ms;}};
 }
 function expand(n:number):GitHubGoalCheckpoint{const c=structuredClone(checkpoint);for(let i=2;i<=n;i++){const record={failure:'not a match',log:'e'.repeat(340),iteration:i};c.attempts.push({attemptId:`attempt-${i}`,jobId:'job-fixture',record,recordSha256:digest(record)});c.events.push({eventId:`event-${i}`,record:{at:i,status:'not verified'},recordSha256:digest({at:i,status:'not verified'})});}return c;}
 
@@ -205,4 +206,15 @@ test('DevelopmentJob attempt history deletion is rejected even when WorkRun prog
  next.developmentJobs!.jobs[0].attempts=[];
  await assert.rejects(a.commitTogether(before,next),/GITHUB_COORDINATOR_/);
  assert.equal(f.rootWrites,0);
+});
+
+
+test('a fence that expires while archiving cannot publish even if its initial check passed',async()=>{
+  const expiresAt=new Date(Date.now()+200).toISOString();
+  const shortLease={...lease,leaseUntil:expiresAt};
+  const f=fixture(checkpoint,shortLease), s=new GitHubCoordinatorStore(f.options), old=await s.loadCheckpoint();
+  f.delayEachPart(280);
+  await assert.rejects(s.compareAndSwapCheckpoint(old,expand(55),{...claim,leaseUntil:expiresAt}),/GITHUB_COORDINATOR_/);
+  assert.equal(f.rootWrites,0,'an expired claim must never publish the coordinator root');
+  assert.deepEqual(await new GitHubCoordinatorStore(f.options).loadCheckpoint(),checkpoint);
 });
