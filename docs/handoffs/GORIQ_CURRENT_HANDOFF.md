@@ -1,3 +1,22 @@
+# 2026-11-13 GORIQ PR #1910: verifier Unit scheduling correction
+
+Base candidate HEAD `5c451d0cb9ac21259e6d2639ded21b4a010352e4`. This commit renames ONE unchanged test file for earlier file scheduling. Do not reuse the preceding SHA's CI status. Existing Issue #1219 and Goal continue; no new Goal, side effect, fixture loss, test skip, external secret or protection change.
+
+## Actual failure and evidence
+The exact-head CI [#43328271306](https://github.com/haji84/AI-/actions/runs/43328271306) finished FAILED: `repository-guard`, `project-checks`, and `windows-runtime-byte-fixtures` succeeded; `independent-verifier-container` failed at Unit. Downloaded trusted verifier artifact `13994941021`, with `checks/unit.json`: `pnpm test`, `timeoutMs=300000`, `elapsedMs=300007.47`, `signal=SIGKILL`, `errorCode=ETIMEDOUT`; 3,719 success markers and no completed summary. Integration/Security/Build were *not run*. This is an inconclusive restricted-container timing failure, not a six-check PASS or a finding that the original live owner Goal is absent.
+
+Resource observer `13993563378`: the observed Unit container reached 2,492 throttled periods of 2,938 and 150.3s accumulated throttling, with sampled memory far below 2 GiB and PIDs below 128. Supplemental telemetry is diagnostic only; no actual OOM proof. Previous HEAD b9a6b965 / CI #43325429860 had six checks PASS and restricted Unit 259.8s, Integration 272.0s at the SAME 300,000ms cap. This supports a scheduling/resource-slack correction and retesting instead of weakening validation.
+
+## Bounded source-only correction
+Move the existing `tests/resident-sequence-broker-e2e.test.ts` to `tests/autonomous-resident-sequence-broker-e2e.test.ts`, preserving its exact Git blob `265144967ccace94f4b684b3751a3e2c5cf328fd` and all test assertions, identities, timeouts, permissions and hosted isolation. The heavy isolated Broker sequence fixtures are 19-20s on a restricted verifier and are now earlier in Node's alphabetical test-file queue. Prior project evidence `docs/evidence/1219-20261111-ci-scheduling-correction.json` established test-only ordering as a reversible strategy. This is a fresh hypothesis for the present resource-throttled failure, **not a demonstrated speedup**.
+
+Test discovery acceptance requires same total count and identical fixture content; independent Unit and Integration must each complete under their existing 300,000ms bound with all checks and verified signed output. Do not rerun until this new SHA is built; if failure recurs, inspect THAT exact runner log and resource evidence. Rollback is rename to the original path; do not delete the test or alter its byte contents.
+
+## Unchanged owner Goal status
+Original `goal-fcc81c97e09153f7` and Job `rotation-recovery-37` remain unverified against live owner authority; no source-only CI pass can advance them. Hosted source adapters have not been installed in production; immutable archive, explicit job admission gate, controlled history/epoch store need live hookup. Next: exact new SHA CI, live canonical snapshot/claim and Goal/Job import, GitHub-backed runtime integration and distinct-run readback, then authentic failed model correction, automatic next Job and artifact verification. Independent CODE review, AI09 approval and another account remain optional. Human/security authority gates and actual result checks remain required.
+
+---
+
 # 2026-11-13 GORIQ source continuation: gated successor Job admission
 
 Current source change on existing PR #1910, Issue #1219, derived from prior HEAD b9a6b965116ca800e9e3fe08a000e2cadb55289d. This document commit changes the HEAD: independently refresh the exact SHA/CI before acceptance. The parent CI #43325429860 passed all four required jobs, but that result does not certify the new commit.
