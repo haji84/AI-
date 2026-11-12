@@ -13,6 +13,7 @@ function hold(reason, detail={}) {
     status:"HOLD", reason,
     brokerAuthenticated:false,builderAuthenticated:false,
     goalWorkRunObserved:false,jobReadbackObserved:false,jobReadbackPhase:null,jobRecordSha256:null,
+    localReadbackConsistent:false,goalContractDigest:null,
     builderAcknowledged:false,
     actualBuilderReceiptId:null,actualTaskId:null,
     writeAuthorized:false,mergeAuthorized:false,
@@ -34,6 +35,30 @@ function boundedIdentity(value) {
   if(typeof value!=="string" || value.length>80 ||
      !/^[A-Za-z0-9_.:-]{1,80}$/.test(value))return null;
   return value;
+}
+
+// Normalize only the selected persisted Job. This projection proves two local
+// observations agree; it is never a remote lease, signature or execution grant.
+function jobSnapshot(run, goalId, jobId) {
+  const proof=run?.jobReadback;
+  const matches=Array.isArray(proof?.jobs) ? proof.jobs.filter(job=>job?.jobId===jobId) : [];
+  const exact=matches.length===1 ? matches[0] : null;
+  const scope=exact?.approvalScope;
+  if(proof?.kind!=="LOCAL_PERSISTED_JOBS" || proof.goalId!==goalId ||
+     typeof proof.goalDigest!=="string" || !DIGEST.test(proof.goalDigest) ||
+     !Array.isArray(proof.jobs) || proof.jobs.length>32 ||
+     !exact || !JOB_PHASES.has(exact.phase) ||
+     typeof exact.recordSha256!=="string" || !DIGEST.test(exact.recordSha256) ||
+     typeof scope?.taskScopeId!=="string" || !scope.taskScopeId.trim() ||
+     !["low","medium","high","critical"].includes(scope.maxRisk) ||
+     (scope.expiresAt!==undefined &&
+       (typeof scope.expiresAt!=="string" || !Number.isFinite(Date.parse(scope.expiresAt)) ||
+        Date.parse(scope.expiresAt)<=Date.now())))return null;
+  return {
+    goalId,goalDigest:proof.goalDigest,jobId,
+    phase:exact.phase,recordSha256:exact.recordSha256,
+    taskScopeId:scope.taskScopeId,maxRisk:scope.maxRisk,expiresAt:scope.expiresAt??null,
+  };
 }
 
 export async function probeLiveGoriqConnection({
@@ -140,24 +165,29 @@ export async function probeLiveGoriqConnection({
         builderIdentity:builder?boundedIdentity(builder.workerId):null,
       });
     if(jobId!==undefined) {
-      const proof=run.jobReadback;
-      const matches=Array.isArray(proof?.jobs) ? proof.jobs.filter(job=>job?.jobId===jobId) : [];
-      const exact=matches.length===1 ? matches[0] : null;
-      const scope=exact?.approvalScope;
-      if(proof?.kind!=="LOCAL_PERSISTED_JOBS" || proof.goalId!==goalId ||
-         !DIGEST.test(proof.goalDigest??"") ||
-         !Array.isArray(proof.jobs) || proof.jobs.length>32 ||
-         !exact || !JOB_PHASES.has(exact.phase) || !DIGEST.test(exact.recordSha256??"") ||
-         typeof scope?.taskScopeId!=="string" || !scope.taskScopeId.trim() ||
-         !["low","medium","high","critical"].includes(scope.maxRisk) ||
-         (scope.expiresAt!==undefined &&
-           (typeof scope.expiresAt!=="string" || !Number.isFinite(Date.parse(scope.expiresAt)) ||
-            Date.parse(scope.expiresAt)<=Date.now())))
+      const first=jobSnapshot(run,goalId,jobId);
+      if(!first)
         return hold("JOB_READBACK_NOT_AUTHENTICATED",{
           brokerAuthenticated:true,builderAuthenticated:mode!=="broker",
           goalWorkRunObserved:true,
         });
-      boundJob=exact;
+      // Exactly one new authenticated GET, not a retry loop or a second authority.
+      // Revalidate expiry and compare the canonical Goal, selected Job and scope.
+      let repeated;
+      try {repeated=await read(BROKER+"/api/jarvis/admin/work/"+goalId,ownerToken);}
+      catch {return hold("JOB_READBACK_REPEAT_UNAVAILABLE",{
+        brokerAuthenticated:true,builderAuthenticated:mode!=="broker",
+      });}
+      const second=jobSnapshot(repeated,goalId,jobId);
+      if(repeated?.run?.goalId!==goalId || repeated.run.phase!==run.run.phase ||
+         repeated.goalAuthority?.kind!=="CURRENT_COMPASS_GOAL" ||
+         repeated.goalAuthority.goalId!==goalId || repeated.goalAuthority.current!==true ||
+         !second || JSON.stringify(first)!==JSON.stringify(second))
+        return hold("JOB_READBACK_CHANGED",{
+          brokerAuthenticated:true,builderAuthenticated:mode!=="broker",
+        });
+      run=repeated;
+      boundJob=second;
     }
   }
   return {
@@ -172,6 +202,8 @@ export async function probeLiveGoriqConnection({
     jobReadbackObserved:boundJob!==null,
     jobReadbackPhase:boundJob?.phase??null,
     jobRecordSha256:boundJob?.recordSha256??null,
+    localReadbackConsistent:boundJob!==null,
+    goalContractDigest:boundJob?.goalDigest??null,
     // The Broker /work/:goalId endpoint does NOT furnish an authenticated
     // Builder's task acceptance receipt. Never infer that from run phase.
     builderAcknowledged:false,

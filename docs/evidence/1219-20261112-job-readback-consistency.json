@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "evidenceClass": "LOCAL_SOURCE_REGRESSION_ONLY",
+  "repository": "haji84/AI-",
+  "issue": 1219,
+  "pullRequest": 1907,
+  "baseHead": "f17a52c25597656afcbc9bb42568f3b50356cabc",
+  "node": "v22.16.0",
+  "scope": "Explicit Job probe uses exactly two owner-authenticated local GETs; no live owner host or credential used in these tests.",
+  "red": {"tests": 23, "pass": 1, "fail": 22, "skipped": 0, "exitCode": 1},
+  "green": {"tests": 29, "pass": 29, "fail": 0, "skipped": 0, "exitCode": 0},
+  "command": "node --test tests/ai09-owner-goal-current-proof.test.mjs tests/ai09-owner-job-readback-consistency.test.mjs",
+  "syntaxChecksPassed": true,
+  "fullRepositoryCiVerified": false,
+  "independentReviewVerified": false,
+  "productionGoalVerified": false,
+  "physicalHostVerified": false,
+  "workflowOrCredentialsChanged": false,
+  "files": [
+    {"path": "scripts/goriq-ai09-live-broker-builder-probe.mjs", "gitBlob": "7e917ef2885887d37e2e30098dc595b67967ea1b", "sha256": "bc11a14f7dab7ca76b4ef8fdb46bab7bcf86aa7fb30e2be9e8496e97f5f11fbe"},
+    {"path": "tests/ai09-owner-job-readback-consistency.test.mjs", "gitBlob": "1cf67d3df4243e2275a150a66560093928c7ec13", "sha256": "f3cf23a8c57801bf474b953a473d4c18f966c7d5d864dcd3024a2dfb1109e7af"},
+    {"path": "tests/ai09-owner-goal-current-proof.test.mjs", "unchanged": true, "gitBlob": "ada977796d88ec26f1b6643e98e92d3ce27049fb"}
+  ],
+  "localLogs": {
+    "redFinalSha256": "4f7241cb6eee33c9fad06030f4d96137cbd6707a8271a2101255ca0ce2239a04",
+    "greenFinalSha256": "9ca9eee4950ce7523574bc33d24c57a97fa5b3ac3880f12078478dbea05a5e3a"
+  },
+  "separateParentRetry": {
+    "head": "b2adfc9aec13792e9b42e88dc9fb8636d04b1543",
+    "runId": 43094319584,
+    "attempt": 2,
+    "jobId": 130894886237,
+    "artifactId": 13906105186,
+    "artifactSha256": "20676d72a15090923182a3f5f4140b4d6d9c49cff39c6a9c30d20addd29781ce",
+    "downloadedBytesSha256Verified": true,
+    "ciFixtureSignatureVerified": true,
+    "checkLogHashesVerified": true,
+    "evidenceUpload": "SUCCESS",
+    "unit": {"status": "inconclusive", "timeoutMs": 300000, "elapsedMs": 300008.472651, "errorCode": "ETIMEDOUT", "signal": "SIGKILL"},
+    "remainingChecks": "integration/security/build absent after bounded Unit stop",
+    "productionAcceptance": false
+  }
+}
