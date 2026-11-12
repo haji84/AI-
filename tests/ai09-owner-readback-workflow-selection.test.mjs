@@ -24,7 +24,7 @@ test("owner workflow exposes paired optional Goal and Job string inputs", () => 
   const dispatch = workflow.split("  workflow_dispatch:\n")[1].split("  issues:\n")[0];
   for (const key of ["goal_id", "job_id"]) {
     assert.match(dispatch, new RegExp(`      ${key}:\\n`));
-    const block = dispatch.split(`      ${key}:\n`)[1].split(/\n      [a-z_]+:/)[0];
+    const block = dispatch.split(`      ${key}:\n`)[1].split(/\n {6}[a-z_]+:/)[0];
     assert.match(block, /required: false/);
     assert.match(block, /type: string/);
   }
@@ -34,7 +34,7 @@ test("untrusted selector expressions are environment data, never shell source", 
   assert.match(owner, /AI09_REQUEST_GOAL_ID: \$\{\{ inputs\.goal_id \|\| '' \}\}/);
   assert.match(owner, /AI09_REQUEST_JOB_ID: \$\{\{ inputs\.job_id \|\| '' \}\}/);
   for (const block of owner.split("        run: |\n").slice(1)) {
-    const body = block.split(/\n      - name:/)[0];
+    const body = block.split(/\n {6}- name:/)[0];
     assert.doesNotMatch(body, /\$\{\{/);
   }
 });
@@ -52,10 +52,10 @@ test("selector validation precedes credential loading and preserves explicit cho
 });
 
 test("protected source, read-only permissions, original triggers and Builder job are retained", () => {
-  assert.match(workflow, /ref: main\n          persist-credentials: false/g);
+  assert.match(workflow, /ref: main\n {10}persist-credentials: false/g);
   assert.match(owner, /test "\$\(git rev-parse HEAD\)" = "\$\(git rev-parse origin\/main\)"/);
   assert.match(owner, /contents: read/);
-  assert.match(workflow, /issues:\n    types: \[opened, reopened\]/);
+  assert.match(workflow, /issues:\n {4}types: \[opened, reopened\]/);
   assert.doesNotMatch(workflow, /pull_request_target|repository_dispatch|contents: write|id-token: write/);
   const builder = "  zbook-builder-readonly:\n" + workflow.split("  zbook-builder-readonly:\n")[1];
   assert.equal(createHash("sha256").update(builder).digest("hex"), "87b0a623d7b6b462857d705fa082adc38bc47c5ac97a029149798641571819e3");
