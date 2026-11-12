@@ -1,0 +1,132 @@
+{
+  "version": 1,
+  "issue": 1219,
+  "pullRequest": 1907,
+  "baseRevision": "efe03ee390d01cc714860684e945cc22fdd08215",
+  "baseTree": "d1b54c64161385354d8e08cc4bf4df9f4ca411c5",
+  "evidenceClass": "LOCAL_SOURCE_AND_SYNTHETIC_WORKFLOW_VALIDATION",
+  "node": "v22.16.0",
+  "workspace": "partial isolated connector-sourced snapshot; not full repository clone",
+  "red": {
+    "tests": 34,
+    "pass": 1,
+    "fail": 33,
+    "skipped": 0,
+    "exitCode": 1
+  },
+  "green": {
+    "tests": 34,
+    "pass": 34,
+    "fail": 0,
+    "skipped": 0,
+    "exitCode": 0
+  },
+  "shellFixture": {
+    "scope": "LOCAL_BASH_WORKFLOW_BODY_WITH_FIXTURE_PROBE_ONLY",
+    "source": "exact edited YAML run body",
+    "node": "v22.16.0",
+    "checks": [
+      {
+        "case": "explicit overrides old host selection",
+        "passed": true,
+        "exitCode": 0,
+        "credentialFileRead": true,
+        "actualBrokerContacted": false
+      },
+      {
+        "case": "blank preserves host defaults",
+        "passed": true,
+        "exitCode": 0,
+        "credentialFileRead": true,
+        "actualBrokerContacted": false
+      },
+      {
+        "case": "partial selection rejected",
+        "passed": true,
+        "exitCode": 2,
+        "credentialFileRead": false,
+        "actualBrokerContacted": false
+      },
+      {
+        "case": "missing Goal rejected",
+        "passed": true,
+        "exitCode": 2,
+        "credentialFileRead": false,
+        "actualBrokerContacted": false
+      },
+      {
+        "case": "shell expression rejected",
+        "passed": true,
+        "exitCode": 2,
+        "credentialFileRead": false,
+        "actualBrokerContacted": false
+      },
+      {
+        "case": "newline rejected",
+        "passed": true,
+        "exitCode": 2,
+        "credentialFileRead": false,
+        "actualBrokerContacted": false
+      },
+      {
+        "case": "oversized input rejected",
+        "passed": true,
+        "exitCode": 2,
+        "credentialFileRead": false,
+        "actualBrokerContacted": false
+      }
+    ],
+    "passed": 7,
+    "realOwnerCredentialsUsed": false,
+    "productionAcceptance": false
+  },
+  "changedCode": [
+    {
+      "path": ".github/workflows/goriq-ai09-owner-builder-connect.yml",
+      "gitBlobSha": "ff5cbb43409b11d2c1579dcd8e662b9c71a47b10",
+      "sha256": "5ee06d136906c81d7fe136acb8913982805e401756ac1d9c0975af53fe067c75",
+      "bytes": 12827
+    },
+    {
+      "path": "scripts/goriq-owner-readback-selection.mjs",
+      "gitBlobSha": "78c57b6bd3a7b0c2862457a0c75e9b4f9d570a01",
+      "sha256": "832231dab2091c46ed2751de1e00c01b35134c3941f85e09cb5ec2851fc4bcc6",
+      "bytes": 1137
+    },
+    {
+      "path": "tests/ai09-owner-readback-workflow-selection.test.mjs",
+      "gitBlobSha": "53c3cbb9a27676ba9aff59dbcd93220b5575fe00",
+      "sha256": "2f356aaf0b92b60d851b944328ed313588c456196ee023d3ab12f44d416472eb",
+      "bytes": 5785
+    }
+  ],
+  "logs": [
+    {
+      "name": "red.tap",
+      "sha256": "5cce799e5945f231d3c55b4dede51301c0014ee5ec8f093b4768c233cdf68bee"
+    },
+    {
+      "name": "green.tap",
+      "sha256": "5b924ee637d7b2232bfb40129b75a2b8bf1bcb9ec1250c020c7efa360a02bc91"
+    },
+    {
+      "name": "shell-fixtures.json",
+      "sha256": "d79455747462b5e31024dc9590922febcd3f959a01039cf6d92cebac609e6cf1"
+    }
+  ],
+  "unmodifiedWindowsJobSha256": "87b0a623d7b6b462857d705fa082adc38bc47c5ac97a029149798641571819e3",
+  "constraints": {
+    "protectedMainOnly": true,
+    "sameExistingCredentials": true,
+    "readOnlyProbeUnmodified": true,
+    "workflowPermissionsUnchanged": true,
+    "newTriggers": false,
+    "newSkips": false,
+    "timeoutsRelaxed": false,
+    "realOwnerCredentialsUsed": false,
+    "actualBrokerContacted": false,
+    "sourceIndependentReview": false,
+    "newHeadCI": "REQUIRED",
+    "productionGoalAccepted": false
+  }
+}
