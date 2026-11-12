@@ -10,7 +10,7 @@ import { GitHubFencedCheckpointStores } from '../scripts/goriq-github-checkpoint
 
 const repository='fixture-owner/fixture-repo', stateBranch='goriq-state/fixture', clusterId='fixture-cluster';
 const token='fixture-only-token-not-live', key=Buffer.alloc(32,0x42);
-const rootPath='state/coordinator.enc.json', rootApi=`https://api.github.com/repos/${repository}/contents/${rootPath}`;
+const rootPath='state/coordinator.enc.json';
 const lease={clusterId,coordinatorId:'runner-A',epoch:1,fencingToken:'fixture-fence-1',issuedAt:'2026-01-01T00:00:00.000Z',updatedAt:'2026-01-01T00:00:00.000Z',leaseUntil:'2099-01-01T00:00:00.000Z'};
 const claim={clusterId,coordinatorId:lease.coordinatorId,epoch:lease.epoch,fencingToken:lease.fencingToken,leaseUntil:lease.leaseUntil};
 const goal={title:'fixture task',description:'fixture only',successCriteria:['test'],constraints:['no effects'],createdAt:'2026-01-01T00:00:00.000Z',updatedAt:'2026-01-01T00:00:00.000Z'};

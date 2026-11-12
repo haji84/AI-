@@ -87,7 +87,7 @@ export class GitHubFencedCheckpointStores {
     };
     this.tasks = {
       load: async () => structuredClone((await this.#store.loadCheckpoint()).tasks),
-      save: async (_: DurableTaskSnapshot) => {throw Error('GITHUB_COORDINATOR_CAS_REQUIRED');},
+      save: async () => {throw Error('GITHUB_COORDINATOR_CAS_REQUIRED');},
       compareAndSwap: async (expected: DurableTaskSnapshot|null, next: DurableTaskSnapshot): Promise<boolean> => {
         if (!expected) throw Error('GITHUB_COORDINATOR_TASK_SNAPSHOT_REQUIRED');
         const checkpoint = await this.#store.loadCheckpoint();
