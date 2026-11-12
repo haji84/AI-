@@ -1,3 +1,19 @@
+# 2026-11-13 GORIQ source continuation: immutable history archive + Job adapters
+
+New candidate parent: `6f9a6797cfc771071f97e876381f0536d7233f27`; this documentation commit creates a DIFFERENT HEAD. Fetch current PR #1910 SHA and its own exact-head CI. Parent CI #43231550682 completed success but does NOT certify this source.
+
+Changes: optional `scripts/goriq-github-checkpoint-archive.ts` stages immutable AES-256-GCM snapshot pieces and verifies each; the existing coordinator CAS root alone publishes encrypted schema:3 head pointer. A growing attempt/event/Job history is NOT truncated at 6500 bytes. Old checkpoints and lease renewal retain their prior behavior. A failed or competing upload cannot publish a partial checkpoint.
+
+Optional `scripts/goriq-github-checkpoint-stores.ts` exposes WorkRun/DurableTask/DevelopmentJob persistence over the SAME existing GitHubCoordinatorStore and claim. DevelopmentJobSnapshot cannot be fabricated when the original verified snapshot is missing; terminal/historical source writes remain bounded and fail-closed. This is source integration only, not a deployed Broker/State Controller or automatic wake.
+
+Local evidence: 66 tests PASS/0 FAIL/0 SKIP, focused strict typecheck exit 0 on Node22 partial snapshot. GitHub HTTP was mocked. See `docs/evidence/1219-20261113-chunked-history-source.json` and `docs/superpowers/plans/2026-11-13-goal-history-archive.md`. Tests alone do not prove real cross-run restart or the original Goal acceptance.
+
+Original Goal `goal-fcc81c97e09153f7` and Job `rotation-recovery-37` remain unverified against live canonical owner authority and must not be recreated. No Mac/ZBook always-on dependency, mandatory independent code reviewer, separate GitHub account, paid account, unapproved secret, new authority, branch-protection change, main merge, production deployment or runtime modification.
+
+Remaining: (1) exact-new-HEAD CI; (2) actual owner-authorized original Goal import and independent freshness floor; (3) connect the optional adapters through existing Broker/GoalController/Resident with transaction/side-effect fencing and existing Human Gates; (4) real GitHub save and separate Actions run restore/recovery; (5) real AI failure, different repair, verified result, automatic next Job and artifact behavior check. Do not close Issue #1219 from this source commit.
+
+---
+
 # 2026-11-12 GORIQ checkpoint continuation (Issue #1219 / PR #1910)
 
 New source checkpoint: parent d753986226de25c874333f6ca1e152ae8ed54570; this new commit changes the HEAD. Re-read PR #1910 and its own exact-HEAD CI before claiming acceptance. Previous parent CI #43214463220 4/4 SUCCESS applies ONLY to d753986226de25c874333f6ca1e152ae8ed54570.

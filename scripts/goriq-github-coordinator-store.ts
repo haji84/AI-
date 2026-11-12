@@ -3,6 +3,9 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:
 import type { CoordinatorClaim, CoordinatorLease, CoordinatorStore } from "../src/gai/distributed-coordinator.ts";
 import type { WorkRunState } from "../src/orchestrator/work-run-state.ts";
 import type { DurableTaskSnapshot } from "../src/gai/durable-task-runtime.ts";
+import type { DevelopmentJobSnapshot } from "../src/orchestrator/development-job-store.ts";
+import { assertDevelopmentJob, type DevelopmentJob } from "../src/orchestrator/development-job.ts";
+import { GitHubCheckpointArchive, assertArchivePointer, type CheckpointArchivePointer } from "./goriq-github-checkpoint-archive.ts";
 
 export interface GitHubCoordinatorStoreOptions {
   repository: string;
@@ -27,11 +30,14 @@ export interface GitHubGoalCheckpoint {
     constraints: unknown[]; createdAt: string; updatedAt: string };
   workRun: WorkRunState;
   tasks: DurableTaskSnapshot;
+  // Only an owner-authenticated import may seed this separate canonical Job
+  // snapshot. Legacy checkpoints without it cannot silently invent one.
+  developmentJobs?: DevelopmentJobSnapshot;
   attempts: Array<{attemptId: string; jobId: string; record: unknown; recordSha256: string}>;
   events: Array<{eventId: string; record: unknown; recordSha256: string}>;
 }
 
-type Snapshot = { lease: CoordinatorLease; sha: string; checkpoint?: GitHubGoalCheckpoint };
+type Snapshot = { lease: CoordinatorLease; sha: string; checkpoint?: GitHubGoalCheckpoint; archivePointer?: CheckpointArchivePointer };
 const STATE_PATH = "state/coordinator.enc.json";
 const MAX_RESPONSE_BYTES = 65536;
 const MAX_ENVELOPE_BYTES = 16384;
@@ -65,7 +71,10 @@ function checkpointJson(v: unknown): string {
 }
 function digest(v: unknown): string { return createHash("sha256").update(checkpointJson(v)).digest("hex"); }
 function assertCheckpoint(v: unknown): asserts v is GitHubGoalCheckpoint {
-  if (!record(v) || Object.keys(v).sort().join(",") !== "attempts,events,goal,goalContractDigest,goalId,tasks,version,workRun" ||
+  if (!record(v) || ![
+      "attempts,events,goal,goalContractDigest,goalId,tasks,version,workRun",
+      "attempts,developmentJobs,events,goal,goalContractDigest,goalId,tasks,version,workRun",
+    ].includes(Object.keys(v).sort().join(",")) ||
       v.version !== 1 || typeof v.goalId !== "string" || !ID.test(v.goalId) ||
       !record(v.goal) || typeof v.goal.title !== "string" || typeof v.goal.description !== "string" ||
       !Array.isArray(v.goal.successCriteria) || !Array.isArray(v.goal.constraints) ||
@@ -84,6 +93,22 @@ function assertCheckpoint(v: unknown): asserts v is GitHubGoalCheckpoint {
         !Array.isArray(task.history) || !Number.isSafeInteger(task.executionEpoch) || (task.executionEpoch as number) < 0) fail("CHECKPOINT_INVALID");
     jobs.add(task.id);
   }
+  if (v.developmentJobs !== undefined) {
+    const snapshot = v.developmentJobs;
+    if (!record(snapshot) || Object.keys(snapshot).sort().join(",") !== "jobs,savedAt,version" ||
+        snapshot.version !== 1 || !Array.isArray(snapshot.jobs) ||
+        typeof snapshot.savedAt !== "string" || !Number.isFinite(Date.parse(snapshot.savedAt))) fail("CHECKPOINT_INVALID");
+    const jobIds = new Set<string>();
+    for (const job of snapshot.jobs) {
+      if (!record(job) || typeof job.jobId !== "string" || !ID.test(job.jobId) ||
+          jobIds.has(job.jobId) || job.goalId !== v.goalId) fail("CHECKPOINT_INVALID");
+      try { assertDevelopmentJob(job as unknown as DevelopmentJob); } catch { fail("CHECKPOINT_INVALID"); }
+      if (!Array.isArray(job.history) || !Array.isArray(job.attempts) ||
+          !Array.isArray(job.evidence) || !Array.isArray(job.failureSignatures) ||
+          !Array.isArray(job.rejectedStrategyIds)) fail("CHECKPOINT_INVALID");
+      jobIds.add(job.jobId);
+    }
+  }
   for (const [items,idField] of [[v.attempts,"attemptId"],[v.events,"eventId"]] as const) {
     const ids = new Set<string>();
     for (const item of items) {
@@ -93,8 +118,8 @@ function assertCheckpoint(v: unknown): asserts v is GitHubGoalCheckpoint {
       ids.add(item[idField]);
     }
   }
-  // Fail closed, never shorten history to fit an API limit.
-  if (Buffer.byteLength(checkpointJson(v),"utf8") > 6500) fail("CHECKPOINT_TOO_LARGE");
+  // History length is not capped here. Large snapshots use immutable encrypted
+  // archive parts; the small coordinator root remains one fenced CAS record.
 }
 function assertAppendOnly(previous: GitHubGoalCheckpoint, next: GitHubGoalCheckpoint): void {
   if (previous.goalId !== next.goalId || checkpointJson(previous.goal) !== checkpointJson(next.goal) ||
@@ -102,6 +127,32 @@ function assertAppendOnly(previous: GitHubGoalCheckpoint, next: GitHubGoalCheckp
   for (const key of ["attempts","events"] as const) {
     if (next[key].length < previous[key].length ||
         previous[key].some((item,i) => checkpointJson(item) !== checkpointJson(next[key][i]))) fail("CHECKPOINT_HISTORY_INVALID");
+  }
+  if (Boolean(previous.developmentJobs) !== Boolean(next.developmentJobs)) fail("CHECKPOINT_HISTORY_INVALID");
+  if (previous.developmentJobs && next.developmentJobs) {
+    for (const oldJob of previous.developmentJobs.jobs) {
+      const newer = next.developmentJobs.jobs.find(job=>job.jobId === oldJob.jobId);
+      if (!newer || newer.baseRevision !== oldJob.baseRevision ||
+          checkpointJson(newer.approvalScope) !== checkpointJson(oldJob.approvalScope) ||
+          checkpointJson(newer.definitionOfDone) !== checkpointJson(oldJob.definitionOfDone) ||
+          checkpointJson(newer.workItems) !== checkpointJson(oldJob.workItems) ||
+          Date.parse(newer.updatedAt) < Date.parse(oldJob.updatedAt) ||
+          (["COMPLETED","CANCELLED"].includes(oldJob.phase) && newer.phase !== oldJob.phase)) fail("CHECKPOINT_HISTORY_INVALID");
+      for (const field of ["history","attempts","evidence","failureSignatures","rejectedStrategyIds"] as const) {
+        if (newer[field].length < oldJob[field].length ||
+            oldJob[field].some((item,i)=>checkpointJson(item)!==checkpointJson(newer[field][i]))) fail("CHECKPOINT_HISTORY_INVALID");
+      }
+      const added = newer.history.slice(oldJob.history.length);
+      if (added.length) {
+        let phase = oldJob.phase;
+        for (const transition of added) {
+          if (transition.actor !== "state-controller" || transition.from !== phase ||
+              typeof transition.to !== "string") fail("CHECKPOINT_HISTORY_INVALID");
+          phase = transition.to;
+        }
+        if (phase !== newer.phase) fail("CHECKPOINT_HISTORY_INVALID");
+      } else if (newer.phase !== oldJob.phase) fail("CHECKPOINT_HISTORY_INVALID");
+    }
   }
   for (const oldTask of previous.tasks.tasks) {
     const newer = next.tasks.tasks.find(task=>task.id===oldTask.id);
@@ -136,6 +187,7 @@ export class GitHubCoordinatorStore implements CoordinatorStore {
   readonly #aad: Buffer;
   readonly #floor: number;
   readonly #fetch: typeof fetch;
+  readonly #archive: GitHubCheckpointArchive;
   #snapshot: Snapshot | undefined;
   #highWater: CoordinatorLease | undefined;
   #checkpointHighWater: GitHubGoalCheckpoint | undefined;
@@ -154,6 +206,7 @@ export class GitHubCoordinatorStore implements CoordinatorStore {
     this.#key = Buffer.from(options.key);
     this.#floor = options.minimumEpoch;
     this.#fetch = options.fetchImpl ?? fetch;
+    this.#archive = new GitHubCheckpointArchive(options);
     this.#url = `https://api.github.com/repos/${options.repository}/contents/${STATE_PATH}`;
     this.#aad = Buffer.from(JSON.stringify(["goriq-coordinator-v1", options.repository,
       options.stateBranch, STATE_PATH, options.clusterId]));
@@ -214,7 +267,19 @@ export class GitHubCoordinatorStore implements CoordinatorStore {
   }
 
   async #write(current: Snapshot, next: CoordinatorLease, checkpoint?: GitHubGoalCheckpoint): Promise<boolean> {
-    const bytes = this.#seal(next, checkpoint);
+    // Stage immutable history BEFORE publishing the single authoritative root.
+    // A failed staging operation leaves the previous root intact. Concurrent
+    // writers may leave unreferenced parts, never an accepted truncated Goal.
+    let archivePointer = current.archivePointer;
+    if (checkpoint) {
+      const changed = checkpointJson(current.checkpoint ?? null) !== checkpointJson(checkpoint);
+      if (archivePointer && changed) {
+        archivePointer = await this.#archive.stage(checkpointJson(checkpoint), archivePointer);
+      } else if (!archivePointer && Buffer.byteLength(checkpointJson(checkpoint), "utf8") > 6500) {
+        archivePointer = await this.#archive.stage(checkpointJson(checkpoint), null);
+      }
+    } else if (archivePointer) fail("CHECKPOINT_HISTORY_INVALID");
+    const bytes = this.#seal(next, archivePointer ? undefined : checkpoint, archivePointer);
     const targetSha = blobSha(bytes);
     let response: Response;
     try {
@@ -238,7 +303,8 @@ export class GitHubCoordinatorStore implements CoordinatorStore {
           !record(receipt.commit) || typeof receipt.commit.sha !== "string" || !SHA.test(receipt.commit.sha)) fail("RESPONSE_INVALID");
       const verified = await this.#read();
       if (verified.sha !== targetSha || canonical(verified.lease) !== canonical(next) ||
-          checkpointJson(verified.checkpoint ?? null) !== checkpointJson(checkpoint ?? null)) fail("READBACK_MISMATCH");
+          checkpointJson(verified.checkpoint ?? null) !== checkpointJson(checkpoint ?? null) ||
+          checkpointJson(verified.archivePointer ?? null) !== checkpointJson(archivePointer ?? null)) fail("READBACK_MISMATCH");
       this.#snapshot = verified;
       return true;
     } catch {
@@ -305,6 +371,13 @@ export class GitHubCoordinatorStore implements CoordinatorStore {
     catch { fail("RESPONSE_INVALID"); }
     if (blobSha(bytes) !== value.sha) fail("RESPONSE_INVALID");
     const opened = this.#open(bytes);
+    let checkpoint = opened.checkpoint;
+    if (opened.archivePointer) {
+      const json = await this.#archive.restore(opened.archivePointer);
+      try { checkpoint = JSON.parse(json) as GitHubGoalCheckpoint; }
+      catch { fail("CHECKPOINT_INVALID"); }
+      assertCheckpoint(checkpoint);
+    }
     const lease = opened.lease;
     const previous = this.#highWater;
     if (lease.epoch < this.#floor || (previous && (lease.epoch < previous.epoch ||
@@ -313,15 +386,15 @@ export class GitHubCoordinatorStore implements CoordinatorStore {
           Date.parse(lease.updatedAt) < Date.parse(previous.updatedAt) ||
           Date.parse(lease.leaseUntil) < Date.parse(previous.leaseUntil)))))) fail("ROLLBACK");
     if (this.#checkpointHighWater) {
-      if (!opened.checkpoint) fail("CHECKPOINT_HISTORY_INVALID");
-      assertAppendOnly(this.#checkpointHighWater, opened.checkpoint);
+      if (!checkpoint) fail("CHECKPOINT_HISTORY_INVALID");
+      assertAppendOnly(this.#checkpointHighWater, checkpoint);
     }
     this.#highWater = structuredClone(lease);
-    if (opened.checkpoint) this.#checkpointHighWater = structuredClone(opened.checkpoint);
-    return {lease, sha: value.sha, checkpoint: opened.checkpoint};
+    if (checkpoint) this.#checkpointHighWater = structuredClone(checkpoint);
+    return {lease, sha: value.sha, checkpoint, archivePointer: opened.archivePointer};
   }
 
-  #open(bytes: Buffer): {lease: CoordinatorLease; checkpoint?: GitHubGoalCheckpoint} {
+  #open(bytes: Buffer): {lease: CoordinatorLease; checkpoint?: GitHubGoalCheckpoint; archivePointer?: CheckpointArchivePointer} {
     try {
       const wire: unknown = JSON.parse(bytes.toString("utf8"));
       if (!record(wire) || Object.keys(wire).sort().join(",") !== "algorithm,ciphertext,nonce,tag,version" ||
@@ -332,6 +405,12 @@ export class GitHubCoordinatorStore implements CoordinatorStore {
       decipher.setAAD(this.#aad); decipher.setAuthTag(tag);
       const raw = Buffer.concat([decipher.update(decodeBase64(wire.ciphertext, 8192)), decipher.final()]);
       const plain: unknown = JSON.parse(raw.toString("utf8"));
+      if (record(plain) && plain.schema === 3) {
+        if (Object.keys(plain).sort().join(",") !== "archivePointer,lease,schema") fail("CIPHERTEXT_INVALID");
+        assertLease(plain.lease); assertArchivePointer(plain.archivePointer);
+        if (plain.lease.clusterId !== this.#cluster) fail("LEASE_INVALID");
+        return {lease: plain.lease, archivePointer: plain.archivePointer};
+      }
       if (record(plain) && plain.schema === 2) {
         if (Object.keys(plain).sort().join(",") !== "checkpoint,lease,schema") fail("CIPHERTEXT_INVALID");
         assertLease(plain.lease); assertCheckpoint(plain.checkpoint);
@@ -344,12 +423,14 @@ export class GitHubCoordinatorStore implements CoordinatorStore {
     } catch { fail("CIPHERTEXT_INVALID"); }
   }
 
-  #seal(lease: CoordinatorLease, checkpoint?: GitHubGoalCheckpoint): Buffer {
+  #seal(lease: CoordinatorLease, checkpoint?: GitHubGoalCheckpoint, archivePointer?: CheckpointArchivePointer): Buffer {
     const nonce = randomBytes(12);
     const cipher = createCipheriv("aes-256-gcm", this.#key, nonce);
     cipher.setAAD(this.#aad);
     if (checkpoint) assertCheckpoint(checkpoint);
-    const plaintext = checkpoint ? JSON.stringify({schema:2,lease,checkpoint}) : canonical(lease);
+    if (archivePointer) assertArchivePointer(archivePointer);
+    const plaintext = archivePointer ? JSON.stringify({schema:3,lease,archivePointer}) :
+      checkpoint ? JSON.stringify({schema:2,lease,checkpoint}) : canonical(lease);
     const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
     return Buffer.from(JSON.stringify({version: 1, algorithm: "aes-256-gcm", nonce: nonce.toString("base64"),
       ciphertext: ciphertext.toString("base64"), tag: cipher.getAuthTag().toString("base64")}));
