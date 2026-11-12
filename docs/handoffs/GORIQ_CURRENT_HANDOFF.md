@@ -1,3 +1,24 @@
+# 2026-11-12 GORIQ checkpoint continuation (Issue #1219 / PR #1910)
+
+New source checkpoint: parent d753986226de25c874333f6ca1e152ae8ed54570; this new commit changes the HEAD. Re-read PR #1910 and its own exact-HEAD CI before claiming acceptance. Previous parent CI #43214463220 4/4 SUCCESS applies ONLY to d753986226de25c874333f6ca1e152ae8ed54570.
+
+## Owner north star
+No permanent MacBook for GitHub-eligible Goals; no second GitHub account or mandatory independent code review; reuse existing authenticated Goal Controller, coordinator, Builder, Verifier, Human Gates, records and the existing Issue #1219. Original Goal goal-fcc81c97e09153f7 / Job rotation-recovery-37 not authenticated from live canonical state and never recreated.
+
+## This source change
+Extend the optional GitHubCoordinatorStore in the same PR so encrypted version-2 plaintext binds lease, Goal/digest, WorkRun, durable Job snapshots (including per-task histories), append-only attempt records and events to ONE Git blob SHA CAS update. Legacy version-1 lease-only state remains valid for lease use but cannot be silently upgraded to Goal authority; loadCheckpoint returns CHECKPOINT_MISSING. A claimed current lease, valid Goal/Job linkage, no history deletion/rewrites, and independent encrypted readback are enforced. In-process same-epoch history rollback is rejected. No new controller, scheduler, secret, state branch, workflow, prod migration or deployed permission.
+
+Local fixture validation: eight new source-checkpoint cases initially RED due to missing method; additional same-epoch replay case RED, then existing41 + new9 = 50 PASS, strict focused typecheck exit0 using partial Node22 snapshot. GitHub transport replies MOCKED; not real production GitHub acceptance. New source SHA256 73280474628710d0578148980e332d585407c20b221880efcc15c12520a6159f; test SHA256 1a55ca35e653a9b0d39bbb3e677dfeb16ab09b8269b1a7a133d83f9c009ebf61. Details: docs/superpowers/plans/2026-11-12-goal-checkpoint-atomic.md and docs/evidence/1219-20261112-goal-checkpoint-atomic.json.
+
+## Required continuation
+1. Check exact PR HEAD and all CI jobs, inspect any failure and fix its concrete cause. A green previous main/parent cannot accept this HEAD.
+2. Current checkpoint is bounded to 6,500 bytes and FAILS CLOSED on overflow; complete unbounded immutable history archiving remains unfinished. Never truncate records or claim all possible future history fits.
+3. Owner-authorized original Goal import/authenticated readback and controlled state-branch/key/freshness anchor remain HOLD; live WorkRun and actual real task state have NOT been moved to GitHub. Do not auto-bootstrap a new Goal, weaken security or request Mac as routine prerequisite.
+4. Wire existing broker/GoalController/Resident intake and task state to the same CAS/fencing update with stop/pause/approval/budget checks. Side-effect fencing and old-owner rejection across hosts need real proof.
+5. Demonstrate actual separate GitHub Actions run readback/recovery, real AI code repair with genuine verification, automatic next Job and independently checked artifact. Keep Issue #1219 OPEN until that real full E2E.
+
+## Preserved earlier checkpoint
+
 # GORIQ current handoff: Issue #1219, GitHub-first persistence
 
 Checkpoint: 2026-11-12 JST. Source-development evidence only. Original production Goal NOT_ACHIEVED. Refresh actual main, candidate branch, PR and exact-HEAD CI before work.

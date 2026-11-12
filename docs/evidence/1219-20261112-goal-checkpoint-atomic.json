@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "date": "2026-11-12 JST",
+  "issue": 1219,
+  "pr": 1910,
+  "parentHead": "d753986226de25c874333f6ca1e152ae8ed54570",
+  "phase": "SOURCE_ONLY_NO_PRODUCTION_ACTIVATION",
+  "scope": "versioned encrypted lease+goal+workrun+jobs+attempts+events on one SHA-conditional record; no implicit legacy migration",
+  "sourceSha256": "73280474628710d0578148980e332d585407c20b221880efcc15c12520a6159f",
+  "testSha256": "1a55ca35e653a9b0d39bbb3e677dfeb16ab09b8269b1a7a133d83f9c009ebf61",
+  "redInitial": {
+    "tests": 8,
+    "failed": 8,
+    "sha256": "a26d9004bca565dd6792f7b8df6e11efe71d00b86de4b5715810e25516ce0bf9"
+  },
+  "redReplay": {
+    "tests": 9,
+    "failed": 1,
+    "sha256": "0b7790a377958cfde6757386176e5406303e30cd517683dfbd1003af2044e6fe"
+  },
+  "green": {
+    "tests": 50,
+    "passed": 50,
+    "failed": 0,
+    "skipped": 0,
+    "sha256": "2d94b318b62b1b52334d45116833cc7fd8026ec8f533111964eee9254c97eaf7"
+  },
+  "localTypecheck": {
+    "exit": 0,
+    "environment": "Node22.16.0 + TS5.8.3 + minimal reconstructed type declarations; full repo CI not yet proven"
+  },
+  "limits": [
+    "No live authentication or actual GitHub state branch used",
+    "No automatic snapshot import/bootstrap or remote authority",
+    "Checkpoint max 6500 bytes; no silently truncated history",
+    "Trusted cross-process freshness proof not provided by ciphertext alone",
+    "External side-effects not transactionally fenced",
+    "CI on this new HEAD pending"
+  ]
+}
