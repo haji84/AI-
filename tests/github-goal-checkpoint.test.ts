@@ -18,7 +18,7 @@ const checkpoint={version:1,goalId:'goal-fixture',goalContractDigest:digest(goal
 const blob=(bytes:Buffer)=>createHash('sha1').update(Buffer.from(`blob ${bytes.length}\0`)).update(bytes).digest('hex');
 function seal(plain:unknown){const iv=randomBytes(12), cipher=createCipheriv('aes-256-gcm',key,iv);cipher.setAAD(Buffer.from(JSON.stringify(['goriq-coordinator-v1',repository,stateBranch,path,clusterId])));const content=Buffer.concat([cipher.update(JSON.stringify(plain)),cipher.final()]);return Buffer.from(JSON.stringify({version:1,algorithm:'aes-256-gcm',nonce:iv.toString('base64'),ciphertext:content.toString('base64'),tag:cipher.getAuthTag().toString('base64')}));}
 function fixture(initial:unknown={schema:2,lease,checkpoint}){
- let bytes=seal(initial);let putCount=0;let hook:((init:RequestInit)=>Response|null)|null=null;
+ let bytes: Buffer=seal(initial);let putCount=0;let hook:((init:RequestInit)=>Response|null)|null=null;
  const fetchImpl=async (url:string|URL|Request,init:RequestInit={})=>{assert.equal(new URL(String(url)).origin,'https://api.github.com');assert.equal(init.redirect,'error');assert.equal(new Headers(init.headers).get('authorization'),`Bearer ${token}`);if(hook){const x=hook(init);if(x)return x;}
   if(init.method==='GET'){assert.equal(String(url),`${api}?ref=${encodeURIComponent(stateBranch)}`);return Response.json({type:'file',path,sha:blob(bytes),encoding:'base64',content:bytes.toString('base64')});}
   assert.equal(String(url),api); assert.equal(init.method,'PUT');const p=JSON.parse(String(init.body)); assert.equal(p.sha,blob(bytes));putCount++;bytes=Buffer.from(p.content,'base64');return Response.json({content:{sha:blob(bytes)},commit:{sha:'c'.repeat(40)}});
