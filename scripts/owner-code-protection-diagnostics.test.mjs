@@ -5,6 +5,7 @@ import {tmpdir} from 'node:os';
 import {join,resolve,dirname,parse} from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
+import {runPreflightPowerShellBatch} from '../tests/helpers/powershell-preflight-batch.mjs';
 const {structuredClone}=globalThis;
 
 const script=resolve('scripts/owner-code-preflight-1218.ps1');
@@ -13,11 +14,21 @@ const quote=value=>"'"+value.replaceAll("'","''")+"'";
 const sid='S-1-5-21-1-2-3-1004';
 const roles=['pathNode','taskNode','releaseRoot','releaseManifest'];
 const metadataFields=['schemaVersion','readOnly','proof','actualAcceptanceConditionsPassed','readyForRotation','actionKind','taskSha256','currentOwnerPrincipalMatch','taskRunning','pathNode','taskNode','pathNodeMatchesTaskNodeBytes','pathNodeMatchesTaskNodePath','releaseManifest','directNodeGuardShapeMatches'];
-function ps(code,{requiresFeature=true,expectedStatus=0}={}){
+function sourceFor(code,{requiresFeature=true}={}){
  const source=`$ErrorActionPreference='Stop'; . ${quote(script)}; ${requiresFeature?"if(-not (Get-Command New-1218RotationProtectionDiagnostics -ErrorAction SilentlyContinue)){'{\"missingFeature\":true}';return}":''} ${code}`;
+ return source;
+}
+function ps(code,{requiresFeature=true,expectedStatus=0}={}){
+ const source=sourceFor(code,{requiresFeature});
  const run=spawnSync(shell,['-NoProfile','-NonInteractive','-Command',source],{encoding:'utf8',timeout:25000});
  assert.equal(run.error,undefined);assert.equal(run.status,expectedStatus,run.stderr);assert.equal(run.stderr,'');
  return JSON.parse(run.stdout.trim());
+}
+function psMany(codes){
+ if(process.platform!=='linux')return codes.map(code=>ps(code));
+ return runPreflightPowerShellBatch({shell,sources:codes.map(code=>sourceFor(code))}).map(run=>{
+  assert.equal(run.error,undefined);assert.equal(run.status,0,run.stderr);assert.equal(run.stderr,'');return JSON.parse(run.stdout.trim());
+ });
 }
 function fixture(fn){
  const directory=realpathSync.native(mkdtempSync(join(tmpdir(),'protection-observation-public-')));
@@ -46,8 +57,8 @@ const aclBoundary=`
  foreach($type in @('System.IO.FileInfo','System.IO.DirectoryInfo')){Update-TypeData -TypeName $type -MemberType ScriptMethod -MemberName GetAccessControl -Value {param($sections) New-PublicAcl -Path $this.FullName -Native $true} -Force}
  function Start-Process {throw 'PROCESS_MUST_NOT_START'};function Start-ScheduledTask {throw 'TASK_MUST_NOT_CHANGE'};function Stop-ScheduledTask {throw 'TASK_MUST_NOT_CHANGE'};function Invoke-WebRequest {throw 'NETWORK_MUST_NOT_RUN'};
 `;
-function inspect(f,{task=f.task,legacyMode='commandUnavailable',nativeMode='matched',nativeRejectedPath='',legacyRejectedPath='',noContent=true,extra='',ownerSid=sid,collector=true}={}){
- return ps(`$fixtureTask=${task===null?'$null':`(${quote(JSON.stringify(task))}|ConvertFrom-Json)`};
+function inspectionSource(f,{task=f.task,legacyMode='commandUnavailable',nativeMode='matched',nativeRejectedPath='',legacyRejectedPath='',noContent=true,extra='',ownerSid=sid,collector=true}={}){
+ return `$fixtureTask=${task===null?'$null':`(${quote(JSON.stringify(task))}|ConvertFrom-Json)`};
   $script:legacyMode=${quote(legacyMode)};$script:nativeMode=${quote(nativeMode)};$script:nativeRejectedPath=${quote(nativeRejectedPath)};$script:legacyRejectedPath=${quote(legacyRejectedPath)};
   ${aclBoundary}
   function Get-Command {param([string]$Name,$ErrorAction) if($Name -cne 'node.exe'){throw 'UNEXPECTED_COMMAND'};[pscustomobject]@{CommandType='Application';Source=${quote(f.node)}}}
@@ -55,8 +66,10 @@ function inspect(f,{task=f.task,legacyMode='commandUnavailable',nativeMode='matc
   ${extra}
   $diagnostics=New-1218RotationProtectionDiagnostics;
   $metadata=Get-1218RotationMetadata -Task $fixtureTask -OwnerSid ${quote(ownerSid)} -OwnerName 'PRIVATE-OWNER-NAME' ${collector?'-ProtectionDiagnostics $diagnostics':''};
-  @{metadata=$metadata;diagnostics=$diagnostics;aclReads=@($script:aclReads.ToArray());contentReads=$script:contentReads}|ConvertTo-Json -Depth 10 -Compress`);
+  @{metadata=$metadata;diagnostics=$diagnostics;aclReads=@($script:aclReads.ToArray());contentReads=$script:contentReads}|ConvertTo-Json -Depth 10 -Compress`;
 }
+function inspect(f,options){return ps(inspectionSource(f,options));}
+function inspectMany(f,cases){return process.platform==='linux'?psMany(cases.map(options=>inspectionSource(f,options))):cases.map(options=>inspect(f,options));}
 function closed(value,f){
  assert.ok(value.diagnostics,'The optional diagnostic collector must be available');
  const d=value.diagnostics;
@@ -75,8 +88,9 @@ test('actual unavailable legacy ACL command is categorized without releasing has
  assert.equal(value.metadata.pathNode.protection,'rejected');assert.equal(value.metadata.pathNode.sha256,null);assert.equal(value.metadata.taskNode.sha256,null);assert.equal(value.metadata.releaseManifest.revision,null);assert.equal(value.contentReads,0);
 }));
 test('actual legacy guard refusal remains distinct from unexpected metadata failure',()=>fixture(f=>{
- for(const [mode,want] of [['guardRefusedCauseUnknown','guardRefusedCauseUnknown'],['observationUnavailable','observationUnavailable']]){
-  const value=inspect(f,{legacyMode:mode});closed(value,f);assert.deepEqual(value.diagnostics.paths.pathNode,{legacy:want,native:'policyMatched'});assert.equal(value.metadata.pathNode.protection,'rejected');assert.equal(value.contentReads,0);
+ const modes=[['guardRefusedCauseUnknown','guardRefusedCauseUnknown'],['observationUnavailable','observationUnavailable']],values=inspectMany(f,modes.map(([legacyMode])=>({legacyMode})));
+ for(const [index,[,want]] of modes.entries()){
+  const value=values[index];closed(value,f);assert.deepEqual(value.diagnostics.paths.pathNode,{legacy:want,native:'policyMatched'});assert.equal(value.metadata.pathNode.protection,'rejected');assert.equal(value.contentReads,0);
  }
 }));
 test('native comparison uses the same selected path and rejects an ancestor above the profile',()=>fixture(f=>{
@@ -93,8 +107,7 @@ test('typed failure for an unknown command remains unavailable and never publish
  assert.deepEqual(value.diagnostics.paths.pathNode,{legacy:'observationUnavailable',native:'policyMatched'});assert.equal(value.contentReads,0);
 }));
 test('optional collection preserves the exact legacy metadata result and walks all native ancestors',()=>fixture(f=>{
- const plain=inspect(f,{legacyMode:'matched',noContent:false,collector:false});
- const observed=inspect(f,{legacyMode:'matched',noContent:false});closed(observed,f);assert.deepEqual(observed.metadata,plain.metadata);
+ const [plain,observed]=inspectMany(f,[{legacyMode:'matched',noContent:false,collector:false},{legacyMode:'matched',noContent:false}]);closed(observed,f);assert.deepEqual(observed.metadata,plain.metadata);
  for(const role of roles)assert.deepEqual(observed.diagnostics.paths[role],{legacy:'policyMatched',native:'policyMatched'});
  const native=observed.aclReads.filter(path=>path.startsWith('native:'));
  assert.ok(native.includes('native:'+parse(f.directory).root));assert.ok(native.includes('native:'+dirname(f.directory)));
@@ -107,19 +120,19 @@ test('manifest guard failures are attached to the actual manifest path after the
  assert.equal(value.metadata.releaseManifest.protection,'rejected');assert.equal(value.metadata.releaseManifest.sha256,null);assert.equal(value.metadata.releaseManifest.revision,null);
 }));
 test('a failed read-only collector cannot alter legacy metadata or add pipeline output',()=>fixture(f=>{
- const plain=inspect(f,{legacyMode:'matched',noContent:false,collector:false});
- const value=ps(`$fixtureTask=(${quote(JSON.stringify(f.task))}|ConvertFrom-Json);$script:legacyMode='matched';$script:nativeMode='matched';$script:nativeRejectedPath='';$script:legacyRejectedPath='';${aclBoundary}
+ const [plain,value]=psMany([inspectionSource(f,{legacyMode:'matched',noContent:false,collector:false}),`$fixtureTask=(${quote(JSON.stringify(f.task))}|ConvertFrom-Json);$script:legacyMode='matched';$script:nativeMode='matched';$script:nativeRejectedPath='';$script:legacyRejectedPath='';${aclBoundary}
   function Get-Command {param([string]$Name,$ErrorAction) [pscustomobject]@{CommandType='Application';Source=${quote(f.node)}}}
   $empty=[Collections.Generic.Dictionary[string,object]]::new();$readOnly=[Collections.ObjectModel.ReadOnlyDictionary[string,object]]::new($empty);
   $metadata=@(Get-1218RotationMetadata -Task $fixtureTask -OwnerSid ${quote(sid)} -OwnerName 'PRIVATE-OWNER-NAME' -ProtectionDiagnostics $readOnly);
-  @{metadata=$metadata;aclReads=@($script:aclReads.ToArray())}|ConvertTo-Json -Depth 10 -Compress`);
+  @{metadata=$metadata;aclReads=@($script:aclReads.ToArray())}|ConvertTo-Json -Depth 10 -Compress`]);
  assert.equal(value.metadata.length,1);assert.deepEqual(value.metadata[0],plain.metadata);
 }));
 test('missing context, unsupported action and unknown principal perform no diagnostic inspection',()=>fixture(f=>{
  const unsupported=structuredClone(f.task);unsupported.Actions[0].Arguments+=' PRIVATE-ARGUMENT-MARKER';
  const wrong=structuredClone(f.task);wrong.Principal.UserId='PRIVATE-OTHER-OWNER';
- for(const task of [null,unsupported,wrong]){const value=inspect(f,{task});closed(value,f);assert.equal(value.diagnostics.state,'NOT_OBSERVED');assert.deepEqual(value.aclReads,[]);assert.equal(value.contentReads,0);for(const role of roles)assert.deepEqual(value.diagnostics.paths[role],{legacy:'notObserved',native:'notObserved'});}
- const unknown=inspect(f,{ownerSid:'PRIVATE-UNKNOWN-SID'});closed(unknown,f);assert.equal(unknown.diagnostics.state,'NOT_OBSERVED');assert.deepEqual(unknown.aclReads,[]);
+ const values=inspectMany(f,[...[null,unsupported,wrong].map(task=>({task})),{ownerSid:'PRIVATE-UNKNOWN-SID'}]);
+ for(const value of values.slice(0,3)){closed(value,f);assert.equal(value.diagnostics.state,'NOT_OBSERVED');assert.deepEqual(value.aclReads,[]);assert.equal(value.contentReads,0);for(const role of roles)assert.deepEqual(value.diagnostics.paths[role],{legacy:'notObserved',native:'notObserved'});}
+ const unknown=values[3];closed(unknown,f);assert.equal(unknown.diagnostics.state,'NOT_OBSERVED');assert.deepEqual(unknown.aclReads,[]);
 }));
 test('dot-source and empty collector initialization perform no filesystem or process inspection',()=>{
  const value=ps(`function Get-Item {throw 'IMPORT_IO'};function Get-Acl {throw 'IMPORT_IO'};function Get-Process {throw 'IMPORT_IO'};. ${quote(script)};$d=New-1218RotationProtectionDiagnostics;@{state=$d.state;authorizationGranted=$d.authorizationGranted}|ConvertTo-Json -Compress`);

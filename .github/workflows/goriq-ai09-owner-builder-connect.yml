@@ -3,6 +3,15 @@ name: GORIQ AI-09 Owner Broker and Builder Read-Only Connect
 # Must run from protected main, never from an untrusted PR head.
 on:
   workflow_dispatch:
+    inputs:
+      goal_id:
+        description: 'Existing Goal ID; set together with job_id. Blank preserves the existing connection check.'
+        required: false
+        type: string
+      job_id:
+        description: 'Existing Job ID to read twice. Does not start, resume, approve or modify a Job.'
+        required: false
+        type: string
   issues:
     types: [opened, reopened]
 
@@ -36,8 +45,15 @@ jobs:
           test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)"
       - name: Authenticate against local owner's Broker read-only
         shell: bash
+        env:
+          AI09_REQUEST_GOAL_ID: ${{ inputs.goal_id || '' }}
+          AI09_REQUEST_JOB_ID: ${{ inputs.job_id || '' }}
         run: |
           set -euo pipefail
+          # Pin literal input data and validate before accessing owner credentials.
+          readonly AI09_SELECTED_GOAL="${AI09_REQUEST_GOAL_ID-}"
+          readonly AI09_SELECTED_JOB="${AI09_REQUEST_JOB_ID-}"
+          node scripts/goriq-owner-readback-selection.mjs "$AI09_SELECTED_GOAL" "$AI09_SELECTED_JOB"
           ENV_FILE="$HOME/Library/Application Support/JARVIS/jarvis.env"
           if [[ ! -s "$ENV_FILE" ]]; then echo 'AI09_EXISTING_OWNER_ENV_UNAVAILABLE'; exit 2; fi
           set -a
@@ -46,6 +62,12 @@ jobs:
           if [[ -z "$(printenv JARVIS_OWNER_TOKEN 2>/dev/null || true)" ]]; then
             echo 'AI09_EXISTING_OWNER_TOKEN_MISSING'
             exit 2
+          fi
+          # A trusted env file cannot silently replace an explicit selection.
+          # With no inputs, retain the existing host-configured connection mode.
+          if [[ -n "$AI09_SELECTED_GOAL" ]]; then
+            export GORIQ_AI09_GOAL_ID="$AI09_SELECTED_GOAL"
+            export GORIQ_AI09_JOB_ID="$AI09_SELECTED_JOB"
           fi
           export GORIQ_AI09_CONNECT_MODE=broker
           node scripts/goriq-ai09-live-broker-builder-probe.mjs

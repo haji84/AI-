@@ -1,0 +1,36 @@
+{
+  "scope": "live-protocol-load-only-no-new-candidate",
+  "startedAt": "2026-11-11T13:25:18.034332+00:00",
+  "finishedAt": "2026-11-11T13:25:28.968285+00:00",
+  "serverVersion": {
+    "version": "0.34.0"
+  },
+  "cloudDisabled": true,
+  "request": {
+    "model": "qwen2.5-coder:3b:local",
+    "prompt": "",
+    "stream": false,
+    "keep_alive": "30s",
+    "options": {
+      "num_ctx": 8192
+    }
+  },
+  "response": {
+    "model": "qwen2.5-coder:3b:local",
+    "created_at": "2026-11-11T13:25:28.965911Z",
+    "response": "",
+    "done": true,
+    "done_reason": "load"
+  },
+  "installed": {
+    "name": "qwen2.5-coder:3b",
+    "digest": "f72c60cabf6237b07f6e632b2c48d533cef25eda2efbd34bed21c5e9c01e6225"
+  },
+  "loaded": {
+    "name": "qwen2.5-coder:3b",
+    "digest": "f72c60cabf6237b07f6e632b2c48d533cef25eda2efbd34bed21c5e9c01e6225"
+  },
+  "runtimeSourceSha256": "2d7aa397bb2a8141155e653681b5965398e69568353a74a4dd34670814516d2b",
+  "originalOwnerGoalTouched": false,
+  "independentProductionVerification": false
+}

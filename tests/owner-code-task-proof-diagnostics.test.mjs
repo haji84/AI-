@@ -3,11 +3,16 @@ import assert from 'node:assert/strict';
 import process from 'node:process';
 import {spawnSync} from 'node:child_process';
 import {resolve,join} from 'node:path';
+import {createPowerShellFixtureBatch} from './helpers/powershell-fixture-batch.mjs';
 const shell=process.platform==='win32'?join(process.env.SystemRoot,'System32/WindowsPowerShell/v1.0/powershell.exe'):'pwsh';
-for(const scenario of ['schema','typed-faults','scalar-domains','pre-guard','call-throw','throw-then-deadline','returned-late','profiles','wire-rejections','return-preservation','cim-then-harddeadline','stale-operation','recovered-disable','profile-not-checked','throwing-getters','diagnostics-failure','transient-diagnostic-save','raw-duplicate-wire','canonical-producer-wire','cleanup-post-guard']){
+const scenarios=['schema','typed-faults','scalar-domains','pre-guard','call-throw','throw-then-deadline','returned-late','profiles','wire-rejections','return-preservation','cim-then-harddeadline','stale-operation','recovered-disable','profile-not-checked','throwing-getters','diagnostics-failure','transient-diagnostic-save','raw-duplicate-wire','canonical-producer-wire','cleanup-post-guard'];
+const batchEnv={...process.env};delete batchEnv.PSModulePath;
+// canonical-producer-wire checks an actual native exit1 and keeps its process.
+const runLinuxBatch=process.platform==='linux'?createPowerShellFixtureBatch({shell,fixture:resolve('tests/owner-code-task-proof-diagnostics.test.ps1'),scenarios:scenarios.filter(s=>s!=='canonical-producer-wire'),env:batchEnv}):null;
+for(const scenario of scenarios){
  test(`closed task proof diagnostics: ${scenario}`,()=>{
   const env={...process.env};delete env.PSModulePath;
-  const r=spawnSync(shell,['-NoLogo','-NoProfile','-NonInteractive','-File',resolve('tests/owner-code-task-proof-diagnostics.test.ps1'),'-Scenario',scenario],{env,encoding:'utf8',windowsHide:true,timeout:30000,maxBuffer:128*1024});
+  const r=runLinuxBatch&&scenario!=='canonical-producer-wire'?runLinuxBatch(scenario):spawnSync(shell,['-NoLogo','-NoProfile','-NonInteractive','-File',resolve('tests/owner-code-task-proof-diagnostics.test.ps1'),'-Scenario',scenario],{env,encoding:'utf8',windowsHide:true,timeout:30000,maxBuffer:128*1024});
   assert.equal(r.error,undefined);assert.equal(r.status,0,r.stdout+r.stderr);assert.equal(r.stderr,'');
   const v=JSON.parse(r.stdout.trim());assert.equal(v.pass,true);assert.equal(v.realCredentialTaskWindowsQueries,0);assert.equal(v.scenario,scenario);
  });

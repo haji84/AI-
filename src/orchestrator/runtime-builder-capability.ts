@@ -41,7 +41,7 @@ function assertLocalLoopback(urlString: string): void {
 export function createRuntimeBuilderRouter(
   env: Record<string, string | undefined> = process.env,
   fetchImpl: typeof fetch = fetch,
-  hostOptions: { preparedWrite?: PreparedLocalWriteCheckpoint; resourceAdmission?: typeof withDevelopmentResourceAdmission } | typeof withDevelopmentResourceAdmission = {},
+  hostOptions: { preparedWrite?: PreparedLocalWriteCheckpoint; resourceAdmission?: typeof withDevelopmentResourceAdmission; beforeWrite?: () => Promise<void> } | typeof withDevelopmentResourceAdmission = {},
 ): BuilderRouter {
   // Explicit Codex-free selection: never fall back to the 8796/8797 coding engines
   // or any potentially billable remote endpoint for this isolated Goal.

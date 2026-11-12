@@ -19,6 +19,9 @@ export const FIXED_ROOT='/tmp/goriq-1219-20261103';
 const hash=x=>createHash('sha256').update(x).digest('hex');
 const hex=x=>typeof x==='string'&&/^[a-f0-9]{64}$/.test(x);
 const fail=()=>{throw Error('TRACKED_ACTIONS_CHECKPOINT_INVALID');};
+// The legacy wire format cannot preserve the pinned Ollama observation journal.
+// Refuse the whole profile; copying candidate bytes is not provenance or authority.
+const legacyModelTransport=m=>{if(m?.model?.provider==='ollama')throw Error('TRACKED_ACTIONS_MODEL_TRANSPORT_REQUIRED');};
 const plain=x=>x&&typeof x==='object'&&!Array.isArray(x);
 const safe=p=>typeof p==='string'&&/^[A-Za-z0-9_./-]+$/.test(p)&&!p.split('/').some(x=>!x||x==='.'||x==='..')&&!p.startsWith('/');
 const bounded=file=>{const s=lstatSync(file);if(!s.isFile()||s.isSymbolicLink()||s.nlink!==1||s.size>2097152||s.size<1)fail();return readFileSync(file);};
@@ -34,6 +37,8 @@ export function validateCheckpoint(cp,{now=Date.now(),expectedHead,phase}={}){
  const files=new Map();let total=0;for(const row of cp.files){const bytes=bytesFor(row);total+=bytes.length;if(files.has(row.path)||total>2097152)fail();files.set(row.path,bytes);}
  const json=p=>{if(!files.has(p))fail();try{return JSON.parse(files.get(p));}catch{fail();}};
  const m=json('manifest.json');
+ legacyModelTransport(m);
+ if(m.recoveryAttempts!==undefined)throw Error('TRACKED_ACTIONS_RECOVERY_TRANSPORT_REQUIRED');
  if(hash(files.get('manifest.json'))!==cp.manifestSha256||m.version!==1||m.profile!=='tracked-source-repair-v1'||m.workspace!==FIXED_ROOT+'/candidate'||m.baselineWorkspace!==FIXED_ROOT+'/baseline'
   ||m.probe?.file!==FIXED_ROOT+'/frozen-probe.mjs'||m.verifier?.publicKeyFile!==FIXED_ROOT+'/public.pem'||m.verifier?.receiptFile!==FIXED_ROOT+'/receipt.json'
   ||!m.sequence||m.sequence.taskScopeId!=='issue:1219'||m.sequence.maxRisk!=='low'||m.sequence.completionMode!=='verified-local-artifact'||m.sequence.jobs?.length!==1
@@ -117,7 +122,7 @@ async function currentIdentity(){const compass=new CompassStore(FIXED_ROOT+'/sta
  const jobs=await new JsonFileDevelopmentJobStore(FIXED_ROOT+'/state/self-development/jobs.json').getByGoal(goalId);if(jobs.length!==1)fail();
  const changes=await new JsonFileDevelopmentChangeSetStore(FIXED_ROOT+'/state/self-development/change-sets.json').list();const change=changes.find(c=>c.jobId===jobs[0].jobId&&c.workItemId.endsWith(':implement'));if(!change)fail();return {goalId,job:jobs[0],change};}
 export async function createCheckpoint({phase='cloud',sourceRunId=null,head,output}={}){
- const manifest=bounded(FIXED_ROOT+'/manifest.json'),m=JSON.parse(manifest),manifestSha256=hash(manifest);readTrackedRepairManifest(envFor(manifestSha256));
+ const manifest=bounded(FIXED_ROOT+'/manifest.json'),m=JSON.parse(manifest),manifestSha256=hash(manifest);legacyModelTransport(m);readTrackedRepairManifest(envFor(manifestSha256));
  const identity=await currentIdentity();const names=['manifest.json','public.pem','frozen-probe.mjs','state/self-development/jobs.json','state/self-development/change-sets.json','receipt.json.request.json',
   ...m.trackedFiles.map(f=>'candidate/'+f.path),...(m.bookkeeping?['candidate/'+m.bookkeeping.path]:[]),'candidate/'+m.probe.targetPath];
  const journals=FIXED_ROOT+'/state/self-development/tracked-repair';for(const p of readdirSync(journals)){if(!/^[a-f0-9]{64}\.(?:prepared\.json(?:\.intent\.json|\.response\.json)?|red\.json(?:\.log)?)$/.test(p))fail();names.push('state/self-development/tracked-repair/'+p);}

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "source_main": "b064fda706eacfe2805d8f03065a8be4329d89aa",
+  "source_main": "6737e15033eced135461076d72f792516e83c9b3",
   "scope": "Declared audit roots; no functional or physical completion inference",
   "surfaces": [
     {
@@ -959,7 +959,7 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "06332e6302c6cf13d701e3f9672705126a8b17ffa59f1f430a0a6ea10ecad1a4",
+      "sha256": "63700f09239c95f91b784f58e1bb7d97406cf0c762cb8e5593da277dd7a6a723",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-003",
@@ -982,7 +982,7 @@
         "OPS-015",
         "OPS-016"
       ],
-      "reason": "Protected Broker now exposes bounded local-first voice discovery and synthesis while preserving existing owner authority and all prior Broker responsibilities. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim. #1858 approved host-selected completion integration and isolated verification; no live activation or physical acceptance inference. Protected Broker now exposes bounded local-first voice discovery and synthesis while preserving existing owner authority and all prior Broker responsibilities. #1219 only accepted nonterminal Goal resumed on changed verifier receipt; signature and authorizations still checked in child Executor."
+      "reason": "Protected Broker now exposes bounded local-first voice discovery and synthesis while preserving existing owner authority and all prior Broker responsibilities. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim. #1858 approved host-selected completion integration and isolated verification; no live activation or physical acceptance inference. Protected Broker now exposes bounded local-first voice discovery and synthesis while preserving existing owner authority and all prior Broker responsibilities. #1219 only accepted nonterminal Goal resumed on changed verifier receipt; signature and authorizations still checked in child Executor. #1219 current vs historical authenticated WorkRun readback; existing parent requirements remain PARTIAL pending live evidence. Issue #1219: transient local writer contention returns an explicit non-owner process status, with bounded Broker rechecks of the same accepted Goal; no cross-host authority or live acceptance claim. Issue #1219: owner-auth current Goal now binds actual same-host persisted DevelopmentJobs by digest, phase and scope without granting cross-host authority or execution approval."
     },
     {
       "path": "scripts/jarvis-direct-commander-service.sh",
@@ -1075,7 +1075,7 @@
     },
     {
       "path": "scripts/jarvis-goal-executor.ts",
-      "sha256": "754dbf5f7241512640efcbde42cf8a8b5b1ec72fec09b2b781534d34a1f02f2b",
+      "sha256": "60302875f057a5ed1b7de6ee43c7e1167533a464da778b3fce37bc12fcc29cdd",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "AUTO-001",
@@ -1083,7 +1083,7 @@
         "GOV-025",
         "OWN-001"
       ],
-      "reason": "Issues #1219/#1284 Direct Goal Bridge executor auto-routes accepted development intent from Daily Driver into the bounded Builder runtime when explicit self-development environment configuration is absent; existing capability, verifier, risk, Human Gate, and release controls remain authoritative. Physical iPhone E2E remains required before completion. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim. #1858 bounded host-pinned resident handoff and negative evidence recovery; no production or physical acceptance inference. #1219 scope pinning follows resident Ollama opt-in; no complete runtime E2E claim. Issues #1219/#1284 Direct Goal Bridge executor auto-routes accepted development intent from Daily Driver into the bounded Builder runtime when explicit self-development environment configuration is absent; existing capability, verifier, risk, Human Gate, and release controls remain authoritative. Physical iPhone E2E remains required before completion. #1219 scope pinning follows resident Ollama opt-in; no complete runtime E2E claim. #1219 bounded Codex-free TDD RED and local separate-process GREEN proof work; complete independent release verification and physical Goal E2E are not claimed. #1219 independently readback artifact bytes and hold unavailable evidence without discarding Change Set. #1219 independently signed local verifier receipts bound to exact Goal and Change Set before required checks may be accepted."
+      "reason": "Issues #1219/#1284 Direct Goal Bridge executor auto-routes accepted development intent from Daily Driver into the bounded Builder runtime when explicit self-development environment configuration is absent; existing capability, verifier, risk, Human Gate, and release controls remain authoritative. Physical iPhone E2E remains required before completion. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim. #1858 bounded host-pinned resident handoff and negative evidence recovery; no production or physical acceptance inference. #1219 scope pinning follows resident Ollama opt-in; no complete runtime E2E claim. Issues #1219/#1284 Direct Goal Bridge executor auto-routes accepted development intent from Daily Driver into the bounded Builder runtime when explicit self-development environment configuration is absent; existing capability, verifier, risk, Human Gate, and release controls remain authoritative. Physical iPhone E2E remains required before completion. #1219 scope pinning follows resident Ollama opt-in; no complete runtime E2E claim. #1219 bounded Codex-free TDD RED and local separate-process GREEN proof work; complete independent release verification and physical Goal E2E are not claimed. #1219 independently readback artifact bytes and hold unavailable evidence without discarding Change Set. #1219 independently signed local verifier receipts bound to exact Goal and Change Set before required checks may be accepted. Issue #1219: transient local writer contention returns an explicit non-owner process status, with bounded Broker rechecks of the same accepted Goal; no cross-host authority or live acceptance claim."
     },
     {
       "path": "scripts/jarvis-mac-broker-service.sh",
@@ -2748,7 +2748,7 @@
     },
     {
       "path": "src/app/jarvis/tasks/GoalBridgeStatus.tsx",
-      "sha256": "4d23c479f869aa0b61fbf734e40e2c8886fab401113da74dae7de9907181b7f0",
+      "sha256": "d2063fa3260c01540874a5f36092b28b76a5bf501e4c042d2eb4a82f8225dae3",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "AUTO-001",
@@ -2756,7 +2756,7 @@
         "GOV-025",
         "OWN-001"
       ],
-      "reason": "Issue #1219 Direct Goal Bridge internal surface for authenticated provider-neutral status/event delivery; parent requirements remain PARTIAL pending real E2E. #1858 approved host-selected completion integration and isolated verification; no live activation or physical acceptance inference."
+      "reason": "Issue #1219 Direct Goal Bridge internal surface for authenticated provider-neutral status/event delivery; parent requirements remain PARTIAL pending real E2E. #1858 approved host-selected completion integration and isolated verification; no live activation or physical acceptance inference. #1219 current vs historical authenticated WorkRun readback; existing parent requirements remain PARTIAL pending live evidence."
     },
     {
       "path": "src/app/jarvis/tasks/RequirementsPanel.tsx",
@@ -2948,7 +2948,7 @@
     },
     {
       "path": "src/compass/store.ts",
-      "sha256": "3864d349f6f65abe5a5e33c715ffc09bc9e46abc41da7b5450f9b3bb4b557de8",
+      "sha256": "08582c6dba957beea2940ea366f711c609c69489e9529f88cacaaa9e4e387455",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
@@ -4979,7 +4979,7 @@
     },
     {
       "path": "src/orchestrator/compass-goal-controller.ts",
-      "sha256": "c0a1bc2230a1f3151192bee42d4c3dd6337e6b6b4da635f2510610c32da36b96",
+      "sha256": "067268df0c550f2564fc01f2e7fea4c7fe799325d71bb541833154d8a76cee80",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
@@ -4990,7 +4990,7 @@
     },
     {
       "path": "src/orchestrator/compass-goal-execution-adapter.ts",
-      "sha256": "81b88c21120ef46efd30278f03cb9d4709b3fdb099b73abac56d14a4c388111b",
+      "sha256": "00a5460545bacbadb997362c65e3b422de783aa5daedc7a8052bd1e585293167",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
@@ -5401,7 +5401,7 @@
     },
     {
       "path": "src/orchestrator/goal-controller-runtime.ts",
-      "sha256": "8e165a2bedac0622a0d82179f61a0b3e2c2eeb1038db278e9f38641d32782733",
+      "sha256": "1c8268707638c78863fcb0a0d3268a339882b84222cb22562b61e0ed4e251ba6",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-002",
@@ -5499,6 +5499,29 @@
       "reason": "Capability dispatch checks execution-context completeness and outbound privacy before routing. Not proof of real Worker execution."
     },
     {
+      "path": "src/orchestrator/hosted-goal-controller-adapter.ts",
+      "sha256": "181c65dd9a32ab5e0f4fa052d7eaf1410893d5e2b227b6a7de40498d0f864fd1",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-002",
+        "AUTO-001",
+        "AUTO-010",
+        "AUTO-015"
+      ],
+      "reason": "Issue #1219 bounded GoalControllerExecutionBridge adapter for existing durable DevelopmentJob State Controller, signed independent checks, and per-Job hosted capability routing. Source and CI fixture are not proof of production dispatch or physical acceptance."
+    },
+    {
+      "path": "src/orchestrator/hosted-goal-work-router.ts",
+      "sha256": "803f3e0aac975c012fda819a2e9be9fb09e88fd1ffc3ac10810214514554f724",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-007",
+        "AUTO-010",
+        "AUTO-012"
+      ],
+      "reason": "Issue #1219 GitHub-hosted-first read-only per-Job capability routing candidate. Reuses existing fabric routing to preserve Goal/Job identity and independent verification, Human Gate and privacy boundaries; source presence does not prove live dispatch, durable next-Job E2E or physical acceptance."
+    },
+    {
       "path": "src/orchestrator/http-development-release-capability.ts",
       "sha256": "7cd0f4fd355977df077b54b9481b805ccd6a9fcb0017a67327e082dedc6eb897",
       "classification": "COVERED_BY_REQUIREMENT",
@@ -5571,7 +5594,7 @@
     },
     {
       "path": "src/orchestrator/local-development-builder.ts",
-      "sha256": "e8fd1bae4b12af905c374520fcfed961ddfb01492d86b0566d1411a2fb7f6e65",
+      "sha256": "0e8331cee43502eeef674ad16ae0b65c6c1d1e508c8baf691397563f91a12480",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-008",
@@ -5895,8 +5918,19 @@
       "reason": "Declared research-transport.ts responsibility implements/supports Fact Verification Engine; 110. Provenance and Reproducibility. Parent ownership is not functional or physical acceptance evidence."
     },
     {
+      "path": "src/orchestrator/resident-development-admission.ts",
+      "sha256": "bf6049fac8455e91836249165d40afc07a0d267ca66b75e143961e7719391b7c",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-002",
+        "CORE-014",
+        "AUTO-015"
+      ],
+      "reason": "Issue #1219 reuses the existing OS-backed Compass writer lease for the resident path. A non-serializable live claim binds the existing Goal and local authority path; busy, pause and release checks grant no distributed ownership or production activation."
+    },
+    {
       "path": "src/orchestrator/resident-development-goal-host.ts",
-      "sha256": "8324fc2dc94435dc8ff8d057484315a825b14f6ca13bcf5f85ade3815d9778e7",
+      "sha256": "d4159faafe3b568af04a83dcdb8285672a74ded4d3b8cc5f44561f236686f3e4",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -5934,7 +5968,7 @@
     },
     {
       "path": "src/orchestrator/runtime-builder-capability.ts",
-      "sha256": "e017a514cde42c6659d9f6a20664e5e35366c7d5945f9c0168db566b070757fd",
+      "sha256": "8d9ea0d2be98e2bea5fd82da77b1b6450849a50da054b9b446e94f70cc17ca56",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -5974,7 +6008,7 @@
     },
     {
       "path": "src/orchestrator/runtime-local-ollama-builder.ts",
-      "sha256": "6888fc79f1b99bbf44751555257ed5398fe0378a32f67f29095eea993f090c07",
+      "sha256": "fc891c75401d004d6e7f5a4922f985b3c5dd182dfe27adfef82d4c4f077785be",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-008",
@@ -6007,6 +6041,17 @@
         "AUTO-001"
       ],
       "reason": "#1219 opt-in local review checkpoint and declaration: binds candidate, deterministic-check evidence and PR identity to an immutable local observation. Cache replay is not formal AI09 approval, GitHub review, deployment, physical or Actions-cross-run acceptance."
+    },
+    {
+      "path": "src/orchestrator/runtime-resident-admission.ts",
+      "sha256": "7522391b557266e40d1559c8c7c3f1070068232590cb0fef3da4c29fd7323e1f",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-010",
+        "AUTO-012"
+      ],
+      "reason": "Issue #1219 pinned host admission applies the existing per-Job router to actual durable resident Jobs. It preserves scope, risk, privacy, zero-cost routing, existing in-flight phases and canonical writer ownership. Source integration does not prove live hosted dispatch, remote persistence or independent production acceptance."
     },
     {
       "path": "src/orchestrator/safe-pr-capability.ts",
@@ -6219,7 +6264,7 @@
     },
     {
       "path": "src/orchestrator/work-run-state.ts",
-      "sha256": "33b95ea2fa757b1ee691b7d1be3480645f3578ec3dc65fbdf7d509c781f96863",
+      "sha256": "70433f1e0ac964b90fe63e2320af47f8c57b8fc07ee8685e345fe1ee3ea08a74",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
@@ -6295,7 +6340,7 @@
     },
     {
       "path": "src/orchestrator/development-resource-scheduler.ts",
-      "sha256": "c7528872d5c344be28b946e0fed26233b409ca52089cc42f60ff60b0cd62e12e",
+      "sha256": "d86698ad5864da667086316b6bac545149298e73088e146dd3c7a4431aa18b71",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "CORE-014",
@@ -6396,7 +6441,7 @@
     },
     {
       "path": "scripts/jarvis-independent-check-runner.mjs",
-      "sha256": "7a94db1ee12e9393aca6b04e8c3e0168e8d9a3908b70084ea893b84debd0812d",
+      "sha256": "e4803a3d88fbde8c8757bb6d75dd6e86e1301a085a0c470348eb6188783f73bd",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -6404,7 +6449,7 @@
         "AUTO-004",
         "GOV-025"
       ],
-      "reason": "#1219 explicit locally provisioned isolated verifier runner with immutable container image requirement, no-network Docker check execution from a separate verifier workspace, exact Change Set digest recheck and separately held Ed25519 signing. OS/container trust and physical deployment still unverified. #1219 additionally excludes both the candidate and verifier workspaces from trusted Docker executable resolution; source tests do not establish physical isolation. #1219 makes existing noexec explicit and tightens temporary storage to UID/GID65534 mode0700; execution/network/resource restrictions remain in force. #1219 records an explicit supported Next production Webpack build profile and actual fixed arguments; Turbopack compatibility is not inferred. #1219 retains bounded Docker CLI timing in the existing signed output digest; no check or acceptance change."
+      "reason": "#1219 explicit locally provisioned isolated verifier runner with immutable container image requirement, no-network Docker check execution from a separate verifier workspace, exact Change Set digest recheck and separately held Ed25519 signing. OS/container trust and physical deployment still unverified. #1219 additionally excludes both the candidate and verifier workspaces from trusted Docker executable resolution; source tests do not establish physical isolation. #1219 makes existing noexec explicit and tightens temporary storage to UID/GID65534 mode0700; execution/network/resource restrictions remain in force. #1219 records an explicit supported Next production Webpack build profile and actual fixed arguments; Turbopack compatibility is not inferred. #1219 retains bounded Docker CLI timing in the existing signed output digest; no check or acceptance change. #1219 continues all required checks after a definitive completed FAIL, while timeout, infrastructure exits and uncertain cleanup remain INCONCLUSIVE stops; retains scope and operator isolation at every stage. No production signer or Goal acceptance claim."
     },
     {
       "path": "scripts/jarvis-local-ollama-tdd-verifier.mjs",
@@ -6557,7 +6602,7 @@
     },
     {
       "path": "src/orchestrator/resident-receipt-wakes.ts",
-      "sha256": "f8ffe782254a81ad87b77774ace0084f4664db3b8ef1a3920f1c42bd7c6d65ef",
+      "sha256": "fc94e8d35fd11c0823e8e3ca7d243f601b5cbe20e29cba014469bfc266fdffab",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -6593,7 +6638,7 @@
     },
     {
       "path": "src/orchestrator/sequenced-resident-runtime.ts",
-      "sha256": "f23cba3c365f0d9976a0a6041dbf778034a8b01c7ff857b2dccc0a2e9405c68a",
+      "sha256": "fe458155c55b58476fd44b3470829e1997d532fafef281c85e3d4990730581be",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -6616,14 +6661,14 @@
     },
     {
       "path": "scripts/jarvis-verifier-request-transfer.mjs",
-      "sha256": "b286576bfb5d3630b87ca28176363f853c51a59bb3cd5d604fc1727e732bc004",
+      "sha256": "be06752e3ad3f84b8f4248e43f623def7066d9ca613de5c8ff9b6e2e1a986b69",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
         "AUTO-004",
         "GOV-025"
       ],
-      "reason": "#1219 bounded verifier request transfer and offline preparation; implementation mapping only, no physical completion claim."
+      "reason": "#1219 bounded verifier request transfer and offline preparation; implementation mapping only, no physical completion claim. #1219 preserves version-1 transfer and adds exact host-pinned tracked version-2 candidate transfer with Git baseline blob validation before writes, immutable candidate binding and bounded replay. Transport authentication and production key custody remain external prerequisites."
     },
     {
       "path": "src/orchestrator/resident-verifier-request.ts",
@@ -6650,7 +6695,7 @@
     },
     {
       "path": "src/orchestrator/tracked-repair-resident-runtime.ts",
-      "sha256": "840623cf4d6523491656c5d19ac4466a1f34defbb71599d4aae0f0c4653efb47",
+      "sha256": "2d7aa397bb2a8141155e653681b5965398e69568353a74a4dd34670814516d2b",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -6658,11 +6703,11 @@
         "AUTO-004",
         "GOV-025"
       ],
-      "reason": "#1219 opt-in host-pinned tracked-source repair, frozen baseline RED, bounded model edits, durable prepared candidate and signed six-check receipt continuation; implementation mapping only, no physical or global product completion claim."
+      "reason": "#1219 host-pinned tracked-source repair on the canonical resident runtime, including explicit loopback Ollama model/digest observation and immutable model evidence while preserving legacy llama.cpp, frozen baseline RED, signed-FAIL recovery and six-check acceptance. Source and isolated live inference do not establish production Goal completion or independent signing."
     },
     {
       "path": "scripts/jarvis-tracked-repair-actions.mjs",
-      "sha256": "dfc236325609e183866b69f7c99b1f9d8f985a4c7f96fca2c46c09bbea1e68de",
+      "sha256": "4ea0dcdd02bb6e30c1f69466ec5ca5f9b3dde50fda4814cf26a885e24747c1cc",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -6670,7 +6715,7 @@
         "AUTO-004",
         "GOV-025"
       ],
-      "reason": "#1219 owner-only Actions A/B recovery of an existing accepted tracked-repair checkpoint through the existing executor, with fixed nonsecret file transport and exact Job/candidate/receipt binding; source mapping only, no independent principal, real model, physical acceptance, next issue or global completion inference."
+      "reason": "#1219 existing owner-only Actions checkpoint transport with exact Job/candidate/receipt binding. Refuses recovery-attempt and Ollama profiles it cannot fully preserve; no cache/artifact copy grants distributed execution ownership or production completion."
     },
     {
       "path": "src/orchestrator/approved-next-work.ts",

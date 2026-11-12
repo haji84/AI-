@@ -63,22 +63,26 @@ function fixture(t) {
     fs.rmSync(root, { recursive: true, force: true });
   });
   const calls = [];
-  const docker = (effect = () => {}, expectedExecutable = dockerFile) => {
+  const docker = (effect = () => {}, expectedExecutable = dockerFile, cleanupStatus = 0) => {
     t.mock.method(childProcess, "spawn", (command, args) => {
       assert.equal(command, expectedExecutable);
       calls.push({ command, args });
       const child=new EventEmitter();
       child.stdout=new PassThrough();child.stderr=new PassThrough();
-      child.kill=()=>true;child.unref=()=>{};
+      const close = (status, signal = null) => {
+        child.stdout.end();child.stderr.end();child.emit("close",status,signal);
+      };
+      child.kill=signal=>{globalThis.queueMicrotask(()=>close(null,signal));return true;};child.unref=()=>{};
       globalThis.queueMicrotask(()=>{
         let output = {};
         if(args[0]==="run"){
           assert.ok(args.includes("--network=none"));
           output = effect(args) ?? {};
+          if (output.hang) return;
           child.stdout.write(output.stdout ?? "fixture stdout");
           child.stderr.write(output.stderr ?? "");
-        }
-        child.stdout.end();child.stderr.end();child.emit("close",output.status ?? 0,null);
+        } else if (args[0] === "container") output.status = cleanupStatus;
+        close(Object.hasOwn(output,"status") ? output.status : 0, output.signal ?? null);
       });
       return child;
     });
@@ -179,7 +183,7 @@ test("container must prepare matching offline dependencies with the image-owned 
   let script;
   f.docker(args => { script = args.at(-1); });
   await runIndependentVerifier(f.req);
-  assert.equal(script, "node /opt/goriq-verifier/jarvis-verifier-offline-workspace.mjs && cd /tmp/verify && exec pnpm test");
+  assert.equal(script, "node /opt/goriq-verifier/jarvis-verifier-offline-workspace.mjs || exit 125; cd /tmp/verify || exit 125; exec pnpm test");
 });
 
 test("writable temporary storage is private to the unprivileged verifier and remains noexec", async t => {
@@ -202,9 +206,11 @@ test("build receipt log records the fixed supported production Webpack profile",
   assert.equal(log.executionProfile, "next-webpack-v1");
 });
 
-test("offline bundle refusal is retained as a failed signed check with no later checks", async t => {
+test("offline bundle refusal is retained as an inconclusive signed check with no later checks", async t => {
   const f = fixture(t);
+  let script;
   f.docker(args => {
+    script = args.at(-1);
     const source = args[args.indexOf("--mount") + 1].match(/source=(.*),target=/)[1];
     // Execute the real preparation logic against the exported snapshot. Only
     // Docker is unavailable in this fixture; no package manager is executed.
@@ -212,16 +218,87 @@ test("offline bundle refusal is retained as a failed signed check with no later 
       prepareOfflineVerifierWorkspace({ source, dependencies: join(f.root, "missing-image-bundle"),
         destination: join(f.root, "container-tmp") });
       return { status: 0 };
-    } catch (error) { return { status: 1, stderr: String(error.message) }; }
+    } catch (error) { return { status: 125, stderr: String(error.message) }; }
   });
   const result = await runIndependentVerifier({ ...f.req, requiredChecks: ["unit", "build"] });
+  assert.match(script, /offline-workspace\.mjs \|\| exit 125; cd \/tmp\/verify \|\| exit 125;/);
   assert.equal(result.verified, false);
-  assert.deepEqual(result.checks.map(check => [check.check, check.status]), [["unit", "failed"]]);
+  assert.deepEqual(result.checks.map(check => [check.check, check.status]), [["unit", "inconclusive"]]);
   const receipt = JSON.parse(fs.readFileSync(f.req.receiptFile, "utf8"));
   const logBytes = fs.readFileSync(join(f.req.receiptFile + ".logs", "unit.json"));
   assert.equal(receipt.payload.checks[0].outputDigest, createHash("sha256").update(logBytes).digest("hex"));
   assert.match(JSON.parse(logBytes).stderr, /VERIFIER_OFFLINE_DEPENDENCIES_MISSING/);
   assert.equal(fs.existsSync(join(f.req.receiptFile + ".logs", "build.json")), false);
+});
+
+test("completed unit and integration failures retain all six independently signed check results", async t => {
+  const f = fixture(t), requiredChecks = ["lint", "typecheck", "unit", "integration", "security", "build"];
+  let checksStarted = 0;
+  f.docker(() => { const check = requiredChecks[checksStarted++]; return { status: ["unit", "integration"].includes(check) ? 1 : 0, stdout: `check:${check}` }; });
+  const result = await runIndependentVerifier({ ...f.req, requiredChecks });
+  assert.equal(result.verified, false);
+  assert.equal(checksStarted, 6);
+  assert.deepEqual(result.checks.map(check => [check.check, check.status]), requiredChecks.map(check => [check, ["unit", "integration"].includes(check) ? "failed" : "passed"]));
+  const receipt = JSON.parse(fs.readFileSync(f.req.receiptFile, "utf8"));
+  assert.equal(receipt.payload.checks.length, 6);
+  assert.equal(receipt.payload.sourceRevision, f.req.sourceRevision);
+  assert.equal(receipt.payload.artifactDigest, f.req.artifactDigest);
+  for (const check of receipt.payload.checks) {
+    const bytes = fs.readFileSync(join(f.req.receiptFile + ".logs", check.check + ".json"));
+    const log = JSON.parse(bytes);
+    assert.equal(check.outputDigest, createHash("sha256").update(bytes).digest("hex"));
+    assert.equal(log.stdout, `check:${check.check}`);
+    assert.equal(log.closeObserved, true);
+    assert.equal(log.cleanup.confirmed, true);
+    assert.equal(log.timeoutMs, ["unit", "integration"].includes(check.check) ? 300000 : 180000);
+  }
+});
+
+for (const exit of [125, 126, 127, 137]) {
+  test(`container prerequisite or abnormal exit ${exit} cannot authorize continuation`, async t => {
+    const f = fixture(t); f.docker(() => ({ status: exit, stderr: "execution unavailable" }));
+    const result = await runIndependentVerifier({ ...f.req, requiredChecks: ["unit", "build"] });
+    assert.deepEqual(result.checks.map(check => [check.check, check.status]), [["unit", "inconclusive"]]);
+    assert.equal(result.verified, false);
+    assert.equal(f.calls.filter(call => call.args[0] === "run").length, 1);
+    assert.equal(fs.existsSync(join(f.req.receiptFile + ".logs", "build.json")), false);
+  });
+}
+
+test("a timed out check retains the fixed deadline and stops before the next check", async t => {
+  const f = fixture(t), originalTimer = globalThis.setTimeout, observed = [];
+  t.mock.method(globalThis, "setTimeout", (callback, ms, ...args) => {
+    observed.push(ms);
+    return originalTimer(callback, ms === 300000 ? 1 : ms, ...args);
+  });
+  f.docker(() => ({ hang: true }));
+  const result = await runIndependentVerifier({ ...f.req, requiredChecks: ["unit", "build"] });
+  assert.ok(observed.includes(300000));
+  assert.deepEqual(result.checks.map(check => [check.check, check.status]), [["unit", "inconclusive"]]);
+  const log = JSON.parse(fs.readFileSync(join(f.req.receiptFile + ".logs", "unit.json")));
+  assert.equal(log.errorCode, "ETIMEDOUT");
+  assert.equal(log.timeoutMs, 300000);
+  assert.equal(log.cleanup.confirmed, true);
+  assert.equal(f.calls.filter(call => call.args[0] === "run").length, 1);
+});
+
+test("a completed failed check cannot continue when container cleanup is unconfirmed", async t => {
+  const f = fixture(t); f.docker(() => ({ status: 1 }), undefined, 1);
+  const result = await runIndependentVerifier({ ...f.req, requiredChecks: ["unit", "build"] });
+  assert.deepEqual(result.checks.map(check => [check.check, check.status]), [["unit", "inconclusive"]]);
+  const log = JSON.parse(fs.readFileSync(join(f.req.receiptFile + ".logs", "unit.json")));
+  assert.equal(log.errorCode, "VERIFIER_CONTAINER_CLEANUP_UNCONFIRMED");
+  assert.equal(log.cleanup.confirmed, false);
+  assert.equal(f.calls.filter(call => call.args[0] === "run").length, 1);
+});
+
+test("operator isolation withdrawal after a failed check stops before another check or signing", async t => {
+  const f = fixture(t);
+  f.docker(() => { process.env.GORIQ_VERIFIER_OPERATOR_ISOLATED = "0"; return { status: 1 }; });
+  await assert.rejects(() => runIndependentVerifier({ ...f.req, requiredChecks: ["unit", "build"] }), /SEPARATE_PRINCIPAL_NOT_ACKNOWLEDGED/);
+  assert.equal(f.calls.filter(call => call.args[0] === "run").length, 1);
+  assert.equal(fs.existsSync(f.req.receiptFile), false);
+  assert.equal(fs.existsSync(join(f.req.receiptFile + ".logs", "unit.json")), true);
 });
 
 for (const requiredChecks of [["unit"], ["unit", "build"]]) {

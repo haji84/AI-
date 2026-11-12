@@ -1,13 +1,18 @@
 import { createHash, createPublicKey } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
-import { dirname, isAbsolute, join, relative, sep } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Goal } from "./goal-loop.ts";
 import { createDevelopmentChangeSet } from "./development-change-set.ts";
 import { JsonFileDevelopmentJobStore } from "./development-job-store.ts";
 import { JsonFileDevelopmentChangeSetStore } from "./development-change-set-store.ts";
 import { ResidentDevelopmentGoalHost } from "./resident-development-goal-host.ts";
+import type { ResidentDevelopmentAdmission } from "./resident-development-admission.ts";
+import { ResidentExecutionStop } from "./resident-development-admission.ts";
+import type { DevelopmentJob } from "./development-job.ts";
+import type { DevelopmentChangeSet } from "./development-change-set.ts";
+import { createDevelopmentVerificationPlan, evaluateDevelopmentVerification } from "./development-verification-plan.ts";
 import { validateResidentDevelopmentSequence, type ResidentDevelopmentSequence } from "./resident-development-sequence.ts";
 import { assertExternalRuntimePath, readBoundedRuntimeFile } from "./resident-runtime-files.ts";
 import { validateSignedLocalVerifierReceipt } from "./signed-local-verifier-receipt.ts";
@@ -17,7 +22,8 @@ const hash=(bytes:string|Buffer)=>createHash("sha256").update(bytes).digest("hex
 const digest=(v:unknown):v is string=>typeof v==="string"&&/^[a-f0-9]{64}$/.test(v);
 const path=(v:unknown):v is string=>typeof v==="string"&&/^(src|scripts)\/[A-Za-z0-9_./-]+$/.test(v)&&!v.split("/").some(p=>!p||p==="."||p==="..");
 const exact=(v:unknown,keys:string):v is Record<string,unknown>=>!!v&&typeof v==="object"&&!Array.isArray(v)&&Object.keys(v).sort().join(",")===keys;
-const contains=(parent:string,child:string)=>{const rel=relative(parent,child);return !rel||(!isAbsolute(rel)&&rel!==".."&&!rel.startsWith(".."+sep));};
+const canonical=(value:string)=>process.platform==="win32"?resolve(value).toLowerCase():resolve(value);
+const contains=(parent:string,child:string)=>{const rel=relative(canonical(parent),canonical(child));return !rel||(!isAbsolute(rel)&&rel!==".."&&!rel.startsWith(".."+sep));};
 const builderId="local-tracked-model-builder";
 const checks=["lint","typecheck","unit","integration","security","build"];
 interface FilePin {path:string;beforeSha256:string}
@@ -28,10 +34,21 @@ export interface TrackedRepairManifest {
   version:1;profile:"tracked-source-repair-v1";sequence:ResidentDevelopmentSequence;
   workspace:string;baselineWorkspace:string;targetPath:string;trackedFiles:FilePin[];slots:Slot[];bookkeeping?:FilePin;
   probe:{file:string;sha256:string;targetPath:string;expectedRedText:string};
-  model:{endpoint:string;id:string;sha256:string;nPredict:number;timeoutMs:number};
+  model:{endpoint:string;id:string;sha256:string;nPredict:number;timeoutMs:number;provider?:"llama.cpp"|"ollama"};
   verifier:{publicKeyFile:string;publicKeySha256:string;receiptFile:string};
+  /** Explicitly provisioned capacity; never reuse or reset a rejected worktree. */
+  recoveryAttempts?:Array<{workspace:string;receiptFile:string}>;
 }
 interface Attestation {candidateRevision:string;artifactDigest:string;patchDigest:string;fileHashes:Record<string,string>}
+interface ModelObservation {stage:"installed-before"|"loaded-after"|"installed-after";modelId:string;modelSha256:string}
+const cloudModelName=(value:unknown)=>typeof value==="string"&&/(?:-cloud(?::[^:]*)?|:cloud)$/i.test(value);
+function remoteModelReference(value:unknown):boolean {
+  if(!value||typeof value!=="object"||Array.isArray(value))return true;
+  const model=value as Record<string,unknown>,details=model.details;
+  return Object.hasOwn(model,"remote_host")||Object.hasOwn(model,"remote_model")||model.remoteReferenceDetected===true
+    ||cloudModelName(model.name)||cloudModelName(model.model)
+    ||(!!details&&typeof details==="object"&&(Object.hasOwn(details,"remote_host")||Object.hasOwn(details,"remote_model")));
+}
 async function modelBody(reply:Response):Promise<string>{
   if(!reply.ok||!reply.body)throw Error("TRACKED_REPAIR_MODEL_HTTP_FAILED");
   const reader=reply.body.getReader(),chunks:Uint8Array[]=[];let size=0;
@@ -57,9 +74,9 @@ export function readTrackedRepairManifest(env:Record<string,string|undefined>,go
   const bytes=readBoundedRuntimeFile(file,131072);
   if(hash(bytes)!==pin)throw Error("TRACKED_REPAIR_MANIFEST_PIN_MISMATCH");
   const value:unknown=JSON.parse(bytes.toString("utf8"));
-  if(!(exact(value,"baselineWorkspace,model,probe,profile,sequence,slots,targetPath,trackedFiles,verifier,version,workspace")
-    ||exact(value,"baselineWorkspace,bookkeeping,model,probe,profile,sequence,slots,targetPath,trackedFiles,verifier,version,workspace"))
-    ||value.version!==1||value.profile!=="tracked-source-repair-v1")throw Error("TRACKED_REPAIR_MANIFEST_INVALID");
+  if(!value||typeof value!=="object"||Array.isArray(value)
+    ||Object.keys(value).filter(key=>key!=="bookkeeping"&&key!=="recoveryAttempts").sort().join(",")!=="baselineWorkspace,model,probe,profile,sequence,slots,targetPath,trackedFiles,verifier,version,workspace"
+    ||("version" in value&&value.version!==1)||!("profile" in value)||value.profile!=="tracked-source-repair-v1")throw Error("TRACKED_REPAIR_MANIFEST_INVALID");
   const m=value as unknown as TrackedRepairManifest;
   if(!m.sequence||m.sequence.jobs?.length!==1||m.sequence.completionMode!=="verified-local-artifact"||m.sequence.maxRisk!=="low"
     ||!Number.isFinite(Date.parse(m.sequence.expiresAt))||Date.parse(m.sequence.expiresAt)<=Date.now()
@@ -73,22 +90,33 @@ export function readTrackedRepairManifest(env:Record<string,string|undefined>,go
   if(!exact(m.probe,"expectedRedText,file,sha256,targetPath")||!isAbsolute(m.probe.file??"")||!digest(m.probe.sha256)
     ||!/^tests\/[A-Za-z0-9_/-]+\.test\.(mjs|ts)$/.test(m.probe.targetPath??"")||typeof m.probe.expectedRedText!=="string"
     ||!m.probe.expectedRedText.trim()||m.probe.expectedRedText.length>2000)throw Error("TRACKED_REPAIR_PROBE_INVALID");
-  if(!exact(m.model,"endpoint,id,nPredict,sha256,timeoutMs")||!digest(m.model.sha256)||typeof m.model.id!=="string"||!m.model.id||m.model.id.length>256
+  if(!(exact(m.model,"endpoint,id,nPredict,sha256,timeoutMs")||exact(m.model,"endpoint,id,nPredict,provider,sha256,timeoutMs"))
+    ||(m.model.provider!==undefined&&!["llama.cpp","ollama"].includes(m.model.provider))
+    ||!digest(m.model.sha256)||typeof m.model.id!=="string"||!m.model.id||m.model.id.length>256
+    ||(m.model.provider==="ollama"&&(!/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/.test(m.model.id)||m.model.id.includes("//")||m.model.id.includes("://")||cloudModelName(m.model.id)||/:local(?::|$)/i.test(m.model.id)))
     ||!Number.isInteger(m.model.nPredict)||m.model.nPredict<1||m.model.nPredict>2048||!Number.isInteger(m.model.timeoutMs)||m.model.timeoutMs<1||m.model.timeoutMs>600000)
     throw Error("TRACKED_REPAIR_MODEL_INVALID");
   const endpoint=new URL(m.model.endpoint);
-  if(endpoint.protocol!=="http:"||endpoint.hostname!=="127.0.0.1"||endpoint.pathname!=="/completion"||endpoint.username||endpoint.password||endpoint.search||endpoint.hash)
+  if(endpoint.protocol!=="http:"||endpoint.hostname!=="127.0.0.1"||endpoint.pathname!==(m.model.provider==="ollama"?"/api/generate":"/completion")||endpoint.username||endpoint.password||endpoint.search||endpoint.hash)
     throw Error("TRACKED_REPAIR_MODEL_ENDPOINT_INVALID");
   if(!exact(m.verifier,"publicKeyFile,publicKeySha256,receiptFile")||!isAbsolute(m.verifier.publicKeyFile??"")||!isAbsolute(m.verifier.receiptFile??"")||!digest(m.verifier.publicKeySha256))
     throw Error("TRACKED_REPAIR_VERIFIER_INVALID");
+  if(m.recoveryAttempts!==undefined&&(!Array.isArray(m.recoveryAttempts)||!m.recoveryAttempts.length||m.recoveryAttempts.length>8
+    ||m.recoveryAttempts.some(a=>!exact(a,"receiptFile,workspace")||typeof a.workspace!=="string"||!isAbsolute(a.workspace)
+      ||typeof a.receiptFile!=="string"||!isAbsolute(a.receiptFile))))throw Error("TRACKED_REPAIR_RECOVERY_INVALID");
   if(m.bookkeeping!==undefined&&(!exact(m.bookkeeping,"beforeSha256,path")||m.bookkeeping.path!==bookkeepingPath||!digest(m.bookkeeping.beforeSha256)))throw Error("TRACKED_REPAIR_BOOKKEEPING_INVALID");
   const targets=[...m.trackedFiles.map(f=>f.path),...(m.bookkeeping?[m.bookkeeping.path]:[]),m.probe.targetPath].sort();
   if(JSON.stringify([...m.sequence.jobs[0]!.targetFiles].sort())!==JSON.stringify(targets)||!/^[a-f0-9]{40}$/.test(m.sequence.jobs[0]!.baseRevision))
     throw Error("TRACKED_REPAIR_TARGET_MISMATCH");
-  for(const root of [m.workspace,m.baselineWorkspace])assertExternalRuntimePath(root,[]);
-  const authorities=[file,m.probe.file,m.verifier.publicKeyFile,m.verifier.receiptFile,m.verifier.receiptFile+".request.json"];
-  if(new Set(authorities).size!==authorities.length)throw Error("TRACKED_REPAIR_AUTHORITY_OVERLAP");
-  for(const authority of authorities)assertExternalRuntimePath(authority,[m.workspace,m.baselineWorkspace]);
+  const workspaces=[m.workspace,m.baselineWorkspace,...(m.recoveryAttempts??[]).map(a=>a.workspace)];
+  for(const [index,root] of workspaces.entries()){
+    assertExternalRuntimePath(root,[]);
+    if(workspaces.slice(0,index).some(other=>contains(root,other)||contains(other,root)))throw Error("TRACKED_REPAIR_WORKSPACE_OVERLAP");
+  }
+  const receipts=[m.verifier.receiptFile,...(m.recoveryAttempts??[]).map(a=>a.receiptFile)];
+  const authorities=[file,m.probe.file,m.verifier.publicKeyFile,...receipts.flatMap(receipt=>[receipt,receipt+".request.json"])];
+  if(new Set(authorities.map(canonical)).size!==authorities.length)throw Error("TRACKED_REPAIR_AUTHORITY_OVERLAP");
+  for(const authority of authorities)assertExternalRuntimePath(authority,workspaces);
   if(hash(readBoundedRuntimeFile(m.probe.file,131072))!==m.probe.sha256)throw Error("TRACKED_REPAIR_PROBE_PIN_MISMATCH");
   const publicKey=readBoundedRuntimeFile(m.verifier.publicKeyFile,8192);
   if(hash(publicKey)!==m.verifier.publicKeySha256)throw Error("SIGNED_LOCAL_VERIFIER_PUBLIC_KEY_PIN_MISMATCH");
@@ -99,13 +127,16 @@ export function readTrackedRepairManifest(env:Record<string,string|undefined>,go
 }
 
 export function createTrackedRepairResidentRuntime(input:{env:Record<string,string|undefined>;runtimeRoot:string;compassPath:string;goal:Goal;
-  fetchImpl?:typeof fetch;resourceAdmission?:typeof withDevelopmentResourceAdmission}):ResidentDevelopmentGoalHost|null {
+  fetchImpl?:typeof fetch;resourceAdmission?:typeof withDevelopmentResourceAdmission;admission?:ResidentDevelopmentAdmission}):ResidentDevelopmentGoalHost|null {
   const loaded=readTrackedRepairManifest(input.env,input.goal); if(!loaded)return null;
   const {manifest:m,pin}=loaded;
-  if(contains(m.workspace,input.runtimeRoot)||contains(input.runtimeRoot,m.workspace))throw Error("TRACKED_REPAIR_RUNTIME_OVERLAP");
+  const layouts=[{workspace:m.workspace,receiptFile:m.verifier.receiptFile},...(m.recoveryAttempts??[])];
+  const workspaces=[...layouts.map(a=>a.workspace),m.baselineWorkspace];
+  if(workspaces.some(workspace=>contains(workspace,input.runtimeRoot)||contains(input.runtimeRoot,workspace)))throw Error("TRACKED_REPAIR_RUNTIME_OVERLAP");
   const sequence={...m.sequence,executionContractDigest:pin},base=m.sequence.jobs[0]!.baseRevision;
   const stateRoot=join(dirname(input.compassPath),"self-development"),privateRoot=join(stateRoot,"tracked-repair");
-  assertExternalRuntimePath(privateRoot,[m.workspace,m.baselineWorkspace]); mkdirSync(privateRoot,{recursive:true,mode:0o700});
+  assertExternalRuntimePath(privateRoot,workspaces); mkdirSync(privateRoot,{recursive:true,mode:0o700});
+  const changes=new JsonFileDevelopmentChangeSetStore(join(stateRoot,"change-sets.json"));
   const key=readBoundedRuntimeFile(m.verifier.publicKeyFile,8192).toString("utf8");
   const probe=readBoundedRuntimeFile(m.probe.file,131072);
   const filePins=[...m.trackedFiles,...(m.bookkeeping?[m.bookkeeping]:[])];
@@ -128,8 +159,8 @@ export function createTrackedRepairResidentRuntime(input:{env:Record<string,stri
     return content;
   };
   const readback=fileURLToPath(new URL("../../scripts/jarvis-local-artifact-readback.mjs",import.meta.url));
-  const attest=(workspace:string,trackedEdits?:unknown):Attestation=>{
-    const run=spawnSync(process.execPath,[readback],{input:JSON.stringify({workspace,baseRevision:base,targetPath:trackedEdits?m.targetPath:m.probe.targetPath,
+  const attest=(workspace:string,trackedEdits?:unknown,targetPath=trackedEdits?m.targetPath:m.probe.targetPath):Attestation=>{
+    const run=spawnSync(process.execPath,[readback],{input:JSON.stringify({workspace,baseRevision:base,targetPath,
       allowedUntracked:[m.probe.targetPath],...(trackedEdits?{trackedEdits}:{})}),encoding:"utf8",timeout:15000,maxBuffer:131072,windowsHide:true});
     const payload=JSON.parse(run.stdout||"null");
     if(run.status!==0||run.error||payload?.ok!==true)throw Error(payload?.blocker??"TRACKED_REPAIR_READBACK_FAILED");
@@ -142,13 +173,41 @@ export function createTrackedRepairResidentRuntime(input:{env:Record<string,stri
   };
   const scope=()=>{if(Date.parse(m.sequence.expiresAt)<=Date.now())throw Error("TRACKED_REPAIR_EXPIRED");};
   const redPath=(jobId:string)=>join(privateRoot,hash(jobId)+".red.json");
-  const preparedPath=(jobId:string)=>join(privateRoot,hash(jobId)+".prepared.json");
-  const loadPrepared=(jobId:string):{binding:string;files:Array<{path:string;content:string}>;responseSha256:string;promptSha256:string}=>{
-    const record=JSON.parse(readBoundedRuntimeFile(preparedPath(jobId),4194304).toString("utf8"));
-    if(record.binding!==hash(pin+"\0"+jobId)||!Array.isArray(record.files)||!record.files.length||record.files.length>filePins.length
+  const attemptSuffix=(attempt:number)=>attempt===1?"":"\0attempt:"+attempt;
+  const preparedPath=(jobId:string,attempt=1)=>join(privateRoot,hash(jobId+attemptSuffix(attempt))+".prepared.json");
+  const candidateId=(jobId:string,attempt:number)=>jobId+":tracked-candidate"+(attempt===1?"":":"+attempt);
+  const attemptNumber=(job:DevelopmentJob)=>{
+    const number=job.attempts.length+1;
+    if(number>layouts.length)throw new ResidentExecutionStop("blocked","tracked_repair_attempt_limit");
+    return number;
+  };
+  const changeAttempt=(job:DevelopmentJob,changeSet:DevelopmentChangeSet)=>{
+    const attempt=layouts.findIndex((_,index)=>candidateId(job.jobId,index+1)===changeSet.changeSetId)+1;
+    if(!attempt||attempt!==attemptNumber(job)||changeSet.jobId!==job.jobId)throw Error("TRACKED_REPAIR_ATTEMPT_BINDING_INVALID");
+    return attempt;
+  };
+  const writeOnce=(file:string,bytes:string|Buffer)=>{
+    const safe=assertExternalRuntimePath(file,workspaces);
+    if(existsSync(safe)){if(!readBoundedRuntimeFile(safe,4194304,workspaces).equals(Buffer.from(bytes)))throw Error("TRACKED_REPAIR_JOURNAL_CONFLICT");}
+    else writeFileSync(safe,bytes,{flag:"wx",mode:0o600});
+  };
+  const loadPrepared=(jobId:string,attempt=1,recoveryDigest?:string):{binding:string;files:Array<{path:string;content:string}>;responseSha256:string;promptSha256:string;recoveryDigest?:string;modelAttestationSha256?:string}=>{
+    const record=JSON.parse(readBoundedRuntimeFile(preparedPath(jobId,attempt),4194304).toString("utf8"));
+    if(record.binding!==hash(pin+"\0"+jobId+attemptSuffix(attempt))||(attempt>1&&record.recoveryDigest!==recoveryDigest)
+      ||!Array.isArray(record.files)||!record.files.length||record.files.length>filePins.length
       ||record.files.some((f:{path:string;content:string})=>!filePins.some(p=>p.path===f.path)||typeof f.content!=="string"||Buffer.byteLength(f.content)>fileLimit(f.path))
       ||new Set(record.files.map((f:{path:string})=>f.path)).size!==record.files.length||!digest(record.responseSha256)||!digest(record.promptSha256))
       throw Error("TRACKED_REPAIR_PREPARED_BINDING_INVALID");
+    if(m.model.provider==="ollama"){
+      const bytes=readBoundedRuntimeFile(preparedPath(jobId,attempt)+".model-attestation.json",16384),observed=JSON.parse(bytes.toString("utf8"));
+      const stages=["installed-before","loaded-after","installed-after"];
+      if(!digest(record.modelAttestationSha256)||hash(bytes)!==record.modelAttestationSha256
+        ||!exact(observed,"at,modelId,modelSha256,observations,provider,responseSha256,version")||observed.version!==1||observed.provider!=="ollama"
+        ||observed.modelId!==m.model.id||observed.modelSha256!==m.model.sha256||observed.responseSha256!==record.responseSha256
+        ||typeof observed.at!=="string"||!Number.isFinite(Date.parse(observed.at))||!Array.isArray(observed.observations)||observed.observations.length!==3
+        ||observed.observations.some((v:ModelObservation,i:number)=>!exact(v,"modelId,modelSha256,stage")||v.stage!==stages[i]||v.modelId!==m.model.id||v.modelSha256!==m.model.sha256)
+        ||hash(readBoundedRuntimeFile(preparedPath(jobId,attempt)+".response.json",131072))!==record.responseSha256)throw Error("TRACKED_REPAIR_MODEL_ATTESTATION_INVALID");
+    }
     if(m.bookkeeping){
       const sourceFiles=record.files.filter((f:{path:string})=>f.path!==bookkeepingPath);
       const doc=record.files.find((f:{path:string})=>f.path===bookkeepingPath);
@@ -156,29 +215,72 @@ export function createTrackedRepairResidentRuntime(input:{env:Record<string,stri
     }
     return record;
   };
-  const candidate=(jobId:string)=>{
-    ensureProbe(m.workspace); const p=loadPrepared(jobId);
+  const candidate=(jobId:string,attempt=1,recoveryDigest?:string)=>{
+    const p=loadPrepared(jobId,attempt,recoveryDigest);
     const trackedEdits={version:2,files:p.files.map(f=>({path:f.path,beforeSha256:filePins.find(p=>p.path===f.path)!.beforeSha256,afterSha256:hash(f.content)}))};
-    return {prepared:p,trackedEdits,identity:attest(m.workspace,trackedEdits)};
+    return {prepared:p,trackedEdits,identity:attest(layouts[attempt-1]!.workspace,trackedEdits)};
+  };
+  const recoveryContext=async(job:DevelopmentJob,attempt:number)=>{
+    const history:Array<{changeSetId:string;sourceRevision:string;artifactDigest:string;receiptSha256:string;signature:string;strategyId:string;hypothesis:string}>=[];
+    let previousFiles:Array<{path:string;content:string}>=[];
+    for(let previous=1;previous<attempt;previous++){
+      const failure=job.attempts[previous-1]!,change=await changes.get(candidateId(job.jobId,previous));
+      const transition=job.history.find(t=>t.transitionId===job.jobId+":verification-failed:"+change?.changeSetId+":"+failure.signature);
+      if(!change||change.status!=="REJECTED"||change.jobId!==job.jobId||change.baseRevision!==base||change.deviceId!==builderId
+        ||!change.workItemId.endsWith(":implement")||!transition||transition.to!=="RECOVERING"||transition.failureSignature!==failure.signature
+        ||transition.strategyId!==failure.strategyId||transition.at!==failure.recordedAt)throw Error("TRACKED_REPAIR_RECOVERY_HISTORY_INVALID");
+      const old=candidate(job.jobId,previous,previous===1?undefined:hash(JSON.stringify(history)));
+      if(old.identity.candidateRevision!==change.candidateRevision||old.identity.artifactDigest!==change.artifactDigest
+        ||old.identity.patchDigest!==change.patchDigest||hash(JSON.stringify(old.prepared))!==change.evidenceDigest)throw Error("TRACKED_REPAIR_RECOVERY_CANDIDATE_INVALID");
+      const bytes=readBoundedRuntimeFile(preparedPath(job.jobId,previous)+".receipt.json",24576,workspaces);
+      const receipt=JSON.parse(bytes.toString("utf8"));
+      const plan=createDevelopmentVerificationPlan({builderId,sourceRevision:change.candidateRevision,artifactDigest:change.artifactDigest,changedPaths:change.changedPaths});
+      // This verifies a previously consumed fact, not current execution authority.
+      const evidence=validateSignedLocalVerifierReceipt({receipt,publicKeyPem:key,plan,changeSet:change,goalId:job.goalId,now:new Date(transition.at)});
+      const result=evaluateDevelopmentVerification(plan,evidence);
+      if(result.passed||result.reasons.some(reason=>!reason.startsWith("check_not_passed:"))
+        ||!plan.requiredChecks.every(check=>evidence.some(e=>e.check===check&&["passed","failed"].includes(e.status)))
+        ||hash(result.reasons.slice().sort().join("\n"))!==failure.signature)throw Error("TRACKED_REPAIR_RECOVERY_RECEIPT_INVALID");
+      history.push({changeSetId:change.changeSetId,sourceRevision:change.candidateRevision,artifactDigest:change.artifactDigest,
+        receiptSha256:hash(bytes),signature:failure.signature,strategyId:failure.strategyId,hypothesis:failure.hypothesis});
+      previousFiles=old.prepared.files.filter(f=>f.path!==bookkeepingPath);
+    }
+    return {digest:hash(JSON.stringify(history)),prompt:history.length?"\nPreviously independently rejected attempts (check names and saved diagnosis; raw check output is not supplied):\n"+
+      JSON.stringify(history)+"\nPrevious rejected candidate:\n"+previousFiles.map(f=>"SOURCE "+f.path+"\n"+f.content).join("\n")+
+      "\nUse the frozen regression and diagnosis to produce a different repair. Do not repeat rejected source bytes.\nFrozen regression:\n"+probe.toString("utf8"):""};
+  };
+  const assertPreparedWorkspace=(workspace:string,prepared:ReturnType<typeof loadPrepared>)=>{
+    const currentEdits=[];
+    for(const f of filePins){
+      const current=hash(readBoundedRuntimeFile(join(workspace,f.path),fileLimit(f.path))),desired=prepared.files.find(file=>file.path===f.path);
+      if(current!==f.beforeSha256&&(!desired||current!==hash(desired.content)))throw Error("TRACKED_REPAIR_PREPARED_SOURCE_CONFLICT");
+      if(current!==f.beforeSha256)currentEdits.push({path:f.path,beforeSha256:f.beforeSha256,afterSha256:current});
+    }
+    attest(workspace,currentEdits.length?{version:2,files:currentEdits}:undefined,m.probe.targetPath);
   };
   return new ResidentDevelopmentGoalHost({jobs:new JsonFileDevelopmentJobStore(join(stateRoot,"jobs.json")),
-    changeSets:new JsonFileDevelopmentChangeSetStore(join(stateRoot,"change-sets.json")),
+    admission:input.admission,
+    changeSets:changes,
     planning:{requirementIds:["CORE-014"],baseRevision:base,taskScopeId:sequence.taskScopeId,maxRisk:"low",targetFiles:sequence.jobs[0]!.targetFiles,contextDigest:sequence.goalDigest,sequence},
     stages:{builderId,deferMissingVerification:true,
-      async build({job,workItemId}){
-        scope(); ensureProbe(m.workspace);
+      async build({job,workItemId,beforeWrite}){
+        await beforeWrite?.();
+        scope();
+        const attempt=workItemId.endsWith(":test")?1:attemptNumber(job),{workspace}=layouts[attempt-1]!;
+        const recovery=await recoveryContext(job,attempt);
+        await beforeWrite?.();scope();ensureProbe(workspace);
         if(workItemId.endsWith(":test")){
-          const identity=attest(m.workspace);
+          const identity=attest(workspace);
           return createDevelopmentChangeSet({changeSetId:job.jobId+":tracked-red",jobId:job.jobId,workItemId,deviceId:builderId,baseRevision:base,
             changedPaths:[m.probe.targetPath],affectedSymbols:[],patchDigest:identity.patchDigest,candidateRevision:identity.candidateRevision,
             artifactDigest:m.probe.sha256,evidenceDigest:hash(probe),tddPhase:"red",tddEvidenceDigest:hash(probe),rollback:{kind:"git-base",reference:base}});
         }
-        if(!existsSync(preparedPath(job.jobId))){
-          const intent=preparedPath(job.jobId)+".intent.json";
+        if(!existsSync(preparedPath(job.jobId,attempt))){
+          const intent=preparedPath(job.jobId,attempt)+".intent.json";
           if(existsSync(intent))throw Error("TRACKED_REPAIR_INFERENCE_INTERRUPTED_NO_RETRY");
-          attest(m.workspace);
+          attest(workspace);
           const files=m.trackedFiles.map(f=>{
-            const content=readBoundedRuntimeFile(join(m.workspace,f.path),131072).toString("utf8");
+            const content=readBoundedRuntimeFile(join(workspace,f.path),131072).toString("utf8");
             if(hash(content)!==f.beforeSha256)throw Error("TRACKED_REPAIR_BEFORE_PIN_MISMATCH");return {path:f.path,content};
           });
           const item=job.workItems.find(item=>item.id===workItemId);
@@ -186,24 +288,56 @@ export function createTrackedRepairResidentRuntime(input:{env:Record<string,stri
           const prompt=files.map(f=>"SOURCE "+f.path+"\n"+f.content).join("\n")+"\n"+
             m.slots.map(slot=>"SLOT "+slot.id+" in "+slot.path+"; exact selected before text:\n"+slot.before).join("\n")+
             "\nThe trusted frozen regression failed on the original baseline. Objective: "+item.objective+"\n"+
+            recovery.prompt+
             "Return ONLY JSON {\"edits\":[{\"slot\":1,\"after\":\"replacement text\"}]}. "+
             "Slots identify exact before strings; use each selected slot once. No paths/commands/permissions/tests may be added. Preserve unselected source.";
           if(Buffer.byteLength(prompt)>30000)throw Error("TRACKED_REPAIR_PROMPT_TOO_LARGE");
           const admit=input.resourceAdmission??withDevelopmentResourceAdmission;
+          const observations:ModelObservation[]=[],ollama=m.model.provider==="ollama";
+          // The server must reject a tag retargeted to a remote alias before
+          // sending the prompt; inspecting the response would be too late.
+          const generationModel=ollama?m.model.id+":local":m.model.id;
           const response=await admit(async()=>{
-            const fetcher=input.fetchImpl??fetch,templateUrl=new URL("/apply-template",m.model.endpoint).href;
-            const rendered=JSON.parse(await modelBody(await fetcher(templateUrl,{method:"POST",redirect:"error",signal:AbortSignal.timeout(10000),headers:{"content-type":"application/json"},
-              body:JSON.stringify({messages:[{role:"system",content:"You are a bounded source repair capability. Return only the requested JSON."},{role:"user",content:prompt}],add_generation_prompt:true,chat_template_kwargs:{enable_thinking:false}})})));
-            if(typeof rendered.prompt!=="string"||Buffer.byteLength(rendered.prompt)>65536||!rendered.prompt.endsWith("<|im_start|>assistant\n"))throw Error("TRACKED_REPAIR_MODEL_TEMPLATE_INVALID");
-            writeFileSync(intent,JSON.stringify({binding:hash(pin+"\0"+job.jobId),model:m.model,workItemId,prompt,renderedPrompt:rendered.prompt,promptSha256:hash(prompt),at:new Date().toISOString()}),{flag:"wx",mode:0o600});
+            const fetcher=input.fetchImpl??fetch;
+            const observe=async(stage:ModelObservation["stage"])=>{
+              const url=new URL(stage==="loaded-after"?"/api/ps":"/api/tags",m.model.endpoint).href;
+              const inventory=JSON.parse(await modelBody(await fetcher(url,{method:"GET",redirect:"error",signal:AbortSignal.timeout(5000)})));
+              if(!inventory||!Array.isArray(inventory.models)||inventory.models.length>128)throw Error("TRACKED_REPAIR_OLLAMA_MODEL_INVENTORY_INVALID");
+              const matches=inventory.models.filter((v:Record<string,unknown>)=>v&&(v.name===m.model.id||v.model===m.model.id));
+              const selected=matches[0],selectedDigest=typeof selected?.digest==="string"&&/^(?:sha256:)?[a-fA-F0-9]{64}$/.test(selected.digest)?selected.digest.replace(/^sha256:/,"").toLowerCase():null;
+              if(matches.length!==1||remoteModelReference(selected)||selectedDigest!==m.model.sha256||!Number.isSafeInteger(selected.size)||selected.size<=0
+                ||(selected.name!==undefined&&selected.name!==m.model.id)||(selected.model!==undefined&&selected.model!==m.model.id))throw Error("TRACKED_REPAIR_OLLAMA_MODEL_PIN_MISMATCH");
+              observations.push({stage,modelId:m.model.id,modelSha256:selectedDigest});
+            };
+            let renderedPrompt:string;
+            if(ollama){await observe("installed-before");renderedPrompt=prompt;}
+            else {
+              const templateUrl=new URL("/apply-template",m.model.endpoint).href;
+              const rendered=JSON.parse(await modelBody(await fetcher(templateUrl,{method:"POST",redirect:"error",signal:AbortSignal.timeout(10000),headers:{"content-type":"application/json"},
+                body:JSON.stringify({messages:[{role:"system",content:"You are a bounded source repair capability. Return only the requested JSON."},{role:"user",content:prompt}],add_generation_prompt:true,chat_template_kwargs:{enable_thinking:false}})})));
+              if(typeof rendered.prompt!=="string"||Buffer.byteLength(rendered.prompt)>65536||!rendered.prompt.endsWith("<|im_start|>assistant\n"))throw Error("TRACKED_REPAIR_MODEL_TEMPLATE_INVALID");
+              renderedPrompt=rendered.prompt;
+            }
+            await beforeWrite?.();
+            scope();
+            writeFileSync(intent,JSON.stringify({binding:hash(pin+"\0"+job.jobId+attemptSuffix(attempt)),model:m.model,workItemId,
+              ...(attempt>1?{attempt,workspace,recoveryDigest:recovery.digest}:{}),prompt,renderedPrompt,promptSha256:hash(prompt),at:new Date().toISOString()}),{flag:"wx",mode:0o600});
+            const schema={type:"object",properties:{edits:{type:"array",minItems:1,maxItems:m.slots.length,
+              items:{type:"object",properties:{slot:{type:"integer",enum:m.slots.map(s=>s.id)},after:{type:"string",minLength:1,maxLength:16000}},required:["slot","after"],additionalProperties:false}}},required:["edits"],additionalProperties:false};
             const reply=await fetcher(m.model.endpoint,{method:"POST",redirect:"error",signal:AbortSignal.timeout(m.model.timeoutMs),headers:{"content-type":"application/json"},
-              body:JSON.stringify({prompt:rendered.prompt,n_predict:m.model.nPredict,temperature:0,cache_prompt:false,json_schema:{type:"object",properties:{edits:{type:"array",minItems:1,maxItems:m.slots.length,
-                items:{type:"object",properties:{slot:{type:"integer",enum:m.slots.map(s=>s.id)},after:{type:"string",minLength:1,maxLength:16000}},required:["slot","after"],additionalProperties:false}}},required:["edits"],additionalProperties:false}})});
-            const raw=await modelBody(reply);writeFileSync(preparedPath(job.jobId)+".response.json",raw,{flag:"wx",mode:0o600});return raw;
-          },{kind:"local-model",directory:m.workspace});
+              body:JSON.stringify(ollama?{model:generationModel,prompt:renderedPrompt,system:"You are a bounded source repair capability. Return only the requested JSON.",stream:false,think:false,truncate:false,shift:false,keep_alive:"1m",format:schema,options:{temperature:0,num_ctx:8192,num_predict:m.model.nPredict}}
+                :{prompt:renderedPrompt,n_predict:m.model.nPredict,temperature:0,cache_prompt:false,json_schema:schema})});
+            const raw=await modelBody(reply);writeFileSync(preparedPath(job.jobId,attempt)+".response.json",raw,{flag:"wx",mode:0o600});
+            if(ollama){
+              const payload=JSON.parse(raw);
+              if(remoteModelReference(payload)||payload.model!==generationModel||payload.done!==true||payload.done_reason!=="stop"||typeof payload.response!=="string")throw Error("TRACKED_REPAIR_MODEL_REPLY_INVALID");
+              await observe("loaded-after");await observe("installed-after");
+            }
+            return raw;
+          },{kind:"local-model",directory:workspace});
           const payload=JSON.parse(response);
-          if(payload.stop!==true||payload.truncated!==false||!["eos","word"].includes(payload.stop_type)||payload.model!==m.model.id||typeof payload.content!=="string")throw Error("TRACKED_REPAIR_MODEL_REPLY_INVALID");
-          const answer=JSON.parse(payload.content);
+          if(!ollama&&(payload.stop!==true||payload.truncated!==false||!["eos","word"].includes(payload.stop_type)||payload.model!==m.model.id||typeof payload.content!=="string"))throw Error("TRACKED_REPAIR_MODEL_REPLY_INVALID");
+          const answer=JSON.parse(ollama?payload.response:payload.content);
           if(!exact(answer,"edits")||!Array.isArray(answer.edits)||!answer.edits.length||answer.edits.length>m.slots.length)throw Error("TRACKED_REPAIR_EDIT_SCHEMA_INVALID");
           const content=new Map(files.map(f=>[f.path,f.content])),seen=new Set<number>();
           for(const edit of answer.edits){
@@ -214,18 +348,23 @@ export function createTrackedRepairResidentRuntime(input:{env:Record<string,stri
           const changed=[...content].filter(([path,value])=>hash(value)!==m.trackedFiles.find(p=>p.path===path)!.beforeSha256).map(([path,content])=>({path,content}));
           if(!changed.some(f=>f.path===m.targetPath))throw Error("TRACKED_REPAIR_NO_TARGET_CHANGE");
           const bookkeeping=updateBookkeeping(changed);if(bookkeeping!==undefined)changed.push({path:bookkeepingPath,content:bookkeeping});
-          scope();attest(m.workspace);
-          for(const f of filePins)if(hash(readBoundedRuntimeFile(join(m.workspace,f.path),fileLimit(f.path)))!==f.beforeSha256)throw Error("TRACKED_REPAIR_SOURCE_CHANGED_DURING_INFERENCE");
-          writeFileSync(preparedPath(job.jobId),JSON.stringify({binding:hash(pin+"\0"+job.jobId),files:changed,responseSha256:hash(response),promptSha256:hash(prompt)}),{flag:"wx",mode:0o600});
+          await beforeWrite?.();
+          scope();attest(workspace);
+          for(const f of filePins)if(hash(readBoundedRuntimeFile(join(workspace,f.path),fileLimit(f.path)))!==f.beforeSha256)throw Error("TRACKED_REPAIR_SOURCE_CHANGED_DURING_INFERENCE");
+          let modelAttestationSha256:string|undefined;
+          if(ollama){
+            const record=JSON.stringify({version:1,provider:"ollama",modelId:m.model.id,modelSha256:m.model.sha256,observations,responseSha256:hash(response),at:new Date().toISOString()});
+            writeOnce(preparedPath(job.jobId,attempt)+".model-attestation.json",record);modelAttestationSha256=hash(record);
+          }
+          writeFileSync(preparedPath(job.jobId,attempt),JSON.stringify({binding:hash(pin+"\0"+job.jobId+attemptSuffix(attempt)),files:changed,
+            responseSha256:hash(response),promptSha256:hash(prompt),...(modelAttestationSha256?{modelAttestationSha256}:{}),...(attempt>1?{recoveryDigest:recovery.digest}:{})}),{flag:"wx",mode:0o600});
         }
-        const prepared=loadPrepared(job.jobId);
-        for(const f of prepared.files){
-          const target=assertExternalRuntimePath(join(m.workspace,f.path),[]),current=hash(readBoundedRuntimeFile(target,fileLimit(f.path)));
-          if(current!==filePins.find(p=>p.path===f.path)!.beforeSha256&&current!==hash(f.content))throw Error("TRACKED_REPAIR_PREPARED_SOURCE_CONFLICT");
-        }
-        for(const f of prepared.files){const target=join(m.workspace,f.path);if(hash(readBoundedRuntimeFile(target,fileLimit(f.path)))!==hash(f.content))writeFileSync(target,f.content);}
-        scope();const c=candidate(job.jobId);
-        return createDevelopmentChangeSet({changeSetId:job.jobId+":tracked-candidate",jobId:job.jobId,workItemId,deviceId:builderId,baseRevision:base,
+        await beforeWrite?.();
+        scope();const prepared=loadPrepared(job.jobId,attempt,recovery.digest);
+        assertPreparedWorkspace(workspace,prepared);
+        for(const f of prepared.files){const target=join(workspace,f.path);if(hash(readBoundedRuntimeFile(target,fileLimit(f.path)))!==hash(f.content))writeFileSync(target,f.content);}
+        scope();const c=candidate(job.jobId,attempt,recovery.digest);
+        return createDevelopmentChangeSet({changeSetId:candidateId(job.jobId,attempt),jobId:job.jobId,workItemId,deviceId:builderId,baseRevision:base,
           changedPaths:[...prepared.files.map(f=>f.path),m.probe.targetPath],affectedSymbols:[],patchDigest:c.identity.patchDigest,candidateRevision:c.identity.candidateRevision,
           artifactDigest:c.identity.artifactDigest,evidenceDigest:hash(JSON.stringify(prepared)),rollback:{kind:"git-base",reference:base}});
       },
@@ -248,25 +387,34 @@ export function createTrackedRepairResidentRuntime(input:{env:Record<string,stri
         else writeFileSync(file,bytes,{flag:"wx",mode:0o600});return {digest:hash(bytes),issuer:"trusted-baseline-probe"};
       },
       async verify({job,changeSet,plan}){
-        scope();const c=candidate(job.jobId);
-        if(c.identity.candidateRevision!==plan.sourceRevision||c.identity.artifactDigest!==plan.artifactDigest)throw Error("TRACKED_REPAIR_CANDIDATE_BINDING_MISMATCH");
-        if(!existsSync(m.verifier.receiptFile)){
+        scope();const attempt=changeAttempt(job,changeSet),{receiptFile}=layouts[attempt-1]!,recovery=await recoveryContext(job,attempt);
+        const c=candidate(job.jobId,attempt,recovery.digest);
+        if(c.identity.candidateRevision!==plan.sourceRevision||c.identity.artifactDigest!==plan.artifactDigest
+          ||hash(JSON.stringify(c.prepared))!==changeSet.evidenceDigest)throw Error("TRACKED_REPAIR_CANDIDATE_BINDING_MISMATCH");
+        if(!existsSync(receiptFile)){
           const request={version:2,kind:"tracked-repair-verifier-request",executionContractDigest:pin,expiresAt:sequence.expiresAt,
             request:{goalId:job.goalId,jobId:job.jobId,changeSetId:changeSet.changeSetId,builderId,baseRevision:base,sourceRevision:plan.sourceRevision,artifactDigest:plan.artifactDigest,
               targetPath:m.targetPath,allowedUntracked:[m.probe.targetPath],trackedEdits:c.trackedEdits,requiredChecks:checks},
             files:[...c.prepared.files.map(f=>({path:f.path,sha256:hash(f.content),contentBase64:Buffer.from(f.content).toString("base64")})),
               {path:m.probe.targetPath,sha256:m.probe.sha256,contentBase64:probe.toString("base64")} ]};
-          const file=m.verifier.receiptFile+".request.json",bytes=JSON.stringify(request)+"\n";mkdirSync(dirname(file),{recursive:true,mode:0o700});
+          const file=receiptFile+".request.json",bytes=JSON.stringify(request)+"\n";mkdirSync(dirname(file),{recursive:true,mode:0o700});
           if(existsSync(file)){if(readBoundedRuntimeFile(file,1048576).toString("utf8")!==bytes)throw Error("TRACKED_REPAIR_REQUEST_CONFLICT");}
           else writeFileSync(file,bytes,{flag:"wx",mode:0o600});return [];
         }
-        const receipt=JSON.parse(readBoundedRuntimeFile(m.verifier.receiptFile,24576,[m.workspace,m.baselineWorkspace]).toString("utf8"));
-        return validateSignedLocalVerifierReceipt({receipt,publicKeyPem:key,plan,changeSet,goalId:job.goalId});
+        const bytes=readBoundedRuntimeFile(receiptFile,24576,workspaces),receipt=JSON.parse(bytes.toString("utf8"));
+        const evidence=validateSignedLocalVerifierReceipt({receipt,publicKeyPem:key,plan,changeSet,goalId:job.goalId});
+        const consumable=plan.requiredChecks.every(check=>
+          evidence.some(e=>e.check===check&&["passed","failed"].includes(e.status)))
+          &&evidence.every(e=>Date.parse(e.recordedAt)>=Date.parse(changeSet.createdAt)-60000&&Date.parse(e.recordedAt)<=Date.now()+60000);
+        if(m.recoveryAttempts&&consumable)writeOnce(preparedPath(job.jobId,attempt)+".receipt.json",bytes);
+        return evidence;
       },
       async acceptanceEvidence({job,changeSet,plan}){
-        scope();const c=candidate(job.jobId);
+        scope();const attempt=changeAttempt(job,changeSet),{receiptFile}=layouts[attempt-1]!,recovery=await recoveryContext(job,attempt);
+        const c=candidate(job.jobId,attempt,recovery.digest);
         if(c.identity.candidateRevision!==plan.sourceRevision||c.identity.artifactDigest!==plan.artifactDigest)throw Error("TRACKED_REPAIR_ACCEPTANCE_SOURCE_CHANGED");
-        const receipt=JSON.parse(readBoundedRuntimeFile(m.verifier.receiptFile,24576,[m.workspace,m.baselineWorkspace]).toString("utf8"));
+        const bytes=readBoundedRuntimeFile(receiptFile,24576,workspaces),receipt=JSON.parse(bytes.toString("utf8"));
+        if(m.recoveryAttempts)writeOnce(preparedPath(job.jobId,attempt)+".receipt.json",bytes);
         const evidence=validateSignedLocalVerifierReceipt({receipt,publicKeyPem:key,plan,changeSet,goalId:job.goalId});
         if(!checks.every(check=>evidence.some(e=>e.check===check&&e.status==="passed")))throw Error("TRACKED_REPAIR_CHECKS_INCOMPLETE");
         return job.definitionOfDone.map(criterion=>({id:job.jobId+":"+criterion.id,criterionId:criterion.id,kind:"tracked-repair-frozen-probe-and-signed-suite",

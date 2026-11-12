@@ -1,0 +1,259 @@
+{
+  "version": 1,
+  "baseHead": "945bd23dbfcd0f338df56e3c380a7f1c5dcf717f",
+  "files": [
+    {
+      "path": "scripts/owner-code-protection-failure-details.test.mjs",
+      "sha256": "8915e34ab3a6c32447077c6a71960532f94b117a3931ce6923be11e00196f400"
+    },
+    {
+      "path": "scripts/owner-code-protection-diagnostics.test.mjs",
+      "sha256": "d3a9d3d855d1d6aa6b04fe751f44682d1ebaf87d4e451bebdb2773cd98a7fac4"
+    },
+    {
+      "path": "scripts/owner-code-preflight.test.mjs",
+      "sha256": "27e36b860e2dac729bab240f7b83888ebfeefea78801ca29833f515b6da88db2"
+    },
+    {
+      "path": "tests/helpers/powershell-preflight-batch.mjs",
+      "sha256": "1e0c0b3ab016569f550d0a576d5181a11f399e1df5056817e3a3189ac4047722"
+    },
+    {
+      "path": "tests/helpers/powershell-preflight-case.ps1",
+      "sha256": "5dba0bdcb2ebdc7b35d556013231b0ad4f120a7baccd59aa4890e4b48f4e3a2e"
+    },
+    {
+      "path": "tests/powershell-preflight-batch.test.mjs",
+      "sha256": "47992e175fa4c334d29247988aa86b2a6e5eab853c720c112fa4f907ddd0b455"
+    },
+    {
+      "path": "tests/helpers/powershell-fixture-batch.ps1",
+      "sha256": "003a692662cf64816b11db24da7d70eed9f006bceeb8abb7f40d4f9f2a12e0a1"
+    },
+    {
+      "path": "tests/powershell-fixture-batch.test.mjs",
+      "sha256": "081e92d573bc57a810a763dee4d4e38d2d1648e7edc833e21bfbf116f8b6b69f"
+    },
+    {
+      "path": "tests/resident-sequence-broker-e2e.test.ts",
+      "sha256": "34f27fc9e3714f3dc8887a3ab6648ef0057b0cb595e0ad679980219593a4e024"
+    }
+  ],
+  "scope": "Test-only PowerShell fixture startup amortization and Linux-only scheduling of two independent Broker fixture variants. No production source edits by this task.",
+  "unchangedLimits": {
+    "independentUnitTimeoutMs": 300000,
+    "independentCpuLimit": 2,
+    "independentMemoryLimit": "2GiB",
+    "independentPidLimit": 128,
+    "sourcePowerShellTimeoutMs": 25000,
+    "brokerPerVariantTimeoutMs": 180000
+  },
+  "verification": {
+    "focusedPowerShell": {
+      "tests": 143,
+      "pass": 135,
+      "fail": 0,
+      "skipped": 8,
+      "durationMs": 29154.893062,
+      "skips": "All8 existed for Windows/native-only cases"
+    },
+    "newCaseParity": {
+      "cases": 57,
+      "groups": 19,
+      "nativeStatus": "All0",
+      "stderr": "Equal in full",
+      "json": "Complete parsed JSON equality",
+      "source": "Source bytes retained, exact source-generating AST provenance recorded"
+    },
+    "retainedFirstScopeParity": {
+      "cases": 84,
+      "status": "Every post-fix output hash equals retained original native-parity hash;status0;empty stderr"
+    },
+    "broker": {
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "skipped": 0,
+      "bodyBytesUnchanged": 14107
+    },
+    "lint": "All changed JS/MJS/TS files pass targeted ESLint"
+  },
+  "performance": {
+    "failureDetails": {
+      "command": [
+        "node",
+        "--test",
+        "scripts/owner-code-protection-failure-details.test.mjs"
+      ],
+      "exit": 0,
+      "wallSeconds": 24.57597310700021,
+      "userCpuSeconds": 23.748814,
+      "systemCpuSeconds": 4.796168
+    },
+    "failureDetailsBatched": {
+      "command": [
+        "node",
+        "--test",
+        "scripts/owner-code-protection-failure-details.test.mjs"
+      ],
+      "exit": 0,
+      "wallSeconds": 14.527069664999544,
+      "userCpuSeconds": 15.761749,
+      "systemCpuSeconds": 3.685794
+    },
+    "diagnosticsPreflight": {
+      "command": [
+        "node",
+        "--test",
+        "--test-concurrency=2",
+        "/workspace/scratch/760162201692/ci-investigation/preflight-batch/owner-code-protection-diagnostics.test.mjs",
+        "/workspace/scratch/760162201692/ci-investigation/preflight-batch/owner-code-preflight.test.mjs"
+      ],
+      "exit": 0,
+      "wallSeconds": 10.47709049400055,
+      "userCpuSeconds": 18.810903,
+      "systemCpuSeconds": 5.173521
+    },
+    "diagnosticsPreflightBatched": {
+      "command": [
+        "node",
+        "--test",
+        "--test-concurrency=2",
+        "scripts/owner-code-protection-diagnostics.test.mjs",
+        "scripts/owner-code-preflight.test.mjs"
+      ],
+      "exit": 0,
+      "wallSeconds": 9.537180731999797,
+      "userCpuSeconds": 18.469251,
+      "systemCpuSeconds": 4.463683
+    },
+    "brokerSequential": {
+      "variant": "sequential",
+      "exitCode": 0,
+      "outerTimeoutMs": 300000,
+      "timedOut": false,
+      "wallSeconds": 37.169256692999625,
+      "userCpuSeconds": 10.262786,
+      "systemCpuSeconds": 3.462891,
+      "affinity": [
+        0,
+        1
+      ],
+      "sampleIntervalSeconds": 0.1,
+      "samples": 369,
+      "sampledPeakDescendantRssBytes": null,
+      "sampledPeakProcesses": null,
+      "sampledPeakThreads": null,
+      "maxChildRssKiB": 112696,
+      "scope": "Only this test file with all descendant processes. Sampled RSS sums may double-count shared pages. No Docker memory/PID/cgroup quota equivalence.",
+      "resourceObservationLimitation": "Task children proc file is unavailable here; first sampler could not traverse. Only RUSAGE maximum child RSS is valid. Zero-valued raw sampler fields are not measurements."
+    },
+    "brokerParallelScratch": {
+      "variant": "parallel",
+      "exitCode": 0,
+      "outerTimeoutMs": 300000,
+      "timedOut": false,
+      "wallSeconds": 19.75579392600048,
+      "userCpuSeconds": 9.234102,
+      "systemCpuSeconds": 3.604962,
+      "affinity": [
+        0,
+        1
+      ],
+      "sampleIntervalSeconds": 0.1,
+      "samples": 196,
+      "sampledPeakDescendantRssBytes": null,
+      "sampledPeakProcesses": null,
+      "sampledPeakThreads": null,
+      "maxChildRssKiB": 110680,
+      "scope": "Only this test file with all descendant processes. Sampled RSS sums may double-count shared pages. No Docker memory/PID/cgroup quota equivalence.",
+      "resourceObservationLimitation": "Task children proc file is unavailable here; first sampler could not traverse. Only RUSAGE maximum child RSS is valid. Zero-valued raw sampler fields are not measurements."
+    },
+    "brokerActual": {
+      "variant": "actual",
+      "exitCode": 0,
+      "outerTimeoutMs": 300000,
+      "timedOut": false,
+      "wallSeconds": 20.4179344209997,
+      "userCpuSeconds": 9.925807,
+      "systemCpuSeconds": 4.072820999999999,
+      "affinity": [
+        0,
+        1
+      ],
+      "sampleIntervalSeconds": 0.1,
+      "samples": 201,
+      "sampledPeakDescendantRssBytes": 648540160,
+      "sampledPeakProcesses": 10,
+      "sampledPeakThreads": 69,
+      "maxChildRssKiB": 111508,
+      "scope": "Only this test file with all descendant processes. Sampled RSS sums may double-count shared pages. No Docker memory/PID/cgroup quota equivalence."
+    }
+  },
+  "limitations": [
+    "Standalone results are not whole-suite or exact-HEAD CI success.",
+    "Only Broker runs explicitly restricted CPU affinity to0,1; PowerShell baseline/batch used unchanged local environment.",
+    "No Docker cgroup CPU/memory/PID-equivalence claim; local cpu.max/memory.max/pids.max files unavailable.",
+    "Broker resource samples cover live descendants, not an exact peak or concurrent full-suite allowance.",
+    "Preserved earlier failed CI evidence; no reruns,dispatches,GitHub writes or deadlines changed by this task."
+  ],
+  "recordedAt": "2026-11-11T14:18:34.153277+00:00",
+  "archive": {
+    "path": "docs/evidence/1219-20261111-ci-second-correction.zip",
+    "sha256": "cc08a88d91e1471238a5cd186bce1a360cb16691bc07f22b5d5a681b922f4058",
+    "bytes": 45017
+  },
+  "members": {
+    "second-performance-evidence.json": "7a43c7d28e34f93cfefcf34edcb2744524b633c6ac1ea33fd05349afa7f325e1",
+    "parity-after-environment-fix.json": "dd6aeefe3dce78fbaf201c88ac73cd82f0ffac465e0f191bf6b1d529d1f2b922",
+    "preflight-batch/combined-regressions.log": "a4896e86659167985ea71a6aa192305c53c624838a524eef4f94fd76b9bc6779",
+    "preflight-batch/diagnostics-preflight-baseline.json": "5efe4c6838ca16a4347ea2cb2db5674ed92035aec5c99dc8f6e9ed7186ab9137",
+    "preflight-batch/diagnostics-preflight-baseline.log": "749fdfa9447758c7a9a7fe5dc311b16898bae8f75743159560c651e366b459d5",
+    "preflight-batch/diagnostics-preflight-batched.json": "cf37030b330595358453a583fb98a50e9b19634ba2050de5e86c7bd80a385461",
+    "preflight-batch/diagnostics-preflight-batched.log": "a5d1f9c8dc51782037e73784d356d37479034a6c958027304443775172762d63",
+    "preflight-batch/environment-red-selected.log": "17a19a223a071911027f901198f8b57afcbc844a75d3d520ad31e84ed25ea9d4",
+    "preflight-batch/environment-red.log": "0c44ec5c4fa52f00abe9b49bca6cc733a2fda869d789c99c98b2e04e962310e2",
+    "preflight-batch/failure-details-baseline.json": "7496cfe13460cf214b0eda73ccae346cb7f021b758214506ee07cc2c75715e54",
+    "preflight-batch/failure-details-baseline.log": "480102d7cbb6962e8122ea23c0eeef8357b42c8d5c6b13e379b47d5d0e7b6ea7",
+    "preflight-batch/failure-details-batched.json": "3283289c3481de2dd9aa68d2184cbdf30f340ee831a0e4eb8ff5f45a4c79ad30",
+    "preflight-batch/failure-details-batched.log": "2e0deeb4ddd0c15638b9436c585bd0309ef25c1077ed2f83ccce9428f958cdb8",
+    "preflight-batch/helper-green-1.log": "4e390d827ddb929d32821c4315c0692b00e0afc923a91c57a379364444728bf3",
+    "preflight-batch/helper-green-2.log": "ef6ae08277e5017b43abb34b90d43a4bf5bd0d6350ee1d0a199264012a73fc58",
+    "preflight-batch/helper-red.log": "72f7e44820622d756aa3acc036f4fb883ace458a1ed28ba6fe393cb406e34288",
+    "preflight-batch/parity/owner-code-preflight.jsonl": "ae8e0eb4a9f0ac869fa2db3e01eedaa2a7a457ed567c8d20ff5d577afee12646",
+    "preflight-batch/parity/owner-code-protection-diagnostics.jsonl": "136b21c06a633c7334c0272880e3c36c4c627685970d166de6dce3a72af021cf",
+    "preflight-batch/parity/owner-code-protection-failure-details.jsonl": "1848c208e26333159d6bef5a402b9b4a720a4f74ec8d408c928e8fa7e9a11f02",
+    "preflight-batch/parity/summary.json": "391da33135b6b38e9d446e2cd44c50cf9376f993de71d0a8580dd47b562021c9",
+    "preflight-batch/parity-recorder-error.log": "9bc36158e3cd81630933e0c8399e54adb945c30836978fe7ae213c068aceab55",
+    "preflight-batch/parity.log": "bdeb6b50cfdebdd6c9dc9eed7d9c2ecf12b465dafe7fb979c0dae8ae6f07cecc",
+    "preflight-batch/review-files.json": "9a5093e203333aecc082e4f7c8a8729bda83285b62768fab6e72af706137839f",
+    "preflight-batch/source-expression-parity.json": "3b986d7d644f43717dcfce96736966b88622c455fc159d5a4c2c33bd2a0a1ca4",
+    "broker-concurrency/actual.json": "7d757e9bfdf1a99c9f09a4781f5bd983643e2226e688f9e33241d14bbb0d3569",
+    "broker-concurrency/actual.log": "b18b79c71ee7b97ae8e19ba351db973879b50934ab4248e454ddac6e03dc4b5e",
+    "broker-concurrency/body-byte-parity.json": "9238b36dd0d708c1782ec1024b34feeb4cd171c66bb1cd84933a0ff1bdb14996",
+    "broker-concurrency/independence.json": "b0d74d4e34640e0de5ca1cc568baf3c0200060738bcfe377ef9440c4b70245b0",
+    "broker-concurrency/measure.py": "f69a8d70187aed8f52043e568408064167261d35e713a78c365a33663400336e",
+    "broker-concurrency/parallel-original-sampler.json": "b62e2bd8d5fa7bff9dbba9616d21229714bfeae9500a37388e775a00cd12d37b",
+    "broker-concurrency/parallel.json": "9ce625f24b748e16237aed86ac40b6ef87444380239d8b24079e4c0f1503a9bd",
+    "broker-concurrency/parallel.log": "3ed0bf807e2f9a6ce5d19cfb9ee7612eca1403da613c7832de721bd0500185f4",
+    "broker-concurrency/sequential-original-sampler.json": "c1aea2db7cf98a80de5d90ff54fab26ee48dfd6012feb26e9462cd521da3fb21",
+    "broker-concurrency/sequential.json": "780c506e4cabde7e2e0e7bcbf18bae8e7ae081c00b708b7a84a9606ad167a3c6",
+    "broker-concurrency/sequential.log": "234a6d2b404d7a52ce973861d183291382b9c6a20df665872dfbe4f7af9e791e"
+  },
+  "independentSourceReview": {
+    "evidenceClass": "AI_ASSERTED",
+    "eightPowerShellFilesAndAi09Test": {
+      "critical": 0,
+      "important": 0,
+      "minor": 0
+    },
+    "brokerFile": {
+      "sha256": "34f27fc9e3714f3dc8887a3ab6648ef0057b0cb595e0ad679980219593a4e024",
+      "critical": 0,
+      "important": 0,
+      "minor": 0,
+      "bodyBytesIndependentlyCompared": 14107
+    },
+    "productionSignerAcceptance": false
+  }
+}

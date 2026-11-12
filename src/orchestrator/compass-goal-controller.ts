@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { CompassStore } from "../compass/store.ts";
 import { compassGoalToLoopGoal } from "./compass-state-store.ts";
+import { assertIntakeReplayMatches } from "./goal-controller-runtime.ts";
 import type {
   ActiveGoal,
   GoalControllerDecision,
@@ -57,6 +58,25 @@ function isDecisionEnvelope(value: unknown): value is DecisionEnvelope {
     && Array.isArray(record.records);
 }
 
+function recordDecision(active: unknown[], decision: GoalControllerDecision): {
+  active: unknown[]; decision: GoalControllerDecision;
+} {
+  const keyDigest = digest(decision.resolution.intake.idempotencyKey);
+  const envelope = active.find(isDecisionEnvelope)
+    ?? { kind: DECISION_KIND, version: VERSION, records: [] };
+  const existing = envelope.records.find(entry => entry.keyDigest === keyDigest);
+  if (existing) {
+    assertIntakeReplayMatches(existing.decision, decision.resolution.intake);
+    if (existing.decision.goalId !== decision.goalId) throw new Error("INTAKE_IDEMPOTENCY_CONFLICT");
+    return { active, decision: clone(existing.decision) };
+  }
+  const next: DecisionRecord = {
+    keyDigest, decision: decisionForPersistence(decision, keyDigest), updatedAt: new Date().toISOString(),
+  };
+  const records = [...envelope.records, next].slice(-MAX_DECISIONS);
+  return { active: [...active.filter(entry => !isDecisionEnvelope(entry)), { ...envelope, records }], decision };
+}
+
 function isContextEnvelope(value: unknown): value is ContextEnvelope {
   if (!value || typeof value !== "object") return false;
   const record = value as Record<string, unknown>;
@@ -79,6 +99,8 @@ export class CompassGoalRegistryAdapter implements GoalRegistry {
     this.workStateStore = workStateStore;
   }
 
+  usesCompass(compass: CompassStore): boolean { return this.compass === compass; }
+
   async listActive(): Promise<ActiveGoal[]> {
     const record = this.compass.getGoal();
     if (!record) return [];
@@ -94,11 +116,7 @@ export class CompassGoalRegistryAdapter implements GoalRegistry {
     successCriteria: string[];
     constraints: string[];
   }): Promise<ActiveGoal> {
-    const existing = await this.listActive();
-    if (existing.length > 0) {
-      throw new Error("active Compass Goal already exists; resolve or explicitly change it before creating a new Goal");
-    }
-    const record = this.compass.setGoal({
+    const record = this.compass.createGoalIfAbsent({
       title: input.title,
       description: input.description,
       successCriteria: input.successCriteria,
@@ -127,19 +145,29 @@ export class CompassGoalDecisionStoreAdapter implements GoalDecisionStore {
   }
 
   async put(idempotencyKey: string, decision: GoalControllerDecision): Promise<void> {
-    const keyDigest = digest(idempotencyKey);
-    const next: DecisionRecord = {
-      keyDigest,
-      decision: decisionForPersistence(decision, keyDigest),
-      updatedAt: new Date().toISOString(),
-    };
-    this.compass.updateActive(active => {
-      const envelope = active.find(isDecisionEnvelope)
-        ?? { kind: DECISION_KIND, version: VERSION, records: [] };
-      const records = [...envelope.records.filter((entry) => entry.keyDigest !== keyDigest), next]
-        .slice(-MAX_DECISIONS);
-      return [...active.filter((entry) => !isDecisionEnvelope(entry)), { ...envelope, records }];
+    this.compass.updateActive(active => recordDecision(active, {
+      ...decision, resolution: { ...decision.resolution,
+        intake: { ...decision.resolution.intake, idempotencyKey } },
+    }).active);
+  }
+
+  async createGoalAndPut(
+    registry: GoalRegistry,
+    input: Parameters<GoalRegistry["create"]>[0],
+    decisionForGoal: (goal: ActiveGoal) => GoalControllerDecision,
+  ): Promise<GoalControllerDecision> {
+    if (!(registry instanceof CompassGoalRegistryAdapter) || !registry.usesCompass(this.compass)) {
+      throw new Error("atomic intake requires the same Compass Goal authority");
+    }
+    let committed: GoalControllerDecision | undefined;
+    this.compass.createGoalIfAbsent(input, (record, active) => {
+      const goal = compassGoalToLoopGoal(record);
+      const next = recordDecision(active, decisionForGoal({ goal, goalId: goalWorkStateId(goal), workState: null }));
+      committed = next.decision;
+      return next.active;
     });
+    if (!committed) throw new Error("Goal intake decision was not committed");
+    return committed;
   }
 
   private read(): DecisionEnvelope {

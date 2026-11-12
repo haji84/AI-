@@ -16,12 +16,14 @@ import { validateSignedLocalVerifierReceipt } from "./signed-local-verifier-rece
 import { publishResidentVerifierRequest } from "./resident-verifier-request.ts";
 import { createPreparedLocalWriteCheckpoint } from "./local-prepared-write.ts";
 import type { withDevelopmentResourceAdmission } from "../gai/development-resource-admission.ts";
+import type { ResidentDevelopmentAdmission } from "./resident-development-admission.ts";
 
 /** Explicit host-pinned local fixture sequence. No provisioning, publishing or implicit oracle. */
 export function createSequencedResidentRuntime(input: {
   env: Record<string, string | undefined>; runtimeRoot: string; compassPath: string; goal: Goal; fetchImpl?: typeof fetch;
   /** Trusted host dependency only; manifests and Goal input cannot replace admission. */
   resourceAdmission?: typeof withDevelopmentResourceAdmission;
+  admission?: ResidentDevelopmentAdmission;
 }): ResidentDevelopmentGoalHost | null {
   const manifest = readResidentExecutionManifest(input.env, input.runtimeRoot, input.goal);
   if (!manifest) return null;
@@ -46,6 +48,7 @@ export function createSequencedResidentRuntime(input: {
   };
   const stateRoot = join(dirname(input.compassPath), "self-development");
   return new ResidentDevelopmentGoalHost({
+    admission: input.admission,
     jobs: new JsonFileDevelopmentJobStore(join(stateRoot, "jobs.json")),
     changeSets: new JsonFileDevelopmentChangeSetStore(join(stateRoot, "change-sets.json")),
     planning: { requirementIds: ["CORE-014"], baseRevision: manifest.sequence.jobs[0]!.baseRevision,
@@ -53,7 +56,7 @@ export function createSequencedResidentRuntime(input: {
       targetFiles: manifest.sequence.jobs[0]!.targetFiles, contextDigest: manifest.sequence.goalDigest, sequence: manifest.sequence },
     stages: {
       builderId: "local-ollama-builder", deferMissingVerification: true,
-      async build({ job, context, workItemId }) {
+      async build({ job, context, workItemId, beforeWrite }) {
         const { execution } = forJob(job.goalId, job.jobId);
         const item = job.workItems.find(workItem => workItem.id === workItemId);
         if (!item) throw Error("RESIDENT_SEQUENCE_WORK_ITEM_UNKNOWN");
@@ -68,7 +71,7 @@ export function createSequencedResidentRuntime(input: {
         const router = createRuntimeBuilderRouter({ ...input.env,
           GORIQ_LOCAL_OLLAMA_BUILDER_ENABLED: "1", GORIQ_LOCAL_OLLAMA_BUILDER_WORKSPACE: execution.workspace,
           GORIQ_LOCAL_OLLAMA_TDD_PROFILE: execution.tddProfile, GORIQ_LOCAL_OLLAMA_ALLOWED_FILES: execution.allowedFiles.join(","),
-        }, input.fetchImpl, { preparedWrite, resourceAdmission: input.resourceAdmission });
+        }, input.fetchImpl, { preparedWrite, resourceAdmission: input.resourceAdmission, beforeWrite });
         const result = await router.execute({ id: `${job.jobId}:build:${phase}`, description: item.objective, capability: "code.builder", risk: "low",
           input: { goalId: job.goalId, attemptId, strategyId,
             objective: item.objective, files: [targetPath], baseRevision: job.baseRevision,

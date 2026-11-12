@@ -82,7 +82,9 @@ test("a genuine failed verification after pressure relief rejects the candidate 
     f.setPressure("verify"); await f.run();
     f.setPressure(null); f.advance();
     const result = await f.run();
-    assert.equal(result.stopReason, "blocked");
+    assert.equal(result.stopReason, "cycle_budget_exhausted");
+    assert.deepEqual(result.goalEvaluation?.blockers, []);
+    assert.ok(result.goalEvaluation?.remainingGaps.some(gap => gap.startsWith("verification_recovery:")));
     const job = (await f.jobs.getByGoal("g"))[0]!;
     assert.equal(job.phase, "RECOVERING"); assert.equal(job.attempts.length, 1);
     assert.ok((await f.changes.list()).some(change => change.status === "REJECTED"));

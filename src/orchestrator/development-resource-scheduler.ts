@@ -1,5 +1,5 @@
 import { assertResourceWait, resourceWaitExhausted } from "./development-resource-wait.ts";
-import type { WorkRunState } from "./work-run-state.ts";
+import { assertGoalContinuation, type WorkRunState } from "./work-run-state.ts";
 
 interface SchedulerOptions {
   read(goalId: string): Promise<{ active: boolean; run: WorkRunState | null }>;
@@ -26,12 +26,20 @@ export class ResourceWaitScheduler {
     const state = await this.options.read(goalId);
     if (this.closed || this.pending.get(goalId) !== token) return false;
     const run = state.run;
-    if (!state.active || run?.goalId !== goalId || run.phase !== "RUNNING" || !run.resourceWait) {
+    if (!state.active || run?.goalId !== goalId || run.phase !== "RUNNING" || (!run.resourceWait && !run.continuationWait)) {
       this.pending.delete(goalId); return false;
     }
-    assertResourceWait(run.resourceWait);
+    if(run.resourceWait && run.continuationWait)throw Error("conflicting continuation and resource waits");
     const now = (this.options.now ?? Date.now)();
-    const due = resourceWaitExhausted(run.resourceWait, new Date(now)) ? now : Math.min(Date.parse(run.resourceWait.retryAt), Date.parse(run.resourceWait.deadline));
+    let due:number;
+    if(run.resourceWait){
+      assertResourceWait(run.resourceWait);
+      due=resourceWaitExhausted(run.resourceWait,new Date(now)) ? now :
+        Math.min(Date.parse(run.resourceWait.retryAt),Date.parse(run.resourceWait.deadline));
+    }else{
+      assertGoalContinuation(run.continuationWait!);
+      due=Date.parse(run.continuationWait!.retryAt);
+    }
     token.timer = (this.options.schedule ?? setTimeout)(() => {
       if (this.closed || this.pending.get(goalId) !== token) return;
       this.pending.delete(goalId);
@@ -42,10 +50,18 @@ export class ResourceWaitScheduler {
 
   private async wake(goalId: string): Promise<void> {
     const state = await this.options.read(goalId);
-    if (this.closed || !state.active || state.run?.goalId !== goalId || state.run.phase !== "RUNNING" || !state.run.resourceWait) return;
-    const wait = state.run.resourceWait;
-    assertResourceWait(wait);
+    if (this.closed || !state.active || state.run?.goalId !== goalId || state.run.phase !== "RUNNING" ||
+      (!state.run.resourceWait && !state.run.continuationWait)) return;
+    if(state.run.resourceWait && state.run.continuationWait)throw Error("conflicting continuation and resource waits");
     const now = (this.options.now ?? Date.now)();
+    if(state.run.continuationWait){
+      assertGoalContinuation(state.run.continuationWait);
+      if(now<Date.parse(state.run.continuationWait.retryAt)){await this.arm(goalId);return;}
+      await this.options.resume(goalId);
+      return;
+    }
+    const wait=state.run.resourceWait!;
+    assertResourceWait(wait);
     if (!resourceWaitExhausted(wait, new Date(now)) && now < Date.parse(wait.retryAt)) {
       await this.arm(goalId); return;
     }

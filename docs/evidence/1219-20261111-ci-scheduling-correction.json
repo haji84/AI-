@@ -1,0 +1,1154 @@
+{
+  "version": 1,
+  "recordedAt": "2026-11-11T15:02:44.106832+00:00",
+  "baseHead": "1d59543bbf533b33f533a4856b41ef7032ef3846",
+  "scope": "Test-only file scheduling, isolated Linux fixture concurrency and disposal of a losing stop timer. No production source or gate edits.",
+  "files": [
+    {
+      "path": "tests/autonomous-tracked-repair-runtime.test.ts",
+      "renamedFrom": "tests/tracked-repair-runtime.test.ts",
+      "sha256": "88948f1117cd2d73d3e1ffe78af4c8bc6d4a1f1a74850f88c3dbc765f3040d87",
+      "entireFileByteIdentical": true
+    },
+    {
+      "path": "tests/approved-next-work-broker.test.ts",
+      "sha256": "9fbf8b09ca17d13882617c8fe6dd1db603d256116f47369ff424acaf4eec8018",
+      "caseBodyParity": {
+        "sourceBase": "1d59543bbf533b33f533a4856b41ef7032ef3846",
+        "bytes": 5130,
+        "sha256": "47f2dabceff43006b24ed9b46f284d00ba307d57a860daf6a7fe1b27820456ce",
+        "allFourBodiesByteIdentical": true,
+        "extraSuffix": "});\n"
+      }
+    }
+  ],
+  "unchangedLimits": {
+    "independentUnitTimeoutMs": 300000,
+    "independentIntegrationTimeoutMs": 300000,
+    "otherIndependentCheckTimeoutMs": 180000,
+    "cpuLimit": 2,
+    "memoryBytes": 2147483648,
+    "pidLimit": 128,
+    "globalFileConcurrency": 2,
+    "approvedNextCaseTimeoutsMs": [
+      45000,
+      20000,
+      30000,
+      20000
+    ],
+    "brokerStopBeforeSigkillMs": 3000
+  },
+  "priorExactCi": {
+    "runId": 43037545951,
+    "head": "1d59543bbf533b33f533a4856b41ef7032ef3846",
+    "runConclusion": "failure",
+    "jobs": [
+      {
+        "id": 130580297302,
+        "name": "independent-verifier-container",
+        "conclusion": "failure",
+        "startedAt": "2026-11-11T14:20:39Z",
+        "completedAt": "2026-11-11T14:27:54Z"
+      },
+      {
+        "id": 130580297484,
+        "name": "windows-runtime-byte-fixtures",
+        "conclusion": "success",
+        "startedAt": "2026-11-11T14:20:39Z",
+        "completedAt": "2026-11-11T14:24:39Z"
+      },
+      {
+        "id": 130580297644,
+        "name": "repository-guard",
+        "conclusion": "success",
+        "startedAt": "2026-11-11T14:20:40Z",
+        "completedAt": "2026-11-11T14:20:45Z"
+      },
+      {
+        "id": 130580297727,
+        "name": "project-checks",
+        "conclusion": "success",
+        "startedAt": "2026-11-11T14:20:39Z",
+        "completedAt": "2026-11-11T14:27:14Z"
+      }
+    ],
+    "checks": [
+      {
+        "check": "lint",
+        "status": "passed",
+        "command": "pnpm",
+        "args": [
+          "lint"
+        ],
+        "timeoutMs": 180000,
+        "exit": 0,
+        "signal": null,
+        "errorCode": null,
+        "runErrorCode": null,
+        "closeObserved": true,
+        "sourceRevision": "4a0debfe1837af23a4ebb967ecf68b6c72166f858db1b8d64e84dc5a1bf5208e",
+        "timing": {
+          "startedAt": "2026-11-11T14:22:14.543Z",
+          "elapsedMs": 16958.324576,
+          "firstOutputElapsedMs": 792.887203,
+          "lastOutputElapsedMs": 1452.121815
+        },
+        "cleanupConfirmed": true,
+        "resources": {
+          "containerName": "goriq-verifier-fa9e1206-54b8-4873-9da9-fdeb868f668a",
+          "samples": 2,
+          "lastSampleObserverElapsedMs": 102121.280278,
+          "lastCpuSeconds": 26.889415,
+          "lastPeriods": 156,
+          "lastThrottledPeriods": 58,
+          "lastThrottledSeconds": 3.258206,
+          "sampledMaxMemoryBytes": 589389824,
+          "sampledMaxPids": 23,
+          "memoryLimits": [
+            2147483648
+          ],
+          "pidLimits": [
+            128
+          ],
+          "evidenceClass": "UNSIGNED_SUPPLEMENTAL",
+          "acceptance": false,
+          "terminalOom": "UNKNOWN",
+          "truePeaks": "UNKNOWN",
+          "processExitObserved": false
+        }
+      },
+      {
+        "check": "typecheck",
+        "status": "passed",
+        "command": "pnpm",
+        "args": [
+          "exec",
+          "tsc",
+          "--noEmit"
+        ],
+        "timeoutMs": 180000,
+        "exit": 0,
+        "signal": null,
+        "errorCode": null,
+        "runErrorCode": null,
+        "closeObserved": true,
+        "sourceRevision": "4a0debfe1837af23a4ebb967ecf68b6c72166f858db1b8d64e84dc5a1bf5208e",
+        "timing": {
+          "startedAt": "2026-11-11T14:22:31.535Z",
+          "elapsedMs": 15467.521206,
+          "firstOutputElapsedMs": 607.241304,
+          "lastOutputElapsedMs": 608.124687
+        },
+        "cleanupConfirmed": true,
+        "resources": {
+          "containerName": "goriq-verifier-44ffd480-0dd4-4d5a-b1b6-863ed3ac3b8f",
+          "samples": 1,
+          "lastSampleObserverElapsedMs": 113165.15649000001,
+          "lastCpuSeconds": 16.758515,
+          "lastPeriods": 98,
+          "lastThrottledPeriods": 24,
+          "lastThrottledSeconds": 1.98601,
+          "sampledMaxMemoryBytes": 805728256,
+          "sampledMaxPids": 18,
+          "memoryLimits": [
+            2147483648
+          ],
+          "pidLimits": [
+            128
+          ],
+          "evidenceClass": "UNSIGNED_SUPPLEMENTAL",
+          "acceptance": false,
+          "terminalOom": "UNKNOWN",
+          "truePeaks": "UNKNOWN",
+          "processExitObserved": false
+        }
+      },
+      {
+        "check": "unit",
+        "status": "inconclusive",
+        "command": "pnpm",
+        "args": [
+          "test"
+        ],
+        "timeoutMs": 300000,
+        "exit": null,
+        "signal": "SIGKILL",
+        "errorCode": "ETIMEDOUT",
+        "runErrorCode": null,
+        "closeObserved": true,
+        "sourceRevision": "4a0debfe1837af23a4ebb967ecf68b6c72166f858db1b8d64e84dc5a1bf5208e",
+        "timing": {
+          "startedAt": "2026-11-11T14:22:47.036Z",
+          "elapsedMs": 300006.186154,
+          "firstOutputElapsedMs": 602.822839,
+          "lastOutputElapsedMs": 298466.363345
+        },
+        "cleanupConfirmed": true,
+        "tests": {
+          "completedSummary": false,
+          "emittedSuccessLines": 3479,
+          "emittedFailureLines": 0,
+          "emittedSkipLines": 18
+        },
+        "resources": {
+          "containerName": "goriq-verifier-8694a58d-080e-486c-b91f-4ddef2f00596",
+          "samples": 27,
+          "lastSampleObserverElapsedMs": 411262.438948,
+          "lastCpuSeconds": 543.21579,
+          "lastPeriods": 2923,
+          "lastThrottledPeriods": 2367,
+          "lastThrottledSeconds": 145.581173,
+          "sampledMaxMemoryBytes": 687546368,
+          "sampledMaxPids": 92,
+          "memoryLimits": [
+            2147483648
+          ],
+          "pidLimits": [
+            128
+          ],
+          "evidenceClass": "UNSIGNED_SUPPLEMENTAL",
+          "acceptance": false,
+          "terminalOom": "UNKNOWN",
+          "truePeaks": "UNKNOWN",
+          "processExitObserved": false
+        }
+      },
+      {
+        "check": "integration",
+        "status": "not-run"
+      },
+      {
+        "check": "security",
+        "status": "not-run"
+      },
+      {
+        "check": "build",
+        "status": "not-run"
+      }
+    ],
+    "normal": {
+      "tests": 3721,
+      "suites": 1,
+      "pass": 3695,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 26,
+      "todo": 0,
+      "durationMs": 319832.40639,
+      "security": {
+        "tests": 332,
+        "pass": 332,
+        "fail": 0,
+        "skipped": 0,
+        "durationMs": 9369.969573
+      }
+    },
+    "beforeNormal": {
+      "tests": 3704,
+      "pass": 3678,
+      "fail": 0,
+      "skipped": 26,
+      "durationMs": 378473.418558
+    },
+    "diagnosis": {
+      "primary": "Independent Unit exceeded unchanged300000ms deadline; no completed summary or emitted test failure. ETIMEDOUT/SIGKILL recorded, cleanup confirmed.",
+      "downstream": "LIVE_CHECK_SET_INVALID is the audit consequence of stopping after inconclusive Unit. Missing Integration/Security/Build must not be credited as passed.",
+      "regressionResolved": "Previously failing git-dependent AI09 reviewer case now emitted a pass.",
+      "remainingTailReference": "19 tracked-runtime results after the last emitted independent result total21608.456338ms in sameHEAD normal execution. All198 later result lines flush immediately after tracked-runtime completes. This supports an unchanged-body early scheduling experiment, not a measured fullCI improvement.",
+      "powershell": "Failure-details matched14tests decrease36.403\u219226.098s; diagnostics12matched14.575\u219214.733s; preflight12static matched12.712\u219211.735s. Remaining major families mix native process/handle/state requirements, so further broad batching is not automatically safe.",
+      "newVerifierTests": "Snapshot suite14\u219223matched test results,4.989\u21928.714s summed elapsed. No per-file CPU counters are available; new PS helper3tests sum3.099s."
+    },
+    "limits": "300s Unit unchanged; no edits,tests,reruns,dispatches or writes toGitHub in this monitoring task; artifacts fetched via connector and SHA-checked."
+  },
+  "scheduling": {
+    "controllers": [
+      {
+        "variant": "original-full",
+        "order": "sorted",
+        "exit": 1,
+        "timedOut": false,
+        "wallSeconds": 287.65782209700046,
+        "cpuUserSeconds": 368.230195,
+        "cpuSystemSeconds": 90.182294,
+        "affinity": [
+          0,
+          1
+        ],
+        "budgetSeconds": 300,
+        "nodeVersion": "v24.22.1",
+        "driverSha256": "3e5b3186f00a183f735175b07b61be14d42dfff87030eee73b8d30ed48777a52",
+        "cachePreludeSha256": "c49811d1b088f643aa5de4b759d70163156a4689402c8f15df4fa23fe595b811",
+        "cacheRoot": "/workspace/scratch/760162201692/ci-investigation/scheduling/original-full-private-kwv21l1k",
+        "productionCodeChanged": false,
+        "dockerIsolation": false
+      },
+      {
+        "variant": "early-full",
+        "order": "tracked-early",
+        "exit": 1,
+        "timedOut": false,
+        "wallSeconds": 273.35201767299986,
+        "cpuUserSeconds": 370.34605,
+        "cpuSystemSeconds": 88.97944900000002,
+        "affinity": [
+          0,
+          1
+        ],
+        "budgetSeconds": 300,
+        "nodeVersion": "v24.22.1",
+        "driverSha256": "3e5b3186f00a183f735175b07b61be14d42dfff87030eee73b8d30ed48777a52",
+        "cachePreludeSha256": "7cde2335e87343da38e20238249f6d34aa2e00d2040d10f49d7b76f985fff778",
+        "cacheRoot": "/workspace/scratch/760162201692/ci-investigation/scheduling/early-full-private-fxmz7qds",
+        "productionCodeChanged": false,
+        "dockerIsolation": false
+      }
+    ],
+    "inventory": {
+      "originalOrdinal": 631,
+      "earlyOrdinal": 85,
+      "count": 669,
+      "sameSortedSourcePathsAndSha256": true,
+      "sameSourceIdentity": true,
+      "originalIdentity": "083f23681063c82d3ae4f73cc471b6d0ccdad68169fba029ce6c756eaa17c73c",
+      "earlyIdentity": "083f23681063c82d3ae4f73cc471b6d0ccdad68169fba029ce6c756eaa17c73c",
+      "sameFilesWithoutDuplicates": true,
+      "allOtherFilesKeepRelativeOrder": true,
+      "node": [
+        "v24.22.1",
+        "v24.22.1"
+      ],
+      "scope": [
+        "all",
+        "all"
+      ],
+      "concurrency": [
+        2,
+        2
+      ],
+      "isolation": [
+        "process",
+        "process"
+      ],
+      "externalTimeoutRequiredMs": [
+        300000,
+        300000
+      ]
+    },
+    "resultIdentities": {
+      "runs": [
+        {
+          "prefix": "original-full",
+          "rawEventsSha256": "78c55504991a4519fd6dab9603e21ccaa73fe7155b7cc3b4582758f8a2c5b5ec",
+          "counts": {
+            "passed": 3693,
+            "failed": 2,
+            "skipped": 26,
+            "todo": 0
+          },
+          "caseIdentitySha256": {
+            "passed": "0f64bda9cc4a622706e232e5845294c66c392cae9ad80b989b1ccd0e2a3d429b",
+            "failed": "bcf6d04db7c65de0b7fe0f421f0864b5a8af1315ff7730b5c1ef571268205f19",
+            "skipped": "e978a39f9e10a067a6b385c90563a0db55fdd2c49fcfd364882e80f415fcb0ef",
+            "todo": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "globalCountsMatch": true,
+          "failedIdentities": [
+            {
+              "name": "missing configured LAN leaves local Broker available without launching private ingress",
+              "nesting": 0,
+              "line": 78,
+              "column": 1,
+              "file": "tests/jarvis-network-local-runtime.test.mjs",
+              "entryFile": "tests/jarvis-network-local-runtime.test.mjs",
+              "error": {
+                "message": "A system error occurred: uv_interface_addresses returned Unknown system error 1 (Unknown system error 1)",
+                "code": "ERR_TEST_FAILURE",
+                "failureType": "testCodeFailure"
+              }
+            },
+            {
+              "name": "private ingress retry exhaustion preserves the independently running local Broker",
+              "nesting": 0,
+              "line": 90,
+              "column": 1,
+              "file": "tests/jarvis-network-local-runtime.test.mjs",
+              "entryFile": "tests/jarvis-network-local-runtime.test.mjs",
+              "error": {
+                "message": "private ingress must consume its bounded retry budget; stderr=",
+                "code": "ERR_TEST_FAILURE",
+                "failureType": "testCodeFailure"
+              }
+            }
+          ]
+        },
+        {
+          "prefix": "early-full",
+          "rawEventsSha256": "41ef8be1d8831787faa55c28b31499e5c86c9e83635baa723adc9fa7b490bf30",
+          "counts": {
+            "passed": 3693,
+            "failed": 2,
+            "skipped": 26,
+            "todo": 0
+          },
+          "caseIdentitySha256": {
+            "passed": "0f64bda9cc4a622706e232e5845294c66c392cae9ad80b989b1ccd0e2a3d429b",
+            "failed": "bcf6d04db7c65de0b7fe0f421f0864b5a8af1315ff7730b5c1ef571268205f19",
+            "skipped": "e978a39f9e10a067a6b385c90563a0db55fdd2c49fcfd364882e80f415fcb0ef",
+            "todo": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "globalCountsMatch": true,
+          "failedIdentities": [
+            {
+              "name": "missing configured LAN leaves local Broker available without launching private ingress",
+              "nesting": 0,
+              "line": 78,
+              "column": 1,
+              "file": "tests/jarvis-network-local-runtime.test.mjs",
+              "entryFile": "tests/jarvis-network-local-runtime.test.mjs",
+              "error": {
+                "message": "A system error occurred: uv_interface_addresses returned Unknown system error 1 (Unknown system error 1)",
+                "code": "ERR_TEST_FAILURE",
+                "failureType": "testCodeFailure"
+              }
+            },
+            {
+              "name": "private ingress retry exhaustion preserves the independently running local Broker",
+              "nesting": 0,
+              "line": 90,
+              "column": 1,
+              "file": "tests/jarvis-network-local-runtime.test.mjs",
+              "entryFile": "tests/jarvis-network-local-runtime.test.mjs",
+              "error": {
+                "message": "private ingress must consume its bounded retry budget; stderr=",
+                "code": "ERR_TEST_FAILURE",
+                "failureType": "testCodeFailure"
+              }
+            }
+          ]
+        }
+      ],
+      "sameIdentityAndMultiplicity": {
+        "passed": true,
+        "failed": true,
+        "skipped": true,
+        "todo": true
+      },
+      "sameAllTestResults": true
+    },
+    "causalAccounting": {
+      "runs": [
+        {
+          "variant": "original-full",
+          "controllerWallSeconds": 287.65782209700046,
+          "cpuSeconds": 458.412489,
+          "firstDequeueMs": 34.00371,
+          "lastCompleteMs": 287303.508205,
+          "scheduleWindowMs": 287269.504495,
+          "sumFileIntervalMs": 535754.0792250001,
+          "oneActiveMs": 38784.92976499989,
+          "twoActiveMs": 248484.57473000014,
+          "finalTailMs": 38554.59223400001,
+          "finalFile": "tests/tracked-repair-runtime.test.ts",
+          "tracked": {
+            "file": "tests/tracked-repair-runtime.test.ts",
+            "dequeuedAtMs": 236250.722402,
+            "completedAtMs": 287303.508205,
+            "intervalMs": 51052.785803000006,
+            "reportedDurationMs": 51055.84847,
+            "passed": true
+          },
+          "timedOut": false,
+          "exit": 1,
+          "freshCacheRoot": "/workspace/scratch/760162201692/ci-investigation/scheduling/original-full-private-kwv21l1k",
+          "cachePreludeSha256": "c49811d1b088f643aa5de4b759d70163156a4689402c8f15df4fa23fe595b811",
+          "driverSha256": "3e5b3186f00a183f735175b07b61be14d42dfff87030eee73b8d30ed48777a52"
+        },
+        {
+          "variant": "early-full",
+          "controllerWallSeconds": 273.35201767299986,
+          "cpuSeconds": 459.32549900000004,
+          "firstDequeueMs": 33.622512,
+          "lastCompleteMs": 273110.812119,
+          "scheduleWindowMs": 273077.18960700004,
+          "sumFileIntervalMs": 545938.5798399998,
+          "oneActiveMs": 215.7993740002705,
+          "twoActiveMs": 272861.39023299975,
+          "finalTailMs": 22.83521600003587,
+          "finalFile": "tests/zbook-timeout-recovery.test.ts",
+          "tracked": {
+            "file": "tests/tracked-repair-runtime.test.ts",
+            "dequeuedAtMs": 103445.060809,
+            "completedAtMs": 157469.120256,
+            "intervalMs": 54024.05944699999,
+            "reportedDurationMs": 54022.224634,
+            "passed": true
+          },
+          "timedOut": false,
+          "exit": 1,
+          "freshCacheRoot": "/workspace/scratch/760162201692/ci-investigation/scheduling/early-full-private-fxmz7qds",
+          "cachePreludeSha256": "7cde2335e87343da38e20238249f6d34aa2e00d2040d10f49d7b76f985fff778",
+          "driverSha256": "3e5b3186f00a183f735175b07b61be14d42dfff87030eee73b8d30ed48777a52"
+        }
+      ],
+      "wallSavedSeconds": 14.305804424000598,
+      "cpuDeltaSeconds": 0.9130100000000425,
+      "singleActiveTimeRemovedMs": 38569.13039099962,
+      "halfIdleSlotSavingMs": 19284.56519549981,
+      "sumFileIntervalDeltaMs": 10184.500614999677,
+      "halfFileIntervalIncreaseMs": 5092.2503074998385,
+      "scheduleWindowSavedMs": 14192.314887999964,
+      "freshDistinctPrivateCaches": true,
+      "sameCachePrelude": false,
+      "sameDriver": true,
+      "interpretation": "The second available file slot is idle during a single-file tail; removing38s of one-idle-slot time does not imply38s of wall savings. For concurrency2, schedule wall equals half summed file interval time plus half one-active-file time. These are event interval accounting identities, not CPU attribution.",
+      "cachePreludeDifferentOnlyByOwnedRoot": true,
+      "normalizedCachePreludeSha256": [
+        "596d92334fd82e0ced515e2f1330e3608a5d46540217dc5f7bcc6ba41b2095ac",
+        "596d92334fd82e0ced515e2f1330e3608a5d46540217dc5f7bcc6ba41b2095ac"
+      ]
+    },
+    "note": "Both runs complete all669files with identical3693pass/2fail/26skip results. Local Node24.22.1 and CPU affinity are not hosted Node24.19.0 Docker acceptance. Raw events remain authoritative; convenience lifecycle records have a documented type-field collision."
+  },
+  "approvedNext": {
+    "measurements": [
+      {
+        "variant": "baseline",
+        "sourceSha256": "04107ea791c22ae5c9d4314f2c86871307ba56416276c16c2111824bd80dd9d5",
+        "exitCode": 0,
+        "outerTimeoutMs": 300000,
+        "timedOut": false,
+        "wallSeconds": 18.707407145000616,
+        "userCpuSeconds": 2.955225,
+        "systemCpuSeconds": 0.89999,
+        "affinity": [
+          0,
+          1
+        ],
+        "sampleIntervalSeconds": 0.1,
+        "samples": 185,
+        "sampledPeakDescendantRssBytes": 317501440,
+        "sampledPeakProcesses": 4,
+        "sampledPeakThreads": 27,
+        "maxChildRssKiB": 105164,
+        "scope": "Only this test file with all descendant processes. Sampled RSS sums may double-count shared pages. No Docker memory/PID/cgroup quota equivalence."
+      },
+      {
+        "variant": "parallel",
+        "sourceSha256": "4d36d35463d475b4007a1d1975be1a8f33d6cac53a89fd90b329c7ee70e03024",
+        "exitCode": 0,
+        "outerTimeoutMs": 300000,
+        "timedOut": false,
+        "wallSeconds": 12.47322847400028,
+        "userCpuSeconds": 3.609679,
+        "systemCpuSeconds": 1.323515,
+        "affinity": [
+          0,
+          1
+        ],
+        "sampleIntervalSeconds": 0.1,
+        "samples": 123,
+        "sampledPeakDescendantRssBytes": 412418048,
+        "sampledPeakProcesses": 5,
+        "sampledPeakThreads": 34,
+        "maxChildRssKiB": 106312,
+        "scope": "Only this test file with all descendant processes. Sampled RSS sums may double-count shared pages. No Docker memory/PID/cgroup quota equivalence."
+      },
+      {
+        "variant": "parallel-cleared",
+        "sourceSha256": "9fbf8b09ca17d13882617c8fe6dd1db603d256116f47369ff424acaf4eec8018",
+        "exitCode": 0,
+        "outerTimeoutMs": 300000,
+        "timedOut": false,
+        "wallSeconds": 9.543268768000416,
+        "userCpuSeconds": 3.072188,
+        "systemCpuSeconds": 1.162083,
+        "affinity": [
+          0,
+          1
+        ],
+        "sampleIntervalSeconds": 0.1,
+        "samples": 94,
+        "sampledPeakDescendantRssBytes": 409141248,
+        "sampledPeakProcesses": 5,
+        "sampledPeakThreads": 38,
+        "maxChildRssKiB": 102292,
+        "scope": "Only this test file with all descendant processes. Sampled RSS sums may double-count shared pages. No Docker memory/PID/cgroup quota equivalence."
+      },
+      {
+        "variant": "private-cache",
+        "sourceSha256": "d5d0435e32b9e7902416b3865988c1faab9db78811f674d173c526fbcf63d1e7",
+        "exitCode": 0,
+        "outerTimeoutMs": 300000,
+        "timedOut": false,
+        "wallSeconds": 9.627829208000549,
+        "userCpuSeconds": 3.330002,
+        "systemCpuSeconds": 1.221656,
+        "affinity": [
+          0,
+          1
+        ],
+        "sampleIntervalSeconds": 0.1,
+        "samples": 95,
+        "sampledPeakDescendantRssBytes": 366616576,
+        "sampledPeakProcesses": 5,
+        "sampledPeakThreads": 38,
+        "maxChildRssKiB": 107116,
+        "scope": "Only this test file with all descendant processes. Sampled RSS sums may double-count shared pages. No Docker memory/PID/cgroup quota equivalence."
+      }
+    ],
+    "adopted": "parallel-cleared",
+    "privateCacheAdopted": false,
+    "privateCacheReason": "9.628s versus9.543s without added cache; no material benefit.",
+    "sourceContract": [
+      {
+        "variant": "original",
+        "sourceSha256": "04107ea791c22ae5c9d4314f2c86871307ba56416276c16c2111824bd80dd9d5",
+        "stopSha256": "631006c3c0bf46cfacbf22ed191ed00b86567052fa539cff20bee3466bf25bdf",
+        "elapsedMs": 3001.860367,
+        "signals": [
+          {
+            "signal": "SIGTERM",
+            "atMs": 0.17603600000001052,
+            "accepted": true
+          },
+          {
+            "signal": "SIGKILL",
+            "atMs": 3001.8560700000003,
+            "accepted": true
+          }
+        ],
+        "exitCode": null,
+        "signal": "SIGKILL",
+        "childCleared": true
+      },
+      {
+        "variant": "cleared",
+        "sourceSha256": "9fbf8b09ca17d13882617c8fe6dd1db603d256116f47369ff424acaf4eec8018",
+        "stopSha256": "b50ae8321bd05db57d2474bfb7ddbcfbb70866ba1547edf57643d1155dab80c4",
+        "elapsedMs": 3003.1212799999994,
+        "signals": [
+          {
+            "signal": "SIGTERM",
+            "atMs": 0.28094499999997424,
+            "accepted": true
+          },
+          {
+            "signal": "SIGKILL",
+            "atMs": 3003.115912,
+            "accepted": true
+          }
+        ],
+        "exitCode": null,
+        "signal": "SIGKILL",
+        "childCleared": true
+      }
+    ],
+    "sourceContractFirstInstrumentation": "First scratch instrumentation failed before running cases; its original stderr and source are preserved alongside the corrected probe."
+  },
+  "independentSourceReview": {
+    "evidenceClass": "INDEPENDENT_SOURCE_REVIEW_NOT_PRODUCTION_RECEIPT",
+    "reviewerTask": "/root/independent_review",
+    "critical": 0,
+    "important": 0,
+    "minor": 0,
+    "reviewedTestSha256": {
+      "tests/autonomous-tracked-repair-runtime.test.ts": "88948f1117cd2d73d3e1ffe78af4c8bc6d4a1f1a74850f88c3dbc765f3040d87",
+      "tests/approved-next-work-broker.test.ts": "9fbf8b09ca17d13882617c8fe6dd1db603d256116f47369ff424acaf4eec8018"
+    },
+    "checked": [
+      "Entire tracked test file byte identity, 669-file standard discovery and order equivalence",
+      "Raw lifecycle event accounting and full pass/fail/skip identity multiplicities",
+      "Four approved-next bodies, fixture-local resources and Linux-only concurrency2",
+      "3000ms hard-kill boundary, normal-exit losing-timer cleanup and retained source-contract observations"
+    ],
+    "notProved": [
+      "Hosted six-check acceptance of the next HEAD",
+      "Production original Goal acceptance",
+      "Independent key custody"
+    ]
+  },
+  "localSourceChecks": [
+    [
+      {
+        "command": [
+          "node",
+          "scripts/jarvis-requirement-audit.mjs",
+          "--check"
+        ],
+        "exitCode": 0,
+        "stdout": "{\"status\":\"PASS\",\"surfaces\":622,\"requirements\":341,\"functional_completion_claim\":false}\n",
+        "stderr": ""
+      },
+      {
+        "command": [
+          "git",
+          "diff",
+          "--check"
+        ],
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      {
+        "command": [
+          "git",
+          "diff",
+          "--cached",
+          "--check"
+        ],
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      }
+    ],
+    {
+      "command": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "--noEmit"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 17.852776435000123,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "pnpm",
+        "exec",
+        "eslint",
+        "tests/approved-next-work-broker.test.ts",
+        "tests/autonomous-tracked-repair-runtime.test.ts"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 2.81110163700032,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "ownerOriginObservation": {
+    "version": 1,
+    "recordedAt": "2026-11-11T14:46:36.507043+00:00",
+    "evidenceClass": "BROWSER_UI_OBSERVATION",
+    "repository": "haji84/AI-",
+    "sourceOfOrigin": [
+      "GitHub repository homepage fetched during this continuation",
+      ".github/workflows/goriq-jarvis-production-sync.yml at main6737e15033eced135461076d72f792516e83c9b3"
+    ],
+    "registeredOrigin": "https://jarvis-fawn-iota.vercel.app",
+    "requestedMethod": "GET",
+    "observedUrl": "https://jarvis-fawn-iota.vercel.app/api/jarvis/work/goal-fcc81c97e09153f7",
+    "observedTitle": "404: NOT_FOUND",
+    "visibleError": "404 DEPLOYMENT_NOT_FOUND",
+    "authenticationReached": false,
+    "originalGoalRead": false,
+    "goalAbsenceProved": false,
+    "mutationPerformed": false,
+    "credentialValuesRead": false,
+    "limitations": [
+      "This is the current observed response of the registered URL, not proof that the owner Goal or another deployment is absent.",
+      "No authenticated canonical state, Job history or approval scope was obtained."
+    ]
+  },
+  "acceptance": {
+    "nextPublishedHeadHostedCi": "REQUIRED_NOT_YET_RUN",
+    "productionOriginalGoalRead": false,
+    "productionOriginalGoalAbsent": "NOT_ESTABLISHED",
+    "productionSignerConnected": false,
+    "sharedCanonicalAuthorityConnected": false,
+    "originalGoalFailRepairVerifierNextJobDeliveryProved": false
+  },
+  "archive": {
+    "path": "docs/evidence/1219-20261111-ci-scheduling-correction.zip",
+    "bytes": 2391690,
+    "sha256": "6bcc823c635b57676bdd9ddf198b40c35d619d2824f613480a1f5c77a2a6f13b",
+    "members": [
+      {
+        "path": "approved-next-concurrency/baseline.json",
+        "bytes": 653,
+        "sha256": "51684a997a7bad36b6682e2e4472dfcf68804fcc23823e5116b153a9290c5e83"
+      },
+      {
+        "path": "approved-next-concurrency/baseline.log",
+        "bytes": 520,
+        "sha256": "f7d925b468d6b8c96cb522d3cc6f1ebc172032044a50af6eb419c5356b5c440c"
+      },
+      {
+        "path": "approved-next-concurrency/final-evidence.json",
+        "bytes": 9920,
+        "sha256": "ae29f82a18c83159ff8202fb26f158e716003ae9fc425d25cf547b2782a11571"
+      },
+      {
+        "path": "approved-next-concurrency/measure.py",
+        "bytes": 2971,
+        "sha256": "254bad2ac2b39ae5191c888d84ba72cb9537f084d71e1b1f0fbd6dce36673743"
+      },
+      {
+        "path": "approved-next-concurrency/original.test.ts",
+        "bytes": 12814,
+        "sha256": "04107ea791c22ae5c9d4314f2c86871307ba56416276c16c2111824bd80dd9d5"
+      },
+      {
+        "path": "approved-next-concurrency/parallel-cleared.json",
+        "bytes": 660,
+        "sha256": "8543bef568b861ea7f294c34f4e8ab33a8179130148279a0ba00d5272f36ba4b"
+      },
+      {
+        "path": "approved-next-concurrency/parallel-cleared.log",
+        "bytes": 629,
+        "sha256": "31611e1598ddce21b50b91a77ee0f7457035be97e691b372e71c8fc2fccbb5c3"
+      },
+      {
+        "path": "approved-next-concurrency/parallel-only.test.ts",
+        "bytes": 13021,
+        "sha256": "4d36d35463d475b4007a1d1975be1a8f33d6cac53a89fd90b329c7ee70e03024"
+      },
+      {
+        "path": "approved-next-concurrency/parallel.json",
+        "bytes": 653,
+        "sha256": "1427c3504ecc38135300a5e1b34e391e71e00cf11dda7c2ff8637f349b7ec1fd"
+      },
+      {
+        "path": "approved-next-concurrency/parallel.log",
+        "bytes": 630,
+        "sha256": "8a0d3cfe066db12731acc8133dc4a7eff491e581e26696e4902d6f594c848320"
+      },
+      {
+        "path": "approved-next-concurrency/private-cache.json",
+        "bytes": 657,
+        "sha256": "9b8280018d7c4882dec0d68a7fb8749f30bdbb6d58d2d127b40de8d565bedc99"
+      },
+      {
+        "path": "approved-next-concurrency/private-cache.log",
+        "bytes": 629,
+        "sha256": "59c28e58505227bde7f818d2660072e11522bf72c9c1499f6c524ac66040732e"
+      },
+      {
+        "path": "approved-next-concurrency/private-cache.test.ts",
+        "bytes": 14018,
+        "sha256": "d5d0435e32b9e7902416b3865988c1faab9db78811f674d173c526fbcf63d1e7"
+      },
+      {
+        "path": "approved-next-concurrency/root-body-parity.json",
+        "bytes": 224,
+        "sha256": "8882109f34efad0ddcb38ca9153ab183b6e9d791b5b3b02ae10e3c1d4b610d32"
+      },
+      {
+        "path": "approved-next-concurrency/stop-source-contract-first-instrumentation.jsonl",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "approved-next-concurrency/stop-source-contract-first-instrumentation.stderr",
+        "bytes": 179,
+        "sha256": "d0d43d8f9aa87024aee8e3b218aaf682913044cb6652787ef57901d7dc04c3a2"
+      },
+      {
+        "path": "approved-next-concurrency/stop-source-contract-first-instrumentation.ts",
+        "bytes": 4003,
+        "sha256": "da2fce80e0793f7eeeefedc74e20dcc05799a61f6242e3be996bf3abf2834f43"
+      },
+      {
+        "path": "approved-next-concurrency/stop-source-contract.jsonl",
+        "bytes": 805,
+        "sha256": "98cc28a19402a3bdeb24bb295c0a110afd36c877cc98d9959ecc3b241dfd3021"
+      },
+      {
+        "path": "approved-next-concurrency/stop-source-contract.stderr",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "approved-next-concurrency/stop-source-contract.ts",
+        "bytes": 4169,
+        "sha256": "4006b2cc97a80dc74f58f231d393c55741adaba7e090a1d7a8c543ddff63764d"
+      },
+      {
+        "path": "existing-origin-observation.json",
+        "bytes": 1006,
+        "sha256": "1d1a08a3a60e95f98507cf17919175f1f23d4f25650c2c0ec2f6e394f7693103"
+      },
+      {
+        "path": "independent-source-review.json",
+        "bytes": 981,
+        "sha256": "f27945e03fcf759cbcd24ed57bc849b6ba9055c893728499217dcb0adbfeee1d"
+      },
+      {
+        "path": "prior-exact-ci/artifact-verification.json",
+        "bytes": 1123,
+        "sha256": "768a4041c23a4d777960f4597c85e9b72312c5dcf3412f165e984aef7fa7ccf7"
+      },
+      {
+        "path": "prior-exact-ci/artifacts.json",
+        "bytes": 1745,
+        "sha256": "2433489851076f1f683d50dad3bd372da5acaa80b989cd3c323f1e86bced19ca"
+      },
+      {
+        "path": "prior-exact-ci/ci-1d59543-unit-sampled-cpu-rate.json",
+        "bytes": 3424,
+        "sha256": "11a09ffcaea5477ed2f76b3dac475bf094da379a377321049e28df692d61499a"
+      },
+      {
+        "path": "prior-exact-ci/comparison.json",
+        "bytes": 12076,
+        "sha256": "8d84703b01c00f7469f88ce166b8274153361c5a2d7a1f5edf20f65bbe687a0e"
+      },
+      {
+        "path": "prior-exact-ci/findings.json",
+        "bytes": 7078,
+        "sha256": "49304224996289e58489c028d7e69231ed63a86fc42cfadc0504f9a3b0fb5a71"
+      },
+      {
+        "path": "prior-exact-ci/independent-verifier.log",
+        "bytes": 19768,
+        "sha256": "c7eb9dadc9503a0097b7d293a360a244ab0284f1a9d6ad6c5a7917bf76114988"
+      },
+      {
+        "path": "prior-exact-ci/jobs-final-raw.json",
+        "bytes": 15302,
+        "sha256": "e08f12fd876bc2e2a789c6bd4a9bee85e2ecc3cc10a5c368096f199014774c65"
+      },
+      {
+        "path": "prior-exact-ci/normal-comparison.json",
+        "bytes": 882,
+        "sha256": "6f1b12876a049ed6f2202d4d2a4a3d1dafb679564c519c4a7dd3ce63370be87a"
+      },
+      {
+        "path": "prior-exact-ci/normal-tracked-unfinished-reference.json",
+        "bytes": 3931,
+        "sha256": "f851e32d53cd5ab037cd7314ddee0c8feea6c35541f5f5603fbd0e140c5c629b"
+      },
+      {
+        "path": "prior-exact-ci/project-checks.log",
+        "bytes": 559848,
+        "sha256": "92941a8db5af19dc13392ff84680779ff3cc16c300cc2606f54815f2f3918609"
+      },
+      {
+        "path": "prior-exact-ci/resources.zip",
+        "bytes": 3259,
+        "sha256": "2d47ec63bc4efa70e14c434e6c8d651fd7387910b914997008e3109a43577f37"
+      },
+      {
+        "path": "prior-exact-ci/run-final.json",
+        "bytes": 13529,
+        "sha256": "fa70c2f9af3b4d8eb5f74e446193bb16d89f08f3747fe7a1d98ba160b767d091"
+      },
+      {
+        "path": "prior-exact-ci/test-duration-comparison.json",
+        "bytes": 22872,
+        "sha256": "31483c31215b4da44c9d8bbc9006a17fd1e9e13e76a70bdc24c2e10042d2277e"
+      },
+      {
+        "path": "prior-exact-ci/verifier.zip",
+        "bytes": 111893,
+        "sha256": "4b82aa7c3cbbf65a10c4efc0fbff051ef7ba6ad39446a4aebd44acbe67ee71e4"
+      },
+      {
+        "path": "scheduling/actual-inventory-comparison.json",
+        "bytes": 632,
+        "sha256": "118108c737e928599acce3c51da825bc4be112cdb29c4081df4f7e2d501a9cca"
+      },
+      {
+        "path": "scheduling/actual-rename-proof.json",
+        "bytes": 402,
+        "sha256": "d398e388994377581ef70c68b6ec0eb0c585c11c85e510dbe7b9d09bfd2d9450"
+      },
+      {
+        "path": "scheduling/analyze-raw-events.py",
+        "bytes": 9300,
+        "sha256": "56b3901a81af9eeb6c4249774b770f667642a40d86c56f0c01be50d5c15f0fb2"
+      },
+      {
+        "path": "scheduling/compare-result-identities.py",
+        "bytes": 2367,
+        "sha256": "a4fb063dac5c3a647a09d931d0b54c522ec753a21446a2baf9ab5369bc141983"
+      },
+      {
+        "path": "scheduling/early-full.controller.json",
+        "bytes": 634,
+        "sha256": "f05c5c15f6ad90c17c42aa6e3e7dfba2eb05bba23d1b818ad3cefd1e55733619"
+      },
+      {
+        "path": "scheduling/early-full.controller.log",
+        "bytes": 191,
+        "sha256": "59ebf504975d04b68f26182a524a605172386bf96378fa557b4598aefd663583"
+      },
+      {
+        "path": "scheduling/early-full.derived-active-segments.json",
+        "bytes": 293551,
+        "sha256": "b99bb21c3f08c342ab2fe0bb25a175eeb5abd84dd53ee7920ffa2cc227df80c4"
+      },
+      {
+        "path": "scheduling/early-full.derived-result-identities.json",
+        "bytes": 1047021,
+        "sha256": "1ff37fbecc45beac108c628aba4ab75a50876e1da3a67f3cc49d61bcef7edd35"
+      },
+      {
+        "path": "scheduling/early-full.derived-root-lifecycle.jsonl",
+        "bytes": 242405,
+        "sha256": "e2b25ceb22fcc4a23e54759b5332f1299ea3741d528ed8ce31573ce0c6d4c15c"
+      },
+      {
+        "path": "scheduling/early-full.derived-stats.json",
+        "bytes": 183277,
+        "sha256": "2ca888f2073eecbfdab6eb95db516f46b36037734e063e398e393927b5039f37"
+      },
+      {
+        "path": "scheduling/early-full.events.jsonl",
+        "bytes": 8766664,
+        "sha256": "41ef8be1d8831787faa55c28b31499e5c86c9e83635baa723adc9fa7b490bf30"
+      },
+      {
+        "path": "scheduling/early-full.inventory.json",
+        "bytes": 135945,
+        "sha256": "a552ed89fd79ca1bd30c363b6d3258542772bd6742ade08559042276ef7f1c4d"
+      },
+      {
+        "path": "scheduling/early-full.lifecycle.jsonl",
+        "bytes": 577833,
+        "sha256": "56d483cbec3e29ea552c726c3afce49a9069d115bbe56bedc2a056bbe625b9b7"
+      },
+      {
+        "path": "scheduling/early-full.summary.json",
+        "bytes": 605915,
+        "sha256": "cae42ac73f59f16e8665fff6d52973e54657e308b13427175487a03917833645"
+      },
+      {
+        "path": "scheduling/full-comparison.json",
+        "bytes": 1345,
+        "sha256": "4f136c350c33519bcbd2552670cd3c5136f7c905431b988acd2fd0672d03a15a"
+      },
+      {
+        "path": "scheduling/lifecycle-driver.mjs",
+        "bytes": 6548,
+        "sha256": "3e5b3186f00a183f735175b07b61be14d42dfff87030eee73b8d30ed48777a52"
+      },
+      {
+        "path": "scheduling/lifecycle-smoke.mjs",
+        "bytes": 555,
+        "sha256": "ded826156a5826ef951fcbdc0c0087d2cc23ad5a083c81858b1dc93e9fe83113"
+      },
+      {
+        "path": "scheduling/node-24.19-runner.js",
+        "bytes": 35691,
+        "sha256": "7653fc2852b0ab2a26b94cb1367751678bf4fab3afccec8a2f13f22321418744"
+      },
+      {
+        "path": "scheduling/node-24.19-utils-excerpt.js",
+        "bytes": 5793,
+        "sha256": "3b66bbf7a808ebb94e6079b9c61102a33d9eeda080192e19a64498add14e6d15"
+      },
+      {
+        "path": "scheduling/original-full.controller.json",
+        "bytes": 626,
+        "sha256": "6856cfe02091907452df83f9f041481066e57151706b7558d7d6d46c6a40d5b1"
+      },
+      {
+        "path": "scheduling/original-full.controller.log",
+        "bytes": 184,
+        "sha256": "c8c59df1e1dd07b4b2d88f0dd2c3548e528a6d0968b673072d1d93aea5c44e78"
+      },
+      {
+        "path": "scheduling/original-full.derived-active-segments.json",
+        "bytes": 294735,
+        "sha256": "b6a01c3e5a351a1f66c513e0aae3a41c2c56e73c94c093501d3337f560bae1e6"
+      },
+      {
+        "path": "scheduling/original-full.derived-result-identities.json",
+        "bytes": 1047021,
+        "sha256": "1ff37fbecc45beac108c628aba4ab75a50876e1da3a67f3cc49d61bcef7edd35"
+      },
+      {
+        "path": "scheduling/original-full.derived-root-lifecycle.jsonl",
+        "bytes": 242412,
+        "sha256": "cb21ddc134d0d30ad22b35cf44257b736585c3a460df429b48fd5c024d72b054"
+      },
+      {
+        "path": "scheduling/original-full.derived-stats.json",
+        "bytes": 183283,
+        "sha256": "690ebcd7921625858c95244b43e795123e14fb3242a4fb3f40c3b9b526952520"
+      },
+      {
+        "path": "scheduling/original-full.events.jsonl",
+        "bytes": 8766760,
+        "sha256": "78c55504991a4519fd6dab9603e21ccaa73fe7155b7cc3b4582758f8a2c5b5ec"
+      },
+      {
+        "path": "scheduling/original-full.inventory.json",
+        "bytes": 135939,
+        "sha256": "9795fa88462eaa0720fdc95df1835e191545a77861b33bd27d31c58a94b4d906"
+      },
+      {
+        "path": "scheduling/original-full.lifecycle.jsonl",
+        "bytes": 577874,
+        "sha256": "e98972200e5fa963191bc9d8a94219c3f5e771f6f34ef4a25ae4e98a2f09ebf0"
+      },
+      {
+        "path": "scheduling/original-full.summary.json",
+        "bytes": 605868,
+        "sha256": "1ffd2585cfcf421e49722ba4d4324a1975f5bda7fd5e04a2384b4fe0449ae059"
+      },
+      {
+        "path": "scheduling/result-identity-comparison.json",
+        "bytes": 3800,
+        "sha256": "334334c1ec44bc7fc9595357574e44dea11490ecaca01ae1b96132d675eb86ff"
+      },
+      {
+        "path": "scheduling/scheduling-analysis-output.json.txt",
+        "bytes": 16267,
+        "sha256": "93665c11a603832aab30a961a0128a6b7de3c32b0d2e0138c494f2a03928ffc6"
+      },
+      {
+        "path": "scheduling/scheduling-causal-accounting.json",
+        "bytes": 3174,
+        "sha256": "25ca8bd8949ab66272cc75456b5dc32478ff436eb97025d7c7fbedf8598a1e58"
+      },
+      {
+        "path": "scheduling/scheduling-derived-comparison.json",
+        "bytes": 12449,
+        "sha256": "d6392591b07f8c3cc84f2cba8a11ffe8927de292300560ffa8adc7d66245ae73"
+      },
+      {
+        "path": "third-validation/lint.json",
+        "bytes": 249,
+        "sha256": "952c51e6b384805351c5489befc5199c7a2d071608f75343e362a2d9b79457de"
+      },
+      {
+        "path": "third-validation/source-checks.json",
+        "bytes": 543,
+        "sha256": "47c62e594a8084f5d7e9d7318e76d7ac0588730b866e0551b65ff8d7e03ca934"
+      },
+      {
+        "path": "third-validation/typecheck.json",
+        "bytes": 162,
+        "sha256": "b161640072f2ced7ce681aa92d506100d918979b65959dfab5dc4e4faeda02e1"
+      },
+      {
+        "path": "tracked-cache/comparison.json",
+        "bytes": 889,
+        "sha256": "ea2b270fb90afcbab79d9dffa2df826759809472773afc415130120ce80025ce"
+      },
+      {
+        "path": "tracked-cache/private-cache.json",
+        "bytes": 410,
+        "sha256": "b5a1974d2aba39241a8d412cf3279d93059f67993d0ff38bc932bf332c901405"
+      },
+      {
+        "path": "tracked-cache/private-cache.log",
+        "bytes": 4503,
+        "sha256": "3558f1aaf6da3ea6561f86bb9fc6ecd35efd975f992ea52844d63c9c5fee7d52"
+      },
+      {
+        "path": "tracked-cache/uncached.json",
+        "bytes": 406,
+        "sha256": "69c0c64372fea0a0adf951f409657fbbad1e3f74275f41d2604f46bd753b00af"
+      },
+      {
+        "path": "tracked-cache/uncached.log",
+        "bytes": 4507,
+        "sha256": "f96eb4af58069682ea9d79f7f7f1ed6373395d0da2032c49ffcaca5c41ddea2f"
+      }
+    ]
+  }
+}

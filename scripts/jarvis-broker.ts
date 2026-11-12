@@ -42,6 +42,9 @@ import { CompassWorkStateStoreAdapter } from "../src/orchestrator/compass-work-s
 import { GoalControllerRuntime, type GoalControllerDecision } from "../src/orchestrator/goal-controller-runtime.ts";
 import { CompassGoalRegistryAdapter, CompassGoalDecisionStoreAdapter } from "../src/orchestrator/compass-goal-controller.ts";
 import { CompassWorkRunStore } from "../src/orchestrator/compass-work-run-store.ts";
+import { JsonFileDevelopmentJobStore } from "../src/orchestrator/development-job-store.ts";
+import type { DevelopmentJob } from "../src/orchestrator/development-job.ts";
+import { residentDevelopmentGoalDigest } from "../src/orchestrator/resident-development-sequence.ts";
 import { CompassApprovedNextWork, approvedNextRuntimeReady } from "../src/orchestrator/approved-next-work.ts";
 import { CompassGoalBridgeEventStore } from "../src/orchestrator/compass-goal-bridge-event-store.ts";
 import { CompassGoalExecutionContextStore } from "../src/orchestrator/compass-goal-execution-context-store.ts";
@@ -95,6 +98,7 @@ const compassPath = process.env.JARVIS_COMPASS_DB_PATH?.trim() || (process.env.J
 const compass = new CompassStore(compassPath);
 const localStateBackups = new LocalStateBackups({ brokerPath: process.env.JARVIS_DB_PATH?.trim() || resolve(".jarvis", "jarvis.db"), compassPath });
 const workRuns = new CompassWorkRunStore(compass);
+const developmentJobs = new JsonFileDevelopmentJobStore(join(dirname(compassPath), "self-development", "jobs.json"));
 const completionWorkState = new CompassWorkStateStoreAdapter(compass);
 const goalBridgeEvents = new CompassGoalBridgeEventStore(compass);
 const goalExecutionContexts = new CompassGoalExecutionContextStore(compass);
@@ -125,6 +129,8 @@ const deviceDevelopmentIntake = new DeviceDevelopmentIntake({
   },
 });
 const activeGoalExecutions = new Map<string, ReturnType<typeof spawn>>();
+const writerBusyAttempts = new Map<string, number>();
+const writerBusyTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const approvedNextWork = new CompassApprovedNextWork(compass);
 const nextInspectionFlag = process.env.GORIQ_APPROVED_NEXT_WORK_INSPECTION_ONLY?.trim();
 if (nextInspectionFlag && nextInspectionFlag !== "1") throw Error("Invalid host next-work inspection restriction");
@@ -206,10 +212,50 @@ function encodeGoalExecutionContext(context: unknown[]): string {
   return encoded;
 }
 
+/** Bounded, non-authoritative wake after a losing local writer contender.
+ * Only the canonical existing Goal/WorkRun can be retried. The contender must
+ * never write a failed/blocked state or create a second controller. */
+function scheduleWriterBusyRetry(goalId: string): void {
+  if (shuttingDown || writerBusyTimers.has(goalId)) return;
+  const attempt = (writerBusyAttempts.get(goalId) ?? 0) + 1;
+  if (attempt > 5) {
+    console.error("[goriq-goal]", goalId, "execution_writer_busy_retry_budget_exhausted");
+    return;
+  }
+  writerBusyAttempts.set(goalId, attempt);
+  const delay = Math.min(500 * 2 ** (attempt - 1), 4000);
+  const timer = setTimeout(() => {
+    writerBusyTimers.delete(goalId);
+    void (async () => {
+      if (shuttingDown || activeGoalExecutions.has(goalId) || compass.getState().status === "PAUSED") return;
+      const active = (await new CompassGoalRegistryAdapter(compass).listActive()).find(item => item.goalId === goalId);
+      const run = await workRuns.getByGoal(goalId);
+      if (!active || !run || !["QUEUED", "PLANNING", "RUNNING", "VERIFYING", "RECOVERING"].includes(run.phase)
+        || run.resourceWait || run.continuationWait) {
+        writerBusyAttempts.delete(goalId);
+        return;
+      }
+      scheduleGoalExecution({
+        action: "CONTINUE_GOAL", goalId, resolution: {
+          kind: "EXISTING_GOAL", intent: "COMMAND", goal: active,
+          reason: "retry_after_local_writer_contention",
+          intake: { id: "writer-retry-" + goalId, source: "event", text: "Retry accepted Goal after exclusive writer release",
+            sourceContext: {}, idempotencyKey: "writer-retry-" + goalId, goalHint: goalId },
+        },
+      }, goalExecutionContexts.get(goalId));
+    })().catch(error => console.error("[goriq-goal]", goalId, "writer_retry_readback_failed",
+      error instanceof Error ? error.name : "unknown"));
+  }, delay);
+  timer.unref();
+  writerBusyTimers.set(goalId, timer);
+}
+
 function scheduleGoalExecution(decision: GoalControllerDecision, context: unknown[] = []): boolean {
   if (shuttingDown || compass.getState().status === "PAUSED") return false;
   if (decision.goalId && context.length) goalExecutionContexts.put(decision.goalId, context);
   if (decision.action !== "CONTINUE_GOAL" || !decision.goalId) return false;
+  const pendingWriterRetry = writerBusyTimers.get(decision.goalId);
+  if (pendingWriterRetry) { clearTimeout(pendingWriterRetry); writerBusyTimers.delete(decision.goalId); }
   if (activeGoalExecutions.has(decision.goalId)) return true;
   const goalId = decision.goalId;
   // Run autonomous continuation outside the Broker process. Goal execution can
@@ -237,6 +283,12 @@ function scheduleGoalExecution(decision: GoalControllerDecision, context: unknow
   });
   child.once("exit", (code, signal) => {
     activeGoalExecutions.delete(goalId);
+    if (code === 75 && signal === null) {
+      // Temporary same-filesystem writer contention is not Goal failure.
+      scheduleWriterBusyRetry(goalId);
+      return;
+    }
+    writerBusyAttempts.delete(goalId);
     if (code !== 0) {
       console.error("[goriq-goal]", goalId, `executor_exit=${code ?? "null"} signal=${signal ?? "none"} ${stderr.trim()}`.trim());
     }
@@ -692,8 +744,50 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
       const goalId = decodeURIComponent(path.slice("/api/jarvis/admin/work/".length));
       const run = await workRuns.getByGoal(goalId);
       if (!run) return json(response, 404, { message: "Work Runがありません", goalId });
+      // Owner authentication protects both current and historical readback.
+      // A persisted WorkRun alone never grants present Goal execution authority.
+      const registry = new CompassGoalRegistryAdapter(compass);
+      const before = (await registry.listActive())[0];
+      const expectedGoalDigest = before?.goalId === goalId
+        ? residentDevelopmentGoalDigest(before.goal) : null;
       const completion = (await completionWorkState.getCompletionHistory(goalId)).at(-1) ?? null;
-      return json(response, 200, { run, progress: workRunProgress(run), completion });
+      // Same-host Job snapshots are evidence of persisted records, not a
+      // cross-host execution lease or approval to run them.
+      let jobs: DevelopmentJob[] = [];
+      try {
+        if (expectedGoalDigest) jobs = await developmentJobs.getByGoal(goalId);
+      } catch {
+        return json(response, 503, { code: "LOCAL_JOB_READBACK_UNAVAILABLE", goalId });
+      }
+      if (jobs.length > 32) {
+        return json(response, 409, { code: "LOCAL_JOB_READBACK_EXCEEDS_BOUND", goalId });
+      }
+      const after = (await registry.listActive())[0];
+      const current = expectedGoalDigest !== null && after?.goalId === goalId
+        && residentDevelopmentGoalDigest(after.goal) === expectedGoalDigest;
+      return json(response, 200, {
+        run, progress: workRunProgress(run), completion,
+        goalAuthority: {
+          kind: current ? "CURRENT_COMPASS_GOAL" : "HISTORICAL_WORK_RUN",
+          goalId, current,
+        },
+        jobReadback: {
+          kind: !current ? "HISTORICAL_ONLY" : jobs.length ? "LOCAL_PERSISTED_JOBS" : "LOCAL_JOBS_NOT_OBSERVED",
+          goalId,
+          goalDigest: current ? expectedGoalDigest : null,
+          remoteAuthorityVerified: false,
+          jobs: current ? jobs.map(job => ({
+            jobId: job.jobId,
+            phase: job.phase,
+            recordSha256: createHash("sha256").update(JSON.stringify(job)).digest("hex"),
+            approvalScope: {
+              taskScopeId: job.approvalScope.taskScopeId,
+              maxRisk: job.approvalScope.maxRisk,
+              ...(job.approvalScope.expiresAt ? { expiresAt: job.approvalScope.expiresAt } : {}),
+            },
+          })) : [],
+        },
+      });
     }
     if (method === "POST" && path.startsWith("/api/jarvis/admin/work/")) {
       if (body.length > 8_192) return json(response, 413, { message: 'notification receipt too large' });
@@ -1168,6 +1262,8 @@ server.listen(port, host, () => {
 function shutdown(): void {
   shuttingDown = true;
   if (nextWorkTimer) clearTimeout(nextWorkTimer);
+  for (const timer of writerBusyTimers.values()) clearTimeout(timer);
+  writerBusyTimers.clear();
   if (verifierReceiptTimer) clearInterval(verifierReceiptTimer);
   resourceWaitScheduler.close();
   for (const child of activeGoalExecutions.values()) {
