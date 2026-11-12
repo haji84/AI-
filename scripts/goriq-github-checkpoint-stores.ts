@@ -3,7 +3,7 @@ import type { CoordinatorClaim } from '../src/gai/distributed-coordinator.ts';
 import type { WorkRunState, WorkRunStore } from '../src/orchestrator/work-run-state.ts';
 import type { DurableTaskSnapshot, DurableTaskStore } from '../src/gai/durable-task-runtime.ts';
 import type { DevelopmentJobStore } from '../src/orchestrator/development-job-store.ts';
-import { assertDevelopmentJob } from '../src/orchestrator/development-job.ts';
+import { assertDevelopmentJob, type DevelopmentJob } from '../src/orchestrator/development-job.ts';
 import { GitHubCoordinatorStore, type GitHubGoalCheckpoint } from './goriq-github-coordinator-store.ts';
 
 /** Optional, source-only adapters for the EXISTING State Controller.
@@ -17,11 +17,14 @@ export class GitHubFencedCheckpointStores {
   readonly developmentJobs: DevelopmentJobStore;
   readonly #store: GitHubCoordinatorStore;
   readonly #claim: () => CoordinatorClaim | Promise<CoordinatorClaim>;
+  readonly #admitDevelopmentJob?: (job: DevelopmentJob, checkpoint: GitHubGoalCheckpoint) => boolean | Promise<boolean>;
 
-  constructor(store: GitHubCoordinatorStore, claim: () => CoordinatorClaim | Promise<CoordinatorClaim>) {
+  constructor(store: GitHubCoordinatorStore, claim: () => CoordinatorClaim | Promise<CoordinatorClaim>,
+    options: {admitDevelopmentJob?: (job: DevelopmentJob, checkpoint: GitHubGoalCheckpoint) => boolean | Promise<boolean>} = {}) {
     if (!store || typeof claim !== 'function') throw Error('GITHUB_COORDINATOR_ADAPTER_INVALID');
     this.#store = store;
     this.#claim = claim;
+    this.#admitDevelopmentJob = options.admitDevelopmentJob;
     let observedRun: WorkRunState | null = null;
 
     this.workRun = {
@@ -71,15 +74,35 @@ export class GitHubFencedCheckpointStores {
         if (job.goalId!==checkpoint.goalId) throw Error('GITHUB_COORDINATOR_DEVELOPMENT_JOB_GOAL_MISMATCH');
         const prior = checkpoint.developmentJobs.jobs.find(item=>item.jobId===job.jobId);
         if (!prior) {
-          // This adapter does not independently admit a new Job. The canonical
-          // State Controller must create/admit it through the established path.
-          throw Error('GITHUB_COORDINATOR_DEVELOPMENT_JOB_NOT_ADMITTED');
-        }
-        if (Date.parse(job.updatedAt) < Date.parse(prior.updatedAt))
+          // ResidentDevelopmentGoalHost creates successor Jobs with put().
+          // The ordinary store never grants admission by itself: only an
+          // explicitly injected canonical State Controller authority gate may
+          // admit a pristine Job for the already-authenticated Goal. A gate is
+          // not a substitute for task-scope/approval checks or an actual lease.
+          const first=job.history[0];
+          const pristine=job.phase==='QUEUED'||job.phase==='PLANNING';
+          const initial=first?.transitionId===`create:${job.jobId}` &&
+            first.from===null && first.to==='QUEUED' && first.actor==='state-controller';
+          const transitions=job.history.slice(1).every((entry,index) =>
+            entry.actor==='state-controller' && entry.from===(index===0?'QUEUED':job.history[index]!.to) &&
+            entry.to==='PLANNING');
+          if (!this.#admitDevelopmentJob || !['QUEUED','PLANNING','RUNNING','RECOVERING'].includes(checkpoint.workRun.phase) ||
+              !pristine || !initial || !transitions || job.history.length>2 ||
+              job.history.at(-1)?.to!==job.phase ||
+              job.attempts.length!==0 || job.failureSignatures.length!==0 ||
+              job.rejectedStrategyIds.length!==0 || job.evidence.some(entry=>entry.verified) ||
+              job.approvalScope.expiresAt !== undefined &&
+                Date.parse(job.approvalScope.expiresAt)<=Date.now())
+            throw Error('GITHUB_COORDINATOR_DEVELOPMENT_JOB_NOT_ADMITTED');
+          const granted=await this.#admitDevelopmentJob(structuredClone(job),structuredClone(checkpoint));
+          if (granted!==true) throw Error('GITHUB_COORDINATOR_DEVELOPMENT_JOB_NOT_ADMITTED');
+        } else if (Date.parse(job.updatedAt) < Date.parse(prior.updatedAt)) {
           throw Error('GITHUB_COORDINATOR_DEVELOPMENT_JOB_STALE');
+        }
         const proposed=structuredClone(checkpoint);
-        proposed.developmentJobs!.jobs=proposed.developmentJobs!.jobs.map(item=>
-          item.jobId===job.jobId ? structuredClone(job) : item);
+        proposed.developmentJobs!.jobs=prior ? proposed.developmentJobs!.jobs.map(item=>
+          item.jobId===job.jobId ? structuredClone(job) : item) :
+          [...proposed.developmentJobs!.jobs,structuredClone(job)];
         proposed.developmentJobs!.savedAt=now.toISOString();
         if (!(await this.commitTogether(checkpoint,proposed)))
           throw Error('GITHUB_COORDINATOR_DEVELOPMENT_JOB_CONFLICT');

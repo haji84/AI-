@@ -1,3 +1,17 @@
+# 2026-11-13 GORIQ source continuation: gated successor Job admission
+
+Current source change on existing PR #1910, Issue #1219, derived from prior HEAD b9a6b965116ca800e9e3fe08a000e2cadb55289d. This document commit changes the HEAD: independently refresh the exact SHA/CI before acceptance. The parent CI #43325429860 passed all four required jobs, but that result does not certify the new commit.
+
+Confirmed source defect: ResidentDevelopmentGoalHost creates the first/successor DevelopmentJob through DevelopmentJobStore.put(). The optional GitHubFencedCheckpointStores adapter denied every previously unseen Job, so merely injecting it would block progression to the next Job. This is a source integration boundary, NOT an observed production failure from the original owner's Goal.
+
+Bounded correction: add an OPTIONAL explicit `admitDevelopmentJob(job, checkpoint)` callback to the existing adapter. The default remains deny; callback must return literal true, is evaluated after existing Goal/source read, and a fresh canonical lease/epoch/fence and exact root CAS still guard publication. Only pristine QUEUED or PLANNING jobs with matching initial state-controller transitions may be accepted; HUMAN_GATE/BLOCKED/COMPLETED/FAILED Goals, stale or expired approval, forged preexisting attempts/evidence, phase-history mismatch and unauthorized callback are rejected. Existing Goal, prior Job records and attempt/event history remain unmodified by successful admission. A callback is not itself production authorization: the future deployed canonical State Controller must bind identity, Goal/digest, approved scope, pause/budget and side-effect fence; do not wire an unconditional true callback.
+
+TDD evidence from local partial Node22 environment: initial addition test RED with GITHUB_COORDINATOR_DEVELOPMENT_JOB_NOT_ADMITTED; phase/history mismatch RED; now 73 PASS / 0 FAIL / 0 SKIP on three related test files, strict focused TypeScript check exit0 using existing Node local type roots. GitHub response transport was mocked, source cryptography and existing store executed. No production credential, new state branch, model, workflow, Goal/Job record, deployment, extra GitHub account or mandatory code review was created. Real GitHub run-to-run and original owner Goal acceptance are still HOLD.
+
+Next dependencies: (1) new exact-HEAD CI; (2) authenticated import and immutable epoch/freshness anchor for real owner Goal; (3) bind this callback to the already authenticated GoalController/Resident admission path without a second controller; (4) complete source-to-real-GitHub Actions save/readback, stale-owner rejection, actual AI failed candidate -> different repair -> independent result verification -> automatic next Job and artifact readback. Separate physical worker jobs remain capability-gated. Do not close #1219 from this source-only step.
+
+---
+
 # 2026-11-13 GORIQ source continuation: immutable history archive + Job adapters
 
 New candidate parent: `6f9a6797cfc771071f97e876381f0536d7233f27`; this documentation commit creates a DIFFERENT HEAD. Fetch current PR #1910 SHA and its own exact-head CI. Parent CI #43231550682 completed success but does NOT certify this source.

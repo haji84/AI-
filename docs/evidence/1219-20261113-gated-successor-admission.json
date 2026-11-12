@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "project": "GORIQ",
+  "issue": 1219,
+  "pr": 1910,
+  "baseCommit": "b9a6b965116ca800e9e3fe08a000e2cadb55289d",
+  "dateJST": "2026-11-13",
+  "evidenceClass": "LOCAL_TDD_SOURCE_ONLY",
+  "productionAcceptance": false,
+  "changedPaths": [
+    "scripts/goriq-github-checkpoint-stores.ts",
+    "tests/github-goal-archive.test.ts"
+  ],
+  "fixedFailure": "GitHubFencedCheckpointStores.developmentJobs.put rejects newly planned first/successor Job even when canonical controller authorizes it",
+  "behavior": "New Job admission is deny-by-default; optional explicit authenticated-controller callback plus existing Goal/Job validation and current lease fenced root CAS",
+  "tdd": {
+    "red1": "new Job admission test failed with NOT_ADMITTED",
+    "red2": "phase/history mismatch case failed before guard",
+    "greenCommand": "node --experimental-strip-types --test tests/github-coordinator-store.test.ts tests/github-goal-checkpoint.test.ts tests/github-goal-archive.test.ts",
+    "passed": 73,
+    "failed": 0,
+    "skipped": 0
+  },
+  "typecheck": {
+    "status": "PASS",
+    "scope": "strict focused TypeScript, Node 22 partial snapshot"
+  },
+  "githubNetwork": "MOCKED",
+  "existingActualGoalImported": false,
+  "actualGitHubActionsRecovery": false,
+  "risks": [
+    "Controller callback not connected to authenticated production intake",
+    "Admission must retain identity/digest, pause/budget, current epoch and human gate",
+    "Side effects not cross-host fenced by root CAS alone",
+    "No real model failed-then-repaired execution evidence",
+    "No end-to-end artifact verification yet"
+  ],
+  "rollout": "Source-only on existing PR; no main/secret/permission/runtime change"
+}

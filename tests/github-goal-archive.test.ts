@@ -218,3 +218,75 @@ test('a fence that expires while archiving cannot publish even if its initial ch
   assert.equal(f.rootWrites,0,'an expired claim must never publish the coordinator root');
   assert.deepEqual(await new GitHubCoordinatorStore(f.options).loadCheckpoint(),checkpoint);
 });
+
+// Real ResidentDevelopmentGoalHost calls DevelopmentJobStore.put() when it
+// plans the next Job. Before this gate, an unrecognized Job is always refused.
+const successorJob:DevelopmentJob = {
+  ...structuredClone(developmentJob),
+  jobId:'job-successor',
+  createdAt:'2026-03-01T00:00:00.000Z',
+  updatedAt:'2026-03-01T00:00:00.000Z',
+  history:[{transitionId:'create:job-successor',from:null,to:'QUEUED',actor:'state-controller',reason:'development job created',at:'2026-03-01T00:00:00.000Z',evidenceIds:[]}],
+};
+
+test('new development job is admitted only by a separately authorized canonical controller gate',async()=>{
+ const f=fixture(checkpointWithDev),s=new GitHubCoordinatorStore(f.options);
+ let calls=0;
+ const a=new GitHubFencedCheckpointStores(s,()=>claim,{admitDevelopmentJob: async (job, current)=>{
+  calls++;
+  assert.equal(job.jobId,'job-successor');assert.equal(current.goalId,'goal-fixture');
+  assert.equal(current.goalContractDigest,checkpoint.goalContractDigest);
+  return true;
+ }});
+ await a.developmentJobs.put(successorJob);
+ assert.equal(calls,1);assert.equal(f.rootWrites,1);
+ const fresh=new GitHubCoordinatorStore(f.options);
+ const recovered=await fresh.loadCheckpoint();
+ assert.deepEqual(recovered.developmentJobs?.jobs,[developmentJob,successorJob]);
+ assert.deepEqual(recovered.attempts,checkpoint.attempts);
+ assert.deepEqual(recovered.events,checkpoint.events);
+});
+
+test('new development job defaults to HOLD even if there is a current lease',async()=>{
+ const f=fixture(checkpointWithDev),a=new GitHubFencedCheckpointStores(new GitHubCoordinatorStore(f.options),()=>claim);
+ await assert.rejects(a.developmentJobs.put(successorJob),/GITHUB_COORDINATOR_DEVELOPMENT_JOB_NOT_ADMITTED/);
+ assert.equal(f.rootWrites,0);
+});
+
+test('denied successor authorization cannot create a new Job or change previous history',async()=>{
+ const f=fixture(checkpointWithDev),a=new GitHubFencedCheckpointStores(new GitHubCoordinatorStore(f.options),()=>claim,
+  {admitDevelopmentJob: async()=>false});
+ await assert.rejects(a.developmentJobs.put(successorJob),/GITHUB_COORDINATOR_DEVELOPMENT_JOB_NOT_ADMITTED/);
+ assert.equal(f.rootWrites,0);
+ assert.deepEqual((await new GitHubCoordinatorStore(f.options).loadCheckpoint()).developmentJobs?.jobs,[developmentJob]);
+});
+
+test('current HUMAN_GATE or terminal Goal rejects a new Job before any authorizer call',async()=>{
+ for(const phase of ['HUMAN_GATE','COMPLETED','FAILED','BLOCKED'] as const){
+  const seed={...checkpointWithDev,workRun:{...run,phase}};
+  const f=fixture(seed);let calls=0;
+  const a=new GitHubFencedCheckpointStores(new GitHubCoordinatorStore(f.options),()=>claim,
+   {admitDevelopmentJob:async()=>{calls++;return true;}});
+  await assert.rejects(a.developmentJobs.put(successorJob),/GITHUB_COORDINATOR_DEVELOPMENT_JOB_NOT_ADMITTED/);
+  assert.equal(calls,0);assert.equal(f.rootWrites,0);
+ }
+});
+
+test('authorized successor admission fails closed on stale execution claim',async()=>{
+ const f=fixture(checkpointWithDev);
+ const a=new GitHubFencedCheckpointStores(new GitHubCoordinatorStore(f.options),()=>({...claim,epoch:2}),
+  {admitDevelopmentJob:async()=>true});
+ await assert.rejects(a.developmentJobs.put(successorJob),/GITHUB_COORDINATOR_/);
+ assert.equal(f.rootWrites,0);
+});
+
+test('successor admission rejects a phase that does not match its initial state-controller history',async()=>{
+ for (const malformed of [
+   {...successorJob,phase:'PLANNING' as const},
+   {...successorJob,history:[...successorJob.history,{transitionId:'fake-planning',from:'QUEUED' as const,to:'PLANNING' as const,actor:'state-controller' as const,reason:'fake',at:successorJob.updatedAt,evidenceIds:[]}]},
+ ]) {
+  const f=fixture(checkpointWithDev),a=new GitHubFencedCheckpointStores(new GitHubCoordinatorStore(f.options),()=>claim,{admitDevelopmentJob:async()=>true});
+  await assert.rejects(a.developmentJobs.put(malformed),/GITHUB_COORDINATOR_DEVELOPMENT_JOB_NOT_ADMITTED/);
+  assert.equal(f.rootWrites,0);
+ }
+});
