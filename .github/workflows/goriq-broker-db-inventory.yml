@@ -6,6 +6,7 @@ on:
     paths:
       - 'scripts/goriq-broker-db-inventory.mjs'
       - 'scripts/goriq-broker-db-inventory-windows.ps1'
+      - 'scripts/goriq-g1-backup-inventory.mjs'
       - '.github/workflows/goriq-broker-db-inventory.yml'
   workflow_dispatch:
 
@@ -20,9 +21,19 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: main
+          persist-credentials: false
+      - name: Confirm trusted protected main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)"
       - name: Inventory Mac Broker DB candidates
         shell: bash
         run: node scripts/goriq-broker-db-inventory.mjs
+      - name: Inspect historical owner Goal backup candidates without mutation
+        shell: bash
+        run: node scripts/goriq-g1-backup-inventory.mjs
 
   zbook:
     runs-on: [self-hosted, Windows, X64]
