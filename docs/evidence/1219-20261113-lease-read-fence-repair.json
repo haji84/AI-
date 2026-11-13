@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "issue": 1219,
+  "baseMain": "0c5663fe8438ee2ce00610aeb809cac8d1e37deb",
+  "scope": "source-only bounded CI and state version-fence repair",
+  "observedCI": {
+    "runId": 43347849350,
+    "overall": "failure",
+    "failingCheck": "Unit",
+    "unitPass": 3880,
+    "unitFail": 1,
+    "unitSkip": 26,
+    "unitCount": 3907,
+    "integrationPass": 3881,
+    "problem": "execution_writer_busy_retry_budget_exhausted on tracked-profile Broker restart"
+  },
+  "linuxZombie": {
+    "fixture": "real Python child remains unreaped; Linux /proc state Z",
+    "baseline": "EEXIST",
+    "candidate": "recovered true",
+    "onCIProven": false
+  },
+  "localTests": {
+    "readFence": "48/48 pass, zero failures",
+    "cognitive": "3/3 pass, zero failures",
+    "originalBaselineReadFence": "19 of 48 failed in previous RED replay"
+  },
+  "gitSHA": {
+    "cognitiveLease": "f05b5008d49cdc2c33110e8d24cea01882bcefdc",
+    "cognitiveTests": "c6a8eb553fc30e32526364f7097f1c6a0f23c160",
+    "changeSetJournal": "e91a42d58d67c4198726bfc0d2255bebb16a1c50",
+    "readFenceTests": "0e8d20cbb732f6155e95626facc388ef311af968",
+    "changeSetTests": "b40ec4715c70c85202d17e6191503854f816dc3c"
+  },
+  "checksOutstanding": [
+    "full Node24 exact branch-head CI",
+    "protected main CI",
+    "authenticated original Goal import",
+    "state branch/key/freshness approval",
+    "real GitHub A/B recovery",
+    "real model repair and artifact verification"
+  ],
+  "secretOrPermissionChange": false,
+  "productionGoalAchieved": false
+}

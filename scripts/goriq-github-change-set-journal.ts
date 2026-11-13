@@ -7,6 +7,9 @@ import type { GitHubGoalCheckpoint } from './goriq-github-coordinator-store.ts';
 import type { GitHubFencedCheckpointStores } from './goriq-github-checkpoint-stores.ts';
 
 type CheckpointPort = Pick<GitHubFencedCheckpointStores, 'load' | 'commitTogether'>;
+type ObservedChangeSet = Pick<GitHubGoalCheckpoint, 'goalId' | 'goalContractDigest'> & {
+  value: DevelopmentChangeSet | null;
+};
 const IMPORT = 'goriq-change-set-import-v1';
 const UPDATE = 'goriq-change-set-update-v1';
 const HASH = /^[a-f0-9]{64}$/;
@@ -98,31 +101,66 @@ function project(checkpoint: GitHubGoalCheckpoint): Map<string, DevelopmentChang
  * authority. Artifact bytes, external side effects and wakeup remain separate. */
 export class GitHubChangeSetJournal {
   readonly #checkpoints: CheckpointPort;
+  readonly #observed = new Map<string, ObservedChangeSet>();
+  readonly #mustRead = new Set<string>();
   constructor(checkpoints: CheckpointPort) {
     if (!checkpoints || typeof checkpoints.load !== 'function' || typeof checkpoints.commitTogether !== 'function') fail('PORT_INVALID');
     this.#checkpoints = checkpoints;
   }
+  #observe(id: string, checkpoint: GitHubGoalCheckpoint, value: DevelopmentChangeSet | null): void {
+    this.#observed.set(id, {goalId:checkpoint.goalId, goalContractDigest:checkpoint.goalContractDigest,
+      value:structuredClone(value)});
+    this.#mustRead.delete(id);
+  }
   async get(changeSetId: string): Promise<DevelopmentChangeSet | null> {
-    return structuredClone(project(await this.#checkpoints.load()).get(changeSetId) ?? null);
+    // A failed refresh must not leave an earlier read usable as current state.
+    this.#observed.delete(changeSetId);
+    this.#mustRead.add(changeSetId);
+    const checkpoint = await this.#checkpoints.load();
+    const value = project(checkpoint).get(changeSetId) ?? null;
+    this.#observe(changeSetId,checkpoint,value);
+    return structuredClone(value);
   }
   async list(): Promise<DevelopmentChangeSet[]> {
-    return structuredClone([...project(await this.#checkpoints.load()).values()]);
+    const known = new Set([...this.#observed.keys(), ...this.#mustRead]);
+    this.#observed.clear();
+    for (const id of known) this.#mustRead.add(id);
+    const checkpoint = await this.#checkpoints.load();
+    const values = project(checkpoint);
+    for (const id of new Set([...known, ...values.keys()])) this.#observe(id,checkpoint,values.get(id) ?? null);
+    return structuredClone([...values.values()]);
   }
   async put(input: DevelopmentChangeSet, now = new Date()): Promise<void> {
     if (!Number.isFinite(now.getTime())) fail('INVALID');
     const value = validate(input);
-    const current = await this.#checkpoints.load();
-    const values = project(current); bind(value,current);
-    const previous = values.get(value.changeSetId);
-    // Idempotence proves only that this metadata is already stored, not that
-    // a caller still holds an execution lease or may perform external work.
-    if (previous && isDeepStrictEqual(previous,value)) return;
-    changed(previous,value);
-    const entry = {kind:UPDATE,goalId:current.goalId,goalContractDigest:current.goalContractDigest,
-      previousRecordSha256:previous ? digest(previous) : null,value};
-    const next = structuredClone(current);
-    next.events.push({eventId:`changeset:${randomUUID()}`,record:entry,recordSha256:digest(entry)});
-    if (!(await this.#checkpoints.commitTogether(current,next))) fail('CONFLICT');
+    // Pin the caller's observation BEFORE awaiting another read. A concurrent
+    // get/list must not rebase an already-started update onto newer metadata.
+    const observed = this.#observed.get(value.changeSetId);
+    const mustRead = this.#mustRead.has(value.changeSetId);
+    try {
+      const current = await this.#checkpoints.load();
+      const values = project(current); bind(value,current);
+      const previous = values.get(value.changeSetId);
+      // A no-op grants no execution lease and does not establish a new read.
+      if (previous && isDeepStrictEqual(previous,value)) return;
+      changed(previous,value);
+      if (mustRead || (previous && !observed)) fail('READ_REQUIRED');
+      if (observed && (observed.goalId !== current.goalId ||
+          observed.goalContractDigest !== current.goalContractDigest ||
+          !isDeepStrictEqual(observed.value,previous ?? null))) fail('READ_STALE');
+      const entry = {kind:UPDATE,goalId:current.goalId,goalContractDigest:current.goalContractDigest,
+        previousRecordSha256:previous ? digest(previous) : null,value};
+      const next = structuredClone(current);
+      next.events.push({eventId:`changeset:${randomUUID()}`,record:entry,recordSha256:digest(entry)});
+      // The downstream lease/fence and whole-root CAS still close the race
+      // after this check. Neither check replaces the other.
+      if (!(await this.#checkpoints.commitTogether(current,next))) fail('CONFLICT');
+      this.#observe(value.changeSetId,next,value);
+    } catch (error) {
+      this.#observed.delete(value.changeSetId);
+      this.#mustRead.add(value.changeSetId);
+      throw error;
+    }
   }
 }
 

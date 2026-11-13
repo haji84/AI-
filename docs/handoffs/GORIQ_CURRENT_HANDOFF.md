@@ -1,3 +1,40 @@
+# GORIQ #1219: canonical surface hash reconciled (2026-11-13)
+
+Prior PR #1911 HEAD `4f2fcb0f20b27b257107950c619eafadb080a770` ran CI #43371642323 and found 8 Unit errors caused by the production reverse traceability registry retaining the old SHA256 for modified `src/gai/cognitive-lease.ts`. The actual source hash is `13a492588a56d00e9eaf35307b7d0ffed39c902a416ee01459877f54a69a22fa`. Update only that source row's `sha256`, preserve classification `COVERED_BY_REQUIREMENT`, requirement `OWN-001`, and all existing owner decisions/evidence. This is a **canonical reconciliation**, not deletion of an assertion or claimed acceptance. Previous run: project-checks FAILED; verifier container result independently pending; Windows and repository guard passed. New SHA must pass its own full CI; previous CI does not count.
+
+---
+
+# 2026-11-13 GORIQ #1219 current continuation: Linux defunct-owner and shared Change Set version fence
+
+**Active source candidate** follows protected merged main `0c5663fe8438ee2ce00610aeb809cac8d1e37deb`; this documentation creates a fresh branch SHA. Read exact HEAD and CI before claiming acceptance. Existing Issue #1219 remains OPEN. Original owner Goal `goal-fcc81c97e09153f7` / Job `rotation-recovery-37` remain unverified against live source, never recreate or reset them.
+
+## GitHub evidence and observed failures
+
+- PR #1910 is merged; main `0c5663fe8438ee2ce00610aeb809cac8d1e37deb` is still source integration only. Post-merge CI [#43347849350](https://github.com/haji84/AI-/actions/runs/43347849350) FAILED on exactly this SHA: Unit 3,907 tests, 3,880 pass, 1 failure, 26 existing skips; Integration 3,881 passed / 0 failed; Lint, Typecheck, P8 Security and Build passed. Unit failed in `tests/autonomous-tracked-repair-runtime.test.ts` around the Broker restart scenario with `execution_writer_busy_retry_budget_exhausted`, Job stuck VERIFYING. This is NOT a timeout or code-review prerequisite.
+- Confirmed independent Linux OS edge case: `process.kill(zombiePid, 0)` reports success for a defunct unreaped process (state Z), but that process no longer owns the native SQLite arbiter. The old `src/gai/cognitive-lease.ts` denied a fresh same-host writer with EEXIST; a local original-vs-candidate real-zombie process test confirmed RED / GREEN. This alone does not prove the exact CI PID was a zombie. Live/foreign/invalid/unknown owner exclusion must remain fail-closed.
+- Existing `scripts/goriq-github-change-set-journal.ts` allowed a stale read caller to overwrite newer Change Set state with a later timestamp. Prior offline package `GORIQ_verified_read_fence_candidate_20261113.zip` recorded RED: 19 failures out of 48, then GREEN: 48/48, Node22 source fixture tests. In this continuation the same 48 tests passed locally again, no synthetic Goal/secret/remote write.
+
+## Bounded implementation in this source candidate
+
+1. `src/gai/cognitive-lease.ts`: Linux-only /proc PID-and-state check after kill(pid,0) succeeds, recognizing only exact-identified Z/X/x defunct states; missing/malformed /proc or any live/foreign/unknown owner still rejects. Existing OS SQLite writer exclusion, 2s bound, metadata verification and lock release are unchanged.
+2. `tests/cognitive-lease-defunct.test.ts`: proc-state parser and live/foreign owner refusal. Real Python-owned zombie fixture was also executed locally in a disposable directory; under old code EEXIST, under candidate recovery succeeds.
+3. `scripts/goriq-github-change-set-journal.ts`: require a caller's get/list-observed exact candidate version before a status update. Snapshot identity, Goal contract digest, per-attempt previous record, current root CAS, role fencing and deterministic failure semantics remain. A failed conflict/unknown outcome requires a new successful read. New identities remain limited by the already-required canonical binding / controller authority.
+4. `tests/github-change-set-read-fence.test.mjs` adds stale-read/overlap/concurrent/unknown-outcome cases; `tests/github-change-set-journal.test.ts` adds a benign read in one deliberate reconciliation regression without removing its assertions.
+
+Local evidence applies ONLY to this source/partial Node22 environment: cognitive-lease three tests PASS, original real zombie denial reproduced, candidate real zombie accepted, shared-store 48/48 pass. Full pinned Node24 CI on the final branch HEAD remains required. No separate reviewer/account or AI09 code approval is required.
+
+## Remaining owner Goal acceptance
+
+1. New exact-source PR CI; if Unit fails, inspect logs and reconcile Broker child shutdown, native lock and actual PID lifecycle without manufacturing successes.
+2. Source merge only after applicable checks/security/risk gates; protected-main CI for the exact merged SHA.
+3. Authenticate original owner Goal/Job and actual active state store: prior targeted owner Broker read was HTTP404, which **does not prove original Goal deletion**. Verify canonical route/version/store, not GitHub comments alone.
+4. Authorized existing key, controlled state branch/freshness floor and original-state import (no fabricated bootstrap); bind actual Broker/GoalController/Resident to the existing encrypted coordinator/WorkRun/DevelopmentJob/ChangeSet adapters with pause, budget, Human Gates and downstream side-effect fencing.
+5. Demonstrate actual GitHub Actions A -> distinct run B restoration, old owner rejection and no double effects, genuine AI failed output -> new authorized repaired candidate -> checked result, automatic next Job, artifact digest and behavior verification. All are unproven until real runtime evidence exists.
+
+No production service restart/deploy, credential, key, permission, state branch, owner Goal, billing or branch-rule changes in this patch. Rollback reverts exactly its four changed/new source/test files (handoff/evidence kept). Older reference records follow verbatim below.
+
+---
+
 # GORIQ #1219 current handoff: shared candidate persistence and selected-read diagnostics
 
 2026-11-13 JST. Existing PR #1910, branch feature/1219-github-coordinator-store-20261112. Parent e870bc4b17f3fdc8e34ad04b63be0c92f09f8be3; main8ead188ffc374c0204f20798ac8258af07272bdc. This commit creates a new SHA and requires its own complete CI. Full previous handoff preserved byte-for-byte in GORIQ_HANDOFF_e870bc4_ARCHIVE.md, Git blob5233e9d7dce3760c147232ae024945aee440b487; older archives retained.
