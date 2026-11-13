@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "issue": 1219,
+  "baseMain": "8ead188ffc374c0204f20798ac8258af07272bdc",
+  "evidenceClass": "LOCAL_SOURCE_AND_FIXTURE_TESTS_ONLY",
+  "productionAcceptance": false,
+  "macRequiredForTheseTests": false,
+  "fullRepositoryCI": "NOT_RUN_LOCALLY; require exact candidate HEAD CI",
+  "environment": {"node": "22.16.0", "typescript": "5.8.3", "workspace": "isolated partial snapshot, not a full clone"},
+  "source": {"path": "scripts/goriq-github-coordinator-store.ts", "gitBlob": "5ace70cbe39322699a5d70a1c226c0ad574357f3", "sha256": "e54bc6c68e0c311fde4f4f420052e02d6fbc6ef37672050a0b1b3d6345f733d5"},
+  "tests": {"path": "tests/github-coordinator-store.test.ts", "gitBlob": "987db02cb3d6d2da754a0a724819d0f021eda2b7", "sha256": "a30a63ad5eacd06ccca538b4678595a799a953acceff864c0f6c0833cdcd2090"},
+  "unchangedInputs": {"src/gai/distributed-coordinator.ts": "521eca6b0581856f7d0f121c11d4a1e958d9fd62", "src/gai/cognitive-lease.ts": "035fec80a826870cb47a484358f22fe1ab66c85a"},
+  "red": {"total": 33, "passed": 1, "failed": 32, "reason": "explicit NOT_IMPLEMENTED adapter stub", "logSha256": "fefa28ad047fa5ffecd3f66f979efc360b025ed5a4dd93b6ddc8ac1c847ba7ed"},
+  "green": {"command": "node --experimental-strip-types --test tests/github-coordinator-store.test.ts", "total": 41, "passed": 41, "failed": 0, "skipped": 0, "exitCode": 0, "logSha256": "8768e5345e323d51b9736df686f5442a2d1158b5a055ca0766dc2e489c8bda5b"},
+  "typecheck": {"command": "tsc --noEmit --strict --allowImportingTsExtensions --target es2022 --module nodenext --moduleResolution nodenext --types node --typeRoots <existing-local-node-types> scripts/goriq-github-coordinator-store.ts tests/github-coordinator-store.test.ts", "exitCode": 0, "outputSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"},
+  "introducedLocalFailures": "Initial typecheck rejected arrow-helper narrowing and an excess-property negative-test literal. Corrected with a declared never-returning function and a structural variable for the invalid runtime payload; no assertion was weakened.",
+  "networkBoundary": "GitHub HTTP responses are mocked; AES-GCM and existing DistributedCoordinatorRuntime are real test code. No GitHub state branch, owner credential, production key or original Goal was used.",
+  "remaining": ["exact-HEAD full CI", "trusted minimum-epoch and protected state-history policy", "atomic coupling of ownership with complete Goal/Job/attempt state and side effects", "authorized original-state recovery, no replacement Goal", "hosted intake and bounded execution", "real separate-Actions-run recovery and automatic next Job"]
+}

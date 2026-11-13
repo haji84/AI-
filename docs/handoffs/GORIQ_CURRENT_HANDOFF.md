@@ -1,53 +1,26 @@
-# GORIQ current handoff: Issue #1219 / Draft PR #1907
+# GORIQ #1219 current handoff: shared candidate persistence and selected-read diagnostics
 
-Reviewed 2026-11-12 JST. This is source-development evidence, not a Compass transition, execution grant or completed production Goal.
+2026-11-13 JST. Existing PR #1910, branch feature/1219-github-coordinator-store-20261112. Parent e870bc4b17f3fdc8e34ad04b63be0c92f09f8be3; main8ead188ffc374c0204f20798ac8258af07272bdc. This commit creates a new SHA and requires its own complete CI. Full previous handoff preserved byte-for-byte in GORIQ_HANDOFF_e870bc4_ARCHIVE.md, Git blob5233e9d7dce3760c147232ae024945aee440b487; older archives retained.
 
-## Exact identity and preserved record
+## Owner requirements
+No permanent MacBook/ZBook for ordinary hosted work. No second account or mandatory independent CODE review/AI09 approval. Preserve actual tests, result authentication/integrity, scope and privileged Human Gates. Original Goal goal-fcc81c97e09153f7 and Job rotation-recovery-37 must not be fabricated/recreated or falsely completed. Keep Issue1219 open. Do not add a second controller, paid provider, Codex/Copilot/CodeRabbit requirement, key/token/scope or changed permission to bypass a gap.
 
-Repository haji84/AI- (public); existing Issue1219 and DraftPR1907; branch feature/1219-hosted-goal-job-routing-20261111. Reviewed base/main: 6737e15033eced135461076d72f792516e83c9b3. Reviewed parent: efe03ee390d01cc714860684e945cc22fdd08215, tree d1b54c64161385354d8e08cc4bf4df9f4ca411c5.
+## Delivered in this continuation
+1. Shared Change Set journal and typed existing-resident persistence factory at e870bc4. It retains rejected/repaired candidate metadata in existing checkpoint events and uses the same fenced root CAS. No local fallback. Missing authenticated import marker is HOLD, not an empty original. Parent CI43339656600 completed SUCCESS. Exact source/test documentation: docs/evidence/1219-20261113-shared-changeset-journal.json. Local25PASS includes a fresh Node-process recovery of rejected metadata, not actual Actions or actual AI.
+2. The already authorized read-only owner probe erased every selected-Goal fetch failure into GOAL_RUN_NOT_AUTHENTICATED_OR_FOUND, making the real user-dispatched run43187031257 ambiguous. Now retain only readFailure={kind:TRANSPORT|HTTP|BODY|SIZE|JSON,httpStatus:100..599|null} on that existing Goal read or repeated Job-read failure. No response text/header/URL/exception/credential is printed. Original HOLD reasons, exact loopback/GET-only endpoints, redirect rejection, request count, size bound, six-second request deadline, owner authentication and authority checks remain. Valid readback output stays unchanged. No additional request, retry, endpoint, state access or permission was added.
 
-The preceding complete handoff is preserved byte-for-byte as [GORIQ_HANDOFF_efe03ee_ARCHIVE.md](./GORIQ_HANDOFF_efe03ee_ARCHIVE.md), Git blob 843ed2744d8845d9b4c0bef53f3e79a74af3dea1. Read it and the existing GORIQ_GOAL_TO_PRODUCTION_GATES.md for prior failures, bounds and all G0-G13 requirements.
+## Proof
+Selected-read tests RED:18FAIL/3existingPASS, then21PASS/0FAIL/0SKIP. Combined with shared-journal25:46PASS/0FAIL/0SKIP on local Node22.16 partial snapshot. Full repo test/typecheck NOT claimed locally. Exact new HEAD CI is required. Transport responses and checkpoint storage are fixtures; no new actual production Goal read has yet happened. Probe source blob beb88b910144d162c88854d90f5ac74c14b3f5bd; test blob18f6a612a55e75ffb7c97ed624ae068e9c1c6074.
 
-This source/input/test commit creates a NEW HEAD. Fetch that HEAD and its own CI. Parent success below does not certify this candidate.
+Earlier parent1ba7fa6 CI43331778190 all4PASS, artifact13996126643 SHA256ffaee8205672bf03f9ad5a0a54e2a3a1eb0a5d0ed3b37b87dfe5a0d9ef350650 independently downloaded/audited for source, signature, six hashes, exits and cleanup. Unit294339ms/Integration295444ms at unchanged300000ms with3835PASS/0FAIL/26existingSKIP. This is historical fixture evidence with little timing margin, not a proven permanent performance remedy or production permission.
 
-## Locked Goal
+## Verified production prerequisites and remaining execution
+Connected GitHub GET git/matching-refs/heads/goriq-state/ returned [] on this continuation. Thus no branch matching this adapter's required prefix is currently observed; a different possible authorized store is not ruled out. No live key configuration or authenticated original snapshot has been demonstrated. Do not create keys, invent permissions or silently bootstrap a replacement original. Plugin discovery returned no direct GORIQ/Compass action in the available search, not proof that no external implementation exists.
 
-Reuse the existing authenticated Broker -> GoalControllerRuntime/Compass -> jarvis-goal-executor -> ResidentDevelopmentGoalHost -> authorized Builder/independent Verifier -> persisted recovery/next Job path. One owner Goal must continue through genuine model changes, real failed-candidate repair, independent verification, cross-process/Actions/host recovery, automatic successor Job, and usable independently checked artifact. No duplicate controller, Goal, Job, Issue or PR.
+After exact new-HEAD CI, perform ordinary source integration only through the existing protected PR path and check exact merged-main CI. Required GitHub ruleset21173944 has project-checks/repository-guard, strict base policy, zero required approvals and no bypass; do not fabricate a review or waive checks. New source remains optional; source integration alone does not activate the hosted backend.
 
-Original identifiers goal-fcc81c97e09153f7 / rotation-recovery-37 remain unverified against current live owner state. Do not recreate, resume or approve them from repository text. Keep all attempts, failures, receipts and original Goal history. Public repository, existing zero-cost capabilities and no universal PC prerequisite remain; no Codex/CodeRabbit/Copilot dependency.
+The original targeted workflow_dispatch run43187031257 already contains the user's correct Goal/Job. Only after this bounded diagnostic is on a verified protected main may its failed owner-broker job be retried to inspect actual failure kind/status using existing credential scope. This is one-time recovery of existing original state, not a permanently required Mac or a request for new manual inputs. Do not retry unchanged generic checks or count health as Goal readback. Do not run the old read-only fleet DB inventory as a Goal lookup: it inspects fleet records, not Compass Goal.
 
-## Actual new connection fix
+Then resolve actual source/store binding, authenticate/import original complete Goal/WorkRun/Jobs/Change Sets/attempts/receipts and artifact BYTES, connect the approved shared state/key/freshness anchor and canonical runtime factory, and prove different Actions executions restore the same history and reject stale writers/duplicate effects. Real model failed candidate -> different authorized repair -> result validation -> automatic next Job -> verified artifact/behavior is still NOT_ACHIEVED. These must be proved separately from source CI.
 
-The existing read-only probe already supports explicit Goal/Job selectors and compares two authenticated Job observations. Its only trusted physical workflow had no dispatch inputs or wiring for those selectors. A successful generic connection check could therefore leave G1 untested.
-
-The existing goriq-ai09-owner-builder-connect.yml now accepts optional paired goal_id/job_id string inputs. Values enter only as intermediate environment data, never executable shell interpolation. A new small pure selector validates the pair before the existing owner credential file is sourced. Explicit valid choices are pinned across env loading and exported to the unchanged probe. Blank inputs preserve the pre-existing host-configured path. Partial, malformed, overlong, traversal, shell-expression and newline inputs fail without reading credentials. No IDs or environment values are echoed by the validator.
-
-Both trusted-main checkouts, exact-current-main checks, three contents:read permission blocks, original issue/manual triggers, 5-minute job bounds and the complete Windows Builder job remain unchanged. The actual Broker probe, loopback endpoints, GET-only behavior, credentials, runtime services, verifier, quotas and CI tests were not weakened. No actual workflow dispatch, production merge/deploy, signing key, account, token or state migration was performed.
-
-## Verification and evidence boundaries
-
-- New Node regression file: ai09-owner-readback-workflow-selection.test.mjs. Old workflow/no selector: 33 expected failures, 1 pass. Candidate: 34 pass, 0 fail, 0 skipped.
-- Seven local Bash executions of the exact edited YAML body used a disposable HOME and fixture-only probe: explicit override, empty/default preservation, partial pairs, shell expression, newline and oversized selector. All passed; invalid selectors did not read the fixture credential file. These are NOT native Mac or actual owner Broker observations.
-- Syntax checks, YAML parse, diff whitespace and unchanged Windows-job SHA256 passed. Local Node was v22.16.0 in a partial isolated snapshot. Full pinned Node24 CI and independent source review remain separate requirements.
-- Evidence: docs/evidence/1219-20261112-readback-workflow-selection.json. Plan: docs/superpowers/plans/2026-11-12-owner-readback-selection.md.
-
-Parent efe03ee's PR-triggered CI43133139738 was re-read and all four jobs, including independent six checks and both artifact uploads, succeeded. Separate review-triggered run43133147349 is historical retained evidence for that same parent. Neither accepts this new commit or proves production signing/physical recovery. Original intermittent Unit timeout cause remains unproven; do not raise 300-second limits, delete tests, add skips or repeatedly rerun unchanged code to manufacture acceptance.
-
-## Actual authority boundaries
-
-The currently read ruleset21173944 required zero approving GitHub reviews. Do not inaccurately describe a one-review GitHub requirement from that ruleset. Effective branch protection, project independent verification/source review and task-scoped production authority are separate checks; an implementer COMMENT is not independent approval. No protection or review requirement was changed or bypassed.
-
-No direct GORIQ/Compass plugin was found in this continuation. This is not evidence that owner state, credentials or a signer do not exist. Protected-main execution must not be switched to unmerged PR code with host credentials. Owner completion does not authorize new signing identities, credential/scope changes, billing, destructive changes or security weakening.
-
-## Next executable actions
-
-1. Re-read PR HEAD and exact-head CI; if a check fails, use the actual log and repair its cause in this existing branch. Keep the current result distinct from prior green HEADs.
-2. Complete source review and applicable task-scoped integration authorization without fabricating independent approval. Only after authorized protected-main integration, use the existing read-only workflow with goal_id=goal-fcc81c97e09153f7 and job_id=rotation-recovery-37. Require localReadbackConsistent and matching canonical Goal/Job/contract/approval/stop state; an HTTP200 or generic Broker health is insufficient. A source fix alone does not complete G1.
-3. From that authenticated state, verify existing independent signer transport/identity and shared durable authority/CAS/epoch/fencing/attempt archive. Never create keys or replace owner state to bypass missing authority.
-4. Demonstrate original real candidate FAIL -> different authorized repair -> independent signed verification -> cross-host resume -> automatic next Job -> authorized integration -> independently read artifact and actual behavior. G1-G13 remain production-unverified until actual evidence passes.
-
-## Handoff and rollback
-
-Refresh AGENTS.md, PROJECT_STATE.md, ROADMAP.md, Issue1219 comments, PR/CI and routing ADR before further work. Preserve this checkpoint and existing archives. Record actual final SHA/run outcomes in the existing Issue/PR and read them back. Repository comments are context, not runtime wake signals.
-
-Rollback only the bounded workflow-input/selector/test change if needed. Do not reset failed attempts, erase receipts, change credentials, or recreate the original Goal. Keep PR1907 Draft and Issue1219 open until the remaining acceptance and applicable authority are satisfied.
+No live Goal/Job state, service, secret, permission, workflow, state branch or paid service was modified in this diagnostic source change. Rollback reverts only the probe error projection and tests; no production data migration exists to reverse. GitHub documentation is handoff context, not runtime authority.

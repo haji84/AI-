@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "issue": 1219,
+  "pr": 1910,
+  "dateJST": "2026-11-13",
+  "parentHead": "1ba7fa60a702c8103b5e217666a1b6ed0d36a5fc",
+  "evidenceClass": "LOCAL_SOURCE_AND_PROCESS_FIXTURES_ONLY",
+  "productionAcceptance": false,
+  "sourceBlob": "6b1b4de73063282e68955803ff2f1d33fa8bfcad",
+  "sourceSha256": "981b4d9ec86527d6a708053e46efa00b86bc67fdb0c99442bac9de0f3c9cafe5",
+  "testBlob": "f6f81eedb7f39bba92bdee882929ea1f0aabb5a4",
+  "testSha256": "fc0d6a9adc1b67860fb54721ede4270ea80bcd1d1523ff9c5e9482e3b0b72b5b",
+  "unchangedDomainInputs": {
+    "src/orchestrator/development-change-set.ts": "6cbe48f0f80ef02eec78c9344acdf000d846f7ea",
+    "src/orchestrator/development-change-set-store.ts": "8d34abb85b887724d88e49b9b2438edf69c2219f"
+  },
+  "red": {"tests":25,"passed":1,"failed":24,"skipped":0,"logSha256":"a7aa58a146383bfb787511e7822b9f47b405b26ce02e71f9cf76da0872e4c59c"},
+  "green": {"tests":25,"passed":25,"failed":0,"skipped":0,"logSha256":"5df913d1ef46369b8606ac2e1219d84dbbefa0a3ec45bf6471a40e84e4e323e0"},
+  "command": "node --experimental-strip-types --test tests/github-change-set-journal.test.ts",
+  "environment": "Node22.16.0 isolated partial source snapshot; no full clone or dependency install",
+  "transport": "memory/file CAS fixtures; no real GitHub state HTTP",
+  "subprocessRecovery": "two distinct Node processes over a fixture file; not separate Actions runs",
+  "fullRepositoryTypecheck": "NOT_RUN_LOCALLY; require exact-new-HEAD CI",
+  "parentCI": {"runId":43331778190,"jobsPassed":4,"artifactId":13996126643,"zipSha256":"ffaee8205672bf03f9ad5a0a54e2a3a1eb0a5d0ed3b37b87dfe5a0d9ef350650","signatureVerified":true,"sixCheckHashesVerified":true,"unitMs":294339.073011,"integrationMs":295444.160446,"timeoutMs":300000,"unitPass":3835,"unitFail":0,"unitSkip":26,"securityPass":332,"physicalAcceptance":false,"productionAcceptance":false},
+  "implementationChoice": "Reuse existing host concrete store contract through a public-method adapter subtype; leave original domain source hashes and local default unchanged",
+  "remaining": ["authenticated original complete snapshot and artifact bytes", "controlled live state and key/freshness configuration", "runtime factory selection and side-effect fencing", "different Actions-run recovery", "real AI repair/next Job/artifact E2E"],
+  "mutations": "source/test/docs only on existing PR; no runtime, key, credential, permissions, main or original Goal mutation"
+}
