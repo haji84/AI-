@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import { copyFileSync, chmodSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync, symlinkSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { URL } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
 import { inspectCandidate, candidates, scan, ownerFileConfiguredPaths } from '../scripts/goriq-g1-backup-inventory.mjs';
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
