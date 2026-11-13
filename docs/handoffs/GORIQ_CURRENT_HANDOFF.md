@@ -1,3 +1,15 @@
+# 2026-11-14 G1 inventory correction: match the actual opened Compass, not a guessed legacy path
+
+PR #1914 source continuation, based on prior HEAD `7f305d8460fbfa1208fef934279df1467496b31e`. This documentation update produces a NEW HEAD: recheck its exact CI; no previous pass certifies it.
+
+New evidence from existing real self-hosted Mac log, job 132038295948 / original owner-readback rerun: the running Broker's opened Compass fingerprint is the known Mac persistent state's `~/.goriq/state/compass.db`. That file differs from an old configured `jarvis.db.compass.sqlite` guess. Older inventory #42423639926 also identified distinct existing Broker DBs in mac-persistent-state and mac-canonical-repo-default. Distinct historical sources must be searched instead of assuming the current empty Goal is globally absent.
+
+The read-only scanner now checks both Mac persistent and canonical default Compass layouts, PLUS their legacy configured alternatives, de-duplicating each Broker's managed backup-generation enumeration. Existing separately configured absolute paths remain inspected without evaluating credentials. New test explicitly asserts correct persistent mapping and no duplicate backup counts. On partial Node22 snapshot, 10 focused tests PASS / 0 FAIL / 0 SKIP and `node --check` PASS. Source git blobs: `326e8c2bad921e6b4d8d524ff2d4c3d1deb8af62`, test blob `a73c9cb59eedd4bc26f75215a8c0ab1ec75c6dde`. Previously observed PR #1914 CI on 612e04a failed strict lint because test used global URL; explicitly imported `URL` from `node:url` at HEAD 7f305d8 and verified the blob. New candidate requires its own exact CI.
+
+No original Goal, backup or credential was copied, deleted, uploaded or restored. No service or key/permission change. PR integration and actual original-state scan remain NOT_YET_VERIFIED. Backup match alone cannot prove matching historical Job/attempt/receipt. Issue #1219 remains OPEN and Goal NOT_ACHIEVED. Separate code-review/account optional; original security and Human Gates retained.
+
+---
+
 # GORIQ G1 read-only historical backup inventory, 2026-11-14 JST
 
 Owner-defined Issue #1219 completion plan controls. Issue #1219 was unexpectedly Closed despite original Goal NOT_ACHIEVED; it has been reopened. Baseline main 2a229b58b31d5d423ce065650829f9cb73adac3a had post-merge CI #43469691893 (3 jobs passed, restricted verifier failed). Do not count that CI as green or claim original Goal has been found.

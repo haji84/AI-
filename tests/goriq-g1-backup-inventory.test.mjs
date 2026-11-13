@@ -136,3 +136,16 @@ test('existing protected-main inventory workflow runs the new bounded observer o
  assert.doesNotMatch(win,/goriq-g1-backup-inventory/);
  assert.match(mac,/self-hosted, macOS, ARM64/);
 });
+
+test('known Mac persistent active Compass path and legacy alternative are both considered without double-counting backup generations',async t=>{
+ const f=fixture(t);
+ const found=candidates({home:f.home,cwd:f.home,env:{}});
+ const active=found.find(x=>x.label==='mac-persistent-state');
+ const legacy=found.find(x=>x.label==='mac-persistent-configured-legacy');
+ assert.equal(active.compassPath,join(f.home,'.goriq','state','compass.db'));
+ assert.equal(legacy.compassPath,join(f.home,'.goriq','state','jarvis.db.compass.sqlite'));
+ const result=await scan({home:f.home,cwd:f.home,env:{},goalId,jobId});
+ assert.equal(result.managedGenerationsChecked,1);
+ assert.equal(result.matchingGoalBackups,1);
+ assert.ok(result.candidates.some(x=>x.label==='mac-canonical-repo-configured'&&x.status==='ALTERNATE_COMPASS_ONLY'));
+});

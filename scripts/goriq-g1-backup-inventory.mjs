@@ -110,12 +110,13 @@ async function verifyGeneration(directory,id) {
   }
   return {path:join(directory,'compass.sqlite'),verified:true};
 }
-export async function inspectCandidate({label,brokerPath,compassPath,goalId=GOAL,jobId=JOB,home=homedir(),budgetUntil=Date.now()+110000}) {
+export async function inspectCandidate({label,brokerPath,compassPath,goalId=GOAL,jobId=JOB,home=homedir(),budgetUntil=Date.now()+110000,scanManaged=true}) {
   const result={label,status:'NOT_FOUND',backupsChecked:0,backupsInvalid:0,backupGoalMatches:0,backupWorkRunMatches:0,active:null,sidecars:null};
   if(!within(home,brokerPath)||!within(home,compassPath))return {...result,status:'OUTSIDE_HOME_REFUSED'};
   const current=inspectCompass(compassPath,goalId);
   if(current.status==='READONLY_SQLITE')result.active=current;
   result.sidecars=inspectSidecars(compassPath,goalId,jobId);
+  if(!scanManaged)return {...result,status:'ALTERNATE_COMPASS_ONLY'};
   const root=brokerPath+'.state-backups';
   if(!existsSync(root))return {...result,status:'NO_MANAGED_BACKUP_ROOT'};
   try {
@@ -161,8 +162,10 @@ function privateJsonText(path,limit) {
 export function candidates({home=homedir(),cwd=process.cwd(),env=process.env}={}) {
   const known=[
     ['mac-persistent-state',join(home,'.goriq','state','jarvis.db')],
+    ['mac-persistent-configured-legacy',join(home,'.goriq','state','jarvis.db')],
     ['mac-current-repo-default',join(cwd,'.jarvis','jarvis.db')],
     ['mac-canonical-repo-default',join(home,'JARVIS-AI-','.jarvis','jarvis.db')],
+    ['mac-canonical-repo-configured',join(home,'JARVIS-AI-','.jarvis','jarvis.db')],
     ['mac-application-support',join(home,'Library','Application Support','JARVIS','jarvis.db')],
     ['mac-gai-worker',join(home,'Library','Application Support','GAIWorker','jarvis.db')],
   ];
@@ -171,19 +174,28 @@ export function candidates({home=homedir(),cwd=process.cwd(),env=process.env}={}
   if(typeof env.GORIQ_DB_CONFIGURED_PATH==='string' && isAbsolute(env.GORIQ_DB_CONFIGURED_PATH))known.unshift(['configured-production',resolve(env.GORIQ_DB_CONFIGURED_PATH)]);
   if(typeof env.JARVIS_DB_PATH==='string' && isAbsolute(env.JARVIS_DB_PATH))known.unshift(['configured-broker',resolve(env.JARVIS_DB_PATH)]);
   const unique=new Set();
-  return known.filter(([,path])=>{if(!within(home,path)||unique.has(path))return false;unique.add(path);return true;}).map(([label,brokerPath])=>({label,brokerPath,
+  return known.map(([label,brokerPath])=>({label,brokerPath,
     compassPath:label==='configured-broker' && typeof env.JARVIS_COMPASS_DB_PATH==='string' && isAbsolute(env.JARVIS_COMPASS_DB_PATH)
       ? resolve(env.JARVIS_COMPASS_DB_PATH) :
       label==='owner-config-file' && typeof ownerConfig.JARVIS_COMPASS_DB_PATH==='string'
       ? ownerConfig.JARVIS_COMPASS_DB_PATH :
-      (label==='mac-current-repo-default'||label==='mac-canonical-repo-default')
-      ? join(dirname(brokerPath),'compass.db') : brokerPath+'.compass.sqlite'}));
+      ['mac-persistent-state','mac-current-repo-default','mac-canonical-repo-default'].includes(label)
+      ? join(dirname(brokerPath),'compass.db') : brokerPath+'.compass.sqlite'}))
+    .filter(({brokerPath,compassPath})=>{
+      const key=brokerPath+'\0'+compassPath;
+      if(!within(home,brokerPath)||!within(home,compassPath)||unique.has(key))return false;
+      unique.add(key);return true;
+    });
 }
 export async function scan({home=homedir(),cwd=process.cwd(),env=process.env,goalId=GOAL,jobId=JOB}={}) {
   const started=Date.now();
   if(process.platform==='win32'||ownerUid===null)return {status:'UNSUPPORTED_PLATFORM',readOnly:true,productionGoalRecovered:false};
-  const rows=[];
-  for(const entry of candidates({home,cwd,env}))rows.push(await inspectCandidate({...entry,home,goalId,jobId,budgetUntil:started+110000}));
+  const rows=[], scannedRoots=new Set();
+  for(const entry of candidates({home,cwd,env})) {
+    const scanManaged=!scannedRoots.has(entry.brokerPath);
+    scannedRoots.add(entry.brokerPath);
+    rows.push(await inspectCandidate({...entry,home,goalId,jobId,budgetUntil:started+110000,scanManaged}));
+  }
   return {status:'OBSERVATION_ONLY',readOnly:true,productionGoalRecovered:false,goalSelected:true,
     checkedCandidates:rows.length,managedGenerationsChecked:rows.reduce((n,x)=>n+x.backupsChecked,0),
     matchingGoalBackups:rows.reduce((n,x)=>n+x.backupGoalMatches,0),

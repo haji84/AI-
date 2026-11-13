@@ -18,3 +18,8 @@ Fixture tests: `node --test tests/goriq-g1-backup-inventory.test.mjs` 9 PASS / 0
 - `PARTIAL_CATALOG`, `CATALOG_UNSAFE`, `UNAVAILABLE` or offline runner: inconclusive; never restore or replace the original Goal from GitHub issue prose.
 
 Next: inspect the actual read-only Action output on exact protected main, correlate any candidate with sidecar/attempt provenance locally, then perform approved G3 shared-store import and distinct-Actions run recovery. No new Goal, account, key, token, permission, controller, deployment, paid service or code-review approval was created by this diagnostic.
+
+
+## Addendum: correct default historical Compass candidates
+
+The actual listener-bound Compass inspected on 2026-11-14 02:08 JST has the SHA256 fingerprint for the Mac persistent state path `~/.goriq/state/compass.db`. The first scanner version guessed only `~/.goriq/state/jarvis.db.compass.sqlite`, risking a false negative. The corrected scanner checks `compass.db` and the legacy variant for that Broker root; likewise the separate canonical repo root. It counts each managed backup generation at most once and does not claim historic Goal recovery based on an empty current database. Added fixture #10 validates path selection and no duplicate backup count. Corrected code/test blobs: 326e8c2bad921e6b4d8d524ff2d4c3d1deb8af62 / a73c9cb59eedd4bc26f75215a8c0ab1ec75c6dde. Local 10/10 PASS. New SHA CI and real Mac inventory remain pending.
