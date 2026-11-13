@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "issue": 1219,
+  "pr": 1911,
+  "headBefore": "4f2fcb0f20b27b257107950c619eafadb080a770",
+  "failedCi": 43371642323,
+  "failureCategory": "CANONICAL_SOURCE_FINGERPRINT_STALE",
+  "path": "src/gai/cognitive-lease.ts",
+  "oldFingerprint": "3a94a275cdf70efe57990d212c7d12ae36d88d80f356f51d847f6e91c4f8b057",
+  "newFingerprint": "13a492588a56d00e9eaf35307b7d0ffed39c902a416ee01459877f54a69a22fa",
+  "classification": "COVERED_BY_REQUIREMENT",
+  "requirement": "OWN-001",
+  "assertionsRemoved": 0,
+  "sourceModified": false,
+  "ownerGoalVerified": false,
+  "fullCiAcceptance": "PENDING"
+}

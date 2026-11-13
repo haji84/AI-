@@ -1,3 +1,9 @@
+# GORIQ #1219: canonical surface hash reconciled (2026-11-13)
+
+Prior PR #1911 HEAD `4f2fcb0f20b27b257107950c619eafadb080a770` ran CI #43371642323 and found 8 Unit errors caused by the production reverse traceability registry retaining the old SHA256 for modified `src/gai/cognitive-lease.ts`. The actual source hash is `13a492588a56d00e9eaf35307b7d0ffed39c902a416ee01459877f54a69a22fa`. Update only that source row's `sha256`, preserve classification `COVERED_BY_REQUIREMENT`, requirement `OWN-001`, and all existing owner decisions/evidence. This is a **canonical reconciliation**, not deletion of an assertion or claimed acceptance. Previous run: project-checks FAILED; verifier container result independently pending; Windows and repository guard passed. New SHA must pass its own full CI; previous CI does not count.
+
+---
+
 # 2026-11-13 GORIQ #1219 current continuation: Linux defunct-owner and shared Change Set version fence
 
 **Active source candidate** follows protected merged main `0c5663fe8438ee2ce00610aeb809cac8d1e37deb`; this documentation creates a fresh branch SHA. Read exact HEAD and CI before claiming acceptance. Existing Issue #1219 remains OPEN. Original owner Goal `goal-fcc81c97e09153f7` / Job `rotation-recovery-37` remain unverified against live source, never recreate or reset them.
