@@ -132,7 +132,7 @@ test('wrong configured path cannot be claimed as the actual open Compass',async 
 
 test('existing probe CLI actually invokes observation after authenticated targeted404 and retains exit2',async t=>{
   const {spawnSync}=await import('node:child_process');
-  const {pathToFileURL,fileURLToPath}=await import('node:url');
+  const {URL,pathToFileURL,fileURLToPath}=await import('node:url');
   const root=mkdtempSync(join(tmpdir(),'goriq-probe-cli-'));t.after(()=>rmSync(root,{recursive:true,force:true}));
   const preload=join(root,'fixture.mjs');
   writeFileSync(preload,`Object.defineProperty(process,'platform',{value:'linux'});let calls=0;globalThis.fetch=async(url,init)=>{if(init.method!=='GET'||!String(url).startsWith('http://127.0.0.1:8787/'))throw Error('unexpected');calls++;return calls===1?Response.json({ok:true,service:'jarvis-broker'}):calls===2?Response.json({events:[]}):Response.json({message:'Work Runがありません'},{status:404});};`);
