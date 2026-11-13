@@ -234,7 +234,12 @@ if(process.argv[1]?.endsWith("goriq-ai09-live-broker-builder-probe.mjs")){
     goalId:process.env.GORIQ_AI09_GOAL_ID||undefined,
     jobId:process.env.GORIQ_AI09_JOB_ID||undefined,
     mode:process.env.GORIQ_AI09_CONNECT_MODE||"combined",
-  }).then(result=>{
+  }).then(async result=>{
+    const { attachOwnerStoreEvidence } = await import("./goriq-owner-store-observation.mjs");
+    result = await attachOwnerStoreEvidence(result, {
+      goalId:process.env.GORIQ_AI09_GOAL_ID,jobId:process.env.GORIQ_AI09_JOB_ID,
+      mode:process.env.GORIQ_AI09_CONNECT_MODE||"combined",
+    });
     console.log("AI09_LIVE_CONNECTION="+JSON.stringify(result));
     if(!["READONLY_CONNECTION_CONFIRMED","BROKER_AUTHENTICATED_READONLY",
       "BUILDER_AUTHENTICATED_READONLY"].includes(result.status))process.exitCode=2;
