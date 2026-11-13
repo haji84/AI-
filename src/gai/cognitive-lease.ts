@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { hostname } from "node:os";
 import { open, unlink, link } from "node:fs/promises";
+import { readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 
 interface Owner { version: 1; host: string; pid: number; nonce: string }
@@ -12,10 +13,24 @@ function owner(raw: string): Owner | null {
       typeof value.nonce === "string" && /^[a-f0-9-]{36}$/.test(value.nonce) ? value : null;
   } catch { return null; }
 }
+/** Linux kill(pid, 0) reports success for a defunct/zombie task, although that
+ * process can no longer hold our native SQLite arbiter. Only a proven Z/X state
+ * is reclaimable; missing, malformed or unreadable proc data is never proof. */
+export function linuxProcessDefunct(pid: number, stat: string): boolean {
+  if (!Number.isSafeInteger(pid) || pid < 1 || typeof stat !== "string") return false;
+  const openParen = stat.indexOf(" (");
+  const closeParen = stat.lastIndexOf(") ");
+  if (openParen < 1 || closeParen <= openParen || stat.slice(0,openParen) !== String(pid)) return false;
+  const state = stat.slice(closeParen + 2, closeParen + 3);
+  return (state === "Z" || state === "X" || state === "x") && stat.slice(closeParen + 3, closeParen + 4) === " ";
+}
 function deadLocalOwner(value: Owner): boolean {
   if (value.host !== localHost) return false;
-  try { process.kill(value.pid, 0); return false; }
+  try { process.kill(value.pid, 0); }
   catch (error) { return (error as NodeJS.ErrnoException).code === "ESRCH"; }
+  if (process.platform !== "linux") return false;
+  try { return linuxProcessDefunct(value.pid, readFileSync(`/proc/${value.pid}/stat`, "utf8")); }
+  catch { return false; }
 }
 async function current(path: string): Promise<string | null> {
   try { const h = await open(path, "r"); try { if ((await h.stat()).size > 512) return ""; return await h.readFile("utf8"); } finally { await h.close(); } }

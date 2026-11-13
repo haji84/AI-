@@ -163,6 +163,7 @@ test('unknown first VERIFIED implementation or PUBLISHED candidate is refused',a
 
 test('existing ready-to-publish candidate can return to LOCAL for missing verification reconciliation',async()=>{
  const old={...candidate(),status:'READY_TO_PUBLISH' as const};const f=fixture([old]);const s=new GitHubChangeSetJournal(f.port);
+ await s.get(old.changeSetId); // Observe the version being intentionally reconciled.
  await s.put({...old,status:'LOCAL',updatedAt:'2026-01-01T00:00:01.000Z'});assert.equal((await s.get(old.changeSetId))?.status,'LOCAL');assert.equal(f.current.events.length,2);
 });
 
