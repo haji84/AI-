@@ -84,7 +84,11 @@ export async function probeLiveGoriqConnection({
      !GOAL_ID.test(goalId)||goalId.includes("..")))
     return hold("INVALID_GOAL_IDENTIFIER");
 
+  // This diagnostic is a fixed enum and a bounded HTTP number only. It never
+  // contains an endpoint, credential, response body or exception message.
+  let readFailure=null;
   async function read(url,token) {
+    readFailure={kind:"TRANSPORT",httpStatus:null};
     const request={
       method:"GET",redirect:"error",
       headers:{Authorization:"Bearer "+token,Accept:"application/json"},
@@ -93,13 +97,21 @@ export async function probeLiveGoriqConnection({
     let response;
     try {response=await fetchImpl(url,request);}
     catch {throw Error("LOCAL_SERVICE_UNREACHABLE");}
+    const httpStatus=Number.isInteger(response?.status) && response.status>=100 && response.status<=599
+      ? response.status : null;
+    readFailure={kind:"HTTP",httpStatus};
     if(response?.ok!==true)throw Error("LOCAL_SERVICE_AUTH_OR_HTTP_FAILED");
     let json;
     try {
+      readFailure={kind:"BODY",httpStatus};
       const body=await response.text();
+      if(typeof body!=="string")throw Error("INVALID_LOCAL_STATUS_RESPONSE");
+      readFailure={kind:"SIZE",httpStatus};
       if(body.length>16384)throw Error("OVERSIZED_LOCAL_STATUS");
+      readFailure={kind:"JSON",httpStatus};
       json=JSON.parse(body);
     } catch {throw Error("INVALID_LOCAL_STATUS_RESPONSE");}
+    readFailure=null;
     return json;
   }
 
@@ -146,6 +158,7 @@ export async function probeLiveGoriqConnection({
   if(goalId!==undefined) {
     try {run=await read(BROKER+"/api/jarvis/admin/work/"+goalId,ownerToken);}
     catch {return hold("GOAL_RUN_NOT_AUTHENTICATED_OR_FOUND",{
+      readFailure,
       brokerAuthenticated:true,builderAuthenticated:mode!=="broker",
       builderIdentity:builder?boundedIdentity(builder.workerId):null,
     });}
@@ -176,6 +189,7 @@ export async function probeLiveGoriqConnection({
       let repeated;
       try {repeated=await read(BROKER+"/api/jarvis/admin/work/"+goalId,ownerToken);}
       catch {return hold("JOB_READBACK_REPEAT_UNAVAILABLE",{
+        readFailure,
         brokerAuthenticated:true,builderAuthenticated:mode!=="broker",
       });}
       const second=jobSnapshot(repeated,goalId,jobId);
