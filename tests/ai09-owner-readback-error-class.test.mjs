@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { URL } from 'node:url';
 import { probeLiveGoriqConnection } from '../scripts/goriq-ai09-live-broker-builder-probe.mjs';
 
+const { Response } = globalThis;
 const credential='fixture-only-private-owner-credential';
 const goalId='goal-fixture-readerror',jobId='job-fixture-readerror';
 const valid={run:{goalId,phase:'RUNNING'},goalAuthority:{kind:'CURRENT_COMPASS_GOAL',goalId,current:true},
