@@ -1,3 +1,27 @@
+# 2026-11-14 G1 inventory correction: match the actual opened Compass, not a guessed legacy path
+
+PR #1914 source continuation, based on prior HEAD `7f305d8460fbfa1208fef934279df1467496b31e`. This documentation update produces a NEW HEAD: recheck its exact CI; no previous pass certifies it.
+
+New evidence from existing real self-hosted Mac log, job 132038295948 / original owner-readback rerun: the running Broker's opened Compass fingerprint is the known Mac persistent state's `~/.goriq/state/compass.db`. That file differs from an old configured `jarvis.db.compass.sqlite` guess. Older inventory #42423639926 also identified distinct existing Broker DBs in mac-persistent-state and mac-canonical-repo-default. Distinct historical sources must be searched instead of assuming the current empty Goal is globally absent.
+
+The read-only scanner now checks both Mac persistent and canonical default Compass layouts, PLUS their legacy configured alternatives, de-duplicating each Broker's managed backup-generation enumeration. Existing separately configured absolute paths remain inspected without evaluating credentials. New test explicitly asserts correct persistent mapping and no duplicate backup counts. On partial Node22 snapshot, 10 focused tests PASS / 0 FAIL / 0 SKIP and `node --check` PASS. Source git blobs: `326e8c2bad921e6b4d8d524ff2d4c3d1deb8af62`, test blob `a73c9cb59eedd4bc26f75215a8c0ab1ec75c6dde`. Previously observed PR #1914 CI on 612e04a failed strict lint because test used global URL; explicitly imported `URL` from `node:url` at HEAD 7f305d8 and verified the blob. New candidate requires its own exact CI.
+
+No original Goal, backup or credential was copied, deleted, uploaded or restored. No service or key/permission change. PR integration and actual original-state scan remain NOT_YET_VERIFIED. Backup match alone cannot prove matching historical Job/attempt/receipt. Issue #1219 remains OPEN and Goal NOT_ACHIEVED. Separate code-review/account optional; original security and Human Gates retained.
+
+---
+
+# GORIQ G1 read-only historical backup inventory, 2026-11-14 JST
+
+Owner-defined Issue #1219 completion plan controls. Issue #1219 was unexpectedly Closed despite original Goal NOT_ACHIEVED; it has been reopened. Baseline main 2a229b58b31d5d423ce065650829f9cb73adac3a had post-merge CI #43469691893 (3 jobs passed, restricted verifier failed). Do not count that CI as green or claim original Goal has been found.
+
+Bounded source scan: known owner-home DB roots, managed backup generations under <broker>.state-backups, independently hashed manifest and readonly SQLite quick_check, matching original Goal and WorkRun projections, known self-development Job/Change Set sidecars. Publish only boolean/count/status summaries; never original plaintext, paths, credentials, full databases or evidence bytes to public GitHub. Reject symlinks, non-owner/unprivate storage, checksum mismatch, unsupported schema and partial generations. Original live Compass was empty but historical generations may not be. Matching Compass alone is not complete original Goal/Job/attempt recovery.
+
+Existing GORIQ Broker Fleet DB Inventory workflow will execute this inventory as an additional strictly read-only Mac step on a protected-main push after valid PR integration. No permanent Mac requirement; an offline runner means NOT_EXECUTED. No new state, account, secret, permission, scheduler, Goal/Job or main direct edit.
+
+Fixture tests: 9 PASS, 0 FAIL on Node22.16 (actual temporary SQLite+private directories, corruption, symlink, inactive/live divergence, sidecars, output redaction, env-file literal parsing and workflow gate). Full PR CI / actual Mac inventory NOT YET VERIFIED. Evidence: docs/evidence/1219-20261114-g1-historic-backup-scan.md. Next actual gates: exact-HEAD CI, optional safe protected merge, actual inventory, correlated original sidecars and trial evidence, then G3 authorized shared-store import and Actions recovery. Dedicated independent code review and second account optional, genuine security/Human Gates unchanged.
+
+---
+
 # GORIQ #1219: canonical surface hash reconciled (2026-11-13)
 
 Prior PR #1911 HEAD `4f2fcb0f20b27b257107950c619eafadb080a770` ran CI #43371642323 and found 8 Unit errors caused by the production reverse traceability registry retaining the old SHA256 for modified `src/gai/cognitive-lease.ts`. The actual source hash is `13a492588a56d00e9eaf35307b7d0ffed39c902a416ee01459877f54a69a22fa`. Update only that source row's `sha256`, preserve classification `COVERED_BY_REQUIREMENT`, requirement `OWN-001`, and all existing owner decisions/evidence. This is a **canonical reconciliation**, not deletion of an assertion or claimed acceptance. Previous run: project-checks FAILED; verifier container result independently pending; Windows and repository guard passed. New SHA must pass its own full CI; previous CI does not count.
