@@ -1,0 +1,56 @@
+name: GORIQ Approved Two-Leaf Compass Repair
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: goriq-g1-two-leaf-compass-repair-1219
+  cancel-in-progress: false
+
+jobs:
+  authorize:
+    if: >-
+      github.repository == 'haji84/AI-' && github.actor == 'haji84' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      contains(github.event.workflow_run.head_commit.message, '[GORIQ-G1-1219-APPROVED-20261115]') &&
+      github.run_attempt == 1
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      authorized: ${{ steps.scope.outputs.authorized }}
+      revision: ${{ steps.scope.outputs.revision }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - name: Verify the fixed owner-approved source, CI and merge
+        id: scope
+        run: node scripts/goriq-g1-compass-mode-entry.mjs authorize
+
+  repair:
+    needs: authorize
+    if: needs.authorize.outputs.authorized == 'true'
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.authorize.outputs.revision }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - name: Apply only the two approved Compass modes and inspect original state
+        run: node scripts/goriq-g1-compass-mode-entry.mjs apply

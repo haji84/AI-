@@ -1,3 +1,20 @@
+# 2026-11-15: approved two-leaf recovery maintenance candidate
+
+The owner explicitly approved the prior two-candidate mode-only repair and its limited native entry in this continuing chat. The receipt is recorded in [the continuing canonical handoff](https://github.com/haji84/AI-/issues/1219#issuecomment-6890852588). Do not request that same permission again. Earlier unapproved/inert-only wording below is historical; no authority for other permissions, credentials, files, services or Goal recreation was granted.
+
+Main remains `74c0b5fa40dc2249e482f26e904bdbb1d85fb842` with successful exact-main CI43695429682. PR1918 is being extended from its reviewed inert head32212dea with the approved fixed two-leaf native entry. The new workflow is selected only by the deliberate merge-title marker `[GORIQ-G1-1219-APPROVED-20261115]`; that selector is not authorization. Full source/run/CI/PR/actor/runner checks and a one-use private approval claim remain mandatory.
+
+The native adapter retains descriptors, uses installed Darwin SDK metadata, checks before/after fchmod, and retains private baseline/journals. It does not claim an atomic all-facts OS transaction. Newly created temporary Darwin fixtures must pass before any owner candidate is captured. Plan lifetime is at most30min and eligibility ends2026-11-15T20:40:55Z as an implementation safety bound. No schedule, dispatch, generic command/path input, new credential or expanded token scope is added.
+
+Root focused112/112 and independent112/112 PASS (overlap); Python17 native POSIX fixtures are nested in a Node wrapper and do not prove actual Darwin metadata. FullLint/Typecheck/626surfaces341requirements audit PASS. Source review has no unresolved concrete finding. Reproduced final-metadata/fstat races, uncertain native retry, and stale source-observation dating were corrected; all earlier failures are retained in evidence. New exact-head/main CI and actual native operation are still required. No actual chmod or original recovery has happened at this source checkpoint.
+
+Original Goal `goal-fcc81c97e09153f7` and Job `rotation-recovery-37` remain NOT_ACHIEVED/G1 HOLD. Issue1219 stays OPEN. The last actual inventory remains43687204876, nine candidates, seven Compass missing/two NONPRIVATE_PERMISSIONS, all nine Job/ChangeSet sidecars missing. Do not manufacture a replacement original. After actual repair, inspect only the approved candidates with the existing bounded reader, then continue actual original recovery/AI repair/Actions resume/nextJob/artifact acceptance when evidence permits.
+
+Plan: `docs/plans/2026-11-15-goriq-g1-approved-mode-entry.md`
+Evidence: `docs/evidence/1219-20261115-g1-approved-mode-entry.json`
+
+---
+
 # GORIQ G1 permission-repair candidate: source preparation only (2026-11-15)
 
 The latest integrated main is `74c0b5fa40dc2249e482f26e904bdbb1d85fb842`, protected merge of PR #1917 at 08:38:05 UTC. Its tree exactly matches the reviewed PR head. PR CI43693233840 passed all four jobs and the existing six-check receipt audit; exact-main CI43695429682 passed all four jobs and its six-check signature/output/source/resource/cleanup audit. G0 is SOURCE_CI_PASS for that exact main. Prior CI failures remain in the following historical sections and the canonical Issue record.
