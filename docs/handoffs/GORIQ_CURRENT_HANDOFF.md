@@ -1,3 +1,34 @@
+# 2026-11-15: approved two-leaf recovery maintenance candidate
+
+The owner explicitly approved the prior two-candidate mode-only repair and its limited native entry in this continuing chat. The receipt is recorded in [the continuing canonical handoff](https://github.com/haji84/AI-/issues/1219#issuecomment-6890852588). Do not request that same permission again. Earlier unapproved/inert-only wording below is historical; no authority for other permissions, credentials, files, services or Goal recreation was granted.
+
+Main remains `74c0b5fa40dc2249e482f26e904bdbb1d85fb842` with successful exact-main CI43695429682. PR1918 is being extended from its reviewed inert head32212dea with the approved fixed two-leaf native entry. The new workflow is selected only by the deliberate merge-title marker `[GORIQ-G1-1219-APPROVED-20261115]`; that selector is not authorization. Full source/run/CI/PR/actor/runner checks and a one-use private approval claim remain mandatory.
+
+The native adapter retains descriptors, uses installed Darwin SDK metadata, checks before/after fchmod, and retains private baseline/journals. It does not claim an atomic all-facts OS transaction. Newly created temporary Darwin fixtures must pass before any owner candidate is captured. Plan lifetime is at most30min and eligibility ends2026-11-15T20:40:55Z as an implementation safety bound. No schedule, dispatch, generic command/path input, new credential or expanded token scope is added.
+
+Root focused112/112 and independent112/112 PASS (overlap); Python17 native POSIX fixtures are nested in a Node wrapper and do not prove actual Darwin metadata. FullLint/Typecheck/626surfaces341requirements audit PASS. Source review has no unresolved concrete finding. Reproduced final-metadata/fstat races, uncertain native retry, and stale source-observation dating were corrected; all earlier failures are retained in evidence. New exact-head/main CI and actual native operation are still required. No actual chmod or original recovery has happened at this source checkpoint.
+
+Original Goal `goal-fcc81c97e09153f7` and Job `rotation-recovery-37` remain NOT_ACHIEVED/G1 HOLD. Issue1219 stays OPEN. The last actual inventory remains43687204876, nine candidates, seven Compass missing/two NONPRIVATE_PERMISSIONS, all nine Job/ChangeSet sidecars missing. Do not manufacture a replacement original. After actual repair, inspect only the approved candidates with the existing bounded reader, then continue actual original recovery/AI repair/Actions resume/nextJob/artifact acceptance when evidence permits.
+
+Plan: `docs/plans/2026-11-15-goriq-g1-approved-mode-entry.md`
+Evidence: `docs/evidence/1219-20261115-g1-approved-mode-entry.json`
+
+---
+
+# GORIQ G1 permission-repair candidate: source preparation only (2026-11-15)
+
+The latest integrated main is `74c0b5fa40dc2249e482f26e904bdbb1d85fb842`, protected merge of PR #1917 at 08:38:05 UTC. Its tree exactly matches the reviewed PR head. PR CI43693233840 passed all four jobs and the existing six-check receipt audit; exact-main CI43695429682 passed all four jobs and its six-check signature/output/source/resource/cleanup audit. G0 is SOURCE_CI_PASS for that exact main. Prior CI failures remain in the following historical sections and the canonical Issue record.
+
+This branch prepares an **unconnected draft** for the two actual Compass permission refusals. It adds a pure plan/apply/conditional-rollback module and 50 synthetic tests. Independent review reproduced an expiry gap between the final awaited gate check and the mode call; two synchronous deadline checks and two RED-to-GREEN regressions close that gap. It has no native adapter, CLI, workflow, Broker hook, approval issuer or production activation. A private frozen proposal is retained before its opaque handle is issued; permission still requires the real trusted specific-action Human Gate. The source preparation itself does not grant permission.
+
+Actual original Goal `goal-fcc81c97e09153f7` / Job `rotation-recovery-37` remain **NOT_ACHIEVED / G1 HOLD**. No original recreation, mode change, actual DB content read, credential, key or state-branch provisioning occurred. Latest actual inventory remains run43687204876 on ed2713bf:9 candidates,7 Compass missing,2 NONPRIVATE_PERMISSIONS / ACTIVE_COMPASS refusals, all9 sidecars missing,0 verified generations/history inspected. Actual before modes and later guards remain unconfirmed.
+
+Preparing inert source was initially conflated with executing the permission change. That interpretation is corrected: source/fixture/draft preparation can proceed under the completion request; real permission changes and new privileged connections require the separate gate. The future native adapter, descriptor cleanup, private real baseline, trusted approval connection and execution entry are still absent. Do not describe the draft as ready-to-run.
+
+See `docs/plans/2026-11-15-goriq-g1-mode-repair-proposal.md`, `docs/evidence/1219-20261115-g1-mode-repair-proposal.json`, and the latest read-back-verified [Issue1219 continuation](https://github.com/haji84/AI-/issues/1219#issuecomment-6890852588). Source fixtures do not establish the original production acceptance gates. Issue #1219 stays OPEN.
+
+---
+
 # 2026-11-15 continuation: exact-main CI timeout recovery and actual G1 mode refusal
 
 Original Goal `goal-fcc81c97e09153f7` / Job `rotation-recovery-37` remain NOT_ACHIEVED / G1 HOLD. Issue #1219 stays OPEN. This candidate starts at protected main `ed2713bfc862fd0d0eaf5471d2417469ee340585`. No unchanged third retry is authorized by this recovery plan.

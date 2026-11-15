@@ -1,0 +1,296 @@
+{
+  "schemaVersion": 1,
+  "evidenceClass": "INERT_SOURCE_PROPOSAL_NOT_ORIGINAL_GOAL_OR_PERMISSION_ACCEPTANCE",
+  "issue": 1219,
+  "goalId": "goal-fcc81c97e09153f7",
+  "jobId": "rotation-recovery-37",
+  "goalStatus": "NOT_ACHIEVED",
+  "actualPermissionChangeCount": 0,
+  "productionAcceptance": false,
+  "base": {
+    "revision": "74c0b5fa40dc2249e482f26e904bdbb1d85fb842",
+    "tree": "3cee5b368956aee47ca7b9ac50618c0e083732b0",
+    "pr": 1917,
+    "exactPrHead": "a2c0daa45f080fbe04da6531066606c446606958",
+    "exactPrCi": 43693233840,
+    "exactPrCiStatus": "ALL_FOUR_JOBS_AND_SIX_CHECK_AUDIT_PASS",
+    "mainCi": 43695429682,
+    "mainCiStatus": "ALL_FOUR_JOBS_AND_SIX_CHECK_AUDIT_PASS",
+    "mainProjectTests": {
+      "total": 4071,
+      "passed": 4045,
+      "failed": 0,
+      "skipped": 26,
+      "durationMs": 342846.667893
+    },
+    "mainProjectSecurity": {
+      "total": 332,
+      "passed": 332,
+      "failed": 0,
+      "skipped": 0,
+      "durationMs": 10193.975937
+    },
+    "mainVerifier": {
+      "artifactId": 14154332468,
+      "zipSha256": "325914ddf642fb68fe7cfffe1785a85e89c662c776687e65d8cac405785891cc",
+      "receiptSha256": "b43ab325ca30b03de14ae745ac901a91fa4288454f45652545602a9bd44204c5",
+      "publicKeySha256": "3f67f5c64bdc13b732d6d88cdd4a921b85acc138ce3dddc7abbfad274c931ff2",
+      "existingSixCheckAudit": "PASS",
+      "physicalAcceptanceVerified": false,
+      "fixtureCleanupConfirmed": true,
+      "checks": [
+        {
+          "check": "lint",
+          "status": "passed",
+          "elapsedMs": 14436.990376,
+          "timeoutMs": 180000,
+          "exit": 0,
+          "signal": null,
+          "errorCode": null,
+          "cleanupConfirmed": true,
+          "footer": {}
+        },
+        {
+          "check": "typecheck",
+          "status": "passed",
+          "elapsedMs": 12286.841354,
+          "timeoutMs": 180000,
+          "exit": 0,
+          "signal": null,
+          "errorCode": null,
+          "cleanupConfirmed": true,
+          "footer": {}
+        },
+        {
+          "check": "unit",
+          "status": "passed",
+          "elapsedMs": 243845.959433,
+          "timeoutMs": 300000,
+          "exit": 0,
+          "signal": null,
+          "errorCode": null,
+          "cleanupConfirmed": true,
+          "footer": {
+            "tests": 4072,
+            "pass": 4046,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 26,
+            "duration_ms": 242487.776074
+          }
+        },
+        {
+          "check": "integration",
+          "status": "passed",
+          "elapsedMs": 250826.819075,
+          "timeoutMs": 300000,
+          "exit": 0,
+          "signal": null,
+          "errorCode": null,
+          "cleanupConfirmed": true,
+          "footer": {
+            "tests": 4072,
+            "pass": 4046,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 26,
+            "duration_ms": 249618.352981
+          }
+        },
+        {
+          "check": "security",
+          "status": "passed",
+          "elapsedMs": 15667.606631,
+          "timeoutMs": 180000,
+          "exit": 0,
+          "signal": null,
+          "errorCode": null,
+          "cleanupConfirmed": true,
+          "footer": {
+            "tests": 332,
+            "pass": 332,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "duration_ms": 14513.419352
+          }
+        },
+        {
+          "check": "build",
+          "status": "passed",
+          "elapsedMs": 27357.736341,
+          "timeoutMs": 180000,
+          "exit": 0,
+          "signal": null,
+          "errorCode": null,
+          "cleanupConfirmed": true,
+          "footer": {}
+        }
+      ],
+      "limitsInterpretation": "Existing limits retained. Successful exact PR and exact main executions do not establish permanently stable CI timing margin or attribute total improvement to the one-line change.",
+      "observerAcceptance": false
+    }
+  },
+  "actualG1Observation": {
+    "runId": 43687204876,
+    "revision": "ed2713bfc862fd0d0eaf5471d2417469ee340585",
+    "macJobId": 132730063657,
+    "checkedCandidates": 9,
+    "missingCompassCandidates": 7,
+    "refusedCompassCandidates": 2,
+    "labels": [
+      "owner-config-file",
+      "mac-canonical-repo-default"
+    ],
+    "reason": "NONPRIVATE_PERMISSIONS",
+    "role": "ACTIVE_COMPASS",
+    "verifiedManagedGenerations": 0,
+    "historyInspected": 0,
+    "allNineSidecarsMissing": true,
+    "productionGoalRecovered": false,
+    "modeValuesKnown": false,
+    "laterPathGuardsProved": false
+  },
+  "scope": {
+    "kind": "UNCONNECTED_PURE_MODULE_AND_SYNTHETIC_TESTS",
+    "nativeAdapter": false,
+    "cli": false,
+    "brokerHook": false,
+    "workflowChange": false,
+    "packageCommand": false,
+    "approvalIssuer": false,
+    "realGateConnection": false,
+    "originalRecreation": false,
+    "newKeyOrCredential": false,
+    "privateContentPublication": false
+  },
+  "authority": {
+    "sourcePreparation": "Current owner completion request for existing Issue1219; no actual permission authority is derived",
+    "realOperationRisk": "HIGH",
+    "permissionChange": true,
+    "requiresSpecificHumanApproval": true,
+    "completionDelegationAuthorizesPermissionChange": false,
+    "proposalDigestIsPermission": false,
+    "maxPlanLifetimeMs": 1800000,
+    "scopeOfThirtyMinutes": "Candidate plan freshness bound only; no actual human approval or expiry has been issued"
+  },
+  "behavior": [
+    "Fixed two labels only; identical canonical identity deduplicated, contradictory aliases refused",
+    "Known owner, regular file, nlink1, bounded nonempty64MiB, canonical/private path checks, no ACL/flags/special-bit repair",
+    "Frozen private PLANNED journal retained before returning an opaque plan handle; facts and expiry checked again after retention",
+    "Trusted injected gate consumes an existing opaque specific-action permit and verifies exact binding and receipt identity across asynchronous boundaries",
+    "Owner bits preserved; only group/other bits removed; all setMode calls carry pinned expected facts",
+    "Uncertain mode completion is RECOVERY_REQUIRED and not blindly retried",
+    "Rollback only while the same identity, immutable facts, own expected mode and authority still match",
+    "Expiry during the first mutation stops later mutations and rollback under expired authority",
+    "Closed public results exclude paths, owner metadata, modes, private hashes, raw errors and DB content",
+    "Synchronous deadline check immediately before both setMode invocations closes the final-await caller-resume expiry gap; future native adapter still enforces atomic identity/facts/authority at its own effect point"
+  ],
+  "tests": {
+    "initialRed": {
+      "total": 42,
+      "passed": 0,
+      "failed": 42,
+      "reason": "Factory unimplemented assertion"
+    },
+    "scalarAndIdentityRed": {
+      "total": 44,
+      "passed": 42,
+      "failed": 2,
+      "reason": "Reject nonprimitive coercion and same-path different identity"
+    },
+    "privatePlanRed": {
+      "total": 48,
+      "passed": 32,
+      "failed": 16,
+      "reason": "Four new private plan contract cases and twelve previous assertions updated to require plan retention"
+    },
+    "builderFinal": {
+      "total": 50,
+      "passed": 50,
+      "failed": 0,
+      "skipped": 0,
+      "durationMs": 193.764415
+    },
+    "rootIndependentRun": {
+      "total": 48,
+      "passed": 48,
+      "failed": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "durationMs": 243.385344,
+      "sourceStage": "Before final expiry-gap correction; retained historical48-case evidence, not final50-case acceptance"
+    },
+    "externalEnvelope": {
+      "timeoutSeconds": 60,
+      "killGraceSeconds": 5
+    },
+    "fixtures": "Synthetic in-memory facts/opaque handles and side-effect sequences; no real owner files",
+    "expiryGapRed": {
+      "total": 50,
+      "passed": 48,
+      "failed": 2,
+      "reason": "Expiry after last async gate check but before caller resumes allowed apply and rollback mode calls"
+    },
+    "lintCorrection": "First final focused lint found four queueMicrotask undefined-global reports in the two new tests; explicit globalThis binding fixed them and tests/lint/typecheck were rerun successfully",
+    "independentFinalReview": {
+      "total": 50,
+      "passed": 50,
+      "failed": 0,
+      "skipped": 0,
+      "durationMs": 222.358288
+    },
+    "independentExpiryFixture": {
+      "total": 2,
+      "passed": 2,
+      "failed": 0,
+      "apply": "HOLD/PERMIT_EXPIRED, modeCalls0, changedCount0",
+      "rollback": "RECOVERY_REQUIRED/ROLLBACK_BLOCKED, restoreCalls0, restoredCount0",
+      "counting": "Overlapping regression evidence, not additional unique production tests"
+    }
+  },
+  "checks": {
+    "fullLint": "PASS",
+    "typecheck": "PASS",
+    "traceability": {
+      "status": "PASS",
+      "surfaces": 626,
+      "requirements": 341,
+      "functionalCompletionClaim": false
+    },
+    "independentSourceReview": "PASS; prior Important expiry gap independently reproduced in both directions and closed by final synchronous checks; no unresolved findings",
+    "newExactDraftCi": "NOT_STARTED"
+  },
+  "sourceSha256": {
+    "scripts/goriq-g1-compass-mode-repair.mjs": "4a0bbae7f488a11da012a35ad74f8ad135d92a298b8be59d9298e3546d0dad9c",
+    "tests/goriq-g1-compass-mode-repair.test.mjs": "39e1c920ca78fd78a4b942923519bc55647385640d189a9eb516ea9b0a8b0d8a"
+  },
+  "remaining": [
+    "Native metadata/descriptor/conditional-mode/private-journal adapter absent",
+    "Real descriptor acquisition, retention, bounds and cleanup must be supplied and reviewed by the future trusted adapter",
+    "Trusted existing Human Gate and durable single-use consumption are unconnected; no issuer added",
+    "In-process opaque handles are not a cross-process recovery permit",
+    "Actual private before-state/ACL/flags/hash have not been acquired",
+    "Dedicated owner-host execution entry and actual specific-action permission require separate authorization",
+    "This candidate is not ready-to-run and does not prove original recovery, Actions A/B, actual AI repair, production signing or artifact acceptance"
+  ],
+  "interpretationCorrection": "Earlier planning conflated creating an inert repair candidate with executing a permission change. Source preparation and a draft PR are authorized; actual permission changes and privilege/authority connections remain separately gated.",
+  "history": "Previous CI failures and rejected experiments remain in docs/evidence/1219-20261115-ci-runtime-correction.json and canonical Issue comment6890852588; none is relabeled PASS.",
+  "reviewFindings": [
+    {
+      "finding": "Private proposal was not retained until after permit consumption",
+      "resolution": "PLANNED private journal now retained and freshness rechecked before opaque plan handle issuance",
+      "status": "CLOSED"
+    },
+    {
+      "finding": "Scalar regex coercion accepted nonprimitive mutable values and same path could bind different identities",
+      "resolution": "Primitive string guards and contradictory path/identity refusal",
+      "status": "CLOSED"
+    },
+    {
+      "finding": "Final async verification could expire before caller invoked setMode in apply or rollback",
+      "resolution": "Synchronous deadline checks immediately before both mode calls; apply checks before recording an attempted mutation",
+      "status": "CLOSED"
+    }
+  ]
+}
