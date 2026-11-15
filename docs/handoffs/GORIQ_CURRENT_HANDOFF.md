@@ -1,3 +1,17 @@
+# GORIQ G1 permission-repair candidate: source preparation only (2026-11-15)
+
+The latest integrated main is `74c0b5fa40dc2249e482f26e904bdbb1d85fb842`, protected merge of PR #1917 at 08:38:05 UTC. Its tree exactly matches the reviewed PR head. PR CI43693233840 passed all four jobs and the existing six-check receipt audit; exact-main CI43695429682 passed all four jobs and its six-check signature/output/source/resource/cleanup audit. G0 is SOURCE_CI_PASS for that exact main. Prior CI failures remain in the following historical sections and the canonical Issue record.
+
+This branch prepares an **unconnected draft** for the two actual Compass permission refusals. It adds a pure plan/apply/conditional-rollback module and 50 synthetic tests. Independent review reproduced an expiry gap between the final awaited gate check and the mode call; two synchronous deadline checks and two RED-to-GREEN regressions close that gap. It has no native adapter, CLI, workflow, Broker hook, approval issuer or production activation. A private frozen proposal is retained before its opaque handle is issued; permission still requires the real trusted specific-action Human Gate. The source preparation itself does not grant permission.
+
+Actual original Goal `goal-fcc81c97e09153f7` / Job `rotation-recovery-37` remain **NOT_ACHIEVED / G1 HOLD**. No original recreation, mode change, actual DB content read, credential, key or state-branch provisioning occurred. Latest actual inventory remains run43687204876 on ed2713bf:9 candidates,7 Compass missing,2 NONPRIVATE_PERMISSIONS / ACTIVE_COMPASS refusals, all9 sidecars missing,0 verified generations/history inspected. Actual before modes and later guards remain unconfirmed.
+
+Preparing inert source was initially conflated with executing the permission change. That interpretation is corrected: source/fixture/draft preparation can proceed under the completion request; real permission changes and new privileged connections require the separate gate. The future native adapter, descriptor cleanup, private real baseline, trusted approval connection and execution entry are still absent. Do not describe the draft as ready-to-run.
+
+See `docs/plans/2026-11-15-goriq-g1-mode-repair-proposal.md`, `docs/evidence/1219-20261115-g1-mode-repair-proposal.json`, and the latest read-back-verified [Issue1219 continuation](https://github.com/haji84/AI-/issues/1219#issuecomment-6890852588). Source fixtures do not establish the original production acceptance gates. Issue #1219 stays OPEN.
+
+---
+
 # 2026-11-15 continuation: exact-main CI timeout recovery and actual G1 mode refusal
 
 Original Goal `goal-fcc81c97e09153f7` / Job `rotation-recovery-37` remain NOT_ACHIEVED / G1 HOLD. Issue #1219 stays OPEN. This candidate starts at protected main `ed2713bfc862fd0d0eaf5471d2417469ee340585`. No unchanged third retry is authorized by this recovery plan.
