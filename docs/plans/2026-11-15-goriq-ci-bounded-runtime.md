@@ -69,3 +69,32 @@ Canonical closed-result SHA256 by scenario map:
 TypeScript AST inspection confirmed all 74 existing assertion calls (16/38/20) and all four native `spawnSync` call expressions (2/1/1) retain their exact original text. All four fixture sources and the existing batch helpers are unchanged. Focused ESLint on the three modified test files and `git diff --check` passed. Windows was not executed locally; its unchanged native branches require the normal hosted checks.
 
 Raw logs, child captures and machine-readable summaries are intermediate evidence under `/workspace/scratch/d10f272cafc1/goriq-ci-measurements/`; the parent owns the final evidence/handoff record. No candidate-2 batching, production source, workflow, dependency manifest, gate or resource changes were made by this implementer.
+
+## Follow-up: Preserve the tracked Broker fixture's inherited Node options
+
+Parent-authorized scope at `636e93f2217aca19f672e8b2b613be6e15ec85dd`: only this plan and `tests/autonomous-tracked-repair-runtime.test.ts`. The tracked Broker fixture currently replaces inherited `NODE_OPTIONS`, unlike the existing sequence Broker fixture, which appends its synthetic telemetry import. The verifier image uses inherited `NODE_OPTIONS` for its image-owned home/cache initializer; no new cache or initializer is proposed.
+
+- [x] Capture one bounded selected authenticated Broker scenario before changing source. A private temporary preload observes real process startup and preservation of a benign existing Node option; the external regression check must fail because both Broker startup events are absent. Keep the full existing scenario and assertions.
+- [x] Apply only the sequence fixture's existing append-and-trim pattern to the tracked Broker fixture's `NODE_OPTIONS` expression. Preserve telemetry import, all subprocesses, explicit probe env, source, timeout and resource limits.
+- [x] Run the same selected scenario once; require two distinct Broker preload activations, retained existing option, unchanged subprocess outcomes and all scenario assertions. Record before/after wall without claiming CI margin.
+- [x] If adopted, run all 49 tracked-runtime tests once under an external 120s timeout plus 5s kill grace. Run focused lint and diff check; inspect the exact source diff. Parent owns full checks, review, evidence and hosted CI.
+
+The temporary preload is a local observation fixture only. It does not implement or replace the image-owned initializer and introduces no production cache setting. Rollback is the one test expression; no production or runtime state is changed.
+
+
+### Follow-up execution record
+
+The selected existing authenticated Broker scenario was run once before and once after, with the same private local `--require` observer plus a benign existing `--no-deprecation` option. The observer records actual startup PID/parent PID, role and option-presence booleans only; it does not replace Node, Broker, executor, readback, telemetry, cache APIs or image initialization. Both runs used an outer 120s bound with 5s kill grace. The original selected scenario passed, but the external regression assertion failed with `INHERITED_PRELOAD_NOT_ACTIVE_IN_BOTH_REAL_BROKERS`: both real Broker spawns exited0 while neither activated the inherited observer. After the one-line append fix, the same scenario passed and both distinct real Broker PIDs retained the original option, observer and telemetry import. Two downstream executor starts and eight downstream readback starts also activated the observer. The selected case name, all11 observed command outcomes (excluding varying PIDs), and empty stderr remained identical.
+
+| Selected scenario | Before | After |
+| --- | ---: | ---: |
+| Outer wall | 3535.276ms | 3335.986ms |
+| Test footer | 3436.961ms | 3250.378ms |
+| Existing scenario result | 1PASS/0FAIL | 1PASS/0FAIL |
+| Real Broker startup observer activations | 0 | 2 distinct PIDs |
+
+These single local runs do not establish a CI timing gain. This is a correction to inheritance of the existing image-owned initializer, not a new compile-cache feature. The rejected external `NODE_COMPILE_CACHE` proposal remains rejected because the image already enables its private cache and refuses a pre-enabled external cache.
+
+After adopting the one-line inheritance fix, all49 tracked-runtime tests were run once with the same private observation preload, no cache environment setting, external120s/kill5s bound, unchanged test concurrency2, source and assertions. Result:49PASS/0FAIL/0SKIP/0CANCELLED, outer65389.585ms, footer65300.049ms, stderr empty. All49 names and824 ordered observed command outcomes matched the earlier unchanged-source baseline. The351 direct readbacks,40 probes (39RED failures/1GREEN success),2 direct executors,2 Broker starts and429 Git commands remained present. Both real Broker PIDs retained the inherited options.
+
+Focused ESLint for the modified test and `git diff --check` passed. Exact test-source diff is one `NODE_OPTIONS` expression; no helper, fixture, test name, assertion, explicit probe environment, dependency, production source, workflow, timeout or resource limit changed. Temporary machine-readable observations and raw logs are under `/workspace/scratch/d10f272cafc1/tracked-runtime-preload-propagation/`. No commit or remote mutation was performed. Parent owns final review, full checks, hosted CI, evidence and handoff.

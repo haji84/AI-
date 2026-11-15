@@ -277,5 +277,321 @@
     "combinedScope": "Three modified test files plus existing powershell-fixture-batch.test.mjs isolation/streams/parser/timeout regressions",
     "timingQualification": "One verification run, not a comparative performance measurement",
     "authority": "Optional source code review and local fixture evidence only; not production result authentication"
+  },
+  "firstPublishedCandidate": {
+    "pr": 1917,
+    "head": "636e93f2217aca19f672e8b2b613be6e15ec85dd",
+    "tree": "82a10d0d2dd8b93f98d979e01f2f452cd0d86020",
+    "runId": 43690684015,
+    "attempt": 1,
+    "otherThreeJobs": "SUCCESS",
+    "independentJob": "FAILURE",
+    "audit": {
+      "evidenceClass": "CI_FIXTURE_NOT_PRODUCTION_ORIGINAL_GOAL_ACCEPTANCE",
+      "runId": 43690684015,
+      "attempt": 1,
+      "head": "636e93f2217aca19f672e8b2b613be6e15ec85dd",
+      "artifactId": 14151764216,
+      "zipSha256": "10bd8631a163038bd680adb8131e57fd0b0ff7e5cfd1e2489d0d46e084c270a2",
+      "safeExtraction": "PASS",
+      "existingReceiptValidator": "PASS",
+      "validationAt": "2026-11-15T07:48:15.408Z",
+      "outputDigestAndBindingChecks": "4/4 PASS",
+      "receiptSha256": "386ed3a794a74f01cf5548cd0d27b0aa3c99f61b488bd95301ff7318b091ee70",
+      "publicKeySha256": "a7884024004a627f94a59d0d7c60cda266de9fb5b4aba3dd8a206cd5b42b7044",
+      "candidateRevision": "2bfca3b92fc75fe8af896be2c94813271e0a9be5f569437257283b95c0e52671",
+      "completeAcceptance": false,
+      "physicalAcceptanceVerified": false,
+      "fixtureCleanupConfirmed": true,
+      "evaluation": {
+        "passed": false,
+        "reasons": [
+          "check_not_passed:integration",
+          "missing_evidence:security",
+          "missing_evidence:build"
+        ]
+      },
+      "notExecuted": [
+        "security",
+        "build"
+      ],
+      "environment": {
+        "node": "v24.19.0",
+        "limits": {
+          "timeoutMs": 180000,
+          "timeoutMsByCheck": {
+            "lint": 180000,
+            "typecheck": 180000,
+            "unit": 300000,
+            "integration": 300000,
+            "security": 180000,
+            "build": 180000
+          },
+          "memoryBytes": 2147483648,
+          "pids": 128,
+          "tmpfsMiB": 1536,
+          "network": "none",
+          "uid": 65534
+        },
+        "observedCpuLimit": "200000/100000=2CPU"
+      },
+      "checks": [
+        {
+          "check": "lint",
+          "status": "passed",
+          "elapsedMs": 16625.343162,
+          "lastOutputElapsedMs": 1324.349967,
+          "timeoutMs": 180000,
+          "exit": 0,
+          "signal": null,
+          "errorCode": null,
+          "cleanupConfirmed": true,
+          "footer": {},
+          "retainedAssertionFailureMarkers": 0
+        },
+        {
+          "check": "typecheck",
+          "status": "passed",
+          "elapsedMs": 14747.996674,
+          "lastOutputElapsedMs": 610.59037,
+          "timeoutMs": 180000,
+          "exit": 0,
+          "signal": null,
+          "errorCode": null,
+          "cleanupConfirmed": true,
+          "footer": {},
+          "retainedAssertionFailureMarkers": 0
+        },
+        {
+          "check": "unit",
+          "status": "passed",
+          "elapsedMs": 296888.723262,
+          "lastOutputElapsedMs": 296765.213358,
+          "timeoutMs": 300000,
+          "exit": 0,
+          "signal": null,
+          "errorCode": null,
+          "cleanupConfirmed": true,
+          "footer": {
+            "tests": 4072,
+            "pass": 4046,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 26,
+            "duration_ms": 295516.824029
+          },
+          "retainedAssertionFailureMarkers": 0
+        },
+        {
+          "check": "integration",
+          "status": "inconclusive",
+          "elapsedMs": 300008.754911,
+          "lastOutputElapsedMs": 299126.942704,
+          "timeoutMs": 300000,
+          "exit": null,
+          "signal": "SIGKILL",
+          "errorCode": "ETIMEDOUT",
+          "cleanupConfirmed": true,
+          "footer": {},
+          "retainedAssertionFailureMarkers": 0
+        }
+      ],
+      "interpretation": "Integration timed out after Unit completed successfully. No retained assertion failure marker; unfinished Integration has no completion footer and cannot be called passing. LIVE_CHECK_SET_INVALID is downstream missing security/build. No reruns or test execution performed.",
+      "supplementalObserver": {
+        "evidenceClass": "UNSIGNED_SUPPLEMENTAL",
+        "acceptance": false,
+        "status": "PARTIAL",
+        "stopReason": "STOP_REQUESTED",
+        "terminalOom": "UNKNOWN",
+        "truePeaks": "UNKNOWN",
+        "processExitObserved": false,
+        "artifactId": 14151859130,
+        "zipSha256": "88384081223a7b9d8adbe533c013ddeac71647d8086cf7c20044984e1bfe5956",
+        "checks": {
+          "unit": {
+            "validSamples": 27,
+            "maxSampledMemoryBytes": 573677568,
+            "maxSampledPids": 87,
+            "last": {
+              "cpuUsageNs": 561376810000,
+              "cpuPeriods": 2956,
+              "cpuThrottledPeriods": 2545,
+              "cpuThrottledNs": 146855894000
+            }
+          },
+          "integration": {
+            "validSamples": 27,
+            "maxSampledMemoryBytes": 706375680,
+            "maxSampledPids": 107,
+            "last": {
+              "cpuUsageNs": 551548025000,
+              "cpuPeriods": 2966,
+              "cpuThrottledPeriods": 2434,
+              "cpuThrottledNs": 141412117000
+            }
+          }
+        }
+      },
+      "failureLastCompletedCase": "public-key pinning rejects private PEM material instead of deriving its public part"
+    },
+    "mergeGate": "HOLD",
+    "unchangedRetryRequested": false,
+    "initialNextHypothesis": "Measure fresh private Node compile cache within one tracked-runtime fixture run without caching any attestation/result or removing subprocess/fresh Git boundaries. No adoption until benefit and semantics verified.",
+    "initialNextHypothesisStatus": "SUPERSEDED_AND_REJECTED: existing image-owned preload already enables compile cache and rejects an externally pre-enabled cache. See rejectedCompileCacheExperiment.",
+    "currentCorrection": "Preserve inherited NODE_OPTIONS in the tracked Broker fixture, adding its telemetry import without dropping the existing initializer. See preloadPropagationCorrection. New exact-head hosted CI remains required."
+  },
+  "rejectedCompileCacheExperiment": {
+    "sourceHead": "636e93f2217aca19f672e8b2b613be6e15ec85dd",
+    "localNode": "v24.22.1",
+    "runCountEach": 1,
+    "runs": [
+      {
+        "label": "baseline",
+        "exitCode": 0,
+        "outerMs": 64416.07704300077,
+        "footer": {
+          "tests": 49,
+          "suites": 0,
+          "pass": 49,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0,
+          "duration_ms": 64313.919907
+        },
+        "commandCounts": {
+          "git:init": 46,
+          "git:config": 138,
+          "git:add": 46,
+          "git:commit": 46,
+          "git:rev-parse": 46,
+          "git:worktree": 107,
+          "node:readback": 351,
+          "node:test": 40,
+          "node:executor": 2,
+          "node:async": 2
+        },
+        "testNamesSha256": "f08fee338786919a7ae6d711f6cb98c8abbed0c3c5666b17342f61d0955c0b09"
+      },
+      {
+        "label": "fresh-cache",
+        "exitCode": 0,
+        "outerMs": 52017.799033999836,
+        "footer": {
+          "tests": 49,
+          "suites": 0,
+          "pass": 49,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0,
+          "duration_ms": 51945.623785
+        },
+        "commandCounts": {
+          "git:init": 46,
+          "git:config": 138,
+          "git:add": 46,
+          "git:commit": 46,
+          "git:rev-parse": 46,
+          "git:worktree": 107,
+          "node:readback": 351,
+          "node:test": 40,
+          "node:executor": 2,
+          "node:async": 2
+        },
+        "testNamesSha256": "f08fee338786919a7ae6d711f6cb98c8abbed0c3c5666b17342f61d0955c0b09"
+      }
+    ],
+    "equality": {
+      "all49TestNames": true,
+      "all824OrderedCommandOutcomeRecords": true,
+      "commandCounts": true,
+      "topLevelStderrEmptyBoth": true
+    },
+    "decision": {
+      "decision": "REJECTED",
+      "reason": "Existing verifier image already enables an image-owned private compile cache through NODE_OPTIONS prepare-home.cjs. Its initializer rejects a pre-enabled external compile cache. NODE_COMPILE_CACHE would conflict with that source contract. These local no-cache/fresh-cache measurements do not establish incremental CI savings.",
+      "source": [
+        "tests/fixtures/verifier-image/Dockerfile:53",
+        "tests/fixtures/verifier-image/Dockerfile:63",
+        "tests/fixtures/verifier-image/Dockerfile:82",
+        "tests/verifier-image-compile-cache.test.mjs:149"
+      ],
+      "correction": "Initial assessment that the measured local improvement justified CI adoption consideration omitted the existing image preload and is withdrawn. No tracked implementation was made."
+    },
+    "interpretation": "Local cache-off versus cache-on comparison only. Existing CI already uses an image-owned compile cache through a required preload; the external-cache proposal was rejected before tracked implementation. No incremental CI saving is inferred."
+  },
+  "preloadPropagationCorrection": {
+    "sourceParent": "636e93f2217aca19f672e8b2b613be6e15ec85dd",
+    "scope": "One NODE_OPTIONS expression in tests/autonomous-tracked-repair-runtime.test.ts; preserve existing inherited options and append the existing telemetry import, matching the existing sequence Broker fixture. No new cache or production setting.",
+    "sourceSha256": "0ef38c0fc53d77b7c0da7ca66632bf00933e550d7a1267a625a2228f5cd11811",
+    "regression": {
+      "externalRedAssertion": "INHERITED_PRELOAD_NOT_ACTIVE_IN_BOTH_REAL_BROKERS",
+      "beforeRealBrokerPreloadActivations": 0,
+      "afterRealBrokerPreloadActivations": 2,
+      "afterBrokerPidsDistinct": true,
+      "afterInheritedAndTelemetryOptionsPreserved": true,
+      "afterObservedRoles": {
+        "autonomous-tracked-repair-runtime.test.ts": 2,
+        "jarvis-broker.ts": 2,
+        "jarvis-goal-executor.ts": 2,
+        "jarvis-local-artifact-readback.mjs": 8
+      },
+      "selectedScenarioPassedBeforeAndAfter": true,
+      "selectedCommandOutcomesEqualExcludingPids": true,
+      "beforeOuterMs": 3535.275612000987,
+      "afterOuterMs": 3335.985869000069,
+      "noCacheEnvironmentSetting": true,
+      "limits": "Single local pair; preload records startup only, does not emulate image guards/cache. Before/after duration is not CI savings."
+    },
+    "fullFocusedFile": {
+      "runCount": 1,
+      "exitCode": 0,
+      "outerMs": 65389.58451899998,
+      "footer": {
+        "tests": 49,
+        "suites": 0,
+        "pass": 49,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0,
+        "duration_ms": 65300.049094
+      },
+      "stderrBytes": 0,
+      "commandCounts": {
+        "git:init": 46,
+        "git:config": 138,
+        "git:add": 46,
+        "git:commit": 46,
+        "git:rev-parse": 46,
+        "git:worktree": 107,
+        "node:readback": 351,
+        "node:test": 40,
+        "node:executor": 2,
+        "node:async": 2
+      },
+      "instrumentedOutcomes": 824,
+      "same49NamesAsUnchangedBaseline": true,
+      "same824OrderedCommandOutcomesAsUnchangedBaseline": true
+    },
+    "localLint": "PASS",
+    "localTypecheck": "PASS",
+    "traceability": "PASS626surfaces341requirements",
+    "performanceClaim": "No demonstrated CI margin. This restores inherited image initialization; local observational preload does not emulate or validate the actual image initializer. Exact new-HEAD hosted verification remains required.",
+    "independentReview": {
+      "source": "APPROVED; no unresolved source finding",
+      "sourceSha256Confirmed": true,
+      "rawPreloadRecordsInspected": 14,
+      "redGreenAnd49TestEvidenceConfirmed": true,
+      "probeEnvironmentAllowlistUnchanged": true,
+      "newProcessInitializerSemantics": "Existing require initializer is loaded once per new Node process; no worker-thread or production change.",
+      "actualFirstCandidateCaseDurationsMs": {
+        "unit": 4524.612477,
+        "integration": 3885.411868
+      },
+      "performanceLimit": "The affected case alone does not support more than10s saving; no CI-margin guarantee.",
+      "documentationCorrection": "The original cache hypothesis is explicitly retained as historical SUPERSEDED_AND_REJECTED."
+    }
   }
 }
