@@ -23,6 +23,7 @@ function replaceManifest(cp,m){
   const jobsPath='state/self-development/jobs.json',snapshot=JSON.parse(Buffer.from(cp.files.find(f=>f.path===jobsPath).contentBase64,'base64'));
   snapshot.jobs[0].approvalScope.expiresAt=m.sequence.expiresAt;update(cp,jobsPath,JSON.stringify(snapshot));
 }
+const modelResponse=JSON.stringify({model:'fixture-model',stop:true,truncated:false,stop_type:'eos',content:'fixture response'});
 function fixture(){
   const goalId='goal-1219-fixture',jobId='job-1219-fixture',changeSetId=jobId+':tracked-candidate';
   const expiresAt=new Date(Date.now()+3600000).toISOString(),at=new Date().toISOString();
@@ -40,9 +41,9 @@ function fixture(){
   return {version:1,kind:'tracked-repair-actions-checkpoint',head,phase:'cloud',sourceRunId:null,manifestSha256,goalId,jobId,changeSetId,files:[
     file('manifest.json',manifestText),file('public.pem',publicPem),file('frozen-probe.mjs',probe),file('state/compass.sqlite','SQLite format 3\0fixture bytes; structural test only'),
     file('state/self-development/jobs.json',JSON.stringify({version:1,jobs:[job],savedAt:at})),file('state/self-development/change-sets.json',JSON.stringify({version:1,changeSets:[change],savedAt:at})),
-    file('receipt.json.request.json',JSON.stringify(outbox)),file(journal+'.prepared.json',JSON.stringify({binding,files:[{path:'scripts/logic.mjs',content:source}],responseSha256:'9'.repeat(64),promptSha256:'a'.repeat(64)})),
+    file('receipt.json.request.json',JSON.stringify(outbox)),file(journal+'.prepared.json',JSON.stringify({binding,files:[{path:'scripts/logic.mjs',content:source}],responseSha256:hash(modelResponse),promptSha256:'a'.repeat(64)})),
     file(journal+'.prepared.json.intent.json',JSON.stringify({binding,workItemId:jobId+':implement',prompt:'Fixture prompt only'})),
-    file(journal+'.prepared.json.response.json',JSON.stringify({model:'fixture-model',stop:true,truncated:false,stop_type:'eos',content:'fixture response'})),
+    file(journal+'.prepared.json.response.json',modelResponse),
     file('candidate/scripts/logic.mjs',source),file('candidate/tests/frozen.test.mjs',probe)]};
 }
 
@@ -188,3 +189,14 @@ test('fixed-map transport reconstructs exact realistic metadata from the pinned 
   assert.throws(()=>decodeCheckpoint(encoded.b64,encoded.sha256,{bookkeepingBaseline:Buffer.from(JSON.stringify(different,null,2)+'\n')}));
 });
 
+
+test('checkpoint rejects a missing prepared model response journal',()=>{
+  const cp=fixture();cp.files=cp.files.filter(row=>!row.path.endsWith('.prepared.json.response.json'));
+  assert.throws(()=>validateCheckpoint(cp,{expectedHead:head}),/TRACKED_ACTIONS_CHECKPOINT_INVALID/);
+});
+
+test('checkpoint rejects model response bytes that disagree with the prepared digest',()=>{
+  const cp=fixture(),response=cp.files.find(row=>row.path.endsWith('.prepared.json.response.json'));
+  update(cp,response.path,JSON.stringify({model:'fixture-model',stop:true,truncated:false,stop_type:'eos',content:'altered historical response'}));
+  assert.throws(()=>validateCheckpoint(cp,{expectedHead:head}),/TRACKED_ACTIONS_CHECKPOINT_INVALID/);
+});
