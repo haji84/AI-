@@ -1,3 +1,23 @@
+# 2026-11-15 G1 continuation: preserve verified bytes and expose recovery diagnostics
+
+Existing Issue #1219 remains OPEN. Original Goal `goal-fcc81c97e09153f7` / Job `rotation-recovery-37` remain NOT_ACHIEVED / G1 HOLD. This source candidate is based on protected main `33eb098df543fc7331414a02a717c28c98b37853`, whose exact-main CI `43624825229` passed all four jobs. A new commit requires its own checks; the preceding success does not certify it.
+
+The previous actual Mac inventory (`43624825220`, Mac job `132538213215`) checked 7 candidates and 0 managed generations, with 0 matching backups/WorkRuns and all active summaries null. Its generic unavailable results hid why each read failed. The new observer adds fixed reason codes, exact structured historical-ID leads, and two source-defined standalone Compass locations. It keeps all history findings unauthenticated and does not claim recovery.
+
+Actual fixtures uncovered two integrity defects while implementing this: read-only SQLite can change a source WAL SHM read mark, and reopening a managed source after manifest validation can count a newly appeared unmanifested WAL. The observer now opens only private temporary snapshots; managed matching uses the exact already-hashed bytes in the same transaction as validation. Fresh focused tests: 27 PASS / 0 FAIL / 0 SKIP. An independent source review repeated those tests and closed the reproduced race. This optional code review is not a production result signature or an additional account requirement.
+
+New original-state lead: historical Issue #1218 comment `6596993174` / #1219 comment `6595822446` report creation of the selected Goal in a November 3 isolated Broker, with evidence retained privately. That report is not an authenticated current readback and does not establish that the live Mac ever had this original. The named retention root is absent in this workspace. Six existing GORIQ source/CI archives, including two nested CI archives and 80 verified manifest-listed files, contain no original state payload or new retention location. This is a bounded negative search, not proof of global deletion.
+
+Local verification: 116 related tests passed; repository Lint, Typecheck and Build exited 0. Full local suite: 3,984 tests, 3,956 passed, 2 failed, 26 skipped. Both network-local-runtime failures reproduce on unchanged baseline in this environment (`uv_interface_addresses` error and ingress retry observation); neither test was removed or weakened. Exact hosted CI remains required.
+
+Next: exact new-HEAD protected PR CI; permitted merge; exact merged-main CI and the unchanged inventory workflow's new actual Mac result. Follow diagnostic reasons and bounded historical leads. Original restoration still requires correlated contract/DoD/approval/pause/WorkRun/Job/Change Set/attempt/receipt/artifact bytes. Never initialize an empty replacement.
+
+The G3 source audit found that executor, execution adapter, admission and Broker scheduling all depend on local Compass control and progress. A Job-store-only swap would split authority. Safe G3 source work must connect all selected-authority boundaries together, preserve the default local route, and refuse incomplete imported authority without local fallback. Actual activation still requires the authenticated original and already-authorized store/key/claim.
+
+Evidence and commands: [1219-20261115-g1-diagnostics-and-history.md](../evidence/1219-20261115-g1-diagnostics-and-history.md). Plan: [2026-11-15-goriq-original-state-recovery.md](../superpowers/plans/2026-11-15-goriq-original-state-recovery.md). Compass MCP is not exposed in this session; this repository/Issue handoff is the governed fallback, not runtime authority. Earlier records below are preserved.
+
+---
+
 # 2026-11-14 G1 inventory correction: match the actual opened Compass, not a guessed legacy path
 
 PR #1914 source continuation, based on prior HEAD `7f305d8460fbfa1208fef934279df1467496b31e`. This documentation update produces a NEW HEAD: recheck its exact CI; no previous pass certifies it.

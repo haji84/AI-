@@ -149,3 +149,32 @@ test('known Mac persistent active Compass path and legacy alternative are both c
  assert.equal(result.matchingGoalBackups,1);
  assert.ok(result.candidates.some(x=>x.label==='mac-canonical-repo-configured'&&x.status==='ALTERNATE_COMPASS_ONLY'));
 });
+
+test('managed backup generations reject unmanifested SQLite sidecars instead of opening them as authoritative bytes',async t=>{
+ const f=fixture(t),path=join(f.gen,'compass.sqlite');
+ writeFileSync(path+'-wal','private-unmanifested-wal',{mode:0o600});
+ const before=[path,path+'-wal'].map(p=>hash(readFileSync(p)));
+ const result=await inspectCandidate({label:'fixture',brokerPath:f.brokerPath,compassPath:f.compassPath,goalId,jobId,home:f.home});
+ assert.equal(result.backupsChecked,0);assert.equal(result.backupsInvalid,1);assert.equal(result.backupGoalMatches,0);
+ assert.deepEqual([path,path+'-wal'].map(p=>hash(readFileSync(p))),before);
+});
+
+test('managed backup findings use the verified snapshot when a new unmanifested WAL appears after verification',async t=>{
+ const f=fixture(t,{liveGoal:false}),path=join(f.gen,'compass.sqlite');
+ const setup=new DatabaseSync(path);setup.exec('PRAGMA journal_mode=WAL');setup.close();
+ const bytes=readFileSync(path),sha=hash(bytes),size=bytes.length;
+ const manifestPath=path+'.manifest.json',manifest=JSON.parse(readFileSync(manifestPath));
+ jsonFile(manifestPath,{...manifest,sha256:sha,sizeBytes:size});
+ const generationPath=join(f.gen,'generation.json'),generation=JSON.parse(readFileSync(generationPath));
+ generation.stores[1]={...generation.stores[1],sha256:sha,sizeBytes:size};jsonFile(generationPath,generation);
+ const pending=inspectCandidate({label:'fixture',brokerPath:f.brokerPath,compassPath:f.compassPath,goalId,jobId,home:f.home});
+ const writer=new DatabaseSync(path);
+ try {
+  writer.prepare('INSERT INTO goal VALUES (1,?,?)').run(title,description);
+  chmodSync(path+'-wal',0o600);chmodSync(path+'-shm',0o600);
+  assert.equal(hash(readFileSync(path)),sha);
+  const result=await pending;
+  assert.equal(result.status,'CATALOG_VERIFIED');assert.equal(result.backupsChecked,1);
+  assert.equal(result.backupsInvalid,0);assert.equal(result.backupGoalMatches,0);
+ }finally {writer.close();}
+});
