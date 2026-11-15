@@ -1,0 +1,281 @@
+{
+  "version": 1,
+  "issue": 1219,
+  "goalId": "goal-fcc81c97e09153f7",
+  "jobId": "rotation-recovery-37",
+  "scope": "TEST_HARNESS_SOURCE_CORRECTION_NOT_PRODUCTION_ACCEPTANCE",
+  "baseRevision": "ed2713bfc862fd0d0eaf5471d2417469ee340585",
+  "baseTree": "ce44e9f60105c3f15ae05431e3c1cdc74ffac4ee",
+  "previousSourceIntegration": {
+    "pr": 1916,
+    "head": "ea59fe13b002d179fd2d6e6aa061768eca202cc6",
+    "prCiRun": 43686443569,
+    "allFourJobs": "SUCCESS",
+    "normalTests": {
+      "total": 4071,
+      "pass": 4045,
+      "fail": 0,
+      "skip": 26
+    },
+    "restrictedUnitAndIntegrationEach": {
+      "total": 4072,
+      "pass": 4046,
+      "fail": 0,
+      "skip": 26
+    },
+    "securityPass": 332,
+    "artifactId": 14150257955,
+    "artifactZipSha256": "4376a3259a39405880b325819d24701f13293366772f48bb79179e2fbd18957b",
+    "receiptSha256": "c38a0a5774bfbc90c2fcfb40276d0145bc1afdce3b8b84a1dbec8c2f9af855df",
+    "containerExecutionVerified": true,
+    "physicalAcceptanceVerified": false
+  },
+  "mainCi": {
+    "runId": 43687204861,
+    "status": "HOLD_AFTER_TWO_INCONCLUSIVE_UNIT_TIMEOUTS",
+    "unchangedRerunBudgetExhausted": true,
+    "attempts": [
+      {
+        "attempt": 1,
+        "jobId": 132730063233,
+        "artifactId": 14150773005,
+        "artifactZipSha256": "f9efe91a5d8fe6474ec217042e94fd7d2a18380730e5cc73c02dcf3382a19971",
+        "receiptSha256": "4ce524678d0f97dd454556fa55fd4297cd258681c9ca79263bc35493c9c1549a",
+        "unitElapsedMs": 300007.841099,
+        "unitVerdict": "INCONCLUSIVE_TIMEOUT",
+        "retainedAssertionFailureMarkers": 0,
+        "summaryFooterPresent": false,
+        "notExecuted": [
+          "integration",
+          "security",
+          "build"
+        ],
+        "existingSignatureAndThreeOutputBindings": "PASS",
+        "cleanupConfirmed": true
+      },
+      {
+        "attempt": 2,
+        "jobId": 132732689790,
+        "artifactId": 14151079644,
+        "artifactZipSha256": "dc81284807e0b62cf2f2ff285f5bab40a71172ce37486b809b5ad4d185b636ce",
+        "receiptSha256": "46d1f7a6474415469304b4181d16f9efe5251ae5985e84b2a5b02a570f6892dd",
+        "unitElapsedMs": 300009.916924,
+        "unitLastOutputElapsedMs": 298083.338382,
+        "unitVerdict": "INCONCLUSIVE_TIMEOUT",
+        "retainedAssertionFailureMarkers": 0,
+        "summaryFooterPresent": false,
+        "notExecuted": [
+          "integration",
+          "security",
+          "build"
+        ],
+        "existingSignatureAndThreeOutputBindings": "PASS",
+        "cleanupConfirmed": true
+      }
+    ],
+    "interpretation": "The same Git tree passed PR CI, but both main Unit attempts exhausted the unchanged300000ms limit with continuing partial output. Several phases and many cases slowed. No single hung test or root host cause is established. An unfinished suite is not PASS or a zero-total-failure result.",
+    "matchedAttempt2VsPrTiming": {
+      "method": "Same-name completed named rows; successful PR duration >=100ms; not exclusive CPU or file wall time",
+      "count": 415,
+      "median": 1.5955739019060573
+    },
+    "resourceObserver": "Supplemental unsigned partial samples only; true memory/PID peaks and terminal OOM remain UNKNOWN."
+  },
+  "invariants": {
+    "unitIntegrationTimeoutMs": 300000,
+    "containerCpu": 2,
+    "containerMemoryMiB": 2048,
+    "containerPids": 128,
+    "fileTestConcurrency": 2,
+    "workflowsChanged": false,
+    "checksSkippedOrRemoved": false,
+    "productionRuntimeChanged": false,
+    "nativeWindowsProcessContracts": "PRESERVED"
+  },
+  "rejectedOptimization": {
+    "candidate": "Copy a shared pristine Git fixture seed",
+    "reason": "Measured initial repository preparation is only0.995s/1.58% of the focused file before seed/copy costs. Preserve independent repositories and actual worktrees.",
+    "measurement": {
+      "baseRevision": "ed2713bfc862fd0d0eaf5471d2417469ee340585",
+      "nodeVersion": "v24.22.1",
+      "runCount": 1,
+      "tests": 49,
+      "pass": 49,
+      "fail": 0,
+      "skip": 0,
+      "testFooterDurationMs": 62892.722558,
+      "fixtureCount": 46,
+      "initialGitSetupExcludingWorktree": {
+        "durationMs": 994.9619349999239,
+        "fractionOfTestWall": 0.015819985119619597
+      },
+      "syncNodeOther": {
+        "durationMs": 53153.70691299999,
+        "calls": 353,
+        "fractionOfTestWall": 0.8451487668383469
+      },
+      "explicitNodeTestProbe": {
+        "calls": 40,
+        "totalMs": 3240.1657040000046,
+        "maxMs": 136.2312610000008
+      },
+      "method": "Temporary --import wraps child_process execFileSync/spawnSync and syncBuiltinESMExports. Calls original unchanged with same receiver/arguments and preserves results/throws. Non-nested wall durations accumulated; fixture vs recovery selected by fixed public test source callsite. No command arguments, input, paths or output recorded by instrumentation. Async spawn and JS/filesystem costs are not separately measured. One focused run only.",
+      "limits": "Local focused run, node24.22.1, not exact CI container/node24.19.0 nor simultaneous fullsuite/cgroup constraints. Fractions measured here not automatically transferable to CI. Instrumentation overhead uncalibrated.",
+      "priorCountCorrection": "37 was number of mapped unique root test titles in CI comparison, not total file tests or fixture calls. This exact-source focused run has49tests and46fixture invocations."
+    },
+    "nodeCostQualification": "Synchronous Node child elapsed time includes fresh attestation and repeated safe Git subprocess checks. It is not a measurement of Node startup alone; no attestation/query was cached, omitted or moved in-process."
+  },
+  "actualG1": {
+    "runId": 43687204876,
+    "macJobId": 132730063657,
+    "checkoutRevision": "ed2713bfc862fd0d0eaf5471d2417469ee340585",
+    "macStatus": "SUCCESS",
+    "checkedCandidates": 9,
+    "compassMissing": 7,
+    "compassUnsafePath": 2,
+    "refusedCandidateLabels": [
+      "owner-config-file",
+      "mac-canonical-repo-default"
+    ],
+    "refusalReason": "NONPRIVATE_PERMISSIONS",
+    "refusalRole": "ACTIVE_COMPASS",
+    "managedGenerationsChecked": 0,
+    "historicalCandidatesInspected": 0,
+    "allCandidateJobAndChangeSetSidecars": "MISSING",
+    "productionGoalRecovered": false,
+    "interpretation": "The mode guard refused before content reads. Actual mode and presence of the original inside the refused files are unknown. Later alias checks are not proved. No permission mutation or original reconstruction was performed."
+  },
+  "nextAcceptance": "Exact new candidate PR CI and protected merged-main CI remain required. Do not reuse historical source success or CI fixture signatures as original production Goal acceptance.",
+  "linuxBatchMeasurement": {
+    "scope": "Three test files only; existing PowerShell fixture and helper bytes unchanged",
+    "method": "Each file run individually once before and once after, baseline-first/candidate-second; same local Node24.22.1/PowerShell7.7.0/PATH, Node --test --test-concurrency=2 and an external60s timeout with5s kill grace. Temporary data-URL child observer calls original spawnSync and preserves results while capturing closed fixture stdout/status/stderr.",
+    "beforeAndAfterEach": {
+      "tests": 17,
+      "pass": 17,
+      "fail": 0,
+      "skip": 0,
+      "cancelled": 0,
+      "testIdentitiesEqual": true
+    },
+    "scenarioResults": [
+      {
+        "label": "authority",
+        "sameClosedOutputs": true,
+        "sameTestIds": true,
+        "scenarioCount": 7,
+        "baselinePayloadStarts": 7,
+        "candidatePayloadStarts": 1,
+        "probeCount": 1,
+        "beforeOuterMs": 6729.236347000551,
+        "afterOuterMs": 3688.2050480016915,
+        "savedOuterMs": 3041.0312989988597,
+        "beforeCaseSumMs": 6192.459720000001,
+        "afterCaseSumMs": 3210.10736,
+        "closedCanonicalSha256": "011a3e92ac43111184251ad81110d005c7a60ef5035d6aa966692e56db45a81f"
+      },
+      {
+        "label": "exercise",
+        "sameClosedOutputs": true,
+        "sameTestIds": true,
+        "scenarioCount": 6,
+        "baselinePayloadStarts": 6,
+        "candidatePayloadStarts": 1,
+        "probeCount": 0,
+        "beforeOuterMs": 7556.033393000689,
+        "afterOuterMs": 5240.44031899939,
+        "savedOuterMs": 2315.593074001299,
+        "beforeCaseSumMs": 7395.622631,
+        "afterCaseSumMs": 5072.655121,
+        "closedCanonicalSha256": "8f6fe45f174a571d729830bfab86001c85111452d0cac2b24c5af00d9c066e91"
+      },
+      {
+        "label": "reserve",
+        "sameClosedOutputs": true,
+        "sameTestIds": true,
+        "scenarioCount": 3,
+        "baselinePayloadStarts": 3,
+        "candidatePayloadStarts": 1,
+        "probeCount": 0,
+        "beforeOuterMs": 3829.462056000011,
+        "afterOuterMs": 3108.3471550009563,
+        "savedOuterMs": 721.114900999055,
+        "beforeCaseSumMs": 3669.423484,
+        "afterCaseSumMs": 2953.83021,
+        "closedCanonicalSha256": "48b195d35a18abd10defeddd0b029c4d1be655a28c6264abcdd7451f72f23b80"
+      }
+    ],
+    "completeParsedJsonEquality": {
+      "cases": 16,
+      "equal": 16,
+      "excludedFields": [],
+      "allStatusesEqual": true,
+      "allStderrEqual": true
+    },
+    "payloadProcessStarts": {
+      "before": 16,
+      "after": 3,
+      "separateVersionProbeBefore": 1,
+      "separateVersionProbeAfter": 1,
+      "versionProbeArgumentsStatusStdoutStderrEqual": true
+    },
+    "serializedOuterWallMs": {
+      "before": 18114.73179600125,
+      "after": 12036.992522002038,
+      "observedDifference": 6077.739273999214
+    },
+    "preservation": {
+      "originalAssertionCallsUnchanged": 74,
+      "originalNativeSpawnExpressionsUnchanged": 4,
+      "fixtureFilesUnchanged": 4,
+      "batchHelpersUnchanged": true,
+      "windowsNativeBranchesUnchanged": true,
+      "fixtureTimeoutMs": 30000
+    },
+    "limits": "Single local before/after sample with instrumentation. Cache/load variation not independently measured. Serialized focused-file totals are not full-suite wall time. Local Node24.22.1 differs from CI24.19.0; CI timing margin and exact-head success are not established.",
+    "sourceSha256": {
+      "scripts/owner-code-rotation-authority.test.mjs": "c4115b1809009eaea796c7abb01bd7112b658ad2568a22ce0ac3adeab4ce25bf",
+      "scripts/owner-code-private-rotation-exercise.test.mjs": "008b265cdcb97db27df62c4a56de77bca7ab4d86c49bcdba0f49f66ef5318879",
+      "scripts/owner-code-planned-reserve.test.mjs": "f21dce5f92f57d408c9792938a91a182b56f2c2e2c71f9e87b28571efece874e"
+    }
+  },
+  "localValidation": {
+    "lint": {
+      "command": "pnpm11.19.0 exec eslint .",
+      "exit": 0
+    },
+    "typecheck": {
+      "command": "pnpm11.19.0 exec tsc --noEmit",
+      "exit": 0
+    },
+    "traceability": {
+      "command": "node scripts/jarvis-requirement-audit.mjs --check",
+      "exit": 0,
+      "surfaces": 626,
+      "requirements": 341,
+      "functionalCompletionClaim": false
+    },
+    "focusedImplementerLintAndDiffCheck": "PASS",
+    "fullSuite": "NOT_RERUN_LOCALLY_FOR_THIS_TEST_ONLY_PATCH; exact new hosted CI required",
+    "localWindows": "NOT_EXECUTED"
+  },
+  "independentReview": {
+    "unresolvedCritical": 0,
+    "unresolvedImportant": 0,
+    "unresolvedMinor": 0,
+    "completeOutputComparisonRepeated": 16,
+    "unchangedTestIdsConfirmed": 17,
+    "unchangedAssertionsConfirmed": 74,
+    "unchangedNativeSpawnExpressionsConfirmed": 4,
+    "combinedTests": {
+      "tests": 20,
+      "pass": 20,
+      "fail": 0,
+      "skip": 0,
+      "cancelled": 0,
+      "durationMs": 8849.16163
+    },
+    "combinedScope": "Three modified test files plus existing powershell-fixture-batch.test.mjs isolation/streams/parser/timeout regressions",
+    "timingQualification": "One verification run, not a comparative performance measurement",
+    "authority": "Optional source code review and local fixture evidence only; not production result authentication"
+  }
+}

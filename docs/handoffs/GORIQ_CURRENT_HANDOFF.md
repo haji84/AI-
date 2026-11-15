@@ -1,3 +1,33 @@
+# 2026-11-15 continuation: exact-main CI timeout recovery and actual G1 mode refusal
+
+Original Goal `goal-fcc81c97e09153f7` / Job `rotation-recovery-37` remain NOT_ACHIEVED / G1 HOLD. Issue #1219 stays OPEN. This candidate starts at protected main `ed2713bfc862fd0d0eaf5471d2417469ee340585`. No unchanged third retry is authorized by this recovery plan.
+
+## Latest verified source and CI state
+
+[PR #1916](https://github.com/haji84/AI-/pull/1916), HEAD `ea59fe13b002d179fd2d6e6aa061768eca202cc6`, passed all four jobs of [CI 43686443569](https://github.com/haji84/AI-/actions/runs/43686443569) and was protected-merged to main `ed2713bfc862fd0d0eaf5471d2417469ee340585`. Both revisions have Git tree `ce44e9f60105c3f15ae05431e3c1cdc74ffac4ee`. The G3 selected-authority connections and G1 bounded refusal detail below are integrated source, not unfinished source plans. PR normal tests: 4,045 PASS / 0 FAIL / 26 existing SKIP; independent Unit and Integration each: 4,046 PASS / 0 FAIL / 26 SKIP including the boundary probe. P8 security: 332 PASS. The six output bindings, existing receipt signature and cleanup were verified; physical/production acceptance remains false.
+
+[Exact-main CI 43687204861](https://github.com/haji84/AI-/actions/runs/43687204861) failed restricted Unit at 300,007.841099 ms. One preregistered unchanged recheck also timed out at 300,009.916924 ms. The other three CI jobs succeeded. Both partial outputs contain no retained assertion-failure marker or completion footer; attempt 2 continued emitting completed cases until 298,083.338382 ms. Neither incomplete Unit is PASS, and independent Integration/Security/Build did not execute. Signatures and all three retained check bindings are valid, and container/fixture cleanup is confirmed. The downstream incomplete-check error is not a test assertion failure. CI remains HOLD until a new exact candidate and exact merged main pass.
+
+Several phases and many completed cases are slower than the identical-tree PR; the host-level cause is not established. Unsigned partial resource samples do not establish true peaks or terminal OOM. No deadline, CPU/memory/PID restriction, file concurrency, assertion or required test is relaxed. The failed evidence remains available; no third unchanged rerun is planned.
+
+## Bounded test-harness correction
+
+The selected source correction reduces repeated PowerShell starts only for the three reviewed inert rotation authority/exercise/reserve fixture groups. Each scenario retains a fresh PowerShell runspace and its original fixture body, assertion and test identity. Native process semantics and the original Windows process paths remain independent. All 17 test identities and all 16 complete parsed JSON/status/stderr results match, with no excluded fields. The separate version probe remains identical; 74 assertion calls and four original native spawn expressions are unchanged. Individual-file measurements each ran once: serialized outer wall 18.115 s before / 12.037 s after, an observed 6.078 s difference. Cache/load variation was not separately measured, and this is not full-suite wall savings or CI margin. Repository Lint, Typecheck and the 626-surface/341-requirement audit passed. Independent review repeated the full output/AST comparisons, found no unresolved findings and passed 20/20 combined cases including existing batch isolation/streams/parser/timeout regressions. Exact new-HEAD hosted CI remains required. See [the correction evidence](../evidence/1219-20261115-ci-runtime-correction.json) and [bounded plan](../plans/2026-11-15-goriq-ci-bounded-runtime.md).
+
+A separate focused measurement rejected copying shared initial Git fixture seeds as the first strategy: 49/49 tracked-runtime tests passed in 62.893 s, while initial Git setup consumed only 0.995 s (1.58%). The 53.154 s synchronous Node-child category includes real attestation and many fresh Git safety queries; it is not Node startup time alone. Attestation is not cached, skipped or moved in-process.
+
+## Actual original-state blocker and next permission scope
+
+[Inventory 43687204876](https://github.com/haji84/AI-/actions/runs/43687204876), Mac job `132730063657`, checked exact main `ed2713bfc862fd0d0eaf5471d2417469ee340585` and succeeded. Of 9 candidates, 7 Compass files are MISSING and 2 are UNSAFE_PATH. The two labels `owner-config-file` and `mac-canonical-repo-default` both report `NONPRIVATE_PERMISSIONS / ACTIVE_COMPASS`. Managed generations checked: 0. Historical candidates inspected: 0. All nine candidates' Job/Change Set sidecars are MISSING. `productionGoalRecovered=false`.
+
+The two mode refusals happen before content reads and before the later canonical-alias check. The actual mode and the existence of the original inside those files are unknown. Do not call them 0644, globally readable, deleted or recovered. No file mode, credential, service or original state has been changed.
+
+The separate permission Human Gate proposed in [the verified Issue continuation](https://github.com/haji84/AI-/issues/1219#issuecomment-6890852588) covers only those two observed Compass leaves: preserve owner bits and remove group/other POSIX bits; reject unknown/changed identity, unsafe parent/alias, ACL/flags/special-bit conditions. Bind the same existing owner/host, original Goal/Job, short single-use task scope, pre-change private identity/hash/mode baseline, descriptor/inode checks and conditional same-inode mode-only rollback. Never broaden to WAL/SHM, directories, configuration, other DBs, new credentials or service changes. No dedicated apply entry has been added and no apply approval is inferred. AGENTS.md explicitly excludes permission changes from completion delegation; an unrelated authorization cannot be reused.
+
+Actual original import, approved production key/store/claim/freshness, activation, genuine model correction, Actions A/B continuation, signed result acceptance, successor execution and usable artifact return remain unproved. The source fixes and CI fixtures are not substitutes. Compass MCP remains unavailable; repository/Issue writeback is the governed fallback only. Read the later Issue update and exact GitHub CI for publication outcomes. Prior records follow without deletion.
+
+---
+
 # 2026-11-15 continuation: selected Resident authority and actual G1 refusals
 
 Original Goal `goal-fcc81c97e09153f7` / Job `rotation-recovery-37` remain NOT_ACHIEVED / G1 HOLD. Issue #1219 remains OPEN. This source continuation starts at protected main `cfb6a35427efdd7f71beec4d313dbda4c0bd470b`; any new candidate must pass its own exact-HEAD CI and post-merge checks.
