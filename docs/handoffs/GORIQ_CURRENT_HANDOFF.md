@@ -1,3 +1,17 @@
+# 2026-11-16: Cloud original-state readback and response-history integrity
+
+Continue original Goal `goal-fcc81c97e09153f7` / Job `rotation-recovery-37`. **NOT_ACHIEVED / G1 HOLD; Issue1219 remains OPEN.** Read the [current execution directive](https://github.com/haji84/AI-/issues/1219#issuecomment-6898088963) and [new Cloud investigation/result](https://github.com/haji84/AI-/issues/1219#issuecomment-6902027999) before treating older PENDING entries below as current.
+
+Verified baseline main005d01f has official exact-main CI43729584000 attempt1/all4SUCCESS. PR1915–1918 are merged. The two-leaf Mac repair43730415233 is APPLIED and consumed; do not repeat or request it again. Postrepair original matches remain0. Source G3 is already connected; actual authenticated original import/authority is still missing.
+
+This Cloud exposes only an initial November3 source-regression checkpoint, preceding the target Goal creation. Four private files were copied without source writes and only the copied SQLite was opened read-only. Target Goal/Job matches0; later isolation retention is unavailable here. A newly supported exact-prefix cache metadata GET returned0. Shared downloads/attachments supplied no additional original. This finite negative evidence is not proof of global deletion; no fabricated Goal or empty history was created.
+
+An independent G6 source bug was reproduced: the legacy Actions validator admitted a missing model response journal or bytes inconsistent with the prepared digest. The minimal validator change requires that existing entry and exact SHA. Same new regressions14PASS/2RED become16PASS; all prior14test bodies/assertions, format, limits, multiattempt/Ollama refusal and runtime gates stay intact. Author is Codex; this is no actual-model/original-runtime success. The surface registry updates only the changed source hash.
+
+This is the candidate authoring checkpoint. Required local checks, exact-HEAD CI, protected integration and exact-main verification belong to the subsequent Issue/PR evidence; do not infer completion from this text. [Change evidence](../evidence/1219-20261116-checkpoint-response-integrity.json). After source delivery, original-Goal execution remains HOLD pending a concrete authenticated original Broker/complete backup; G2–G13 production acceptance is unchanged. No key, credential, permission, state branch, runtime activation or new Controller is provisioned. Earlier attempts and failures follow unchanged.
+
+---
+
 # 2026-11-15: approved two-leaf recovery maintenance candidate
 
 The owner explicitly approved the prior two-candidate mode-only repair and its limited native entry in this continuing chat. The receipt is recorded in [the continuing canonical handoff](https://github.com/haji84/AI-/issues/1219#issuecomment-6890852588). Do not request that same permission again. Earlier unapproved/inert-only wording below is historical; no authority for other permissions, credentials, files, services or Goal recreation was granted.

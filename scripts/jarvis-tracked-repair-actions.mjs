@@ -60,8 +60,8 @@ export function validateCheckpoint(cp,{now=Date.now(),expectedHead,phase}={}){
  const req=json('receipt.json.request.json');
  if(req.version!==2||req.executionContractDigest!==cp.manifestSha256||req.request?.goalId!==cp.goalId||req.request?.jobId!==cp.jobId||req.request?.changeSetId!==cp.changeSetId
   ||req.request?.sourceRevision!==change.candidateRevision||req.request?.artifactDigest!==change.artifactDigest)fail();
- const prepared=json('state/self-development/tracked-repair/'+hash(cp.jobId)+'.prepared.json');
- if(prepared.binding!==hash(cp.manifestSha256+'\0'+cp.jobId)||!Array.isArray(prepared.files)||!prepared.files.length)fail();
+ const preparedPath='state/self-development/tracked-repair/'+hash(cp.jobId)+'.prepared.json',prepared=json(preparedPath),response=files.get(preparedPath+'.response.json');
+ if(prepared.binding!==hash(cp.manifestSha256+'\0'+cp.jobId)||!Array.isArray(prepared.files)||!prepared.files.length||!hex(prepared.responseSha256)||!response||hash(response)!==prepared.responseSha256)fail();
  for(const f of prepared.files)if(!declared.some(p=>p.path===f.path)||typeof f.content!=='string'||!files.has('candidate/'+f.path)||hash(f.content)!==hash(files.get('candidate/'+f.path)))fail();
  return {manifest:m,files,change};
 }
