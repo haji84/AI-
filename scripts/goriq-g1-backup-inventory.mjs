@@ -24,12 +24,31 @@ function within(root,path) {
   const delta = relative(root,path);
   return delta === '' || (!isAbsolute(delta) && delta !== '..' && !delta.startsWith('..'+sep));
 }
-function safePath(path,kind,maxBytes=MAX_JSON_BYTES,allowEmpty=false) {
+// Only locally created refusals can supply detail. External error messages or
+// similarly named properties never become diagnostic reasons or source roles.
+const pathRefusals=new WeakMap();
+function refusePath(reason,role) {
+  const error=new Error('UNSAFE_PATH');
+  pathRefusals.set(error,{reason,role});
+  throw error;
+}
+function safePath(path,kind,maxBytes=MAX_JSON_BYTES,allowEmpty=false,role='PATH') {
   const st=lstatSync(path);
-  if (ownerUid===null || st.uid!==ownerUid || st.isSymbolicLink() ||
-      (kind==='directory' ? !st.isDirectory() || (st.mode & 0o077)!==0 :
-        !st.isFile() || st.nlink!==1 || (st.mode & 0o077)!==0 || st.size<(allowEmpty?0:1) || st.size>maxBytes)) throw Error('UNSAFE_PATH');
-  if (realpathSync(path)!==path) throw Error('UNSAFE_PATH');
+  // Preserve the original short-circuit order and every refusal condition.
+  if(ownerUid===null)refusePath('OWNER_UNAVAILABLE',role);
+  if(st.uid!==ownerUid)refusePath('OWNER_MISMATCH',role);
+  if(st.isSymbolicLink())refusePath('SYMLINK',role);
+  if(kind==='directory') {
+    if(!st.isDirectory())refusePath('WRONG_KIND',role);
+    if((st.mode&0o077)!==0)refusePath('NONPRIVATE_PERMISSIONS',role);
+  }else {
+    if(!st.isFile())refusePath('WRONG_KIND',role);
+    if(st.nlink!==1)refusePath('LINK_COUNT',role);
+    if((st.mode&0o077)!==0)refusePath('NONPRIVATE_PERMISSIONS',role);
+    if(st.size<(allowEmpty?0:1))refusePath('EMPTY_FILE',role);
+    if(st.size>maxBytes)refusePath('OVERSIZED_FILE',role);
+  }
+  if(realpathSync(path)!==path)refusePath('PATH_ALIAS',role);
   return st;
 }
 function privateJson(path,limit=MAX_JSON_BYTES) {
@@ -140,10 +159,10 @@ function inspectHistoricalTable(db,tables,table,goalId,jobId,budgetUntil) {
 function copyCompassSnapshot(path,budgetUntil) {
   if(existsSync(path+'-journal'))throw Error('JOURNAL_PRESENT');
   const paths=[path,...(existsSync(path+'-wal')?[path+'-wal']:[])];
-  const before=paths.map((source,index)=>safePath(source,'file',MAX_DB_BYTES,index===1));
+  const before=paths.map((source,index)=>safePath(source,'file',MAX_DB_BYTES,index===1,index===1?'ACTIVE_COMPASS_WAL':'ACTIVE_COMPASS'));
   const bytes=paths.map(source=>{checkBudget(budgetUntil);return readFileSync(source);});
   for(let i=0;i<paths.length;i++) {
-    const after=safePath(paths[i],'file',MAX_DB_BYTES,i===1),prior=before[i];
+    const after=safePath(paths[i],'file',MAX_DB_BYTES,i===1,i===1?'ACTIVE_COMPASS_WAL':'ACTIVE_COMPASS'),prior=before[i];
     if(bytes[i].length!==prior.size || ['dev','ino','size','mtimeMs','ctimeMs','uid','mode','nlink'].some(key=>after[key]!==prior[key]))throw Error('CHANGED');
   }
   if(existsSync(path+'-wal')!==(paths.length===2)||existsSync(path+'-journal'))throw Error('CHANGED');
@@ -172,7 +191,7 @@ function inspectCompass(path,goalId,jobId,budgetUntil) {
     for(const table of ['state','history','verification'])
       historicalLeads[table]=inspectHistoricalTable(db,tables,table,goalId,jobId,budgetUntil);
     return {current,historicalLeads};
-  } catch(error) {return {current:{status:diagnosticReason(error)},historicalLeads:null};}
+  } catch(error) {return {current:{status:diagnosticReason(error)},historicalLeads:null,refusal:pathRefusals.get(error)};}
   finally {
     try{if(db?.isTransaction)db.exec('ROLLBACK');}catch{}
     try{db?.close();}catch{}
@@ -249,11 +268,11 @@ export async function inspectCandidate({label,brokerPath,compassPath,goalId=GOAL
   const result={label,status:'NOT_FOUND',backupsChecked:0,backupsInvalid:0,backupGoalMatches:0,backupWorkRunMatches:0,active:null,sidecars:null,diagnostics:null,historicalLeads:null};
   if(!within(home,brokerPath)||!within(home,compassPath))return {...result,status:'OUTSIDE_HOME_REFUSED'};
   if(Date.now()>budgetUntil)return {...result,status:'BUDGET_EXHAUSTED',diagnostics:{compass:'BUDGET_EXHAUSTED'}};
-  const {current,historicalLeads}=inspectCompass(compassPath,goalId,jobId,budgetUntil);
+  const {current,historicalLeads,refusal}=inspectCompass(compassPath,goalId,jobId,budgetUntil);
   if(current.status==='READONLY_SQLITE')result.active=current;
   const {jobs,changes,diagnostics}=inspectSidecars(compassPath,goalId,jobId,budgetUntil);
   result.sidecars={jobs,changes};
-  result.diagnostics={compass:current.status,sidecars:diagnostics};
+  result.diagnostics={compass:current.status,sidecars:diagnostics,...(refusal?{compassRefusal:refusal}:{})};
   result.historicalLeads=historicalLeads;
   if(standalone)return {...result,status:'STANDALONE_COMPASS_ONLY'};
   if(!scanManaged)return {...result,status:'ALTERNATE_COMPASS_ONLY'};

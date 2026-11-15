@@ -100,6 +100,25 @@ async function fixtureReceipt(f:RuntimeFixture,file:string,failed=false,amend?:(
   writeFileSync(file,bytes,{flag:"wx"});return {bytes,job,change};
 }
 
+test("tracked repair recovery reads injected rejected history across reconstructed factories",async t=>{
+  const f=recoveryFixture(t),persistence={jobs:new JsonFileDevelopmentJobStore(join(f.root,"shared/jobs.json")),
+    changeSets:new JsonFileDevelopmentChangeSetStore(join(f.root,"shared/changes.json"))};
+  const imported={...f,jobs:()=>persistence.jobs,changes:()=>persistence.changeSets};
+  const create=()=>f.create({fetchImpl:f.repairFetch,persistence});
+  const input={goalId:f.goalId,goal:f.goal,context:[]};
+  await create().run(input);
+  await fixtureReceipt(imported,f.manifest.verifier.receiptFile,true);
+  await create().run(input);
+  assert.equal((await persistence.jobs.getByGoal(f.goalId))[0]!.phase,"RECOVERING");
+  await create().run(input);
+  assert.equal(f.repairCalls(),2);
+  assert.equal((await persistence.changeSets.list()).filter(change=>change.status==="REJECTED").length,1);
+  await fixtureReceipt(imported,f.recoveryReceipt);
+  assert.equal((await create().run(input)).goalEvaluation?.achieved,true);
+  assert.equal(existsSync(join(f.stateRoot,"jobs.json")),false);
+  assert.equal(existsSync(join(f.stateRoot,"change-sets.json")),false);
+});
+
 function ollamaFixture(f:RuntimeFixture){
   Object.assign(f.manifest.model,{provider:"ollama",endpoint:"http://127.0.0.1:11434/api/generate",id:"qwen2.5-coder:3b"});f.repin();
   const requests:Array<{path:string;body:Record<string,unknown>|null}>=[];

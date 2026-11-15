@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import process from 'node:process';
 import { createHash } from 'node:crypto';
-import { chmodSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync, symlinkSync, rmSync, readdirSync } from 'node:fs';
+import { chmodSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync, symlinkSync, rmSync, readdirSync, linkSync, truncateSync, lstatSync } from 'node:fs';
+import fs from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -189,4 +192,76 @@ test('unsafe WAL sidecars cannot be followed during snapshot creation',async t=>
  writeFileSync(target,secret,{mode:0o600});symlinkSync(target,f.compassPath+'-wal');
  const result=await inspect(f);
  assert.equal(result.diagnostics.compass,'UNSAFE_PATH');assert.equal(result.historicalLeads,null);
+});
+
+
+const refusalCases=[
+ ['nonprivate permissions','NONPRIVATE_PERMISSIONS',f=>{chmodSync(f.compassPath,0o644);return f.compassPath;}],
+ ['link count before permissions','LINK_COUNT',f=>{linkSync(f.compassPath,f.compassPath+'.linked');chmodSync(f.compassPath,0o644);return f.compassPath;}],
+ ['leaf symlink','SYMLINK',f=>{const path=f.compassPath+'.alias';symlinkSync(f.compassPath,path);return path;}],
+ ['ancestor alias','PATH_ALIAS',f=>{const alias=join(f.home,'alias');symlinkSync(dirname(f.compassPath),alias);return join(alias,'compass.db');}],
+ ['wrong file kind before permissions','WRONG_KIND',f=>{rmSync(f.compassPath);mkdirSync(f.compassPath,{mode:0o755});return f.compassPath;}],
+ ['empty file','EMPTY_FILE',f=>{truncateSync(f.compassPath,0);return f.compassPath;}],
+ ['oversized file','OVERSIZED_FILE',f=>{truncateSync(f.compassPath,64*1024*1024+1);return f.compassPath;}],
+];
+for(const [name,reason,prepare] of refusalCases)test('unsafe Compass reports first '+name+' refusal without modifying or exposing the source',async t=>{
+ const f=fixture(t),path=prepare(f);
+ const before=lstatSync(path),beforeHash=before.isFile()?hash(readFileSync(path)):null;
+ const result=await inspectCandidate({...f,compassPath:path,label:'fixture',goalId,jobId});
+ assert.equal(result.diagnostics.compass,'UNSAFE_PATH');
+ assert.deepEqual(result.diagnostics.compassRefusal,{role:'ACTIVE_COMPASS',reason});
+ assert.equal(result.active,null);assert.equal(result.historicalLeads,null);
+ const after=lstatSync(path);
+ assert.equal(after.mode,before.mode);assert.equal(after.ino,before.ino);
+ assert.equal(after.isFile()?hash(readFileSync(path)):null,beforeHash);
+ for(const value of [secret,f.home,path])assert.ok(!JSON.stringify(result).includes(value));
+ assert.equal(Object.hasOwn(result.diagnostics.compassRefusal,'uid'),false);
+ assert.equal(Object.hasOwn(result.diagnostics.compassRefusal,'mode'),false);
+});
+
+test('unsafe WAL reports its fixed source role rather than blaming the active Compass',async t=>{
+ const f=fixture(t),path=f.compassPath+'-wal';
+ writeFileSync(path,secret,{mode:0o644});
+ const beforeHash=hash(readFileSync(path)),beforeMode=lstatSync(path).mode;
+ const result=await inspect(f);
+ assert.equal(result.diagnostics.compass,'UNSAFE_PATH');
+ assert.deepEqual(result.diagnostics.compassRefusal,{role:'ACTIVE_COMPASS_WAL',reason:'NONPRIVATE_PERMISSIONS'});
+ assert.equal(hash(readFileSync(path)),beforeHash);assert.equal(lstatSync(path).mode,beforeMode);
+});
+
+for(const [name,getuid,reason] of [
+ ['unavailable',undefined,'OWNER_UNAVAILABLE'],
+ ['different',()=>processUid+1,'OWNER_MISMATCH'],
+])test('unsafe Compass distinguishes '+name+' owner identity before later refusal conditions',async t=>{
+ const f=fixture(t),original=process.getuid;
+ chmodSync(f.compassPath,0o644);
+ let module;
+ try {
+  process.getuid=getuid;
+  module=await import('../scripts/goriq-g1-backup-inventory.mjs?owner-'+name);
+ }finally {process.getuid=original;}
+ const result=await module.inspectCandidate({...f,label:'fixture',goalId,jobId});
+ assert.equal(result.diagnostics.compass,'UNSAFE_PATH');
+ assert.deepEqual(result.diagnostics.compassRefusal,{role:'ACTIVE_COMPASS',reason});
+});
+const processUid=process.getuid();
+
+test('external exceptions cannot spoof fixed path refusal details or expose their payload',async t=>{
+ const f=fixture(t),original=fs.readFileSync;
+ for(const [message,status] of [['NONPRIVATE_PERMISSIONS '+secret,'UNAVAILABLE_OR_INVALID'],['UNSAFE_PATH','UNSAFE_PATH']]) {
+  const external=Object.assign(new Error(message),{role:'ACTIVE_COMPASS_WAL',reason:'OWNER_MISMATCH',privatePayload:secret});
+  const read=t.mock.method(fs,'readFileSync',function(path,...args){
+   if(path===f.compassPath)throw external;
+   return Reflect.apply(original,this,[path,...args]);
+  });
+  let result;
+  try {syncBuiltinESMExports();result=await inspect(f);}
+  finally {read.mock.restore();syncBuiltinESMExports();}
+  assert.equal(result.diagnostics.compass,status);
+  assert.equal(result.diagnostics.compassRefusal,undefined);
+  for(const value of [secret,f.home,external.reason])assert.ok(!JSON.stringify(result).includes(value));
+ }
+ const missing=await inspectCandidate({...f,compassPath:f.compassPath+'.missing',label:'fixture',goalId,jobId});
+ assert.equal(missing.diagnostics.compass,'MISSING');assert.equal(missing.diagnostics.compassRefusal,undefined);
+ assert.equal((await inspect(f)).diagnostics.compassRefusal,undefined);
 });

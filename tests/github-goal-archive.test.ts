@@ -135,9 +135,16 @@ test('WorkRun write requires a prior exact read and refuses stale ownership',asy
  const f=fixture(),s=new GitHubCoordinatorStore(f.options),adapters=new GitHubFencedCheckpointStores(s,()=>claim);
  await assert.rejects(adapters.workRun.put(checkpoint.workRun),/GITHUB_COORDINATOR_/);
  await adapters.workRun.getByGoal('goal-fixture');
- const stale=new GitHubFencedCheckpointStores(s,()=>({...claim,epoch:3}));await stale.workRun.getByGoal('goal-fixture');
+ const stale=new GitHubFencedCheckpointStores(s,()=>({...claim,epoch:3}));
+ await assert.rejects(stale.workRun.getByGoal('goal-fixture'),/GITHUB_COORDINATOR_CLAIM_INVALID/);
  await assert.rejects(stale.workRun.put({...checkpoint.workRun,updatedAt:'2026-04-01T00:00:00.000Z'}),/GITHUB_COORDINATOR_/);
- assert.equal(f.rootWrites,0);
+ const owner=new GitHubCoordinatorStore(f.options);await owner.load();
+ assert.equal(await owner.compareAndSwap(lease,{...lease,epoch:2,coordinatorId:'runner-B',fencingToken:'fixture-fence-2',updatedAt:'2026-03-01T00:00:00.000Z'}),true);
+ // This adapter really observed the original root before the owner changed.
+ // Neither an old observed write nor a fresh old-owner read may succeed.
+ await assert.rejects(adapters.workRun.put({...checkpoint.workRun,updatedAt:'2026-04-01T00:00:00.000Z'}),/GITHUB_COORDINATOR_CLAIM_INVALID/);
+ await assert.rejects(adapters.workRun.getByGoal('goal-fixture'),/GITHUB_COORDINATOR_CLAIM_INVALID/);
+ assert.equal(f.rootWrites,1);assert.deepEqual((await new GitHubCoordinatorStore(f.options).loadCheckpoint()).workRun,checkpoint.workRun);
 });
 
 test('DurableTaskStore refuses blind save and CAS loses to another executor',async()=>{

@@ -1,3 +1,30 @@
+# 2026-11-15 continuation: selected Resident authority and actual G1 refusals
+
+Original Goal `goal-fcc81c97e09153f7` / Job `rotation-recovery-37` remain NOT_ACHIEVED / G1 HOLD. Issue #1219 remains OPEN. This source continuation starts at protected main `cfb6a35427efdd7f71beec4d313dbda4c0bd470b`; any new candidate must pass its own exact-HEAD CI and post-merge checks.
+
+## Confirmed protected integration and actual observation
+
+- [PR #1915](https://github.com/haji84/AI-/pull/1915), HEAD `4313fd1fdc2374277b7b5beda5d702127a2576ac`, passed all four [CI 43681846997](https://github.com/haji84/AI-/actions/runs/43681846997) jobs and merged into main `cfb6a354`.
+- [Exact-main CI 43682611578](https://github.com/haji84/AI-/actions/runs/43682611578) first had a 300,007.714804 ms independent Unit timeout; the other three jobs passed. After artifact comparison established the same Git tree, no retained assertion failure and slower timings across several phases, the failed independent job was requested for one unchanged recheck. Attempt 2 is SUCCESS with all four latest jobs successful. The first failure remains recorded; no limit, assertion or resource restriction was relaxed. The cause of timing variation is not proved.
+- [Actual inventory 43682611613](https://github.com/haji84/AI-/actions/runs/43682611613) succeeded on both runners. G1 Compass discovery is the Mac step, job `132716278368`: 9 candidates, 7 MISSING, 2 UNSAFE_PATH, 0 checked managed generations and 0 inspected historical candidates. All candidate Job/Change Set sidecars were MISSING. The two refused labels were `owner-config-file` and `mac-canonical-repo-default`. This does not prove absence of the original, and Windows fleet inventory success is not a Windows original-Goal readback.
+- New G1 detail retains every refusal condition and priority, adding only internally generated fixed reason/role enums. Root repeated 38 focused tests successfully. A new actual observation after this source change remains required; never infer which refusal condition affected the real files from fixtures.
+
+## Selected-authority source connection
+
+The candidate connects accepted-decision Broker scheduling, the CLI's shared Resident runner, existing GoalController bridge/Resident host, adapter, admission, factories and tracked recovery closure to one selected authority. Default Compass and non-Resident behavior remain supported. Shared selection is trusted code injection; incomplete import cannot fall back locally. Original owner controls, WorkRun/WorkState, events, Jobs, Change Sets and fresh claim checks must stay aligned.
+
+Foundation source review corrected incomplete import validation, mutable proposed snapshots across awaits, lost inherited blockers/evidence, enum coercion and rejection of valid initial state. Whole-runner review corrected uncertain shared catch writeback, concurrent-pause metadata writes and early release of an owned writer during default Compass delegation. Final independent source review has no unresolved findings; the final affected set passed 46/46 and the independent real-writer recheck passed 2/2. Repository Lint, Typecheck, Build and the 626-surface/341-requirement audit passed.
+
+The frozen local whole-suite attempt is INCONCLUSIVE: an existing local after-commit TCP-loss fixture timed out, then retained open work until the run was interrupted. Its unchanged four-case file passed 4/4 in bounded candidate and parent reruns; the cause is not proved. No full-suite pass or totals are inferred. Require exact published-HEAD and exact-main hosted CI plus the fresh actual G1 observation, and read the later verified Issue #1219 continuation writeback for those publication results. Do not treat this pre-publication source record as their substitute.
+
+Actual original-state import, an authorized production key/store/claim/freshness anchor, production host activation, actual Actions A/B recovery, actual model repair, production signing and artifact return remain separate unproved gates. No original is reconstructed from handoff text, and no new Goal, key, account, permission, state branch or provider is provisioned by this source patch.
+
+Original-provenance search remains bounded: historical reports point to a November 3 isolated Broker's private retention; the named root is absent here. Six retained source/CI archives, four later handoff/progress documents and relevant prior-conversation context supplied no recoverable original payload or new concrete retention location. That is not proof of global deletion.
+
+Evidence: [actual G1 result and CI attempts](../evidence/1219-20261115-g1-actual-inventory.json), [selected-authority source and verification ledger](../evidence/1219-20261115-resident-authority-binding.md). Plan: [Resident authority binding](../superpowers/plans/2026-11-15-goriq-resident-authority-binding.md). Compass MCP remains unavailable in this session; repository/Issue writeback is the governed fallback, not runtime authority. Prior records follow without deletion.
+
+---
+
 # 2026-11-15 G1 continuation: preserve verified bytes and expose recovery diagnostics
 
 Existing Issue #1219 remains OPEN. Original Goal `goal-fcc81c97e09153f7` / Job `rotation-recovery-37` remain NOT_ACHIEVED / G1 HOLD. This source candidate is based on protected main `33eb098df543fc7331414a02a717c28c98b37853`, whose exact-main CI `43624825229` passed all four jobs. A new commit requires its own checks; the preceding success does not certify it.

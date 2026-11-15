@@ -17,6 +17,7 @@ import { publishResidentVerifierRequest } from "./resident-verifier-request.ts";
 import { createPreparedLocalWriteCheckpoint } from "./local-prepared-write.ts";
 import type { withDevelopmentResourceAdmission } from "../gai/development-resource-admission.ts";
 import type { ResidentDevelopmentAdmission } from "./resident-development-admission.ts";
+import type { ResidentPersistence } from "./resident-execution-authority.ts";
 
 /** Explicit host-pinned local fixture sequence. No provisioning, publishing or implicit oracle. */
 export function createSequencedResidentRuntime(input: {
@@ -24,6 +25,7 @@ export function createSequencedResidentRuntime(input: {
   /** Trusted host dependency only; manifests and Goal input cannot replace admission. */
   resourceAdmission?: typeof withDevelopmentResourceAdmission;
   admission?: ResidentDevelopmentAdmission;
+  persistence?: ResidentPersistence;
 }): ResidentDevelopmentGoalHost | null {
   const manifest = readResidentExecutionManifest(input.env, input.runtimeRoot, input.goal);
   if (!manifest) return null;
@@ -49,8 +51,8 @@ export function createSequencedResidentRuntime(input: {
   const stateRoot = join(dirname(input.compassPath), "self-development");
   return new ResidentDevelopmentGoalHost({
     admission: input.admission,
-    jobs: new JsonFileDevelopmentJobStore(join(stateRoot, "jobs.json")),
-    changeSets: new JsonFileDevelopmentChangeSetStore(join(stateRoot, "change-sets.json")),
+    jobs: input.persistence?.jobs ?? new JsonFileDevelopmentJobStore(join(stateRoot, "jobs.json")),
+    changeSets: input.persistence?.changeSets ?? new JsonFileDevelopmentChangeSetStore(join(stateRoot, "change-sets.json")),
     planning: { requirementIds: ["CORE-014"], baseRevision: manifest.sequence.jobs[0]!.baseRevision,
       taskScopeId: manifest.sequence.taskScopeId, maxRisk: manifest.sequence.maxRisk,
       targetFiles: manifest.sequence.jobs[0]!.targetFiles, contextDigest: manifest.sequence.goalDigest, sequence: manifest.sequence },

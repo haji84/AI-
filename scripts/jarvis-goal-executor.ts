@@ -34,6 +34,10 @@ import { ResourceWaitError } from "../src/gai/development-resource-admission.ts"
 import { nextResourceWait, resourceWaitExhausted, resourceWaitFromEvidence, type DevelopmentResourceWait } from "../src/orchestrator/development-resource-wait.ts";
 import { loadCompletionRuntimeHandoff } from "../src/orchestrator/completion-runtime-handoff.ts";
 
+import { createCompassResidentExecutionAuthority } from "../src/orchestrator/compass-resident-execution-authority.ts";
+import { executeGoal } from "../src/orchestrator/resident-goal-executor.ts";
+import type { ResidentPersistence } from "../src/orchestrator/resident-execution-authority.ts";
+
 function requiredEnv(name: string): string {
   const value = process.env[name]?.trim();
   if (!value) throw new Error(`${name} is required`);
@@ -72,7 +76,7 @@ function executorDecision(goalId: string): GoalControllerDecision {
   };
 }
 
-function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): DevelopmentRuntimeOptions | undefined {
+function configuredDevelopmentRuntime(compassPath: string, context: unknown[], persistence?: ResidentPersistence): DevelopmentRuntimeOptions | undefined {
   const contextText = JSON.stringify(context);
   const goalStore = new CompassStore(compassPath);
   let persistedGoalText = "";
@@ -106,13 +110,13 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
   if (process.env.GORIQ_TRACKED_REPAIR_MANIFEST_FILE || process.env.GORIQ_TRACKED_REPAIR_MANIFEST_SHA256) {
     if (!persistedGoal) throw Error("TRACKED_REPAIR_PERSISTED_GOAL_REQUIRED");
     if (process.env.GORIQ_SELF_DEVELOPMENT_SEQUENCE_FILE || process.env.GORIQ_SELF_DEVELOPMENT_SEQUENCE_SHA256) throw Error("TRACKED_REPAIR_MULTIPLE_RUNTIME_PROFILES");
-    const runtime = createTrackedRepairResidentRuntime({ env: process.env, runtimeRoot: process.cwd(), compassPath, goal: persistedGoal, admission });
+    const runtime = createTrackedRepairResidentRuntime({ env: process.env, runtimeRoot: process.cwd(), compassPath, goal: persistedGoal, admission, persistence });
     if (!runtime) throw Error("TRACKED_REPAIR_MANIFEST_REQUIRED");
     return { runtime };
   }
   if (process.env.GORIQ_SELF_DEVELOPMENT_SEQUENCE_FILE || process.env.GORIQ_SELF_DEVELOPMENT_SEQUENCE_SHA256) {
     if (!persistedGoal) throw Error("RESIDENT_SEQUENCE_PERSISTED_GOAL_REQUIRED");
-    const runtime = createSequencedResidentRuntime({ env: process.env, runtimeRoot: process.cwd(), compassPath, goal: persistedGoal, admission });
+    const runtime = createSequencedResidentRuntime({ env: process.env, runtimeRoot: process.cwd(), compassPath, goal: persistedGoal, admission, persistence });
     if (!runtime) throw Error("RESIDENT_SEQUENCE_CONFIGURATION_REQUIRED");
     return { runtime };
   }
@@ -187,8 +191,8 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[]): 
   const stateRoot = join(dirname(compassPath), "self-development");
   const host = new ResidentDevelopmentGoalHost({
     admission,
-    jobs: new JsonFileDevelopmentJobStore(join(stateRoot, "jobs.json")),
-    changeSets: new JsonFileDevelopmentChangeSetStore(join(stateRoot, "change-sets.json")),
+    jobs: persistence?.jobs ?? new JsonFileDevelopmentJobStore(join(stateRoot, "jobs.json")),
+    changeSets: persistence?.changeSets ?? new JsonFileDevelopmentChangeSetStore(join(stateRoot, "change-sets.json")),
     planning: {
       requirementIds: ["CORE-014"],
       baseRevision,
@@ -333,7 +337,7 @@ async function updateWorkRun(compassPath: string, goalId: string, phase: "RUNNIN
     await store.put({ ...current, phase,
       resourceWait: resourceWait === undefined ? current.resourceWait : resourceWait ?? undefined,
       continuationWait: continuationWait === undefined ? current.continuationWait : continuationWait ?? undefined,
-      blockers: phase === "BLOCKED" ? [reason ?? "execution_failed"] : [],
+      blockers: phase === "BLOCKED" ? [...new Set([...current.blockers, reason ?? "execution_failed"])] : current.blockers,
       nextAction: phase === "COMPLETED" ? null : reason, updatedAt: new Date().toISOString() });
   } finally {
     compass.close();
@@ -394,7 +398,6 @@ async function main(): Promise<void> {
         if (Date.now() < Date.parse(current.resourceWait.retryAt)) return;
       }
     } finally { compass.close(); }
-    await updateWorkRun(compassPath, goalId, "RUNNING", "Execute accepted Goal");
     const goalStore = new CompassStore(compassPath);
     const completionSource = await (async () => {
       try {
@@ -408,12 +411,17 @@ async function main(): Promise<void> {
     if ((completionSource || inspectionOnly) && (process.env.GORIQ_EXECUTION_HOST_MODE === "hosted" || process.env.GORIQ_HOSTED_ROUTING_FILE || process.env.GORIQ_HOSTED_ROUTING_SHA256)) {
       throw Error("HOSTED_ROUTING_REQUIRES_RESIDENT_RUNTIME");
     }
-    const developmentRuntime = completionSource || inspectionOnly ? undefined : configuredDevelopmentRuntime(compassPath, context);
+    const residentAuthority = createCompassResidentExecutionAuthority({ compassPath });
+    const developmentRuntime = completionSource || inspectionOnly ? undefined : configuredDevelopmentRuntime(compassPath, context, residentAuthority.persistence);
+    if (developmentRuntime) {
+      const result = await executeGoal({ goalId, context, authority: residentAuthority, runtime: developmentRuntime.runtime, writer: executionWriter });
+      if (result.reason && result.reason !== "goal_complete") console.error("[goriq-goal-executor]", goalId, result.reason);
+      return;
+    }
+    await updateWorkRun(compassPath, goalId, "RUNNING", "Execute accepted Goal");
     const adapter = completionSource
       ? new CompassGoalExecutionAdapter(compassPath, {}, {}, undefined, completionSource)
-      : developmentRuntime
-        ? new CompassGoalExecutionAdapter(compassPath, {}, {}, { ...developmentRuntime, writer: executionWriter })
-        : inspectionOnly
+      : inspectionOnly
         ? new CompassGoalExecutionAdapter(compassPath, {}, {}, undefined, undefined, { inspectionOnly: true })
         : new CompassGoalExecutionAdapter(compassPath);
     const bridge = new GoalControllerExecutionBridge(adapter);

@@ -28,6 +28,9 @@ import type { DefinitionOfDoneResult, WorkState } from "./work-state.ts";
 import type { CompletionSource } from './completion-execution.ts';
 import { acquireResidentExecutionWriter, isResidentExecutionWriter, ResidentExecutionStop, type ResidentDevelopmentRunInput, type ResidentExecutionWriter } from "./resident-development-admission.ts";
 import { CompassWorkRunStore } from "./compass-work-run-store.ts";
+import { isDeepStrictEqual } from "node:util";
+import { assertResidentAuthority, type ResidentExecutionAuthority } from "./resident-execution-authority.ts";
+import { canonicalRequirementBlockers } from "./owner-requirement-canonical.ts";
 
 export interface CognitiveRuntimeOptions {
   /** Explicit host opt-in; absent preserves the existing development execution path. */
@@ -58,6 +61,8 @@ export interface DevelopmentRuntimeOptions {
   runtime: DevelopmentGoalRuntime;
   /** Existing executor may retain this same-filesystem writer across bounded runs and WorkRun updates. */
   writer?: ResidentExecutionWriter;
+  /** Trusted host binding; never read from Goal/context or a manifest. */
+  authority?: ResidentExecutionAuthority;
 }
 
 /** Host-selected catalog shared by execution and read-only status validation. */
@@ -85,7 +90,7 @@ class EntryContextSource implements ContextSource {
   async collect(): Promise<ContextItem[]> { return this.items; }
 }
 
-async function projectResidentProgress(compass: CompassStore, goalId: string, goal: Goal,
+async function projectResidentProgress(source: CompassStore | ResidentExecutionAuthority, goalId: string, goal: Goal,
   report: BoundedRunReport, progress: ResidentDevelopmentProgress): Promise<BoundedRunReport> {
   const definitionOfDone = goal.successCriteria.map((description, index) => ({ id: `criterion-${index + 1}`, description, required: true }));
   const validIds = new Set(definitionOfDone.map(item => item.id));
@@ -94,7 +99,22 @@ async function projectResidentProgress(compass: CompassStore, goalId: string, go
   if (progress.goalDigest !== residentDevelopmentGoalDigest(goal) || !/^[a-f0-9]{64}$/.test(progress.sequenceDigest)
     || new Set(completedIds).size !== completedIds.length || completedIds.some(id => !validIds.has(id))
     || JSON.stringify([...completedIds].sort()) !== JSON.stringify([...reported].sort())) throw Error("RESIDENT_PROGRESS_BINDING_MISMATCH");
-  const store = new CompassWorkStateStoreAdapter(compass), prior = await store.get(goalId);
+  const compass = source instanceof CompassStore ? source : undefined;
+  const authority = compass ? undefined : source as ResidentExecutionAuthority;
+  const snapshot = await authority?.read(goalId);
+  const store = compass ? new CompassWorkStateStoreAdapter(compass) : {
+    async get() { return snapshot!.work; },
+    async put(work: WorkState) {
+      // Job/ChangeSet commits have advanced this root during the stage. Observe
+      // it afresh once; a conflict after this observation is never retried.
+      const current = await authority!.read(goalId);
+      assertResidentAuthority(current);
+      if (!isDeepStrictEqual(current.goal, snapshot!.goal) || !isDeepStrictEqual(current.control, snapshot!.control) ||
+          !isDeepStrictEqual(current.work, snapshot!.work) || !isDeepStrictEqual(current.run, snapshot!.run)) throw Error("RESIDENT_PROGRESS_STALE");
+      await authority!.commit(current, { ...current, work });
+    },
+  };
+  const prior = await store.get(goalId);
   if (prior && JSON.stringify(prior.definitionOfDone) !== JSON.stringify(definitionOfDone)) throw Error("RESIDENT_PROGRESS_GOAL_MISMATCH");
   const incoming: DefinitionOfDoneResult[] = progress.completedJobs.flatMap(job => job.criterionIds.map(id => {
     const acceptance = job.evidence.filter(item => item.criterionId === id && item.verified && item.sourceRevision && item.artifactDigest && item.issuer && item.recordedAt);
@@ -107,7 +127,7 @@ async function projectResidentProgress(compass: CompassStore, goalId: string, go
     if (!incoming.some(item => item.itemId === result.itemId) || evidence?.kind !== "resident-development-completed-job"
       || evidence.sequenceDigest !== progress.sequenceDigest || evidence.goalDigest !== progress.goalDigest) throw Error("RESIDENT_PROGRESS_PRIOR_EVIDENCE_MISMATCH");
   }
-  const canonicalBlockers = await new CompassStateStoreAdapter(compass).completionBlockers(goal);
+  const canonicalBlockers = compass ? await new CompassStateStoreAdapter(compass).completionBlockers(goal) : canonicalRequirementBlockers(snapshot!.control.active, goalId);
   const blockers = [...new Set([...(prior?.blockers ?? []), ...canonicalBlockers, ...(report.goalEvaluation?.blockers ?? [])])];
   const incompleteChildren = prior?.childWorkItems.some(item => item.status !== "COMPLETED") ?? false;
   if (incompleteChildren) blockers.push("child_work_incomplete");
@@ -123,7 +143,7 @@ async function projectResidentProgress(compass: CompassStore, goalId: string, go
   let stoppedReport: BoundedRunReport | undefined;
   try {
     await store.put(next, () => {
-      const current = compass.getState();
+      const current = compass!.getState();
       const paused = current.status === "PAUSED";
       const stoppedBy = current.blockers.filter((item): item is string => typeof item === "string");
       if (!paused && !stoppedBy.length) return;
@@ -135,6 +155,8 @@ async function projectResidentProgress(compass: CompassStore, goalId: string, go
       throw interrupted;
     });
   } catch (error) {
+    if (error instanceof ResidentExecutionStop) return { ...report, stopReason: error.mode === "paused" ? "paused" : error.mode === "human_gate" ? "approval_required" : "blocked",
+      goalEvaluation: { ...evaluateGoalFromWorkState(next), achieved: false, blockers: [error.message], remainingGaps: [error.message] } };
     if (error !== interrupted) throw error;
     return stoppedReport!;
   }
@@ -171,7 +193,48 @@ export class CompassGoalExecutionAdapter implements GoalExecutionAdapter {
     this.completionSource = completionSource;
   }
 
+  private async runWithAuthority(goalId: string, context: unknown[]): Promise<BoundedRunReport> {
+    const options = this.developmentOptions!, authority = options.authority!;
+    if (this.cognitiveOptions.useCore || this.completionSource || this.inspectionOnly || resolve(this.dbPath) !== authority.authorityPath) throw Error("RESIDENT_AUTHORITY_BINDING_INVALID");
+    const leasePath = `${authority.authorityPath}.cognitive-run.lock`;
+    let writer = options.writer, owned = false;
+    try {
+      if (!writer) { writer = await acquireResidentExecutionWriter(leasePath, goalId); owned = true; }
+      if (!isResidentExecutionWriter(writer, goalId, leasePath)) throw Error("RESIDENT_EXECUTION_WRITER_BINDING_INVALID");
+      writer.assertHeld();
+      const initial = await authority.read(goalId), goal = initial.goal;
+      if (!options.runtime.matches(goal, context)) {
+        if(authority.kind==="shared")throw Error("SHARED_AUTHORITY_REQUIRES_RESIDENT_RUNTIME");
+        // The default Compass entry still supports ordinary non-Resident work.
+        // Delegate to its existing loop without selecting another authority.
+        return await new CompassGoalExecutionAdapter(this.dbPath,this.goalLoopOptions,this.cognitiveOptions)
+          .run(goalId,{context});
+      }
+      const assertExecutionAuthority = async () => {
+        writer!.assertHeld(); await authority.assertFence();
+        const current = await authority.read(goalId);
+        if (!isDeepStrictEqual(current.goal, goal)) throw new ResidentExecutionStop("blocked", "resident_goal_changed_during_execution");
+        assertResidentAuthority(current); writer!.assertHeld();
+      };
+      await assertExecutionAuthority();
+      const before = await options.runtime.getVerifiedProgress?.({goalId, goal});
+      await assertExecutionAuthority();
+      const report = await options.runtime.run({goalId,goal,context:[
+        {source:"state.status",summary:initial.control.status ?? "unknown"},
+        {source:"state.next_action",summary:initial.control.nextAction ?? "none"},
+        {source:"state.blockers",summary:JSON.stringify(initial.control.blockers)},
+        ...await new EntryContextSource(context).collect()],assertExecutionAuthority,writer});
+      await assertExecutionAuthority();
+      const progress = await options.runtime.getVerifiedProgress?.({goalId,goal}) ?? before;
+      return progress ? await projectResidentProgress(authority,goalId,goal,report,progress) : report;
+    } catch (error) {
+      if (!(error instanceof ResidentExecutionStop)) throw error;
+      return {cycles:[],stopReason:error.mode === "paused" ? "paused" : error.mode === "human_gate" ? "approval_required" : "blocked"};
+    } finally { if (owned) await writer?.release(); }
+  }
+
   async run(goalId: string, input: { maxCycles?: number; context?: unknown[] } = {}): Promise<BoundedRunReport> {
+    if (this.developmentOptions?.authority) return this.runWithAuthority(goalId, input.context ?? []);
     if (this.cognitiveOptions.localWork && this.cognitiveOptions.localOutcomes) throw Error("Choose one local work contract");
     const compass = new CompassStore(this.dbPath);
     let releaseLease: (() => Promise<void>) | undefined;

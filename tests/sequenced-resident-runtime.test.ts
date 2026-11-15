@@ -49,8 +49,9 @@ for (const interrupted of ["none", "red", "green"] as const) test(`two bounded l
     assert.equal(String(url), "http://127.0.0.1:11434/api/generate"); generations++;
     return Response.json({ done: true, model: "test-fixture-model", response: JSON.stringify({ path: localOllamaFixtureSourcePath, content }) });
   };
-  const compassPath = join(root, "state", "compass.db"), stateRoot = join(root, "state", "self-development");
-  const create = () => createSequencedResidentRuntime({ env, runtimeRoot: repo, compassPath, goal, fetchImpl })!;
+  const compassPath = join(root, "state", "compass.db"), stateRoot = interrupted === "none" ? join(root,"injected-metadata") : join(root, "state", "self-development");
+  const persistence = {jobs:new JsonFileDevelopmentJobStore(join(stateRoot,"jobs.json")),changeSets:new JsonFileDevelopmentChangeSetStore(join(stateRoot,"change-sets.json"))};
+  const create = () => createSequencedResidentRuntime({ env, runtimeRoot: repo, compassPath, goal, fetchImpl, persistence })!;
   assert.equal(create().matches(goal), true, "explicit pinned sequence must not fall back to another runtime based on keywords");
   assert.throws(() => createSequencedResidentRuntime({ env: { ...env, GORIQ_LOCAL_OLLAMA_BUILDER_ENABLED: undefined }, runtimeRoot: repo, compassPath, goal, fetchImpl }), /OPT_IN/);
   assert.equal(createSequencedResidentRuntime({ env: {}, runtimeRoot: repo, compassPath, goal }), null);
@@ -116,4 +117,8 @@ for (const interrupted of ["none", "red", "green"] as const) test(`two bounded l
   await receipt(1); report = await create().run(input); assert.equal(report.goalEvaluation?.achieved, true);
   report = await create().run(input); assert.equal(report.goalEvaluation?.achieved, true); assert.equal(generations, 2);
   assert.equal(readFileSync(join(workspaces[0]!, localOllamaFixtureSourcePath), "utf8"), content);
+  if(interrupted === "none") {
+    assert.equal(existsSync(join(root,"state/self-development/jobs.json")),false);
+    assert.equal(existsSync(join(root,"state/self-development/change-sets.json")),false);
+  }
 });
