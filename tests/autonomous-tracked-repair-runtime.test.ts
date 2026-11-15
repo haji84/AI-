@@ -559,7 +559,7 @@ test("authenticated Broker selects tracked profile and restarts the same waiting
     GORIQ_SELF_DEVELOPMENT_SEQUENCE_FILE:"",GORIQ_SELF_DEVELOPMENT_SEQUENCE_SHA256:"",GORIQ_COMPLETION_HANDOFF_PATH:"",GORIQ_COMPLETION_HANDOFF_SHA256:"",
     JARVIS_BROKER_HOST:"127.0.0.1",JARVIS_BROKER_PORT:String(port),JARVIS_OWNER_TOKEN:owner,JARVIS_DB_PATH:join(f.root,"broker.sqlite"),JARVIS_COMPASS_DB_PATH:f.compassPath,
     JARVIS_PUBLIC_BROKER_URL:"",JARVIS_WORKER_INSTALL_URL:"",JARVIS_WORKER_APK_PATH:"",XDG_STATE_HOME:resource,
-    NODE_OPTIONS:`--import=${pathToFileURL(join(repositoryRoot,"tests/helpers/resource-telemetry-preload.mjs")).href}`};
+    NODE_OPTIONS:`${process.env.NODE_OPTIONS??""} --import=${pathToFileURL(join(repositoryRoot,"tests/helpers/resource-telemetry-preload.mjs")).href}`.trim()};
   const stop=async()=>{if(child&&child.exitCode===null&&child.signalCode===null){const done=once(child,"exit");child.kill();await done;}child=undefined;};
   t.after(stop);
   const start=()=>{child=spawn(process.execPath,[join(repositoryRoot,"scripts/jarvis-broker.ts")],{cwd:repositoryRoot,env,stdio:["ignore","ignore","pipe"]});

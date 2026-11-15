@@ -5,6 +5,7 @@ import {existsSync} from 'node:fs';
 import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
+import {createPowerShellFixtureBatch} from '../tests/helpers/powershell-fixture-batch.mjs';
 
 const source=fileURLToPath(new URL('./rotate-jarvis-owner-code-windows.ps1',import.meta.url));
 const fixture=fileURLToPath(new URL('../tests/owner-code-rotation-authority.fixture.ps1',import.meta.url));
@@ -16,9 +17,13 @@ if(!unavailable){assert.equal(probe.error,undefined);assert.equal(probe.status,0
 // Linux: add the checksum-verified portable PowerShell directory to PATH.
 // Windows: use WindowsPowerShell5.1 directly. Both use synthetic native boundaries;
 // no live DPAPI, credential, UI, Scheduled Task or network action is performed.
-for(const scenario of ['valid-positive','expiry-after-prompt','config-after-prompt','expiry-during-validation','config-during-validation','expiry-after-candidate-created','config-after-candidate-created']){
+const scenarios=['valid-positive','expiry-after-prompt','config-after-prompt','expiry-during-validation','config-during-validation','expiry-after-candidate-created','config-after-candidate-created'];
+// Linux shares only reviewed inert fixture code; each case gets a fresh runspace.
+// The explicit executable probe and every Windows/native process remain unchanged.
+const runLinuxBatch=process.platform==='linux'&&!unavailable?createPowerShellFixtureBatch({shell:powershell,fixture,scenarios,parameter:'Case',parameters:{SourcePath:source},timeoutMs:30000}):null;
+for(const scenario of scenarios){
   test(`rotation preserves bound authority and config at ${scenario}`,{skip:unavailable?'PowerShell is not installed; add approved portable pwsh to PATH':false},()=>{
-    const run=spawnSync(powershell,['-NoLogo','-NoProfile','-NonInteractive','-File',fixture,'-SourcePath',source,'-Case',scenario],{encoding:'utf8',timeout:30000,windowsHide:true,maxBuffer:131072});
+    const run=runLinuxBatch?runLinuxBatch(scenario):spawnSync(powershell,['-NoLogo','-NoProfile','-NonInteractive','-File',fixture,'-SourcePath',source,'-Case',scenario],{encoding:'utf8',timeout:30000,windowsHide:true,maxBuffer:131072});
     assert.equal(run.error,undefined);assert.equal(run.stderr,'','Fake validator/runtime must not hide a dependency failure');assert.equal(run.status,0,run.stdout+run.stderr);
     const result=JSON.parse(run.stdout.trim().split(/\r?\n/).at(-1));
     assert.equal(result.initialActualGuardsPassed,true);assert.equal(result.actualDPAPIOrProductionOrNetworkUsed,false);assert.equal(result.mutationAndRollbackStatementsFromSource,true);
