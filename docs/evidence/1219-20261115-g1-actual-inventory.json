@@ -1,0 +1,300 @@
+{
+  "evidenceClass": "ACTUAL_READONLY_OBSERVATION_NOT_ORIGINAL_ACCEPTANCE",
+  "repository": "haji84/AI-",
+  "issue": 1219,
+  "originalGoalId": "goal-fcc81c97e09153f7",
+  "originalJobId": "rotation-recovery-37",
+  "sourceCommit": "cfb6a35427efdd7f71beec4d313dbda4c0bd470b",
+  "sourcePullRequest": 1915,
+  "sourcePrCi": {
+    "runId": 43681846997,
+    "headSha": "4313fd1fdc2374277b7b5beda5d702127a2576ac",
+    "status": "success",
+    "allFourJobsSuccessful": true
+  },
+  "mainCi": {
+    "runId": 43682611578,
+    "status": "failure",
+    "successfulJobs": [
+      "project-checks",
+      "repository-guard",
+      "windows-runtime-byte-fixtures"
+    ],
+    "failedJobId": 132716278577,
+    "failedJob": "independent-verifier-container",
+    "unitResult": "inconclusive",
+    "timeoutMs": 300000,
+    "elapsedMs": 300007.714804,
+    "errorCode": "ETIMEDOUT",
+    "signal": "SIGKILL",
+    "laterChecksExecuted": false,
+    "cleanupConfirmed": true,
+    "artifactId": 14149810392,
+    "artifactZipSha256": "aa7a0046e8550d6cfc3a400ac6b58d3ac1a9f1953ac83acba46db9be16b20441",
+    "initialAttempt": 1,
+    "recheck": {
+      "attempt": 2,
+      "status": "success",
+      "allFourJobsSuccessful": true,
+      "independentJobId": 132720179030,
+      "requestedRetryOfJobId": 132716278577,
+      "sourceAndCheckLimitsChanged": false
+    }
+  },
+  "inventory": {
+    "runId": 43682611613,
+    "conclusion": "success",
+    "macJobId": 132716278368,
+    "macConclusion": "success",
+    "windowsJobId": 132716278550,
+    "windowsConclusion": "success"
+  },
+  "classification": {
+    "missingCompassCandidates": 7,
+    "refusedCompassCandidates": 2,
+    "inspectedHistoricalCandidates": 0,
+    "allCandidateJobAndChangeSetSidecars": "MISSING",
+    "refusedLabels": [
+      "owner-config-file",
+      "mac-canonical-repo-default"
+    ]
+  },
+  "interpretation": "No original was authenticated. Seven named Compass paths were missing and two were refused by existing safety checks. This observation does not establish global absence or justify permission changes. The next bounded observation may classify the existing refusal without weakening it.",
+  "report": {
+    "status": "OBSERVATION_ONLY",
+    "readOnly": true,
+    "productionGoalRecovered": false,
+    "goalSelected": true,
+    "checkedCandidates": 9,
+    "managedGenerationsChecked": 0,
+    "matchingGoalBackups": 0,
+    "matchingWorkRuns": 0,
+    "candidates": [
+      {
+        "label": "owner-config-file",
+        "status": "NO_MANAGED_BACKUP_ROOT",
+        "backupsChecked": 0,
+        "backupsInvalid": 0,
+        "backupGoalMatches": 0,
+        "backupWorkRunMatches": 0,
+        "active": null,
+        "sidecars": {
+          "jobs": {
+            "status": "UNAVAILABLE"
+          },
+          "changes": {
+            "status": "UNAVAILABLE"
+          }
+        },
+        "diagnostics": {
+          "compass": "UNSAFE_PATH",
+          "sidecars": {
+            "jobs": "MISSING",
+            "changes": "MISSING"
+          }
+        },
+        "historicalLeads": null
+      },
+      {
+        "label": "mac-persistent-configured-legacy",
+        "status": "ALTERNATE_COMPASS_ONLY",
+        "backupsChecked": 0,
+        "backupsInvalid": 0,
+        "backupGoalMatches": 0,
+        "backupWorkRunMatches": 0,
+        "active": null,
+        "sidecars": {
+          "jobs": {
+            "status": "UNAVAILABLE"
+          },
+          "changes": {
+            "status": "UNAVAILABLE"
+          }
+        },
+        "diagnostics": {
+          "compass": "MISSING",
+          "sidecars": {
+            "jobs": "MISSING",
+            "changes": "MISSING"
+          }
+        },
+        "historicalLeads": null
+      },
+      {
+        "label": "mac-current-repo-default",
+        "status": "NO_MANAGED_BACKUP_ROOT",
+        "backupsChecked": 0,
+        "backupsInvalid": 0,
+        "backupGoalMatches": 0,
+        "backupWorkRunMatches": 0,
+        "active": null,
+        "sidecars": {
+          "jobs": {
+            "status": "UNAVAILABLE"
+          },
+          "changes": {
+            "status": "UNAVAILABLE"
+          }
+        },
+        "diagnostics": {
+          "compass": "MISSING",
+          "sidecars": {
+            "jobs": "MISSING",
+            "changes": "MISSING"
+          }
+        },
+        "historicalLeads": null
+      },
+      {
+        "label": "mac-canonical-repo-default",
+        "status": "NO_MANAGED_BACKUP_ROOT",
+        "backupsChecked": 0,
+        "backupsInvalid": 0,
+        "backupGoalMatches": 0,
+        "backupWorkRunMatches": 0,
+        "active": null,
+        "sidecars": {
+          "jobs": {
+            "status": "UNAVAILABLE"
+          },
+          "changes": {
+            "status": "UNAVAILABLE"
+          }
+        },
+        "diagnostics": {
+          "compass": "UNSAFE_PATH",
+          "sidecars": {
+            "jobs": "MISSING",
+            "changes": "MISSING"
+          }
+        },
+        "historicalLeads": null
+      },
+      {
+        "label": "mac-canonical-repo-configured",
+        "status": "ALTERNATE_COMPASS_ONLY",
+        "backupsChecked": 0,
+        "backupsInvalid": 0,
+        "backupGoalMatches": 0,
+        "backupWorkRunMatches": 0,
+        "active": null,
+        "sidecars": {
+          "jobs": {
+            "status": "UNAVAILABLE"
+          },
+          "changes": {
+            "status": "UNAVAILABLE"
+          }
+        },
+        "diagnostics": {
+          "compass": "MISSING",
+          "sidecars": {
+            "jobs": "MISSING",
+            "changes": "MISSING"
+          }
+        },
+        "historicalLeads": null
+      },
+      {
+        "label": "mac-application-support",
+        "status": "NO_MANAGED_BACKUP_ROOT",
+        "backupsChecked": 0,
+        "backupsInvalid": 0,
+        "backupGoalMatches": 0,
+        "backupWorkRunMatches": 0,
+        "active": null,
+        "sidecars": {
+          "jobs": {
+            "status": "UNAVAILABLE"
+          },
+          "changes": {
+            "status": "UNAVAILABLE"
+          }
+        },
+        "diagnostics": {
+          "compass": "MISSING",
+          "sidecars": {
+            "jobs": "MISSING",
+            "changes": "MISSING"
+          }
+        },
+        "historicalLeads": null
+      },
+      {
+        "label": "mac-gai-worker",
+        "status": "NO_MANAGED_BACKUP_ROOT",
+        "backupsChecked": 0,
+        "backupsInvalid": 0,
+        "backupGoalMatches": 0,
+        "backupWorkRunMatches": 0,
+        "active": null,
+        "sidecars": {
+          "jobs": {
+            "status": "UNAVAILABLE"
+          },
+          "changes": {
+            "status": "UNAVAILABLE"
+          }
+        },
+        "diagnostics": {
+          "compass": "MISSING",
+          "sidecars": {
+            "jobs": "MISSING",
+            "changes": "MISSING"
+          }
+        },
+        "historicalLeads": null
+      },
+      {
+        "label": "mac-current-standalone-compass",
+        "status": "STANDALONE_COMPASS_ONLY",
+        "backupsChecked": 0,
+        "backupsInvalid": 0,
+        "backupGoalMatches": 0,
+        "backupWorkRunMatches": 0,
+        "active": null,
+        "sidecars": {
+          "jobs": {
+            "status": "UNAVAILABLE"
+          },
+          "changes": {
+            "status": "UNAVAILABLE"
+          }
+        },
+        "diagnostics": {
+          "compass": "MISSING",
+          "sidecars": {
+            "jobs": "MISSING",
+            "changes": "MISSING"
+          }
+        },
+        "historicalLeads": null
+      },
+      {
+        "label": "mac-canonical-standalone-compass",
+        "status": "STANDALONE_COMPASS_ONLY",
+        "backupsChecked": 0,
+        "backupsInvalid": 0,
+        "backupGoalMatches": 0,
+        "backupWorkRunMatches": 0,
+        "active": null,
+        "sidecars": {
+          "jobs": {
+            "status": "UNAVAILABLE"
+          },
+          "changes": {
+            "status": "UNAVAILABLE"
+          }
+        },
+        "diagnostics": {
+          "compass": "MISSING",
+          "sidecars": {
+            "jobs": "MISSING",
+            "changes": "MISSING"
+          }
+        },
+        "historicalLeads": null
+      }
+    ]
+  }
+}

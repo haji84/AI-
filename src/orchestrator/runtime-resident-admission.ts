@@ -14,6 +14,8 @@ import { CompassWorkRunStore } from "./compass-work-run-store.ts";
 import { CompassWorkStateStoreAdapter } from "./compass-work-state-store.ts";
 import { canonicalRequirementBlockers } from "./owner-requirement-canonical.ts";
 
+import { assertResidentAuthority, type ResidentExecutionAuthority } from "./resident-execution-authority.ts";
+
 interface HostRoutingConfiguration {
   version: 1;
   authorityPath: string;
@@ -36,6 +38,7 @@ interface HostRoutingConfiguration {
 export function createRuntimeResidentAdmission(input: {
   env: Record<string, string | undefined>; runtimeRoot: string; compassPath: string; goal: Goal;
   executionContractDigest?: string; workspaces: string[]; now?: () => Date;
+  authority?: ResidentExecutionAuthority;
 }): ResidentDevelopmentAdmission | undefined {
   const mode = input.env.GORIQ_EXECUTION_HOST_MODE?.trim();
   const file = input.env.GORIQ_HOSTED_ROUTING_FILE?.trim();
@@ -77,6 +80,14 @@ export function createRuntimeResidentAdmission(input: {
     }
     // The pinned authority is read here as well as at the adapter boundary.
     // A caller-supplied no-op callback or unrelated real lock grants nothing.
+    if (input.authority) {
+      if (input.authority.authorityPath !== resolve(config.authorityPath)) throw Error("HOSTED_AUTHORITY_BINDING_MISMATCH");
+      await input.authority.assertFence();
+      const current = await input.authority.read(config.goalId);
+      if (residentDevelopmentGoalDigest(current.goal) !== config.goalDigest) throw new ResidentExecutionStop("blocked", "hosted_canonical_goal_changed");
+      assertResidentAuthority(current);
+      return config;
+    }
     const authority = new CompassStore(config.authorityPath);
     try {
       const [run, work] = await Promise.all([new CompassWorkRunStore(authority).getByGoal(config.goalId),

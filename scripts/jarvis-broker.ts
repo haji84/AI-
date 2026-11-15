@@ -1,3 +1,5 @@
+import { createCompassResidentExecutionAuthority } from "../src/orchestrator/compass-resident-execution-authority.ts";
+import { createBrokerResidentGoalScheduling, type SharedResidentGoalBinding } from "../src/orchestrator/resident-goal-scheduling.ts";
 import { PcDurableWork, PcWorkConflict, assertPcExecutor } from "../src/jarvis/pc-durable-work.ts";
 import { PcTaskObservations, projectPcObservation, assertPcObserver, PC_OBSERVATION_EXPORT, PC_OBSERVATION_RECEIVE, PC_OBSERVATION_MAX_BYTES } from "../src/jarvis/pc-task-observation.ts";
 import { DurableTaskRuntime, JsonFileDurableTaskStore } from "../src/gai/durable-task-runtime.ts";
@@ -250,7 +252,7 @@ function scheduleWriterBusyRetry(goalId: string): void {
   writerBusyTimers.set(goalId, timer);
 }
 
-function scheduleGoalExecution(decision: GoalControllerDecision, context: unknown[] = []): boolean {
+function dispatchLocalGoalExecution(decision: GoalControllerDecision, context: unknown[] = []): boolean {
   if (shuttingDown || compass.getState().status === "PAUSED") return false;
   if (decision.goalId && context.length) goalExecutionContexts.put(decision.goalId, context);
   if (decision.action !== "CONTINUE_GOAL" || !decision.goalId) return false;
@@ -298,6 +300,32 @@ function scheduleGoalExecution(decision: GoalControllerDecision, context: unknow
     }
   });
   activeGoalExecutions.set(goalId, child);
+  return true;
+}
+const residentGoalScheduling = createBrokerResidentGoalScheduling({
+  authority: createCompassResidentExecutionAuthority({ compassPath }),
+  async dispatchLocal(decision, context) {
+    if (!dispatchLocalGoalExecution(decision, context)) return;
+    const child = activeGoalExecutions.get(decision.goalId!);
+    if (child) await new Promise<void>(resolve => {
+      const done = () => { child.off("exit", done); child.off("error", done); resolve(); };
+      child.once("exit", done); child.once("error", done);
+    });
+  },
+});
+/** Trusted embedding only. No HTTP/environment/model input activates shared execution. */
+export function bindBrokerResidentAuthority(binding: SharedResidentGoalBinding): void {
+  if (activeGoalExecutions.size) throw Error("RESIDENT_BINDING_ALREADY_ACTIVE");
+  residentGoalScheduling.bindShared(binding);
+  resourceWaitScheduler.close();
+  for (const timer of writerBusyTimers.values()) clearTimeout(timer);
+  writerBusyTimers.clear(); writerBusyAttempts.clear();
+}
+function scheduleGoalExecution(decision: GoalControllerDecision, context: unknown[] = []): boolean {
+  if (shuttingDown || decision.action !== "CONTINUE_GOAL" || !decision.goalId) return false;
+  if (residentGoalScheduling.kind === "compass" && compass.getState().status === "PAUSED") return false;
+  if (residentGoalScheduling.isPending(decision.goalId) || activeGoalExecutions.has(decision.goalId)) return true;
+  void residentGoalScheduling.schedule(decision, context).catch(error => console.error("[goriq-goal] scheduling_failed", error instanceof Error ? error.message : "unknown"));
   return true;
 }
 const persisted = store.load();

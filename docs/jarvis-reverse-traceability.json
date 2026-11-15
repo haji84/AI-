@@ -959,7 +959,7 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "63700f09239c95f91b784f58e1bb7d97406cf0c762cb8e5593da277dd7a6a723",
+      "sha256": "5188d566f34a0d5efd846a370f1aa345bf02225b56b818e7b40fdfd189e2b232",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-003",
@@ -1075,7 +1075,7 @@
     },
     {
       "path": "scripts/jarvis-goal-executor.ts",
-      "sha256": "60302875f057a5ed1b7de6ee43c7e1167533a464da778b3fce37bc12fcc29cdd",
+      "sha256": "04d7f26e0d93394693dce8662c2d71ccc1dc843f07bb9ac9df94ae6c6b27e703",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "AUTO-001",
@@ -4990,7 +4990,7 @@
     },
     {
       "path": "src/orchestrator/compass-goal-execution-adapter.ts",
-      "sha256": "00a5460545bacbadb997362c65e3b422de783aa5daedc7a8052bd1e585293167",
+      "sha256": "2212dc02e2c09f3c04fd41fdc0f040048b429b907d4120c1ae01508576457ce9",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
@@ -6044,7 +6044,7 @@
     },
     {
       "path": "src/orchestrator/runtime-resident-admission.ts",
-      "sha256": "7522391b557266e40d1559c8c7c3f1070068232590cb0fef3da4c29fd7323e1f",
+      "sha256": "dbccc6b467a5e79c6b178e78f6c0137482e866918e60cbaa1d62211c808512f4",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -6638,7 +6638,7 @@
     },
     {
       "path": "src/orchestrator/sequenced-resident-runtime.ts",
-      "sha256": "fe458155c55b58476fd44b3470829e1997d532fafef281c85e3d4990730581be",
+      "sha256": "136476ad4db779197bb84fa5d629dcb7375d4c8e8ad433f043259876ca5024c8",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -6695,7 +6695,7 @@
     },
     {
       "path": "src/orchestrator/tracked-repair-resident-runtime.ts",
-      "sha256": "2d7aa397bb2a8141155e653681b5965398e69568353a74a4dd34670814516d2b",
+      "sha256": "519e41799e26ca5409b0a4f09ab724fcf992deaf29ad45a0ea3a0a3a434407c3",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -6763,6 +6763,50 @@
         "SEC-002"
       ],
       "reason": "Existing Goal681 P10 Owner Settings to authenticated Broker managed local SQLite backup and isolated restore verification; bounded cloud-fixture integration only, excludes PC JSON/sidecars, no live activation, full-system point-in-time, physical or global completion claim."
+    },
+    {
+      "path": "src/orchestrator/compass-resident-execution-authority.ts",
+      "sha256": "b9e89b6b25faabcf2268c6b579c2b4778d46d6418a5fa418bdffe503418c5371",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-004",
+        "OWN-001"
+      ],
+      "reason": "Issue #1219: inject one existing Resident execution authority with canonical stops, bounded continuation, authenticated progress and fenced persistence. Source fixtures do not establish recovered original state, production activation or actual Actions/model acceptance."
+    },
+    {
+      "path": "src/orchestrator/resident-execution-authority.ts",
+      "sha256": "e7bbaefe18f9dd74830d051203e4ad667c41f28092fa7027da9d984887c8224d",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-004",
+        "OWN-001"
+      ],
+      "reason": "Issue #1219: inject one existing Resident execution authority with canonical stops, bounded continuation, authenticated progress and fenced persistence. Source fixtures do not establish recovered original state, production activation or actual Actions/model acceptance."
+    },
+    {
+      "path": "src/orchestrator/resident-goal-executor.ts",
+      "sha256": "b69a2749e222e58003e4be6eaf0ca94a951d0c7745ba7d7c2b31032a90867635",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-004",
+        "OWN-001"
+      ],
+      "reason": "Issue #1219: inject one existing Resident execution authority with canonical stops, bounded continuation, authenticated progress and fenced persistence. Source fixtures do not establish recovered original state, production activation or actual Actions/model acceptance."
+    },
+    {
+      "path": "src/orchestrator/resident-goal-scheduling.ts",
+      "sha256": "5989c99dd523d6345bbfc52542056f0d2ab72a9992f6782ce004bd84d57aff9c",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-004",
+        "OWN-001"
+      ],
+      "reason": "Issue #1219: inject one existing Resident execution authority with canonical stops, bounded continuation, authenticated progress and fenced persistence. Source fixtures do not establish recovered original state, production activation or actual Actions/model acceptance."
     }
   ],
   "hash_policy": "utf8-crlf-to-lf-v1;binary-raw"

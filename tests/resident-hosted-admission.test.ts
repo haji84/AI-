@@ -23,8 +23,21 @@ import { goalWorkStateId } from "../src/orchestrator/work-state-integration.ts";
 import { CompassWorkRunStore } from "../src/orchestrator/compass-work-run-store.ts";
 import { createQueuedWorkRun } from "../src/orchestrator/work-run-state.ts";
 import { nextResourceWait } from "../src/orchestrator/development-resource-wait.ts";
+import { sharedFixture } from "./fixtures/resident-shared-authority.ts";
+import { createGitHubResidentExecutionAuthority } from "../scripts/goriq-github-resident-authority.ts";
 
 const hash = (v: string) => createHash("sha256").update(v).digest("hex");
+
+test("hosted admission reads explicitly supplied shared authority instead of a stale local Compass",async t=>{
+  const f=fixture(t),shared=sharedFixture();
+  f.config.goalId=shared.goalId;f.config.goalDigest=residentDevelopmentGoalDigest(shared.goal);f.save();
+  const authority=await createGitHubResidentExecutionAuthority({stores:shared.stores(),authorityPath:f.compassPath});
+  const admission=createRuntimeResidentAdmission({env:f.env,runtimeRoot:f.runtimeRoot,compassPath:f.compassPath,
+    goal:shared.goal,executionContractDigest:contract,workspaces:[],authority})!;
+  const writer=await acquireResidentExecutionWriter(f.compassPath+".cognitive-run.lock",shared.goalId);
+  try{await admission.assertAuthority({goalId:shared.goalId,goal:shared.goal,writer});}
+  finally{await writer.release();}
+});
 const base = "a".repeat(40), contract = "e".repeat(64);
 function fixture(t: TestContext) {
   const root = mkdtempSync(join(tmpdir(), "goriq-host-admission-"));

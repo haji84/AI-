@@ -144,3 +144,57 @@ allowlist would not establish cross-run ownership or complete retention.
 The Python sequence profile remains a fixed fixture. Actual model provenance,
 shared off-run authority, independently controlled production signing, hosted
 continuation and released artifact readback still require real acceptance.
+
+## 2026-11-15 source authority binding
+
+The existing Broker accepted-decision scheduling, Resident executor runner,
+CompassGoalExecutionAdapter, hosted admission and Resident runtime factories now
+accept one trusted authority dependency. Default CLI/Broker execution retains
+Compass and the existing child-process/local-writer behavior. A host embedding
+the Broker may bind an existing shared authority through a code-only composition
+hook; no HTTP route, environment module loader, production trigger or new intake
+is introduced. Shared selection never invokes the default Compass child callback.
+
+The GitHub binding requires the already authenticated checkpoint and existing
+claim, complete imported StateRecord/WorkState/bridge-event projection,
+Development Jobs and Change Set journal. It cannot import, recreate or bootstrap
+the original owner state. Authority records are append-only events under the same
+encrypted checkpoint root CAS. Unknown/incomplete/contradictory imports, stale
+observations, ambiguous commits and stale/expired claims refuse execution.
+Runtime commits cannot change canonical controls, requirements or approval,
+remove existing blockers/evidence, or reset terminal state. Opaque canonical
+blockers retain their original JSON values and stop execution.
+
+Runtime factories use the selected persistence for Jobs and Change Sets,
+including the tracked repair recovery closure. The real CLI uses the same
+bounded Resident runner exercised by the shared reconstruction fixture. The
+runner preserves resource/continuation budgets, local writer contention and
+canonical stops through startup, awaited work, progress and final/catch writes.
+Fresh progress reads intentionally occur after the existing Job/Change Set
+commits; a root conflict after that observation is not automatically retried.
+
+The verified source fixture reconstructs the real encrypted store, adapters,
+executor bridge and existing Resident host between invocations, resumes the
+same VERIFYING Job without rebuilding it, then starts the approved successor
+and projects verified Goal progress. Fixture verifier identities and simulated
+GitHub transport are source evidence only. The original Goal/Job authentication,
+authorized production store/import, actual independent signing/model recovery,
+different real Actions executions and delivered artifact remain unproved.
+
+This binding does not turn a local filesystem write into a transaction with a
+remote GitHub root. The existing local Builder beforeWrite checkpoints recheck
+the shared fence; external effects still require their own downstream fencing.
+Shared runner exceptions are write-free, including lost/ambiguous authority
+receipts: the catch path cannot refresh an observation to write BLOCKED after
+a rejected or uncertain CAS. Definitive Resident outcomes, including bounded
+resource waits, retain their normal durable report/writeback path.
+The selected Job/Change Set persistence is a guarded view over the same
+checkpoint store and claim. Each mutation projects and checks canonical stops
+from the exact expected root being replaced. A prior pause rejects the mutation;
+a pause after validation changes the SHA and rejects the same CAS without a
+retry. The original owner-facing store remains available for legitimate
+canonical control updates. Default Compass goals which do not match the
+Resident runtime retain their existing generic loop; shared selection never
+uses that fallback.
+No new credential, key, permission, state branch, election, recurring scheduler,
+production activation or relaxation of a Human Gate is included.

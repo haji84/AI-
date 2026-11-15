@@ -57,6 +57,12 @@ function assertLease(value: unknown): asserts value is CoordinatorLease {
   if (issued > updated || until <= updated) fail("LEASE_INVALID");
 }
 
+function assertCheckpointClaim(lease: CoordinatorLease, claim: CoordinatorClaim): void {
+  if (!claim || claim.clusterId !== lease.clusterId || claim.coordinatorId !== lease.coordinatorId ||
+      claim.epoch !== lease.epoch || claim.fencingToken !== lease.fencingToken ||
+      claim.leaseUntil !== lease.leaseUntil || Date.parse(lease.leaseUntil) <= Date.now()) fail("CLAIM_INVALID");
+}
+
 function canonical(lease: CoordinatorLease): string {
   return JSON.stringify({clusterId: lease.clusterId, coordinatorId: lease.coordinatorId,
     epoch: lease.epoch, fencingToken: lease.fencingToken, issuedAt: lease.issuedAt,
@@ -242,10 +248,13 @@ export class GitHubCoordinatorStore implements CoordinatorStore {
    * encrypted Git blob and ONE conditional SHA update. Lease-only v1 sources
    * are never silently upgraded or used to manufacture owner Goal state.
    */
-  async loadCheckpoint(): Promise<GitHubGoalCheckpoint> {
+  async loadCheckpoint(claim?: CoordinatorClaim): Promise<GitHubGoalCheckpoint> {
     const snapshot = await this.#read();
     this.#snapshot = snapshot;
     if (!snapshot.checkpoint) fail("CHECKPOINT_MISSING");
+    // An optional existing claim is checked against this very root GET. A
+    // separate lease GET cannot authenticate a later checkpoint observation.
+    if (claim !== undefined) assertCheckpointClaim(snapshot.lease, claim);
     return structuredClone(snapshot.checkpoint);
   }
 
@@ -256,9 +265,7 @@ export class GitHubCoordinatorStore implements CoordinatorStore {
     if (!observed?.checkpoint) fail("CHECKPOINT_READ_REQUIRED");
     if (checkpointJson(observed.checkpoint) !== checkpointJson(expected)) return false;
     const lease = observed.lease;
-    if (!claim || claim.clusterId !== lease.clusterId || claim.coordinatorId !== lease.coordinatorId ||
-        claim.epoch !== lease.epoch || claim.fencingToken !== lease.fencingToken ||
-        claim.leaseUntil !== lease.leaseUntil || Date.parse(lease.leaseUntil) <= Date.now()) fail("CLAIM_INVALID");
+    assertCheckpointClaim(lease, claim);
     assertAppendOnly(expected, next);
     const current = await this.#read();
     this.#snapshot = current;

@@ -1,3 +1,4 @@
+import type { ResidentPersistence } from "./resident-execution-authority.ts";
 import { createHash, createPublicKey } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
@@ -127,7 +128,7 @@ export function readTrackedRepairManifest(env:Record<string,string|undefined>,go
 }
 
 export function createTrackedRepairResidentRuntime(input:{env:Record<string,string|undefined>;runtimeRoot:string;compassPath:string;goal:Goal;
-  fetchImpl?:typeof fetch;resourceAdmission?:typeof withDevelopmentResourceAdmission;admission?:ResidentDevelopmentAdmission}):ResidentDevelopmentGoalHost|null {
+  fetchImpl?:typeof fetch;resourceAdmission?:typeof withDevelopmentResourceAdmission;admission?:ResidentDevelopmentAdmission;persistence?:ResidentPersistence}):ResidentDevelopmentGoalHost|null {
   const loaded=readTrackedRepairManifest(input.env,input.goal); if(!loaded)return null;
   const {manifest:m,pin}=loaded;
   const layouts=[{workspace:m.workspace,receiptFile:m.verifier.receiptFile},...(m.recoveryAttempts??[])];
@@ -136,7 +137,7 @@ export function createTrackedRepairResidentRuntime(input:{env:Record<string,stri
   const sequence={...m.sequence,executionContractDigest:pin},base=m.sequence.jobs[0]!.baseRevision;
   const stateRoot=join(dirname(input.compassPath),"self-development"),privateRoot=join(stateRoot,"tracked-repair");
   assertExternalRuntimePath(privateRoot,workspaces); mkdirSync(privateRoot,{recursive:true,mode:0o700});
-  const changes=new JsonFileDevelopmentChangeSetStore(join(stateRoot,"change-sets.json"));
+  const changes=input.persistence?.changeSets??new JsonFileDevelopmentChangeSetStore(join(stateRoot,"change-sets.json"));
   const key=readBoundedRuntimeFile(m.verifier.publicKeyFile,8192).toString("utf8");
   const probe=readBoundedRuntimeFile(m.probe.file,131072);
   const filePins=[...m.trackedFiles,...(m.bookkeeping?[m.bookkeeping]:[])];
@@ -258,7 +259,7 @@ export function createTrackedRepairResidentRuntime(input:{env:Record<string,stri
     }
     attest(workspace,currentEdits.length?{version:2,files:currentEdits}:undefined,m.probe.targetPath);
   };
-  return new ResidentDevelopmentGoalHost({jobs:new JsonFileDevelopmentJobStore(join(stateRoot,"jobs.json")),
+  return new ResidentDevelopmentGoalHost({jobs:input.persistence?.jobs??new JsonFileDevelopmentJobStore(join(stateRoot,"jobs.json")),
     admission:input.admission,
     changeSets:changes,
     planning:{requirementIds:["CORE-014"],baseRevision:base,taskScopeId:sequence.taskScopeId,maxRisk:"low",targetFiles:sequence.jobs[0]!.targetFiles,contextDigest:sequence.goalDigest,sequence},

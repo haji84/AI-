@@ -18,18 +18,21 @@ export class GitHubFencedCheckpointStores {
   readonly #store: GitHubCoordinatorStore;
   readonly #claim: () => CoordinatorClaim | Promise<CoordinatorClaim>;
   readonly #admitDevelopmentJob?: (job: DevelopmentJob, checkpoint: GitHubGoalCheckpoint) => boolean | Promise<boolean>;
+  readonly #mutationGuard?: (checkpoint: GitHubGoalCheckpoint) => void | Promise<void>;
 
   constructor(store: GitHubCoordinatorStore, claim: () => CoordinatorClaim | Promise<CoordinatorClaim>,
-    options: {admitDevelopmentJob?: (job: DevelopmentJob, checkpoint: GitHubGoalCheckpoint) => boolean | Promise<boolean>} = {}) {
+    options: {admitDevelopmentJob?: (job: DevelopmentJob, checkpoint: GitHubGoalCheckpoint) => boolean | Promise<boolean>;
+      mutationGuard?: (checkpoint: GitHubGoalCheckpoint) => void | Promise<void>} = {}) {
     if (!store || typeof claim !== 'function') throw Error('GITHUB_COORDINATOR_ADAPTER_INVALID');
     this.#store = store;
     this.#claim = claim;
     this.#admitDevelopmentJob = options.admitDevelopmentJob;
+    this.#mutationGuard = options.mutationGuard;
     let observedRun: WorkRunState | null = null;
 
     this.workRun = {
       getByGoal: async (goalId: string): Promise<WorkRunState | null> => {
-        const current = await this.#store.loadCheckpoint();
+        const current = await this.#loadCheckpoint();
         if (current.goalId !== goalId) { observedRun = null; return null; }
         observedRun = structuredClone(current.workRun);
         return structuredClone(current.workRun);
@@ -37,7 +40,7 @@ export class GitHubFencedCheckpointStores {
       put: async (next: WorkRunState): Promise<void> => {
         if (!observedRun || !isDeepStrictEqual(next?.goalId, observedRun.goalId) ||
             next.runId !== observedRun.runId) throw Error('GITHUB_COORDINATOR_WORKRUN_READ_REQUIRED');
-        const checkpoint = await this.#store.loadCheckpoint();
+        const checkpoint = await this.#loadCheckpoint();
         if (!isDeepStrictEqual(checkpoint.workRun, observedRun)) throw Error('GITHUB_COORDINATOR_WORKRUN_STALE');
         if (!Number.isFinite(Date.parse(next.updatedAt)) ||
             Date.parse(next.updatedAt) < Date.parse(observedRun.updatedAt) ||
@@ -52,24 +55,24 @@ export class GitHubFencedCheckpointStores {
     };
     this.developmentJobs = {
       get: async (jobId) => {
-        const checkpoint = await this.#store.loadCheckpoint();
+        const checkpoint = await this.#loadCheckpoint();
         if (!checkpoint.developmentJobs) throw Error('GITHUB_COORDINATOR_DEVELOPMENT_JOBS_NOT_IMPORTED');
         return structuredClone(checkpoint.developmentJobs.jobs.find(job=>job.jobId === jobId) ?? null);
       },
       getByGoal: async (goalId) => {
-        const checkpoint = await this.#store.loadCheckpoint();
+        const checkpoint = await this.#loadCheckpoint();
         if (!checkpoint.developmentJobs) throw Error('GITHUB_COORDINATOR_DEVELOPMENT_JOBS_NOT_IMPORTED');
         return structuredClone(checkpoint.developmentJobs.jobs.filter(job=>job.goalId===goalId));
       },
       list: async () => {
-        const checkpoint = await this.#store.loadCheckpoint();
+        const checkpoint = await this.#loadCheckpoint();
         if (!checkpoint.developmentJobs) throw Error('GITHUB_COORDINATOR_DEVELOPMENT_JOBS_NOT_IMPORTED');
         return structuredClone(checkpoint.developmentJobs.jobs);
       },
       put: async (job,now=new Date()) => {
         try {assertDevelopmentJob(job);} catch {throw Error('GITHUB_COORDINATOR_DEVELOPMENT_JOB_INVALID');}
         if (!Number.isFinite(now.getTime())) throw Error('GITHUB_COORDINATOR_DEVELOPMENT_JOB_INVALID');
-        const checkpoint = await this.#store.loadCheckpoint();
+        const checkpoint = await this.#loadCheckpoint();
         if (!checkpoint.developmentJobs) throw Error('GITHUB_COORDINATOR_DEVELOPMENT_JOBS_NOT_IMPORTED');
         if (job.goalId!==checkpoint.goalId) throw Error('GITHUB_COORDINATOR_DEVELOPMENT_JOB_GOAL_MISMATCH');
         const prior = checkpoint.developmentJobs.jobs.find(item=>item.jobId===job.jobId);
@@ -109,11 +112,11 @@ export class GitHubFencedCheckpointStores {
       },
     };
     this.tasks = {
-      load: async () => structuredClone((await this.#store.loadCheckpoint()).tasks),
+      load: async () => structuredClone((await this.#loadCheckpoint()).tasks),
       save: async () => {throw Error('GITHUB_COORDINATOR_CAS_REQUIRED');},
       compareAndSwap: async (expected: DurableTaskSnapshot|null, next: DurableTaskSnapshot): Promise<boolean> => {
         if (!expected) throw Error('GITHUB_COORDINATOR_TASK_SNAPSHOT_REQUIRED');
-        const checkpoint = await this.#store.loadCheckpoint();
+        const checkpoint = await this.#loadCheckpoint();
         if (!isDeepStrictEqual(checkpoint.tasks, expected)) return false;
         const proposed = structuredClone(checkpoint);
         proposed.tasks = structuredClone(next);
@@ -129,11 +132,32 @@ export class GitHubFencedCheckpointStores {
    * own downstream fencing and remain outside this source-only adapter.
    */
   async load(): Promise<GitHubGoalCheckpoint> {
-    return this.#store.loadCheckpoint();
+    return this.#loadCheckpoint();
   }
+  /** Fresh read-only validation of the already authenticated controller claim.
+   * It creates/renews no lease and grants no new authority. */
+  async assertAuthoritative(): Promise<void> {
+    await this.#loadCheckpoint();
+  }
+  async #loadCheckpoint(): Promise<GitHubGoalCheckpoint> {
+    const claim = structuredClone(await this.#claim());
+    return this.#store.loadCheckpoint(claim);
+  }
+
+  /** A narrower runtime view over the SAME store/claim and root CAS. The
+   * canonical owner retains the original unguarded control-update interface. */
+  withMutationGuard(guard: (checkpoint: GitHubGoalCheckpoint) => void | Promise<void>): GitHubFencedCheckpointStores {
+    if(typeof guard !== 'function') throw Error('GITHUB_COORDINATOR_GUARD_INVALID');
+    return new GitHubFencedCheckpointStores(this.#store,this.#claim,{admitDevelopmentJob:this.#admitDevelopmentJob,
+      mutationGuard:async checkpoint=>{await this.#mutationGuard?.(structuredClone(checkpoint));await guard(checkpoint);}});
+  }
+
   async commitTogether(expected: GitHubGoalCheckpoint, next: GitHubGoalCheckpoint): Promise<boolean> {
-    const current = await this.#store.loadCheckpoint();
+    const current = await this.#loadCheckpoint();
     if (!isDeepStrictEqual(current, expected)) return false;
+    // Validate the exact checkpoint being conditionally replaced. A pause
+    // after this check changes the root SHA and loses the same CAS below.
+    await this.#mutationGuard?.(structuredClone(current));
     const claim = await this.#claim();
     return this.#store.compareAndSwapCheckpoint(current, next, claim);
   }
