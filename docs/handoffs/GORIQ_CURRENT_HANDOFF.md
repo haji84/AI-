@@ -1,3 +1,13 @@
+# 2026-11-16: safe existing Mac wake capability after native queue
+
+Original `goal-fcc81c97e09153f7` / `rotation-recovery-37` remains **NOT_ACHIEVED / G1 HOLD**. Main460c73af41d8b9955a4dfa9ad3744f3fa412c6b5 integratesPR1920; exactmainCI43789338301 all4+fresh6auditPASS, Unit/Integration each4191total4165PASS0FAIL26skip. Read-only native locator43790681954 isqueued/unassigned, notexecution ororiginalevidence. [Currentresult/readback](https://github.com/haji84/AI-/issues/1219#issuecomment-6905456162).
+
+ExistingMac-to-ZBook WOL isordinarytaskauthorized but its olddefaultrootcheckoutcouldclean retainedMacdata; no checkout-free equivalentwasfound. Thiscandidate fixes that existingworkflow only: unusedatomicallyreservedperrunattemptsource, owner/repo/main andexistingexactsuccessfulmainCI binding, unchangedhelper/protocol/target, freshinvocationstdoutartifact. No newkeys/scopes/controller, serviceinstallation, runtimegrants or HUB rollout. Oldsource defaulthelper still writes its designatedHOMEstatus metadata; packet submissionisnotproof of power/Runner/originalrecovery, post-sendfailuremay beuncertain. Do not repeat expiredMacrepair/runtime/enrollment grants.
+
+Codexauthor/modelNOT_RUN. Original2testbodies/helperbytes frozen, new3RED→focused9PASS, lint/types/audit626/341/syntaxPASS; independent9PASS/nofindings, overlapsnotadded. ActualnativeMac/Bash3.2/ARP/WOL remainsunrun, full/exactHEAD/mainCI required. [Evidence/scope](../evidence/1219-20261116-wake-source-preservation.json). Ifneeded afterprotectedintegration/currentexactmainCI, issueoneordinarywake; confirm actualRunnerreturn/metadataoutput separately. Anyqueuedold460jobmustremainhonesthistory and be cancelled/resubmittedonlyasobsolete whenmainchanges; neverrecreateoriginalGoal/Job. Rollback isprotectedsource revert; no livewakeyet. Earlierdatedauthoring checkpoints below remainhistorical.
+
+---
+
 # 2026-11-16: preserve original runner workspace before any native checkout
 
 Original `goal-fcc81c97e09153f7` / `rotation-recovery-37` remains **NOT_ACHIEVED / G1 HOLD**, main4a1af669 unchanged. PR1920 head5e8ee0e passed all4CI43783805271 jobs and fresh6checkaudit; Unit285580ms/Integration284796ms, each4190total4164PASS0FAIL26skip underunchangedlimits. Prior2CI failures remain preserved. This successfulbaseline is not originalGoal/native acceptance.

@@ -10,21 +10,64 @@ permissions:
 
 jobs:
   wake-zbook:
-    if: github.event_name != 'issues' || startsWith(github.event.issue.title, '[JARVIS ZBOOK WAKE]')
+    if: github.repository == 'haji84/AI-' && github.actor == 'haji84' && github.ref == 'refs/heads/main' && (github.event_name != 'issues' || startsWith(github.event.issue.title, '[JARVIS ZBOOK WAKE]'))
     runs-on: [self-hosted, macOS]
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v5
-      - name: Send bounded Wake-on-LAN to ZBook
+      - name: Require unused per-run wake source directory
+        id: source_precheck
         shell: bash
+        working-directory: ${{ github.workspace }}
         run: |
-          chmod +x scripts/wake-zbook-from-macbook.sh
-          ./scripts/wake-zbook-from-macbook.sh 192.168.0.169
+          set -euo pipefail
+          context_invalid() { printf '%s\n' 'ZBOOK_WAKE_SOURCE_CONTEXT_INVALID' >&2; exit 1; }
+          if [[ -z "${GITHUB_WORKSPACE:-}" || "$GITHUB_WORKSPACE" != /* ]] ||
+             ! [[ "${GITHUB_RUN_ID:-}" =~ ^[1-9][0-9]*$ && "${GITHUB_RUN_ATTEMPT:-}" =~ ^[1-9][0-9]*$ ]]; then
+            context_invalid
+          fi
+          workspace="$(cd "$GITHUB_WORKSPACE" 2>/dev/null && pwd -P)" || context_invalid
+          [[ "$workspace" == "$GITHUB_WORKSPACE" ]] || context_invalid
+          source_directory="$workspace/goriq-zbook-wake-source-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          if ! mkdir "$source_directory" 2>/dev/null; then
+            printf '%s\n' 'ZBOOK_WAKE_SOURCE_DIRECTORY_NOT_FRESH' >&2
+            exit 1
+          fi
+      - uses: actions/checkout@v5
+        id: source_checkout
+        with:
+          ref: ${{ github.sha }}
+          path: goriq-zbook-wake-source-${{ github.run_id }}-${{ github.run_attempt }}
+          clean: false
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+      - name: Require exact approved protected-main source
+        id: approved_source
+        shell: bash
+        working-directory: goriq-zbook-wake-source-${{ github.run_id }}-${{ github.run_attempt }}
+        env:
+          GORIQ_PC_APPROVED_REVISION: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [[ "$(git rev-parse HEAD)" != "$GITHUB_SHA" ]]; then
+            printf '%s\n' 'ZBOOK_WAKE_SOURCE_REVISION_MISMATCH' >&2
+            exit 1
+          fi
+          node scripts/goriq-pc-approved-source.mjs
+      - name: Send bounded Wake-on-LAN to ZBook
+        id: wake
+        shell: bash
+        working-directory: goriq-zbook-wake-source-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          mkdir -p .gai-results
+          bash scripts/wake-zbook-from-macbook.sh 192.168.0.169 | tee .gai-results/zbook-wake-status.json
       - name: Upload wake evidence
-        if: always()
+        if: ${{ always() && steps.source_precheck.outcome == 'success' && steps.source_checkout.outcome == 'success' && steps.approved_source.outcome == 'success' && (steps.wake.outcome == 'success' || steps.wake.outcome == 'failure' || steps.wake.outcome == 'cancelled') }}
         uses: actions/upload-artifact@v4
         with:
           name: zbook-wake-evidence
-          path: ~/Library/Application Support/GAIWorker/zbook-wake-status.json
+          path: goriq-zbook-wake-source-${{ github.run_id }}-${{ github.run_attempt }}/.gai-results/zbook-wake-status.json
           if-no-files-found: warn
           retention-days: 30
