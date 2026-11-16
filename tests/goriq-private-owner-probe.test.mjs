@@ -110,5 +110,5 @@ test('owner probe pure suite and in-memory supervised child fixtures', { timeout
   assert.ok(existsSync(file), 'reviewed metadata probe and executable tests are required');
   const shell = process.platform === 'win32' ? 'powershell.exe' : 'pwsh';
   const result = spawnSync(shell, ['-NoLogo', '-NoProfile', '-NonInteractive', '-File', file], { encoding: 'utf8', timeout: 55000, windowsHide: true });
-  assert.equal(result.status, 0, result.stderr); assert.equal(result.stderr, ''); assert.match(result.stdout, /TOTAL_PASS=\d+/);
+  assert.equal(result.status, 0, result.stderr + '\n' + result.stdout.slice(-6000)); assert.equal(result.stderr, ''); assert.match(result.stdout, /TOTAL_PASS=\d+/);
 });
