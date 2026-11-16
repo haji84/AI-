@@ -9,6 +9,37 @@ using System.Security.Principal;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using Microsoft.Win32.SafeHandles;
+public enum GoriqBridgeInitializationPhase {
+ PRIVATE_IDENTITY_UNAVAILABLE,
+ PRIVATE_ENVIRONMENT_UNAVAILABLE,
+ PRIVATE_ANCESTRY_UNAVAILABLE,
+ PRIVATE_PARENT_UNAVAILABLE,
+ PRIVATE_LAYOUT_UNAVAILABLE,
+ PRIVATE_CONTEXT_UNAVAILABLE
+}
+public enum GoriqBridgePrivateGuardReason {
+ PRIVATE_PATH_UNVERIFIED,
+ PRIVATE_LOCAL_STORAGE_UNAVAILABLE,
+ PRIVATE_NATIVE_OPEN_UNAVAILABLE,
+ PRIVATE_FILE_METADATA_UNVERIFIED,
+ PRIVATE_FINAL_PATH_UNVERIFIED,
+ PRIVATE_OWNER_UNVERIFIED,
+ PRIVATE_DACL_UNVERIFIED,
+ PRIVATE_CREATE_UNAVAILABLE
+}
+public sealed class GoriqBridgePrivateGuardException : IOException {
+ public string Code {get; private set;}
+ public GoriqBridgePrivateGuardException(GoriqBridgePrivateGuardReason reason)
+  : base("BRIDGE_PRIVATE_GUARD_REFUSED"){Code=reason.ToString();}
+}
+public sealed class GoriqBridgeInitializationException : IOException {
+ public string PhaseCode {get; private set;}
+ public GoriqBridgeInitializationException(GoriqBridgeInitializationPhase phase,Exception inner)
+  : base("BRIDGE_INITIALIZATION_REFUSED",inner){
+   var guard=inner as GoriqBridgePrivateGuardException;
+   PhaseCode=guard==null?phase.ToString():guard.Code;
+  }
+}
 public sealed class GoriqBridgeCapture : IDisposable {
  const uint FILE_SHARE_READ=1, FILE_SHARE_READWRITEDELETE=7, CREATE_NEW=1, OPEN_EXISTING=3;
  const uint READ_CONTROL=0x20000, READ_ATTRIBUTES=0x80, GENERIC_READ=0x80000000, GENERIC_WRITE=0x40000000;
@@ -36,6 +67,7 @@ public sealed class GoriqBridgeCapture : IDisposable {
  public string Root {get; private set;}
  public bool Preserved {get; private set;}
  static void Require(bool value){if(!value)throw new IOException("BRIDGE_ACQUISITION_REFUSED");}
+ static void Require(bool value,GoriqBridgePrivateGuardReason reason){if(!value)throw new GoriqBridgePrivateGuardException(reason);}
  void Budget(){Require(DateTime.UtcNow<deadline);}
  static bool Within(string parent,string path){return path.Equals(parent,StringComparison.OrdinalIgnoreCase)||path.StartsWith(parent.TrimEnd('\\')+"\\",StringComparison.OrdinalIgnoreCase);}
  public static bool CanonicalLocalPath(string path) {
@@ -57,32 +89,32 @@ public sealed class GoriqBridgeCapture : IDisposable {
   return AcePermitted(who,mask,false,true,null);
  }
  byte[] Security(SafeFileHandle handle,bool privacy,bool runtime=false,bool runtimeDirectory=false,bool volumeRoot=false) {
-  IntPtr owner,group,dacl,sacl,descriptor;Require(GetSecurityInfo(handle,1,5,out owner,out group,out dacl,out sacl,out descriptor)==0&&descriptor!=IntPtr.Zero);
+  IntPtr owner,group,dacl,sacl,descriptor;Require(GetSecurityInfo(handle,1,5,out owner,out group,out dacl,out sacl,out descriptor)==0&&descriptor!=IntPtr.Zero,GoriqBridgePrivateGuardReason.PRIVATE_DACL_UNVERIFIED);
   try {
-   uint size=GetSecurityDescriptorLength(descriptor);Require(size>0&&size<=65536);byte[] bytes=new byte[size];Marshal.Copy(descriptor,bytes,0,(int)size);
-   var sd=new RawSecurityDescriptor(bytes,0);Require(sd.Owner!=null&&sd.DiscretionaryAcl!=null&&(sd.ControlFlags&ControlFlags.DiscretionaryAclPresent)!=0);
-   if(privacy)Require(sd.Owner.Value==sid);
-   if(runtime)Require(sd.Owner.Value=="S-1-5-18"||sd.Owner.Value=="S-1-5-32-544"||sd.Owner.Value=="S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464");
+   uint size=GetSecurityDescriptorLength(descriptor);Require(size>0&&size<=65536,GoriqBridgePrivateGuardReason.PRIVATE_DACL_UNVERIFIED);byte[] bytes=new byte[size];Marshal.Copy(descriptor,bytes,0,(int)size);
+   var sd=new RawSecurityDescriptor(bytes,0);Require(sd.Owner!=null&&sd.DiscretionaryAcl!=null&&(sd.ControlFlags&ControlFlags.DiscretionaryAclPresent)!=0,GoriqBridgePrivateGuardReason.PRIVATE_DACL_UNVERIFIED);
+   if(privacy)Require(sd.Owner.Value==sid,GoriqBridgePrivateGuardReason.PRIVATE_OWNER_UNVERIFIED);
+   if(runtime)Require(sd.Owner.Value=="S-1-5-18"||sd.Owner.Value=="S-1-5-32-544"||sd.Owner.Value=="S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464",GoriqBridgePrivateGuardReason.PRIVATE_OWNER_UNVERIFIED);
    foreach(GenericAce ace in sd.DiscretionaryAcl) {
     if((ace.AceFlags&AceFlags.InheritOnly)!=0)continue;
-    var known=ace as QualifiedAce;Require(known!=null&&!known.IsCallback);
+    var known=ace as QualifiedAce;Require(known!=null&&!known.IsCallback,GoriqBridgePrivateGuardReason.PRIVATE_DACL_UNVERIFIED);
     if(known.AceQualifier!=AceQualifier.AccessAllowed)continue;
     string who=known.SecurityIdentifier.Value;
-    Require(runtimeDirectory?RuntimeDirectoryAcePermitted(who,(uint)known.AccessMask,volumeRoot):AcePermitted(who,(uint)known.AccessMask,privacy,runtime,sid));
+    Require(runtimeDirectory?RuntimeDirectoryAcePermitted(who,(uint)known.AccessMask,volumeRoot):AcePermitted(who,(uint)known.AccessMask,privacy,runtime,sid),GoriqBridgePrivateGuardReason.PRIVATE_DACL_UNVERIFIED);
    }
    return bytes;
   } finally{if(descriptor!=IntPtr.Zero)LocalFree(descriptor);}
  }
  Info Inspect(SafeFileHandle handle,string path,bool directory,bool privacy,bool runtime=false) {
-  Require(!handle.IsInvalid);Info i;Require(GetFileInformationByHandle(handle,out i));
-  Require((i.attributes&REPARSE)==0&&((i.attributes&DIRECTORY)!=0)==directory);
-  if(!directory)Require(i.links==1);
+  Require(!handle.IsInvalid,GoriqBridgePrivateGuardReason.PRIVATE_NATIVE_OPEN_UNAVAILABLE);Info i;Require(GetFileInformationByHandle(handle,out i),GoriqBridgePrivateGuardReason.PRIVATE_FILE_METADATA_UNVERIFIED);
+  Require((i.attributes&REPARSE)==0&&((i.attributes&DIRECTORY)!=0)==directory,GoriqBridgePrivateGuardReason.PRIVATE_FILE_METADATA_UNVERIFIED);
+  if(!directory)Require(i.links==1,GoriqBridgePrivateGuardReason.PRIVATE_FILE_METADATA_UNVERIFIED);
   var final=new StringBuilder(1024);uint count=GetFinalPathNameByHandle(handle,final,1024,0);
-  Require(count>0&&count<1024&&String.Equals(final.ToString(),"\\\\?\\"+path,StringComparison.OrdinalIgnoreCase));
+  Require(count>0&&count<1024&&String.Equals(final.ToString(),"\\\\?\\"+path,StringComparison.OrdinalIgnoreCase),GoriqBridgePrivateGuardReason.PRIVATE_FINAL_PATH_UNVERIFIED);
   Security(handle,privacy,runtime,runtime&&directory,directory&&path.Equals(Path.GetPathRoot(path),StringComparison.OrdinalIgnoreCase));return i;
  }
  SafeFileHandle Open(string path,bool directory,bool privacy,bool runtime=false,uint access=READ_CONTROL|READ_ATTRIBUTES,uint share=FILE_SHARE_READ) {
-  Budget();Require(CanonicalLocalPath(path));var drive=new DriveInfo(Path.GetPathRoot(path));Require(drive.IsReady&&drive.DriveType==DriveType.Fixed&&drive.DriveFormat=="NTFS");
+  Budget();Require(CanonicalLocalPath(path),GoriqBridgePrivateGuardReason.PRIVATE_PATH_UNVERIFIED);var drive=new DriveInfo(Path.GetPathRoot(path));Require(drive.IsReady&&drive.DriveType==DriveType.Fixed&&drive.DriveFormat=="NTFS",GoriqBridgePrivateGuardReason.PRIVATE_LOCAL_STORAGE_UNAVAILABLE);
   var handle=CreateFileW(path,access,share,IntPtr.Zero,OPEN_EXISTING,BACKUP|OPEN_REPARSE,IntPtr.Zero);
   try{Inspect(handle,path,directory,privacy,runtime);held.Add(handle);return handle;}catch{handle.Dispose();throw;}
  }
@@ -95,26 +127,32 @@ public sealed class GoriqBridgeCapture : IDisposable {
  static long Size(Info i){return ((long)i.sizeHigh<<32)|i.sizeLow;}
  static string Identity(Info i){return i.volume+":"+i.indexHigh+":"+i.indexLow+":"+Size(i)+":"+i.writeHigh+":"+i.writeLow+":"+i.creationHigh+":"+i.creationLow+":"+i.attributes+":"+i.links;}
  string DirectoryNew(string parent,string leaf) {
-  string path=Path.Combine(parent,leaf);Require(CreateDirectoryW(path,IntPtr.Zero));Open(path,true,true,false,READ_CONTROL|READ_ATTRIBUTES,FILE_SHARE_READWRITEDELETE);return path;
+  string path=Path.Combine(parent,leaf);Require(CreateDirectoryW(path,IntPtr.Zero),GoriqBridgePrivateGuardReason.PRIVATE_CREATE_UNAVAILABLE);Open(path,true,true,false,READ_CONTROL|READ_ATTRIBUTES,FILE_SHARE_READWRITEDELETE);return path;
  }
  public GoriqBridgeCapture(string run,string attempt) {
+  GoriqBridgeInitializationPhase phase=GoriqBridgeInitializationPhase.PRIVATE_IDENTITY_UNAVAILABLE;
+  try {
   Require(Environment.OSVersion.Platform==PlatformID.Win32NT);
   using(var identity=WindowsIdentity.GetCurrent()){Require(!identity.IsSystem&&!identity.IsAnonymous&&identity.ImpersonationLevel!=TokenImpersonationLevel.Impersonation&&identity.ImpersonationLevel!=TokenImpersonationLevel.Delegation);sid=identity.User.Value;}
+  phase=GoriqBridgeInitializationPhase.PRIVATE_ENVIRONMENT_UNAVAILABLE;
   profile=Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);string local=Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
   Require(profile==Environment.GetEnvironmentVariable("USERPROFILE")&&local==Environment.GetEnvironmentVariable("LOCALAPPDATA")&&CanonicalLocalPath(profile)&&CanonicalLocalPath(local)&&Within(profile,local));
   source=Path.Combine(local,"GAIWorker","goal-1218-bridge-state");
   string workspace=Environment.GetEnvironmentVariable("GITHUB_WORKSPACE");Require(CanonicalLocalPath(workspace));
   string parent=Path.Combine(profile,".goriq-handoff");
   Require(!Within(workspace,parent)&&!Within(parent,workspace)&&!Within(source,parent)&&!Within(parent,source));
-  try {
+   phase=GoriqBridgeInitializationPhase.PRIVATE_ANCESTRY_UNAVAILABLE;
    Ancestors(profile,true);
    // An existing protected parent is used as-is; a missing handoff directory
    // may inherit the already verified private profile DACL. Never repair ACLs.
+   phase=GoriqBridgeInitializationPhase.PRIVATE_PARENT_UNAVAILABLE;
    if(Directory.Exists(parent))Open(parent,true,true,false,READ_CONTROL|READ_ATTRIBUTES,FILE_SHARE_READWRITEDELETE);else parent=DirectoryNew(profile,".goriq-handoff");
+   phase=GoriqBridgeInitializationPhase.PRIVATE_LAYOUT_UNAVAILABLE;
    Root=DirectoryNew(parent,"1219-original-inspection-"+run+"-"+attempt);
    DirectoryNew(Root,"raw");DirectoryNew(Root,"work");
+   phase=GoriqBridgeInitializationPhase.PRIVATE_CONTEXT_UNAVAILABLE;
    WritePrivate("context.txt",Encoding.UTF8.GetBytes("owner="+sid+"\nprofile="+profile+"\nsource="+source+"\nrevision="+Environment.GetEnvironmentVariable("GITHUB_SHA")+"\nrun="+run+"\nattempt="+attempt+"\nacquired="+DateTime.UtcNow.ToString("o")));
-  }catch{Dispose();throw;}
+  }catch(Exception error){Dispose();throw new GoriqBridgeInitializationException(phase,error);}
  }
  public void WritePrivate(string name,byte[] bytes) {
   Budget();Require(name==Path.GetFileName(name)&&bytes.Length<=16*1024*1024);

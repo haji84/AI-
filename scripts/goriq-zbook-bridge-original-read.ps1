@@ -19,9 +19,34 @@ function Assert-GoriqBridgeContext {
   $env:GITHUB_SHA -cnotmatch '^[a-f0-9]{40}\z' -or $env:GITHUB_RUN_ID -cnotmatch '^[1-9][0-9]{0,19}\z' -or $env:GITHUB_RUN_ATTEMPT -cnotmatch '^[1-9][0-9]{0,19}\z' -or
   $env:GORIQ_ZBOOK_BRIDGE_ORIGINAL_ONLY -cne 'true' -or $env:GORIQ_ZBOOK_NATIVE_ONLY -cne 'false' -or $env:GORIQ_ZBOOK_RUNNER_ONLY -cne 'false'){throw 'REFUSED'}
 }
-function New-GoriqBridgeCapture([string]$Source) {
+function Initialize-GoriqBridgeNative([string]$Source) {
  $null=Add-Type -TypeDefinition $Source -Language CSharp -ErrorAction Stop
+}
+function New-GoriqBridgeNativeInstance {
  return [GoriqBridgeCapture]::new($env:GITHUB_RUN_ID,$env:GITHUB_RUN_ATTEMPT)
+}
+function New-GoriqBridgeCapture([string]$Source,[ref]$InitializationFailure) {
+ if($null -ne $InitializationFailure){$InitializationFailure.Value='NATIVE_BUILD_UNAVAILABLE'}
+ Initialize-GoriqBridgeNative $Source
+ if($null -ne $InitializationFailure){$InitializationFailure.Value='PRIVATE_STORAGE_UNAVAILABLE'}
+ return New-GoriqBridgeNativeInstance
+}
+function Get-GoriqBridgeInitializationFailure([Exception]$Exception) {
+ $allowed=@('PRIVATE_IDENTITY_UNAVAILABLE','PRIVATE_ENVIRONMENT_UNAVAILABLE','PRIVATE_ANCESTRY_UNAVAILABLE','PRIVATE_PARENT_UNAVAILABLE','PRIVATE_LAYOUT_UNAVAILABLE','PRIVATE_CONTEXT_UNAVAILABLE','PRIVATE_PATH_UNVERIFIED','PRIVATE_LOCAL_STORAGE_UNAVAILABLE','PRIVATE_NATIVE_OPEN_UNAVAILABLE','PRIVATE_FILE_METADATA_UNVERIFIED','PRIVATE_FINAL_PATH_UNVERIFIED','PRIVATE_OWNER_UNVERIFIED','PRIVATE_DACL_UNVERIFIED','PRIVATE_CREATE_UNAVAILABLE')
+ $captureType='GoriqBridgeCapture' -as [type]
+ if($null -eq $captureType){return 'PRIVATE_STORAGE_UNAVAILABLE'}
+ $expected=$captureType.Assembly.GetType('GoriqBridgeInitializationException',$false,$false)
+ if($null -eq $expected){return 'PRIVATE_STORAGE_UNAVAILABLE'}
+ # Only the source-owned CLR exception can supply a constructor checkpoint.
+ # Raw messages, Data, HResult and lookalike properties are never reflected.
+ for($depth=0;$depth -lt 8 -and $null -ne $Exception;$depth++){
+  if($Exception.GetType() -eq $expected){
+   if($Exception.PhaseCode -is [string] -and $Exception.PhaseCode -cin $allowed){return $Exception.PhaseCode}
+   return 'PRIVATE_STORAGE_UNAVAILABLE'
+  }
+  $Exception=$Exception.InnerException
+ }
+ return 'PRIVATE_STORAGE_UNAVAILABLE'
 }
 function Get-GoriqBridgeNode($Capture) {
  $node=$Capture.TrustedNode()
@@ -70,7 +95,7 @@ function Invoke-GoriqBridgeRead([byte[]]$QuerySource,[byte[]]$InventorySource,[s
  $result=New-GoriqBridgeSummary;$capture=$null;$failure='CONTEXT_INVALID'
  try {
   Assert-GoriqBridgeContext
-  $failure='PRIVATE_STORAGE_UNAVAILABLE';$capture=New-GoriqBridgeCapture $NativeSource
+  $failure='PRIVATE_STORAGE_UNAVAILABLE';$capture=New-GoriqBridgeCapture $NativeSource ([ref]$failure)
   $failure='SOURCE_ACQUISITION_INCOMPLETE';$capture.Acquire();if(-not $capture.Preserved){throw 'REFUSED'}
   $result.preserved=$true;$result.preservationMode='OBSERVED_STABLE_SHARED'
   $failure='INSTALLED_RUNTIME_UNAVAILABLE';$node=Get-GoriqBridgeNode $capture
@@ -78,6 +103,7 @@ function Invoke-GoriqBridgeRead([byte[]]$QuerySource,[byte[]]$InventorySource,[s
   $failure='COPIED_QUERY_UNVERIFIED';$capture.PrepareOutputs();$raw=Invoke-GoriqBridgeCopiedQuery $capture $node
   $result=ConvertFrom-GoriqBridgeSummary $raw;$result.preserved=$true;$result.preservationMode='OBSERVED_STABLE_SHARED'
  }catch{
+  if($failure -ceq 'PRIVATE_STORAGE_UNAVAILABLE'){$failure=Get-GoriqBridgeInitializationFailure $_.Exception}
   $result=New-GoriqBridgeSummary;$result.failureCode=$failure
   if($null -ne $capture){$result.preserved=[bool]$capture.Preserved;if($result.preserved){$result.preservationMode='OBSERVED_STABLE_SHARED'};try{$capture.WritePrivate('failure.txt',[Text.Encoding]::UTF8.GetBytes($_.ToString()))}catch{}}
  }finally{if($null -ne $capture){$capture.Dispose()}}
