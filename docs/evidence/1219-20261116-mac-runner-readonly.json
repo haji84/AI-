@@ -5,18 +5,18 @@
   "goalStatus": "NOT_ACHIEVED",
   "G1": "HOLD",
   "base": "8e59c962a2802dffff9f8e51fa41706fe028578c",
-  "implementationCommit": "fbf3c029a84a8cf6dadcc605c7d77c21e88cef9f",
+  "implementationCommit": "e4d0eabb047c54808eea21d56d5d2bc57c842a60",
   "actualImplementer": "Codex",
   "localModel": "NOT_RUN",
   "filesSha256": {
-    "scripts/goriq-zbook-runner-readonly.mjs": "b3fd321270132ee6660bd71278a8053751eaaed72316f6950c0f206d63ad396d",
+    "scripts/goriq-zbook-runner-readonly.mjs": "529b06020bf5329a9272bb220f4bc65ecd6d3b4ead611586efd5f2b51b1d06d7",
     ".github/workflows/goriq-pc-private-network-probe.yml": "bd19fb81e1e65e298c8326e5b5464a04783923e6490ccc43943124585c8fffde",
-    "tests/goriq-zbook-runner-readonly.test.mjs": "2cff610b6db1298023e1fe47e31474022b1e4223419c43d9ad1616aa4eef8c2d",
+    "tests/goriq-zbook-runner-readonly.test.mjs": "68ecbe3ac190503f681cbd89f588753bd1e48a70a9cf975202a53bf95f0c718a",
     "tests/goriq-zbook-runner-workflow.test.mjs": "53a305a7824d7ee635e96ffd098233e6c83f2f1f283a0814a64ef99962668e35"
   },
   "localAffected": {
-    "tests": 37,
-    "pass": 37,
+    "tests": 39,
+    "pass": 39,
     "fail": 0,
     "skip": 0
   },
@@ -60,5 +60,21 @@
     "fixed Windows process read; errors never absence"
   ],
   "identityBoundary": "Existing configured SSH destination and pins, not independent physical host identity or recovered original state",
-  "rollback": "Revert scoped source changes; retain failures/records; no runtime configuration to restore"
+  "rollback": "Revert scoped source changes; retain failures/records; no runtime configuration to restore",
+  "reviewFinding": {
+    "severity": "Important",
+    "problem": "Removed selected identity could restore OpenSSH default identities",
+    "correction": "Explicit IdentityFile=none plus selected identity; no alternative private identity fallback",
+    "regression": "Two RED-to-GREEN boundary cases plus Linux native config-only ssh-G before/after proof, no connection",
+    "status": "Fix verified by builder; independent scoped re-review pending"
+  },
+  "preFixRootFull": {
+    "head": "18125d26b932ea8164694805d5bfa16ce5275512",
+    "total": 4215,
+    "pass": 4189,
+    "fail": 0,
+    "skip": 26,
+    "durationMs": 230542.969926,
+    "finalSourceEvidence": false
+  }
 }
