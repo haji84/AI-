@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import test, { after } from 'node:test';
 import { readFileSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { createPowerShellFixtureBatch } from './helpers/powershell-fixture-batch.mjs';
 import { runInNewContext } from 'node:vm';
 import process from 'node:process';
 import { Buffer } from 'node:buffer';
@@ -27,7 +28,7 @@ const validReport={version:1,mode:'ORIGINAL_LOCATION_METADATA_ONLY',readOnly:tru
   configuredProductionPath:'UNAVAILABLE_WITHOUT_DECRYPTION',coverage:'READY_LOCAL_DRIVE_LETTERS_AND_FIXED_KNOWN_PATHS_ONLY',directoryMountedVolumes:'NOT_ENUMERATED',recursiveSearch:false,
   maxVolumes:32,maxCandidates:512,budgetSeconds:45,budgetScope:'CANDIDATE_METADATA',hardJobTimeoutMinutes:5,candidateLimitReached:false,volumeLimitReached:false,status:'METADATA_ONLY_COMPLETE',
   volumes:[{id:'volume-01',driveLetter:'C',driveType:'Fixed',ready:true,mediaType:'UNKNOWN'}],candidates:[{label:'checkout-default-jobs',status:'FILE',bytes:14}]};
-function fixture({env={},main=sha,runs,jobs,source,queryError=false,processes=['Runner.Listener','Runner.Worker','Runner.Worker.extra'],native=false,transport=true,report=validReport,httpError=false,sourceThrows=false,sourceError=false}={}) {
+function fixtureProgram({env={},main=sha,runs,jobs,source,queryError=false,processes=['Runner.Listener','Runner.Worker','Runner.Worker.extra'],native=false,transport=true,report=validReport,httpError=false,sourceThrows=false,sourceError=false}={}) {
   let script=body();
   const platform="[Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT";
   assert.equal(script.split(platform).length,2,'exact native boundary must remain testable');
@@ -55,16 +56,119 @@ function Get-Process { [CmdletBinding()] param()
   ${queryError?"Write-Error 'PRIVATE_PROCESS_FAILURE'":processes.map(name=>`[pscustomobject]@{ProcessName=${quote(name)}}`).join(';')}
 }
 `;
-  const root=mkdtempSync(join(tmpdir(),'actionfree-fixture-'));
-  const canary=join(root,'original.db');writeFileSync(canary,'PRIVATE_ORIGINAL_BYTES');
+  return {text:prefix+script,environment:{...context,...(!transport?{OS:process.env.OS??'Linux'}:{}),...env}};
+}
+// These 60 fixed inert options match the original per-process cases. Unknown
+// options refuse rather than adding unreviewed runspace/process contracts.
+const declaredRun={id:71,name:'CI',path:'.github/workflows/ci.yml',event:'push',head_branch:'main',head_sha:sha,status:'completed',conclusion:'success'};
+const declaredJobs=['repository-guard','project-checks','independent-verifier-container','windows-runtime-byte-fixtures'].map((name,id)=>({id:id+1,name,run_id:71,head_sha:sha,status:'completed',conclusion:'success'}));
+const caseOptions=[
+  ...Object.keys(context).map(key=>({env:{[key]:'untrusted'}})),
+  ...['0','-1','1.2','1/2','1\n','9'.repeat(21)].map(value=>({env:{GITHUB_RUN_ID:value}})),
+  ...['GITHUB_SHA','GITHUB_RUN_ATTEMPT'].map(key=>({env:{[key]:context[key]+'\n'}})),
+  {env:{GORIQ_ZBOOK_RUNNER_ONLY:'true'}},{native:true},{main:'b'.repeat(40)},{httpError:true},
+  ...[{head_sha:'b'.repeat(40)},{name:'other'},{path:'.github/workflows/other.yml'},{event:'workflow_dispatch'},{head_branch:'other'},{status:'in_progress'},{conclusion:'failure'}].map(change=>({runs:[{...declaredRun,...change}]})),
+  ...[declaredJobs.slice(0,3),[...declaredJobs,declaredJobs[0]],...[
+    {conclusion:'failure'},{status:'in_progress'},{head_sha:'b'.repeat(40)},{name:'other'},{run_id:72},{name:declaredJobs[1].name},
+  ].map(change=>declaredJobs.map((job,index)=>index?job:{...job,...change}))].map(jobs=>({jobs})),
+  {queryError:true},{processes:Array(65).fill('Runner.Worker')},
+  ...[{encoding:'utf8',content:'PRIVATE',size:4,type:'file'},{encoding:'base64',content:'!!!!',size:3,type:'file'},
+    {encoding:'base64',content:Buffer.from('PRIVATE_WRONG_SOURCE').toString('base64'),size:20,type:'file'},
+    {encoding:'base64',content:Buffer.alloc(65537).toString('base64'),size:65537,type:'file'},
+    {encoding:'base64',content:'A'.repeat(90001),size:65536,type:'file'},
+    {encoding:'base64',content:locator.toString('base64'),size:locator.length+1,type:'file'}].map(source=>({source})),
+  {},{processes:[]},{transport:false},{sourceThrows:true},{sourceError:true},
+  ...[null,'PRIVATE_MALFORMED',{...validReport,originalGoalRecovered:true},{...validReport,sourceRevision:'b'.repeat(40)},
+    {...validReport,candidates:[{label:'PRIVATE_PATH',status:'FILE',bytes:2}]},{...validReport,candidates:[{label:'checkout',status:'FILE',bytes:-1}]},
+    {...validReport,volumes:[{...validReport.volumes[0],driveLetter:'PRIVATE'}]},{...validReport,extra:'PRIVATE'}].map(report=>({report})),
+];
+const canonical=value=>Array.isArray(value)?value.map(canonical):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(key=>[key,canonical(value[key])])):value;
+const caseKey=value=>JSON.stringify(canonical(value));
+const batchEnabled=['linux','darwin'].includes(process.platform);
+let batchRoot,batchRun,batchCases;
+after(()=>{if(batchRoot)rmSync(batchRoot,{recursive:true,force:true});});
+function ensureBatch() {
+  if(batchRun)return;
+  assert.equal(caseOptions.length,60);assert.equal(new Set(caseOptions.map(caseKey)).size,60);
+  batchRoot=mkdtempSync(join(tmpdir(),'actionfree-fixture-batch-'));
+  batchCases=new Map();
+  const manifest=[];
+  for(const [index,options] of caseOptions.entries()) {
+    const scenario='case-'+String(index).padStart(2,'0');
+    const root=mkdtempSync(join(batchRoot,'case-')),file=join(root,'fixture.ps1'),canary=join(root,'original.db');
+    const program=fixtureProgram(options);writeFileSync(file,program.text);writeFileSync(canary,'PRIVATE_ORIGINAL_BYTES');
+    manifest.push({scenario,root,file,environment:{...program.environment,GITHUB_WORKSPACE:root}});
+    batchCases.set(caseKey(options),{scenario,root,file,canary});
+  }
+  const manifestFile=join(batchRoot,'cases.json');writeFileSync(manifestFile,JSON.stringify(manifest));
+  const wrapper=join(batchRoot,'batch.ps1');
+  writeFileSync(wrapper,`param([string]$Scenario,[string]$Manifest)
+$ErrorActionPreference='Stop'
+$cases=Get-Content -LiteralPath $Manifest -Raw | ConvertFrom-Json
+$case=@($cases | Where-Object { $_.scenario -ceq $Scenario })
+if($case.Count -ne 1) { throw 'PS_FIXTURE_CASE_UNKNOWN' }
+$case=$case[0]
+$initialEnvironment=[Environment]::GetEnvironmentVariables()
+$initialDirectory=[Environment]::CurrentDirectory
+$initialLocation=Get-Location
+$initialError=[Console]::Error
+$privateError=[IO.StringWriter]::new()
+$output=@();$exitStatus=0
+try {
+  foreach($property in $case.environment.PSObject.Properties) { [Environment]::SetEnvironmentVariable($property.Name,[string]$property.Value) }
+  [Environment]::CurrentDirectory=$case.root
+  Set-Location -LiteralPath $case.root
+  [Console]::SetError($privateError)
+  $caseError=[Console]::Error
+  $caseEnvironment=[Environment]::GetEnvironmentVariables()
+  $output=@(& $case.file)
+  if($null -ne $LASTEXITCODE) { $exitStatus=[int]$LASTEXITCODE }
+  $currentEnvironment=[Environment]::GetEnvironmentVariables()
+  $changed=$currentEnvironment.Count -ne $caseEnvironment.Count -or [Environment]::CurrentDirectory -cne $case.root -or
+    (Get-Location).Path -cne $case.root -or -not [object]::ReferenceEquals([Console]::Error,$caseError)
+  foreach($key in $caseEnvironment.Keys) {
+    if(-not $currentEnvironment.Contains($key) -or $currentEnvironment[$key] -cne $caseEnvironment[$key]) { $changed=$true }
+  }
+  if($changed) { throw 'PS_FIXTURE_CASE_STATE_CHANGED' }
+} finally {
+  [Console]::SetError($initialError)
+  foreach($key in @([Environment]::GetEnvironmentVariables().Keys)) {
+    if(-not $initialEnvironment.Contains($key)) { [Environment]::SetEnvironmentVariable([string]$key,[NullString]::Value) }
+  }
+  foreach($key in $initialEnvironment.Keys) { [Environment]::SetEnvironmentVariable([string]$key,[string]$initialEnvironment[$key]) }
+  Set-Location -LiteralPath $initialLocation.Path
+  [Environment]::CurrentDirectory=$initialDirectory
+}
+$stdout=($output -join "\`n");if($output.Count -gt 0){$stdout+="\`n"}
+$stderr=$privateError.ToString();$privateError.Dispose()
+# The envelope preserves the child script's exit/result; the wrapper itself
+# succeeds only after restoring the process state checked by the generic helper.
+$LASTEXITCODE=0
+[ordered]@{status=$exitStatus;stdout=$stdout;stderr=$stderr}|ConvertTo-Json -Compress
+`);
+  batchRun=createPowerShellFixtureBatch({shell:'pwsh',fixture:wrapper,scenarios:manifest.map(row=>row.scenario),parameters:{Manifest:manifestFile},timeoutMs:10000});
+}
+function fixture(options={}) {
+  let root,file,canary,result;
+  if(batchEnabled) {
+    ensureBatch();
+    const entry=batchCases.get(caseKey(options));assert.ok(entry,'PS_FIXTURE_CASE_UNKNOWN');
+    ({root,file,canary}=entry);
+    const wire=batchRun(entry.scenario);assert.equal(wire.status,0,wire.stdout+wire.stderr);assert.equal(wire.stderr,'');
+    result=JSON.parse(wire.stdout);assert.deepEqual(Object.keys(result),['status','stdout','stderr']);
+    assert.ok(Number.isInteger(result.status));assert.equal(typeof result.stdout,'string');assert.equal(typeof result.stderr,'string');
+  } else {
+    // Native Windows contracts keep the original fresh-process boundary.
+    root=mkdtempSync(join(tmpdir(),'actionfree-fixture-'));file=join(root,'fixture.ps1');canary=join(root,'original.db');
+    const program=fixtureProgram(options);writeFileSync(file,program.text);writeFileSync(canary,'PRIVATE_ORIGINAL_BYTES');
+    result=spawnSync('pwsh',['-NoLogo','-NoProfile','-NonInteractive','-File',file],
+      {encoding:'utf8',timeout:10000,maxBuffer:262144,cwd:root,env:{...process.env,GITHUB_WORKSPACE:root,...program.environment}});
+  }
   try {
-    const file=join(root,'fixture.ps1');writeFileSync(file,prefix+script);
-    const result=spawnSync('pwsh',['-NoLogo','-NoProfile','-NonInteractive','-File',file],
-      {encoding:'utf8',timeout:10000,maxBuffer:262144,cwd:root,env:{...process.env,...context,GITHUB_WORKSPACE:root,...(!transport?{OS:process.env.OS??'Linux'}:{}),...env}});
     assert.equal(result.error,undefined);assert.equal(readFileSync(canary,'utf8'),'PRIVATE_ORIGINAL_BYTES');
     assert.doesNotMatch(result.stdout,/PRIVATE|actionfree-fixture|api\.github|original\.db|Get-Process/);
     return {...result,http:(result.stderr.match(/FIXTURE_HTTP/g)||[]).length,process:(result.stderr.match(/FIXTURE_PROCESS/g)||[]).length,source:(result.stderr.match(/FIXTURE_SOURCE/g)||[]).length};
-  }finally{rmSync(root,{recursive:true,force:true});}
+  }finally{if(!batchEnabled)rmSync(root,{recursive:true,force:true});}
 }
 function refused(result,{http,process:queries=0,source=0,counts=false}={}) {
   assert.equal(result.status,1,result.stdout+result.stderr);
