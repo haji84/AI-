@@ -1,3 +1,11 @@
+# 2026-11-16: PR1920 exact-head timeout and measured fixture recovery
+
+Original Goal/Job remains **NOT_ACHIEVED / G1 HOLD**. Main remains4a1af669. [PR1920 candidate12e9762 CI43779096147](https://github.com/haji84/AI-/actions/runs/43779096147) failed restricted Unit at300011.450ms/ETIMEDOUT; other3jobs succeeded, only3check receipt is valid, remaining3checks did not execute. [Preserved failure/diagnosis](https://github.com/haji84/AI-/issues/1219#issuecomment-6903934201). No unchanged retry, protection bypass or physicalZBook scan occurred. Ordinary full4187/4161PASS/0FAIL/26skip and source review do not replace required independent6checks.
+
+Next source recovery changes only the existing installer test launch helper on Linux:15 inert public filesystem cases use existing fresh runspaces, preserving every callback/assertion/loop and fixture/production bytes. Windows, CLI and process contracts keep their original native route. Full15JSON values/status/stderr match; rawJSON property order differs. One local serialized measurement7748.476ms→1607.717ms saves6140.759ms, not demonstrated hostedCI margin. Limits/concurrency/source security guards are unchanged. NewHEAD CI and exactmain/native metadata inspection remain required; follow current Issue1219 results. No original recreation, permission/credential/service mutation or model success. [Scope and retained failure](../evidence/1219-20261116-zbook-original-location.json).
+
+---
+
 # 2026-11-16: bounded ZBook / attached-storage original-location continuation
 
 Original `goal-fcc81c97e09153f7` / `rotation-recovery-37` remains **NOT_ACHIEVED / G1 HOLD**. Start from protected main `4a1af669b68f1c82f3c8d3a5516070bfe28ae31f`, PR1919 merged. Exact-main CI43768862993 attempt2 passed; attempt1 Unit timeout is retained. The expired receipt is historical verification, not current runtime authority. [Latest bounded storage investigation](https://github.com/haji84/AI-/issues/1219#issuecomment-6903697279).
