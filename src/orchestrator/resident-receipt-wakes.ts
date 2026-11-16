@@ -3,6 +3,17 @@ import { GoalVerifierReceiptWake } from "./goal-verifier-receipt-wake.ts";
 import { readResidentExecutionManifest } from "./resident-execution-manifest.ts";
 import { readTrackedRepairManifest } from "./tracked-repair-resident-runtime.ts";
 
+/** Trusted host cadence only: it never enables a profile or grants authority.
+ * Keep the existing production default; at most one poll per second. */
+export function residentReceiptPollIntervalMs(env: Record<string, string | undefined>): number {
+  const value = env.GORIQ_VERIFIER_RECEIPT_POLL_MS;
+  if (value === undefined) return 15000;
+  if (typeof value !== "string" || !/^[1-9]\d{3,4}$/.test(value)) throw Error("VERIFIER_RECEIPT_POLL_INTERVAL_INVALID");
+  const interval = Number(value);
+  if (interval < 1000 || interval > 15000) throw Error("VERIFIER_RECEIPT_POLL_INTERVAL_INVALID");
+  return interval;
+}
+
 /** File changes only wake existing accepted work. The executor verifies all authority. */
 export function createResidentReceiptWakes(env: Record<string, string | undefined>, runtimeRoot: string): GoalVerifierReceiptWake[] {
   if (env.GORIQ_TRACKED_REPAIR_MANIFEST_FILE || env.GORIQ_TRACKED_REPAIR_MANIFEST_SHA256) {

@@ -959,7 +959,7 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "5188d566f34a0d5efd846a370f1aa345bf02225b56b818e7b40fdfd189e2b232",
+      "sha256": "69f3ed3d8726b61cab0ff0abc3d089a119a2d905df55a2946eb7ca4a2d1c11c7",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-003",
@@ -6602,7 +6602,7 @@
     },
     {
       "path": "src/orchestrator/resident-receipt-wakes.ts",
-      "sha256": "fc94e8d35fd11c0823e8e3ca7d243f601b5cbe20e29cba014469bfc266fdffab",
+      "sha256": "57d9cf81191154e3ac14a3e0d06211d54cb84c87a292d155e92d62d7549fdae5",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",

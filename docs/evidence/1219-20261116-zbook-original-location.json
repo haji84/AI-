@@ -44,7 +44,9 @@
     "full": "Before harness correction:4187 total/4161PASS/0FAIL/26existingSKIP229886.265938ms under process-onlyumask022. Initial077 failure2 retained; exact-parent32-case confirmation performed. Final harness full rerun required.",
     "independentReview": "No unresolved material findings; final affected8PASS overlapping root10; extra context8/unsafe6/budget0/source-metadata6/cap coverage fixtures PASS. Linux/pwsh7.6.9 only; Windows5.1/native ACL NOT_RUN.",
     "build": "PASS",
-    "loopbackHealth": "PASS on metadata candidate12e9762 before test-only correction; application sources unchanged"
+    "loopbackHealth": "PASS on metadata candidate12e9762 before test-only correction; application sources unchanged",
+    "beforeCadenceFull": "ebef4a5:4187total4161PASS0FAIL26skip239116.376111ms",
+    "currentCadenceFull": "PENDING at authoring checkpoint"
   },
   "knownLimitations": [
     "Metadata can establish neither original match nor original absence",
@@ -77,6 +79,31 @@
       "artifactId": 14188110935,
       "zipSha256": "080ea5c20cf0efa183a1831c7063ef1fe9edbc6a250ac38cbbd06b60569e0d4d",
       "issueWriteback": "https://github.com/haji84/AI-/issues/1219#issuecomment-6903934201"
+    },
+    {
+      "head": "ebef4a51281e55a03d9d57f89b4c83596b544c6a",
+      "run": 43781008729,
+      "attempt": 1,
+      "overall": "FAILURE",
+      "otherThreeJobs": "SUCCESS",
+      "unit": {
+        "status": "INCONCLUSIVE",
+        "timeoutMs": 300000,
+        "durationMs": 300008.241526,
+        "reason": "ETIMEDOUT/SIGKILL",
+        "completedTopLevelMarkers": 3857,
+        "completeFooter": false
+      },
+      "remainingChecks": "integration/security/build NOT_EXECUTED",
+      "partialAudit": "Valid fresh exactly3record Ed25519/source/output/image4context/cgroup2CPU2GiB128PIDs/cleanup; not6PASS",
+      "artifactId": 14187674531,
+      "zipSha256": "2fcd577ff787cbaf8bb35f4957c64670b7f70d03731c813feabab049af397985",
+      "actualInstallerCaseMs": 2557.600964,
+      "previousInstallerCaseMs": 11290.130234,
+      "changedBrokerSuiteMs": 35393.175787,
+      "previousBrokerSuiteMs": 20531.079066,
+      "extraPollCause": "HYPOTHESIS_NOT_PROVEN_FOR_CI",
+      "issueWriteback": "https://github.com/haji84/AI-/issues/1219#issuecomment-6904242649"
     }
   ],
   "recovery": {
@@ -95,5 +122,26 @@
     "nativeWindows": "Original separate processes retained; fixture does not test live Production or DPAPI",
     "newTestsOrSkippedTests": 0,
     "resourceOrTimeLimitChanges": 0
+  },
+  "receiptCadenceRecovery": {
+    "scope": "Pure trusted-host cadence resolver in existing receipt-wake helper and existing Broker timer argument; production default preserved",
+    "config": "GORIQ_VERIFIER_RECEIPT_POLL_MS",
+    "defaultMs": 15000,
+    "strictRangeMs": [
+      1000,
+      15000
+    ],
+    "invalidDefinedValues": "reject, no coercion",
+    "fixtureOptInMs": 1000,
+    "sourceCallbackGuards": "byte-exact except interval argument; validation/signatures/manifest/Goal/stop/approval and activeexecution guards unchanged",
+    "frozenExistingDescribeThroughEofSha256": "69f2bb361532eb7a88762154c65a75101bc8faa5a4556810b0069418c6d7db49",
+    "fakeClock": false,
+    "realProcessesAndRestart": true,
+    "localPhaseBaseline": "Exactunchanged2casesPASS with original15000ms; receiptB→pollwait12933/12672ms, startup<700ms/shutdown<30ms,2CPUaffinity not actualCI",
+    "localRedGreen": "2newparserRED; affectedrealBroker+receipt7PASS, two originalvariants7094/7169ms, not controlledwholeCIperformance comparison",
+    "ioBound": "1Hz maximum per existing receipt path;24KiB is nominal stable-file bound, not hard adversarial read cap; preexistinglstat/read race not changed",
+    "liveProductionConfigurationChanges": 0,
+    "newControllerOrState": false,
+    "requiredNext": "Fresh exactHEAD protectedCI/mainCI and nativeZBook run, originalGoalHOLD"
   }
 }

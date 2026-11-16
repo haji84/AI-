@@ -1,3 +1,13 @@
+# 2026-11-16: real receipt polling cadence after second CI timeout
+
+Original Goal/Job remains **NOT_ACHIEVED / G1 HOLD**, main4a1af669 unchanged. [PR1920 ebef4a5 CI43781008729](https://github.com/haji84/AI-/actions/runs/43781008729) also timed out restrictedUnit300008.242ms, other3jobs succeeded and3record partialcrypto/source/cleanup is valid; no6checkPASS. [Preserved result](https://github.com/haji84/AI-/issues/1219#issuecomment-6904242649). Installer correction actually saved8.733s withinCI, while an unchangedBroker fixture grew~14.862s; CIcause remains unproven. No unchangedretry.
+
+A phase-only local run of the exact old2variant fixture showed receiptB waited12.7–12.9s for the existing15000ms timer, startup<0.7s/stop<0.03s. This supports polling latency, not exactCI cause. The source recovery adds a validated trusted-host `GORIQ_VERIFIER_RECEIPT_POLL_MS` in the existing receipt helper: missing→existing15000ms, canonical integers1000..15000 accepted, invaliddefinedvalues reject. Only the existingBroker interval argument changes. All signatures/Goal/stop/approval/manifest/activeexecution guards remain unchanged; selecting cadence alone enables no wake/profile. No livehost config or runtime activation.1Hz bounds polling frequency;24KiB is only the existing nominal stablefile size check, not an adversarial I/O cap.
+
+The isolated testworker selects1000 before its unchanged describe/callback/assertion/nativeprocess/restart/signing body and restoresenv afterward. It uses actual timers and realBroker children, no fakeclock/manualwake. Newparser2RED→affected7PASS, originalvariants~7.1s locally; exactnewHEAD/fullCI/mainCI/native metadata stillrequired. [Evidence and earlier attempts](../evidence/1219-20261116-zbook-original-location.json). No model/originalGoal success, newController, credential/permission change or sourceauthority weakening. Rollback must revert dependent helper/import/timer/testconfig together through normalprotection. Earlierauthoring checkpoints below are historical.
+
+---
+
 # 2026-11-16: PR1920 exact-head timeout and measured fixture recovery
 
 Original Goal/Job remains **NOT_ACHIEVED / G1 HOLD**. Main remains4a1af669. [PR1920 candidate12e9762 CI43779096147](https://github.com/haji84/AI-/actions/runs/43779096147) failed restricted Unit at300011.450ms/ETIMEDOUT; other3jobs succeeded, only3check receipt is valid, remaining3checks did not execute. [Preserved failure/diagnosis](https://github.com/haji84/AI-/issues/1219#issuecomment-6903934201). No unchanged retry, protection bypass or physicalZBook scan occurred. Ordinary full4187/4161PASS/0FAIL/26skip and source review do not replace required independent6checks.
