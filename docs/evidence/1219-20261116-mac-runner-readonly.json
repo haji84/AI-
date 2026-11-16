@@ -10,15 +10,18 @@
   "localModel": "NOT_RUN",
   "filesSha256": {
     "scripts/goriq-zbook-runner-readonly.mjs": "529b06020bf5329a9272bb220f4bc65ecd6d3b4ead611586efd5f2b51b1d06d7",
-    ".github/workflows/goriq-pc-private-network-probe.yml": "bd19fb81e1e65e298c8326e5b5464a04783923e6490ccc43943124585c8fffde",
+    ".github/workflows/goriq-pc-private-network-probe.yml": "7737d3906abf9c2849d96cac56b21261c159b8efd8d85cad14f61ef5ad3ec9bb",
     "tests/goriq-zbook-runner-readonly.test.mjs": "68ecbe3ac190503f681cbd89f588753bd1e48a70a9cf975202a53bf95f0c718a",
-    "tests/goriq-zbook-runner-workflow.test.mjs": "53a305a7824d7ee635e96ffd098233e6c83f2f1f283a0814a64ef99962668e35"
+    "tests/goriq-zbook-runner-workflow.test.mjs": "53a305a7824d7ee635e96ffd098233e6c83f2f1f283a0814a64ef99962668e35",
+    "tests/goriq-zbook-native-actionfree.test.mjs": "0d376ffda5cc3965446748d6b6cb4665e778de96d0a4c84b3e0a6977959b9d71",
+    "scripts/goriq-zbook-original-state-locator.ps1": "a7ca4f50c60a6da54feab92f14f50308899858ff7e932b85d6eb971707748590"
   },
   "localAffected": {
-    "tests": 39,
-    "pass": 39,
+    "tests": 49,
+    "pass": 49,
     "fail": 0,
-    "skip": 0
+    "skip": 0,
+    "includesExistingHelperCases": 3
   },
   "localChecks": {
     "lint": "PASS",
@@ -26,10 +29,10 @@
     "requirementAudit": "PASS626surfaces341requirements"
   },
   "pendingAtAuthoredCheckpoint": [
-    "full project suite",
-    "fresh independent code review",
+    "new final full project suite",
+    "focused test-batch review",
     "exact PR/main CI",
-    "actual native SSH observation"
+    "actual native Windows/Mac observation"
   ],
   "native": "NOT_EXECUTED",
   "sourceOnly": true,
@@ -66,7 +69,7 @@
     "problem": "Removed selected identity could restore OpenSSH default identities",
     "correction": "Explicit IdentityFile=none plus selected identity; no alternative private identity fallback",
     "regression": "Two RED-to-GREEN boundary cases plus Linux native config-only ssh-G before/after proof, no connection",
-    "status": "Fix verified by builder; independent scoped re-review pending"
+    "status": "Builder fix and independent focused spec/quality review PASS"
   },
   "preFixRootFull": {
     "head": "18125d26b932ea8164694805d5bfa16ce5275512",
@@ -76,5 +79,42 @@
     "skip": 26,
     "durationMs": 230542.969926,
     "finalSourceEvidence": false
+  },
+  "implementationCommits": {
+    "macSSH": "e4d0eabb047c54808eea21d56d5d2bc57c842a60",
+    "actionFreeWindows": "027a17605c790ca482097e2b6c94134a556211ad",
+    "inertFixtureBatch": "7b245e912c3a257a60cc097930588639aed2c579"
+  },
+  "actionFreeWindows": {
+    "falseDefaultInput": "zbook_native_only",
+    "sourceOnly": true,
+    "native": "NOT_EXECUTED",
+    "externalActions": 0,
+    "checkout": false,
+    "sourceGate": "Exact current main / CI push main success / all4 exact source jobs",
+    "scriptTransport": "Fixed public GitHub contents API + immutable SHA256",
+    "locatorSha256": "a7ca4f50c60a6da54feab92f14f50308899858ff7e932b85d6eb971707748590",
+    "resultTransport": "Fixed sanitized process/location log markers",
+    "independentSourceReview": "PASS no Critical/Important; native execution not proved"
+  },
+  "inertFixtureBatch": {
+    "caseCount": 60,
+    "scriptHashesIdentical": true,
+    "statusStdoutStderrCountersEquivalent": true,
+    "timestampNormalization": "Only process observation checkedAt;38 original+batch UTC values validated",
+    "originalTestBodiesSha256": "660ec406c0a2a71ad43925e6f1073184c8f287c4a544c971a6e1a44d35d54cc2",
+    "beforeSeconds": 24.325336316,
+    "afterSeconds": 4.7,
+    "scope": "New Linux/Darwin inert fixtures only; existing helper/production bytes unchanged; Windows fresh processes retained",
+    "extraNativeEvidence": false
+  },
+  "task1FinalFullBeforeActionFree": {
+    "head": "23f5573d34d7aef187a1e3258e1fe948d7bc1f68",
+    "total": 4217,
+    "pass": 4191,
+    "fail": 0,
+    "skip": 26,
+    "durationMs": 229087.023189,
+    "finalCombinedSourceEvidence": false
   }
 }
