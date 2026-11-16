@@ -1,0 +1,64 @@
+{
+  "issue": 1219,
+  "goalId": "goal-fcc81c97e09153f7",
+  "jobId": "rotation-recovery-37",
+  "goalStatus": "NOT_ACHIEVED",
+  "G1": "HOLD",
+  "base": "8e59c962a2802dffff9f8e51fa41706fe028578c",
+  "implementationCommit": "fbf3c029a84a8cf6dadcc605c7d77c21e88cef9f",
+  "actualImplementer": "Codex",
+  "localModel": "NOT_RUN",
+  "filesSha256": {
+    "scripts/goriq-zbook-runner-readonly.mjs": "b3fd321270132ee6660bd71278a8053751eaaed72316f6950c0f206d63ad396d",
+    ".github/workflows/goriq-pc-private-network-probe.yml": "bd19fb81e1e65e298c8326e5b5464a04783923e6490ccc43943124585c8fffde",
+    "tests/goriq-zbook-runner-readonly.test.mjs": "2cff610b6db1298023e1fe47e31474022b1e4223419c43d9ad1616aa4eef8c2d",
+    "tests/goriq-zbook-runner-workflow.test.mjs": "53a305a7824d7ee635e96ffd098233e6c83f2f1f283a0814a64ef99962668e35"
+  },
+  "localAffected": {
+    "tests": 37,
+    "pass": 37,
+    "fail": 0,
+    "skip": 0
+  },
+  "localChecks": {
+    "lint": "PASS",
+    "typecheck": "PASS",
+    "requirementAudit": "PASS626surfaces341requirements"
+  },
+  "pendingAtAuthoredCheckpoint": [
+    "full project suite",
+    "fresh independent code review",
+    "exact PR/main CI",
+    "actual native SSH observation"
+  ],
+  "native": "NOT_EXECUTED",
+  "sourceOnly": true,
+  "limits": {
+    "workflowMinutes": 3,
+    "sshTimeoutMs": 20000,
+    "connectTimeoutSeconds": 5,
+    "connectionAttempts": 1,
+    "stdoutMaxBytes": 8192,
+    "configMaxBytes": 65536,
+    "countMax": 64
+  },
+  "existingStateChanges": {
+    "keys": 0,
+    "credentials": 0,
+    "permissions": 0,
+    "services": 0,
+    "hostPinUpdates": 0,
+    "wake": 0,
+    "originalGoalOrData": 0
+  },
+  "sourceConditions": [
+    "explicit existing zbook alias",
+    "existing safe selected identity metadata",
+    "existing strict known_hosts",
+    "no parsing hooks/Include/Match/Proxy",
+    "Mac-only current main/successful CI/owner workflow",
+    "fixed Windows process read; errors never absence"
+  ],
+  "identityBoundary": "Existing configured SSH destination and pins, not independent physical host identity or recovered original state",
+  "rollback": "Revert scoped source changes; retain failures/records; no runtime configuration to restore"
+}
