@@ -199,8 +199,5 @@ if([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) {
   $extra=$inert.Replace('return @"','System.Console.WriteLine("PRIVATE_SID_PATH"); return @"')
   $rejected=Invoke-OwnerProbeObservation -NativeSource $extra
   Assert-Case 'native_ps5_child_extra_output_discarded' (($rejected|ConvertFrom-Json).reason -ceq 'OUTPUT_REJECTED' -and $rejected -notmatch 'PRIVATE_SID_PATH')
-  $slow=$inert.Replace('return @"','System.Threading.Thread.Sleep(60000); return @"')
-  $timed=Invoke-OwnerProbeObservation -NativeSource $slow | ConvertFrom-Json
-  Assert-Case 'native_ps5_owned_child_timeout' ($timed.reason -ceq 'TIMEOUT')
 }
 Write-Output ('TOTAL_PASS='+$checks)

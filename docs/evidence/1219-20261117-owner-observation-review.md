@@ -87,3 +87,13 @@ next single-variable correction suppresses normal child progress output using
 ProgressPreference=SilentlyContinue. Nonempty real stderr still refuses and the
 25s budget remains. This fixes a proven progress-channel refusal; cold-start
 timing remains subject to actual Windows validation, not assumed solved.
+
+Run43981328464 / Windows job133698251970 then demonstrated the real supplied-
+source child, native build rejection and extra-output rejection all PASS.
+The outer55s fixture process expired during the fourth, deliberately slow
+timeout case. The timeout case is now a separate fresh inert process with its
+own unchanged55s outer bound; a unique test-owned temporary marker proves the
+compiled inert entry reached its deliberate sleep before TIMEOUT. No absolute
+30s bound is inferred for parent metadata. Production25s and existing
+Windows5min/independent CI limits are unchanged. Both old failures and
+the newly observed native successes are retained; none is original recovery.

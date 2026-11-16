@@ -112,3 +112,10 @@ test('owner probe pure suite and in-memory supervised child fixtures', { timeout
   const result = spawnSync(shell, ['-NoLogo', '-NoProfile', '-NonInteractive', '-File', file], { encoding: 'utf8', timeout: 55000, windowsHide: true });
   assert.equal(result.status, 0, result.stderr + '\n' + result.stdout.slice(-6000)); assert.equal(result.stderr, ''); assert.match(result.stdout, /TOTAL_PASS=\d+/);
 });
+
+test('owned observer timeout has its own bounded inert process fixture', { timeout: 60000 }, () => {
+  const shell = process.platform === 'win32' ? 'powershell.exe' : 'pwsh';
+  const result = spawnSync(shell, ['-NoLogo', '-NoProfile', '-NonInteractive', '-File', resolve('scripts/goriq-owner-probe/test-owner-probe-timeout.ps1')], { encoding: 'utf8', timeout: 55000, windowsHide: true });
+  assert.equal(result.status, 0, result.stderr + '\n' + result.stdout.slice(-6000));
+  assert.equal(result.stderr, ''); assert.match(result.stdout, /TOTAL_PASS=1/);
+});
