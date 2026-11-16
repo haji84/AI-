@@ -1,0 +1,75 @@
+{
+  "issue": 1219,
+  "goalId": "goal-fcc81c97e09153f7",
+  "jobId": "rotation-recovery-37",
+  "goalStatus": "NOT_ACHIEVED",
+  "G1": "HOLD",
+  "originalGoalRecovered": false,
+  "actualImplementer": "Codex",
+  "localModel": "NOT_RUN",
+  "base": "c1079e8b1ca6d347d6040f97ecc96f72c3e7e801",
+  "implementationCommit": "7e58478dd501c18969f6036432b76b318259017b",
+  "priorActualNative": {
+    "run": 43831651878,
+    "job": 133178176161,
+    "runner": "ZBook21",
+    "markerAt": "2026-11-16T08:29:46.500969Z",
+    "jobCompletedAt": "2026-11-16T08:29:51Z",
+    "result": "INCOMPLETE/PRIVATE_STORAGE_UNAVAILABLE",
+    "AcquireReached": false,
+    "candidateContentsRead": false,
+    "preserved": false,
+    "queryVerified": false,
+    "cause": "UNKNOWN: Add-Type vsconstructorboundary",
+    "privatePartialArtifacts": "POSSIBLE/preserved",
+    "independentAuditChecks": 27
+  },
+  "change": "Closed fixed compiler/constructor/guard enums only; same25 public keys and alloriginal guard predicates/order. No speculative permission or compatibility fix. Type attribution uses actual CLR identity in source capture assembly.",
+  "closedDiagnostics": [
+    "Build",
+    "Identity/environment",
+    "Ancestry/parent/layout/context",
+    "Path/localstorage/nativeopen/metadata/finalpath/owner/DACL/create"
+  ],
+  "privacy": "No raw exception/HResult/path/SID/ACL/hash/privatebytes in public output; no original SQL/content acquisition in fixtures",
+  "sourceSha256": {
+    ".github/workflows/ci.yml": "d9c3d0c520abd8c1e17e9aeef31d340e3325897e7487204793f57270b2d18876",
+    ".github/workflows/goriq-pc-private-network-probe.yml": "046b92cbcd805e3c7c335be0f83faba464e9cc88ac1c4d16b9151bfa0ab5fc34",
+    "scripts/goriq-zbook-bridge-capture.cs": "489f668760b3ae283525b3775bc98202c8a88e99f6248d8f11b284ae0ce8c1c2",
+    "scripts/goriq-zbook-bridge-original-read.ps1": "50439b6ed4f6daff1f051ee9d929df4e5b6c3cfceb14d978bd8cbf825c3d5740",
+    "tests/goriq-zbook-bridge-initialization.test.mjs": "2ea5585bdd588daddbcd1114c07580f4b7460f8ab6d099e8b2f014b12eae9a6b"
+  },
+  "affectedTests": {
+    "tests": 174,
+    "pass": 174,
+    "fail": 0,
+    "skip": 0
+  },
+  "independentAffected": {
+    "tests": 119,
+    "pass": 119,
+    "fail": 0,
+    "skip": 0
+  },
+  "CSharp5LanguageCompilation": "PASS onLinux/current.NET; notWindowsFramework proof",
+  "checks": {
+    "lint": "PASS",
+    "types": "PASS",
+    "requirements": "PASS341",
+    "audit": "PASS626surfaces341requirements"
+  },
+  "reviewFinding": "Real same-name/different-assembly exception initially misattributed; exact actualCLR assembly type fix RED-to-GREEN",
+  "unchanged": "37 ordered guard-bearing lines identical after diagnostic args stripped; existing oldtests/query/locator/nativejob/permissions/timecaps unchanged",
+  "existingWindowsCICoverage": "Onlynewinitializationtest appended toexisting5minjob; powershell.exeWin/pwshLinux, Framework/CoreReflection.Emit, sameassertions/noPInvoke/capture/skip",
+  "pendingAtAuthoredCheckpoint": [
+    "Root final focused checks",
+    "Final committedreviewbinding",
+    "NewexactPRfullCI and actualhostedPS5 compile fixture",
+    "Normalprotectedmerge and exactmainfullCI/freshsix",
+    "One changedobservable native diagnostic and independentphaseaudit",
+    "SpecificactualWindowsfailurecause/fix andoriginalGoalrecovery"
+  ],
+  "previousFullLocal": "4303total4277PASS26existingSKIP on96d checkpoint is historicalbaseline; newfullPR/mainCI required",
+  "rollback": "Scopedsource revert; preserve all originals and partialprivateartifacts; no existingACL/rights/service/runtimepolicy changes",
+  "issueWriteback": "https://github.com/haji84/AI-/issues/1219#issuecomment-6911509083"
+}
