@@ -133,10 +133,10 @@ jobs:
 
             $failure = 'FIXED_READER_SOURCE_UNVERIFIED'
             $pins = [ordered]@{
-              'scripts/goriq-zbook-bridge-original-read.ps1'='96c1d0bddeed6ec82bc54affd161132b41cfd290ac0b327e02ca1cfde5158183'
+              'scripts/goriq-zbook-bridge-original-read.ps1'='fb4b08d8eaac207b37ebacffc40002412c7a65a04efd10e3d5ed7c2dff3d4bee'
               'scripts/goriq-zbook-bridge-original-read.mjs'='3a2bc58a0d07b5d605da38acfad6851df01c258136046e8772aa2a36d55528ab'
               'scripts/goriq-g1-backup-inventory.mjs'='63d236135979ca681212f6b51b7b5d63c5a284c332fdb3615ba1f6c529fc2f66'
-              'scripts/goriq-zbook-bridge-capture.cs'='9c4d7b85120038e3c62bdf68c601ea68fe2d59becd82920c189961517a890e9d'
+              'scripts/goriq-zbook-bridge-capture.cs'='489f668760b3ae283525b3775bc98202c8a88e99f6248d8f11b284ae0ce8c1c2'
             }
             $sources = @{}
             foreach ($file in $pins.Keys) {
@@ -164,7 +164,7 @@ jobs:
             if ($candidate.preserved -isnot [bool]) { throw 'REFUSED' }
             # Revalidate fixed keys/types/enums; exceptions, payloads, paths and child output never print.
             # INCOMPLETE adapter failures also use a fixed closed failureCode.
-            $allowed = @('CONTEXT_INVALID','PRIVATE_STORAGE_UNAVAILABLE','SOURCE_ACQUISITION_INCOMPLETE','INSTALLED_RUNTIME_UNAVAILABLE','COPIED_QUERY_UNVERIFIED')
+            $allowed = @('CONTEXT_INVALID','PRIVATE_STORAGE_UNAVAILABLE','NATIVE_BUILD_UNAVAILABLE','PRIVATE_IDENTITY_UNAVAILABLE','PRIVATE_ENVIRONMENT_UNAVAILABLE','PRIVATE_ANCESTRY_UNAVAILABLE','PRIVATE_PARENT_UNAVAILABLE','PRIVATE_LAYOUT_UNAVAILABLE','PRIVATE_CONTEXT_UNAVAILABLE','PRIVATE_PATH_UNVERIFIED','PRIVATE_LOCAL_STORAGE_UNAVAILABLE','PRIVATE_NATIVE_OPEN_UNAVAILABLE','PRIVATE_FILE_METADATA_UNVERIFIED','PRIVATE_FINAL_PATH_UNVERIFIED','PRIVATE_OWNER_UNVERIFIED','PRIVATE_DACL_UNVERIFIED','PRIVATE_CREATE_UNAVAILABLE','SOURCE_ACQUISITION_INCOMPLETE','INSTALLED_RUNTIME_UNAVAILABLE','COPIED_QUERY_UNVERIFIED')
             $originalFailure = $candidate.failureCode
             if ($candidate.status -ceq 'INCOMPLETE' -and $candidate.failureCode -cin $allowed) { $candidate.failureCode = 'COPIED_QUERY_INVALID' }
             $clean = ConvertFrom-GoriqBridgeSummary -Text ($candidate | ConvertTo-Json -Depth 4 -Compress) -PreservedExpected $candidate.preserved
