@@ -175,3 +175,25 @@ test('escaped duplicate JSON keys cannot disguise counts or schema',async t=>{
   const f=await fixture(t);
   unknown(await (await inspector())({...f.options,run:async()=>({ok:true,stdout:'{"platform":"windows","listenerCount":9,"\\u006cistenerCount":0,"workerCount":0}',stderr:''})}));
 });
+test('identity disappearing after metadata cannot restore OpenSSH default identity candidates',async t=>{
+  const f=await fixture(t);let invocation;
+  const report=await (await inspector())({...f.options,run:async(command,args)=>{
+    await rm(f.key);invocation={command,args};
+    return {ok:false,stdout:'',stderr:'PRIVATE_MISSING_IDENTITY'};
+  }});
+  assert.equal(report.prerequisites.identityMetadataVerified,true);unknown(report);
+  assert.equal(invocation.command,'/usr/bin/ssh');
+  assert.ok(invocation.args.some((value,index)=>value==='-o'&&invocation.args[index+1]==='IdentityFile=none'),
+    'explicit none sentinel must suppress defaults if OpenSSH ignores a missing -i file');
+  assert.deepEqual(invocation.args.flatMap((value,index)=>value==='-i'?[invocation.args[index+1]]:[]),[f.key],
+    'only the already-validated identity may be selected');
+});
+test('default identity suppression preserves the selected identity for a valid existing route',async t=>{
+  const f=await fixture(t);let invocation;
+  const report=await (await inspector())({...f.options,run:async(command,args,options)=>{
+    invocation={command,args};return f.options.run(command,args,options);
+  }});
+  assert.equal(report.processObservationVerified,true);assert.equal(report.listenerCount,1);
+  assert.ok(invocation.args.some((value,index)=>value==='-o'&&invocation.args[index+1]==='IdentityFile=none'));
+  assert.deepEqual(invocation.args.flatMap((value,index)=>value==='-i'?[invocation.args[index+1]]:[]),[f.key]);
+});

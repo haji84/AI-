@@ -112,11 +112,12 @@ export async function inspectZBookRunnerFromMac(options = {}) {
     report.prerequisites.knownHostsVerified=true;
   } catch {report.failureClass='host-pins-unavailable';return report;}
   const args=['-F','/dev/null','-n','-T'];
-  for(const option of ['BatchMode=yes','StrictHostKeyChecking=yes','UpdateHostKeys=no','IdentitiesOnly=yes','IdentityAgent=none',
+  for(const option of ['BatchMode=yes','StrictHostKeyChecking=yes','UpdateHostKeys=no','IdentitiesOnly=yes','IdentityAgent=none','IdentityFile=none',
     'CertificateFile=none','AddKeysToAgent=no','PasswordAuthentication=no','KbdInteractiveAuthentication=no','PreferredAuthentications=publickey','NumberOfPasswordPrompts=0',
     'ForwardAgent=no','ForwardX11=no','ClearAllForwardings=yes','PermitLocalCommand=no','ProxyCommand=none','ProxyJump=none',
     'ControlMaster=no','ControlPath=none','ControlPersist=no','ConnectionAttempts=1','ConnectTimeout=5',
     'GlobalKnownHostsFile=/dev/null','UserKnownHostsFile='+knownHosts,'LogLevel=ERROR']) args.push('-o',option);
+  // Keep the none sentinel: OpenSSH ignores a vanished -i file and otherwise restores default keys.
   args.push('-i',route.identity,'-p',route.port ?? '22','-l',route.user,'--',route.hostname,remoteCommand);
   report.failureClass='ssh-observation-unavailable';
   try {
