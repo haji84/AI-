@@ -97,3 +97,14 @@ compiled inert entry reached its deliberate sleep before TIMEOUT. No absolute
 30s bound is inferred for parent metadata. Production25s and existing
 Windows5min/independent CI limits are unchanged. Both old failures and
 the newly observed native successes are retained; none is original recovery.
+
+Run43982142077 / Windows job133701013768 confirmed the separate timeout case
+PASS at25.607s, including its compiled-entry marker. The first cold bootstrap
+still timed out; immediate inert trace finished all signature/workspace/input/
+build stages with child exit0 and empty stderr. Thus progress-stream rejection
+is fixed, while cold initialization remains unresolved. The next bounded
+hypothesis replaces unqualified bootstrap auto-discovery with explicit imports
+of the three installed Microsoft standard module manifests under fixed PSHOME.
+Auto-loading is disabled and PSModulePath is set using a .NET path operation
+before the first cmdlet. The25s/native20s/Windows5min/CI gates remain unchanged;
+no successful cold-start claim is made before new Windows evidence.
