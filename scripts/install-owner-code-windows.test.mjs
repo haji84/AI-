@@ -4,6 +4,7 @@ import {existsSync, mkdtempSync, readdirSync, rmSync, mkdirSync, readFileSync, w
 import {tmpdir} from 'node:os';
 import {join, resolve} from 'node:path';
 import {spawnSync, execFileSync} from 'node:child_process';
+import {createPowerShellFixtureBatch} from '../tests/helpers/powershell-fixture-batch.mjs';
 
 const installer = resolve('scripts/install-owner-code-windows.ps1');
 const fixture = resolve('tests/install-owner-code-windows.fixture.ps1');
@@ -12,9 +13,20 @@ const shell = process.platform === 'win32'
 const probe = spawnSync(shell, ['-NoProfile', '-NonInteractive', '-Command', '$PSVersionTable.PSVersion.ToString()'], {encoding:'utf8', timeout:15000});
 const unavailable = probe.error?.code === 'ENOENT';
 
+// Only inert public filesystem fixtures use fresh Linux runspaces. Windows
+// and CLI/process contracts retain their original independent processes.
+const fixtureScenarios = ['install', 'existing-package', 'existing-launcher', 'missing-reader', 'invalid-version', 'unsafe-paths', 'reparse-source', 'reparse-desktop', 'overlap', 'source-drift', 'start-menu-install', 'start-menu-existing-launcher', 'start-menu-reparse', 'start-menu-overlap', 'invalid-launcher-kind'];
+const runLinuxFixtureBatch = process.platform === 'linux' && !unavailable
+  ? createPowerShellFixtureBatch({shell, fixture, scenarios:fixtureScenarios, parameter:'Case',
+      parameters:{InstallerPath:installer}, timeoutMs:30000}) : null;
+
 function run(args) {
   assert.equal(existsSync(installer), true, 'The public-only Owner installer is required');
-  const result = spawnSync(shell, ['-NoProfile', '-NonInteractive', '-File', ...args], {encoding:'utf8', timeout:30000, windowsHide:true});
+  const result = runLinuxFixtureBatch && args.length === 5 && args[0] === fixture
+    && args[1] === '-InstallerPath' && args[2] === installer && args[3] === '-Case'
+    && fixtureScenarios.includes(args[4])
+    ? runLinuxFixtureBatch(args[4])
+    : spawnSync(shell, ['-NoProfile', '-NonInteractive', '-File', ...args], {encoding:'utf8', timeout:30000, windowsHide:true});
   assert.equal(result.error, undefined);
   return result;
 }

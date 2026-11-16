@@ -8,6 +8,11 @@ on:
       - 'scripts/goriq-zbook-fleet-sqlite-liveness.mjs'
       - '.github/workflows/goriq-zbook-fleet-liveness.yml'
   workflow_dispatch:
+    inputs:
+      original_state_only:
+        description: 'Read-only original Goal storage metadata; skip Fleet/config/SQLite reads'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -17,31 +22,90 @@ jobs:
     runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 5
     steps:
+      - name: Require unused per-run source directory
+        id: source_precheck
+        shell: powershell
+        working-directory: ${{ github.workspace }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ([string]::IsNullOrWhiteSpace($env:GITHUB_WORKSPACE) -or -not [IO.Path]::IsPathRooted($env:GITHUB_WORKSPACE) -or $env:GITHUB_RUN_ID -notmatch '\A[1-9][0-9]*\z' -or $env:GITHUB_RUN_ATTEMPT -notmatch '\A[1-9][0-9]*\z') { throw 'ZBOOK_SOURCE_CONTEXT_INVALID' }
+          $sourceDirectory = [IO.Path]::Combine($env:GITHUB_WORKSPACE, ('goriq-zbook-source-' + $env:GITHUB_RUN_ID + '-' + $env:GITHUB_RUN_ATTEMPT))
+          try {
+            $null = [IO.File]::GetAttributes($sourceDirectory)
+            throw 'ZBOOK_SOURCE_DIRECTORY_NOT_FRESH'
+          } catch {
+            $cause = $_.Exception
+            while ($cause.InnerException) { $cause = $cause.InnerException }
+            if ($cause -isnot [IO.FileNotFoundException] -and $cause -isnot [IO.DirectoryNotFoundException]) { throw 'ZBOOK_SOURCE_DIRECTORY_NOT_FRESH' }
+          }
       - uses: actions/checkout@v5
+        id: source_checkout
         with:
           ref: main
           fetch-depth: 1
+          path: goriq-zbook-source-${{ github.run_id }}-${{ github.run_attempt }}
       - name: Require exact current main
         shell: powershell
+        working-directory: goriq-zbook-source-${{ github.run_id }}-${{ github.run_attempt }}
         run: |
           git fetch --no-tags origin main
           if ((git rev-parse HEAD) -ne (git rev-parse origin/main)) { throw 'checkout is not current main' }
           if ($env:GITHUB_EVENT_NAME -ne 'workflow_dispatch' -and (git rev-parse HEAD) -ne $env:GITHUB_SHA) { throw 'checkout does not match triggering main commit' }
       - name: Inspect preserved ZBook SQLite fleet freshness without secrets
+        id: fleet
+        if: ${{ !inputs.original_state_only }}
         shell: powershell
+        working-directory: ${{ github.workspace }}
         run: |
-          New-Item -ItemType Directory -Force -Path .gai-results | Out-Null
+          $resultDirectory = 'goriq-zbook-source-${{ github.run_id }}-${{ github.run_attempt }}/.gai-results'
+          New-Item -ItemType Directory -Force -Path $resultDirectory | Out-Null
           $task = Get-ScheduledTask -TaskName "JARVIS Remote Host" -ErrorAction SilentlyContinue
           if ($task -and $task.Actions -and $task.Actions[0].WorkingDirectory) {
             $env:GORIQ_ZBOOK_EXTRA_SCAN_ROOT = [string]$task.Actions[0].WorkingDirectory
           }
-          node scripts/goriq-zbook-fleet-sqlite-liveness.mjs | Tee-Object -FilePath .gai-results/zbook-fleet-liveness.json
+          node 'goriq-zbook-source-${{ github.run_id }}-${{ github.run_attempt }}/scripts/goriq-zbook-fleet-sqlite-liveness.mjs' | Tee-Object -FilePath ($resultDirectory + '/zbook-fleet-liveness.json')
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Upload sanitized diagnosis
-        if: always()
+        if: ${{ always() && !inputs.original_state_only && steps.source_precheck.outcome == 'success' && steps.source_checkout.outcome == 'success' && (steps.fleet.outcome == 'success' || steps.fleet.outcome == 'failure' || steps.fleet.outcome == 'cancelled') }}
         uses: actions/upload-artifact@v4
         with:
           name: goriq-zbook-fleet-liveness
-          path: .gai-results/zbook-fleet-liveness.json
+          path: goriq-zbook-source-${{ github.run_id }}-${{ github.run_attempt }}/.gai-results/zbook-fleet-liveness.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Set up approved original-location source check
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.original_state_only }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+      - name: Require successful exact-main CI for original-location inspection
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.original_state_only }}
+        shell: powershell
+        working-directory: goriq-zbook-source-${{ github.run_id }}-${{ github.run_attempt }}
+        env:
+          GORIQ_PC_APPROVED_REVISION: ${{ github.sha }}
+        run: |
+          if ($env:GITHUB_REPOSITORY -ne 'haji84/AI-' -or $env:GITHUB_ACTOR -ne 'haji84' -or $env:RUNNER_NAME -ne 'ZBook') { throw 'original-location scope refused' }
+          if ((git rev-parse HEAD) -ne $env:GITHUB_SHA) { throw 'original-location checkout differs from triggering main' }
+          node scripts/goriq-pc-approved-source.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Inspect original-state storage metadata only
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.original_state_only }}
+        shell: powershell
+        working-directory: goriq-zbook-source-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $output = & "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -NonInteractive -File scripts/goriq-zbook-original-state-locator.ps1 2>$null
+          if ($LASTEXITCODE -ne 0) { throw 'original-location metadata failed' }
+          New-Item -ItemType Directory -Force -Path .gai-results | Out-Null
+          $path = '.gai-results/zbook-original-location-${{ github.run_id }}-${{ github.run_attempt }}.json'
+          [IO.File]::WriteAllText((Join-Path (Get-Location) $path), ($output -join "`n"), [Text.UTF8Encoding]::new($false))
+          Write-Output $output
+      - name: Upload original-location metadata only
+        if: ${{ success() && github.event_name == 'workflow_dispatch' && inputs.original_state_only }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: goriq-zbook-original-location-${{ github.run_id }}-${{ github.run_attempt }}
+          path: goriq-zbook-source-${{ github.run_id }}-${{ github.run_attempt }}/.gai-results/zbook-original-location-${{ github.run_id }}-${{ github.run_attempt }}.json
           if-no-files-found: error
           retention-days: 14

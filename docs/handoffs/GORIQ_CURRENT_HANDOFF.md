@@ -1,3 +1,41 @@
+# 2026-11-16: preserve original runner workspace before any native checkout
+
+Original `goal-fcc81c97e09153f7` / `rotation-recovery-37` remains **NOT_ACHIEVED / G1 HOLD**, main4a1af669 unchanged. PR1920 head5e8ee0e passed all4CI43783805271 jobs and fresh6checkaudit; Unit285580ms/Integration284796ms, each4190total4164PASS0FAIL26skip underunchangedlimits. Prior2CI failures remain preserved. This successfulbaseline is not originalGoal/native acceptance.
+
+Do notmerge that baseline unchanged: before native execution ROOT found checkoutv5 defaults to gitclean-ffdx/reset/fallbackcleanup at the existing workspace, which coulddelete .jarvis candidates before inspection. Fixedpublicactionsource was read and the exactclean command removed a self-createdignoredtempDB fixture; no realZBook/originaldata touched. Allmodes, includingautomaticpush/default, now use a fresh fixed perrun+attempt source subdirectory. Inlineprecheck rejects existingfile/dir/reparse/inaccessible targets instead of deleting/reusing. LegacyFleet keeps originalworkspacecwd but executesfreshsource path; all artifacts arefresh-pathscoped, and oldalwaysupload requires successfulprecheck/checkout pluscurrentFleet attempt toavoidstaleuploads. Locator explicitly inspects originalGITHUB_WORKSPACE, notfreshsourceCWD. Checkoutdefaults/tokenuse/permissions/onpush remain unchanged. This closesordinarycollision/cleanup risk, not malicioussameowner race-proof storage.
+
+Newpreservation1RED→affected11PASS includesactualPowerShellpreflight ontempfixtures and unchangedoriginal/source canaries; Windows/native action stillrequiresactualprotectedmain run. NewexactHEADCI/mainCI andoneboundedZBookmetadata dispatch remainrequired. No originalrecreation, keys/permissions/runtimeactivation or newController. [Evidence/history](../evidence/1219-20261116-zbook-original-location.json). Retainolderpassed/failedproofs asdatedcheckpoints.
+
+---
+
+# 2026-11-16: real receipt polling cadence after second CI timeout
+
+Original Goal/Job remains **NOT_ACHIEVED / G1 HOLD**, main4a1af669 unchanged. [PR1920 ebef4a5 CI43781008729](https://github.com/haji84/AI-/actions/runs/43781008729) also timed out restrictedUnit300008.242ms, other3jobs succeeded and3record partialcrypto/source/cleanup is valid; no6checkPASS. [Preserved result](https://github.com/haji84/AI-/issues/1219#issuecomment-6904242649). Installer correction actually saved8.733s withinCI, while an unchangedBroker fixture grew~14.862s; CIcause remains unproven. No unchangedretry.
+
+A phase-only local run of the exact old2variant fixture showed receiptB waited12.7–12.9s for the existing15000ms timer, startup<0.7s/stop<0.03s. This supports polling latency, not exactCI cause. The source recovery adds a validated trusted-host `GORIQ_VERIFIER_RECEIPT_POLL_MS` in the existing receipt helper: missing→existing15000ms, canonical integers1000..15000 accepted, invaliddefinedvalues reject. Only the existingBroker interval argument changes. All signatures/Goal/stop/approval/manifest/activeexecution guards remain unchanged; selecting cadence alone enables no wake/profile. No livehost config or runtime activation.1Hz bounds polling frequency;24KiB is only the existing nominal stablefile size check, not an adversarial I/O cap.
+
+The isolated testworker selects1000 before its unchanged describe/callback/assertion/nativeprocess/restart/signing body and restoresenv afterward. It uses actual timers and realBroker children, no fakeclock/manualwake. Newparser2RED→affected7PASS, originalvariants~7.1s locally; exactnewHEAD/fullCI/mainCI/native metadata stillrequired. [Evidence and earlier attempts](../evidence/1219-20261116-zbook-original-location.json). No model/originalGoal success, newController, credential/permission change or sourceauthority weakening. Rollback must revert dependent helper/import/timer/testconfig together through normalprotection. Earlierauthoring checkpoints below are historical.
+
+---
+
+# 2026-11-16: PR1920 exact-head timeout and measured fixture recovery
+
+Original Goal/Job remains **NOT_ACHIEVED / G1 HOLD**. Main remains4a1af669. [PR1920 candidate12e9762 CI43779096147](https://github.com/haji84/AI-/actions/runs/43779096147) failed restricted Unit at300011.450ms/ETIMEDOUT; other3jobs succeeded, only3check receipt is valid, remaining3checks did not execute. [Preserved failure/diagnosis](https://github.com/haji84/AI-/issues/1219#issuecomment-6903934201). No unchanged retry, protection bypass or physicalZBook scan occurred. Ordinary full4187/4161PASS/0FAIL/26skip and source review do not replace required independent6checks.
+
+Next source recovery changes only the existing installer test launch helper on Linux:15 inert public filesystem cases use existing fresh runspaces, preserving every callback/assertion/loop and fixture/production bytes. Windows, CLI and process contracts keep their original native route. Full15JSON values/status/stderr match; rawJSON property order differs. One local serialized measurement7748.476ms→1607.717ms saves6140.759ms, not demonstrated hostedCI margin. Limits/concurrency/source security guards are unchanged. NewHEAD CI and exactmain/native metadata inspection remain required; follow current Issue1219 results. No original recreation, permission/credential/service mutation or model success. [Scope and retained failure](../evidence/1219-20261116-zbook-original-location.json).
+
+---
+
+# 2026-11-16: bounded ZBook / attached-storage original-location continuation
+
+Original `goal-fcc81c97e09153f7` / `rotation-recovery-37` remains **NOT_ACHIEVED / G1 HOLD**. Start from protected main `4a1af669b68f1c82f3c8d3a5516070bfe28ae31f`, PR1919 merged. Exact-main CI43768862993 attempt2 passed; attempt1 Unit timeout is retained. The expired receipt is historical verification, not current runtime authority. [Latest bounded storage investigation](https://github.com/haji84/AI-/issues/1219#issuecomment-6903697279).
+
+The owner proposed ZBook and attached SSD. Prior Windows inventory found the configured Fleet40 DB but did not inspect Goal/Job or mounted volumes. Existing G1 backup scanner refuses Windows; do not replay old Mac9/two-leaf repair/known ZIPs. This source candidate adds one false-default boolean mode to the existing Windows-only Fleet Liveness workflow. True mode skips the old scanner entirely, requires owner/repo/ZBook/current exact main and successful CI, then reads only local-drive and known-location metadata. No file contents, original SQLite, config decryption, recursive disk search or service/permission/credential mutation. Unknown media, denied/unsafe paths, drive-letter-only coverage and caps remain explicit; metadata cannot establish original presence or absence.
+
+Author Codex; local model NOT_RUN. Linux/pwsh7.6.9 focused10PASS/security332PASS/types/lint/auditPASS at authoring; exact new-head/main CI and real ZBook run remain separate gates tracked in Issue1219. [Scope/evidence](../evidence/1219-20261116-zbook-original-location.json). After protected integration, dispatch the new mode once and use actual candidate evidence for a bounded read-only original confirmation. G2–G13 original production acceptance remains unmet; never recreate the missing original or fill missing history. Source revert is rollback; no original state changed. Historical checkpoints below stay intact.
+
+---
+
 # 2026-11-16: Cloud original-state readback and response-history integrity
 
 Continue original Goal `goal-fcc81c97e09153f7` / Job `rotation-recovery-37`. **NOT_ACHIEVED / G1 HOLD; Issue1219 remains OPEN.** Read the [current execution directive](https://github.com/haji84/AI-/issues/1219#issuecomment-6898088963) and [new Cloud investigation/result](https://github.com/haji84/AI-/issues/1219#issuecomment-6902027999) before treating older PENDING entries below as current.

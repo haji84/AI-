@@ -15,7 +15,7 @@ import { execFileSync, spawn } from "node:child_process";
 import { createHash, createPublicKey, randomBytes, timingSafeEqual } from "node:crypto";
 import { existsSync, readFileSync, lstatSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { createResidentReceiptWakes } from "../src/orchestrator/resident-receipt-wakes.ts";
+import { createResidentReceiptWakes, residentReceiptPollIntervalMs } from "../src/orchestrator/resident-receipt-wakes.ts";
 import { OwnerInvitationStore, INVITATION_PREFIX } from "../src/jarvis/owner-invitation.ts";
 import { generateOwnerRecoveryCode, OwnerRecoveryRejectedError, TrustedDeviceRegistry } from "../src/jarvis/trusted-device-registry.ts";
 import { GoogleOwnerStateRegistry } from "../src/jarvis/google-owner-state-registry.ts";
@@ -1234,6 +1234,7 @@ const server = createServer((request, response) => {
   handler(request, response).catch((error) => { console.error("[jarvis-broker] request failed", error); json(response, 500, { message: error instanceof Error ? error.message : "internal error" }); });
 });
 const verifierReceiptWakes = createResidentReceiptWakes(process.env, process.cwd());
+const verifierReceiptPollMs = residentReceiptPollIntervalMs(process.env);
 let verifierReceiptTimer: NodeJS.Timeout | undefined;
 
 server.listen(port, host, () => {
@@ -1268,7 +1269,7 @@ server.listen(port, host, () => {
       })().catch(error => console.error("[goriq-goal] verifier_receipt_wake_failed",
         error instanceof Error ? error.name : "unknown"))
         .finally(() => { inspecting = false; });
-    }, 15000);
+    }, verifierReceiptPollMs);
     verifierReceiptTimer.unref();
   }
   // Only a previously accepted, non-terminal Work Run has execution authority.

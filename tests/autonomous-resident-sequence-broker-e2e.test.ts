@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync,
 import { createServer } from "node:http";
 import { homedir, tmpdir } from "node:os";
 import { join, resolve, sep } from "node:path";
-import test, { describe } from "node:test";
+import test, { after, describe } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { CompassStore } from "../src/compass/store.ts";
 import { CompassWorkStateStoreAdapter } from "../src/orchestrator/compass-work-state-store.ts";
@@ -20,6 +20,15 @@ import { goalWorkStateId } from "../src/orchestrator/work-state-integration.ts";
 
 const sha = (value: string) => createHash("sha256").update(value).digest("hex");
 const delay = (ms: number) => new Promise(resolveDelay => setTimeout(resolveDelay, ms));
+
+// Select a bounded real host cadence in this isolated test worker. Every child
+// and receipt still follows the original process, timer and authority path.
+const priorReceiptPollMs = process.env.GORIQ_VERIFIER_RECEIPT_POLL_MS;
+process.env.GORIQ_VERIFIER_RECEIPT_POLL_MS = "1000";
+after(() => {
+  if (priorReceiptPollMs === undefined) delete process.env.GORIQ_VERIFIER_RECEIPT_POLL_MS;
+  else process.env.GORIQ_VERIFIER_RECEIPT_POLL_MS = priorReceiptPollMs;
+});
 
 // This is a real Broker/executor process regression with mock inference and
 // fixture signatures and synthetic resource telemetry. Admission policy and its
