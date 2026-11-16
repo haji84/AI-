@@ -10,7 +10,7 @@ import test from 'node:test';
 
 test('every ZBook diagnosis isolates checkout and refuses to erase existing source or original state', () => {
   const workflow = readFileSync('.github/workflows/goriq-zbook-fleet-liveness.yml', 'utf8');
-  const precheck = workflow.match(/      - name: Require unused per-run source directory\n([\s\S]*?)(?=      - uses: actions\/checkout@v5)/)?.[1];
+  const precheck = workflow.match(/ {6}- name: Require unused per-run source directory\n([\s\S]*?)(?= {6}- uses: actions\/checkout@v5)/)?.[1];
   assert.ok(precheck, 'all modes must preserve the original workspace before checkout');
   assert.doesNotMatch(precheck, /\n {8}if:|Remove-Item|Test-Path|\.Exists\(/);
   assert.match(precheck, /id: source_precheck/);
