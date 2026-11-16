@@ -1,0 +1,94 @@
+{
+  "issue": 1219,
+  "goalId": "goal-fcc81c97e09153f7",
+  "jobId": "rotation-recovery-37",
+  "goalStatus": "NOT_ACHIEVED",
+  "G1": "HOLD",
+  "originalGoalRecovered": false,
+  "base": "dbcba5a00887f01bbbc2e2f46fdf8552c92961d3",
+  "implementationCommit": "87e802f289d4fa8fde7af0494590e1a2d4330cc4",
+  "actualImplementer": "Codex",
+  "localModel": "NOT_RUN",
+  "nativeBaseline": {
+    "run": 43820656750,
+    "job": 133142745341,
+    "runner": "ZBook21",
+    "processes": {
+      "listener": 1,
+      "worker": 1
+    },
+    "metadataOnly": true,
+    "oneFixedCandidateBytes": 520192,
+    "candidateContentsRead": false,
+    "originalIdentity": "NOT_INSPECTED",
+    "physicalMediaType": "UNKNOWN"
+  },
+  "scope": "Fixed bridge Compass plus fixed WAL/SHM/JSON only; private Windows raw retention, second working copy query; no original SQLite/store initialization/writes/Goal or approval mutation",
+  "sourceSha256": {
+    ".github/workflows/goriq-pc-private-network-probe.yml": "cbd23389cf968f5853a03a6cde0d349b20bdca0d24ae5540ccf8dc623ce0ee27",
+    "scripts/goriq-g1-backup-inventory.mjs": "63d236135979ca681212f6b51b7b5d63c5a284c332fdb3615ba1f6c529fc2f66",
+    "scripts/goriq-zbook-bridge-capture.cs": "9c4d7b85120038e3c62bdf68c601ea68fe2d59becd82920c189961517a890e9d",
+    "scripts/goriq-zbook-bridge-original-read.mjs": "3a2bc58a0d07b5d605da38acfad6851df01c258136046e8772aa2a36d55528ab",
+    "scripts/goriq-zbook-bridge-original-read.ps1": "96c1d0bddeed6ec82bc54affd161132b41cfd290ac0b327e02ca1cfde5158183",
+    "tests/goriq-zbook-bridge-kernel-guards.test.mjs": "9bebf0d51e4c41d6347c1fd689d71112da3e961e18299b87189219127c5f38cb",
+    "tests/goriq-zbook-bridge-native-boundary.test.mjs": "8f2a8d5782c19ae207acf5a25394fb99da31e01a55b395d86767dc7742fe4af8",
+    "tests/goriq-zbook-bridge-original-read.test.mjs": "ce5996eeb4c671ee67de91bf2aa7dab2687b3c73cdf66b653b17f8df7bdc4656",
+    "tests/goriq-zbook-bridge-workflow.test.mjs": "8dc3085b3560207e749c905df5e8a37bd43f5ef0a5bd4b585fc41757813b6cf9"
+  },
+  "localAffected": {
+    "tests": 134,
+    "pass": 134,
+    "fail": 0,
+    "skip": 0
+  },
+  "independentAffected": {
+    "tests": 79,
+    "pass": 79,
+    "fail": 0,
+    "skip": 0
+  },
+  "localChecks": {
+    "lint": "PASS",
+    "typecheck": "PASS",
+    "requirements": "PASS341",
+    "requirementAudit": "PASS626surfaces341requirements"
+  },
+  "reviewCorrections": [
+    "Retain exact verified data-access creation handle for raw/staged files without reopen gap",
+    "Protect and revalidate trusted installed Node executable ancestry",
+    "Missing raw control schema incomplete; NULL status remains unknown",
+    "pathToFileURL for valid #/% path characters",
+    "Standalone SQLite readOnly floor22.12/23.2/24+; no runtime install"
+  ],
+  "failedAttemptsPreserved": [
+    "Initial missing reader/mode TDD15FAIL",
+    "Missing native adapter18FAIL",
+    "Native hardening4FAIL",
+    "Raw controls3FAIL",
+    "Runtime seam1FAIL",
+    "Independent findings5FAIL",
+    "Node23 release-branch1FAIL",
+    "Inherited umask077 broke one unchanged fixture; unchanged022 rerun26PASS",
+    "New test missing URL import lint failure fixed"
+  ],
+  "preservationBoundary": "OBSERVED_STABLE_SHARED not atomic/current authority; source handles share read/write/delete; fixed bounds/change/journal refusal",
+  "publicDataBoundary": "Only closed flags/counts/enums; all raw bytes/paths/private hashes/payload/errors remain private on ZBook",
+  "falseDefaultMode": "zbook_bridge_original_only",
+  "unchangedBoundaries": [
+    "Existing test bodies",
+    "Original locator bytes",
+    "POSIX inventory guard and CLI",
+    "contents:read permissions and3min workflow cap",
+    "No new credential/key/grant/ACL repair/service/install/upload"
+  ],
+  "pendingAtAuthoredCheckpoint": [
+    "Root final full suite",
+    "Final independent commit-bound source review",
+    "Exact PR CI and protected normal merge",
+    "Exact merged-main CI and fresh six-check audit",
+    "Actual one-shot fixed candidate read and independent result audit",
+    "Authenticated complete original Goal/Job/attempts/ChangeSets/stop/approval/runtime authority"
+  ],
+  "rollback": "Scoped source revert and affected checks; retain private acquisition directories/evidence, never delete original or frozen copies",
+  "issueWriteback": "https://github.com/haji84/AI-/issues/1219#issuecomment-6910662392"
+}
