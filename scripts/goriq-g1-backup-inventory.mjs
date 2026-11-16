@@ -71,7 +71,7 @@ function checkBudget(budgetUntil) {
 function columnsOf(db,table) {
   return new Set(db.prepare('PRAGMA table_info('+table+')').all().map(x=>x.name));
 }
-function inspectCurrentCompass(db,tables,goalId) {
+export function inspectCurrentCompass(db,tables,goalId) {
   if(!tables.has('goal')||!tables.has('state'))return {status:'SCHEMA_UNCONFIRMED'};
   const columns=columnsOf(db,'state'), goalColumns=columnsOf(db,'goal');
   if(!columns.has('active')||!columns.has('project_id')||!['id','title','description'].every(x=>goalColumns.has(x)))
@@ -98,7 +98,7 @@ function inspectCurrentCompass(db,tables,goalId) {
 }
 // Only structured goalId/jobId properties are discovery leads. Human prose,
 // partial IDs and coincidental string values never establish record identity.
-function exactIdentifiers(text,goalId,jobId,budgetUntil) {
+export function exactIdentifiers(text,goalId,jobId,budgetUntil) {
   const value=JSON.parse(text), stack=[[value,0]];
   let nodes=0,goal=false,job=false;
   while(stack.length) {
@@ -114,7 +114,7 @@ function exactIdentifiers(text,goalId,jobId,budgetUntil) {
   }
   return {goal,job};
 }
-function inspectHistoricalTable(db,tables,table,goalId,jobId,budgetUntil) {
+export function inspectHistoricalTable(db,tables,table,goalId,jobId,budgetUntil) {
   const result={status:'READONLY_SQLITE',rowsChecked:0,goalMatches:0,jobMatches:0,invalidRecords:0};
   try {
     checkBudget(budgetUntil);
