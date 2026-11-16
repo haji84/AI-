@@ -1,3 +1,13 @@
+# 2026-11-16: bounded ZBook / attached-storage original-location continuation
+
+Original `goal-fcc81c97e09153f7` / `rotation-recovery-37` remains **NOT_ACHIEVED / G1 HOLD**. Start from protected main `4a1af669b68f1c82f3c8d3a5516070bfe28ae31f`, PR1919 merged. Exact-main CI43768862993 attempt2 passed; attempt1 Unit timeout is retained. The expired receipt is historical verification, not current runtime authority. [Latest bounded storage investigation](https://github.com/haji84/AI-/issues/1219#issuecomment-6903697279).
+
+The owner proposed ZBook and attached SSD. Prior Windows inventory found the configured Fleet40 DB but did not inspect Goal/Job or mounted volumes. Existing G1 backup scanner refuses Windows; do not replay old Mac9/two-leaf repair/known ZIPs. This source candidate adds one false-default boolean mode to the existing Windows-only Fleet Liveness workflow. True mode skips the old scanner entirely, requires owner/repo/ZBook/current exact main and successful CI, then reads only local-drive and known-location metadata. No file contents, original SQLite, config decryption, recursive disk search or service/permission/credential mutation. Unknown media, denied/unsafe paths, drive-letter-only coverage and caps remain explicit; metadata cannot establish original presence or absence.
+
+Author Codex; local model NOT_RUN. Linux/pwsh7.6.9 focused10PASS/security332PASS/types/lint/auditPASS at authoring; exact new-head/main CI and real ZBook run remain separate gates tracked in Issue1219. [Scope/evidence](../evidence/1219-20261116-zbook-original-location.json). After protected integration, dispatch the new mode once and use actual candidate evidence for a bounded read-only original confirmation. G2–G13 original production acceptance remains unmet; never recreate the missing original or fill missing history. Source revert is rollback; no original state changed. Historical checkpoints below stay intact.
+
+---
+
 # 2026-11-16: Cloud original-state readback and response-history integrity
 
 Continue original Goal `goal-fcc81c97e09153f7` / Job `rotation-recovery-37`. **NOT_ACHIEVED / G1 HOLD; Issue1219 remains OPEN.** Read the [current execution directive](https://github.com/haji84/AI-/issues/1219#issuecomment-6898088963) and [new Cloud investigation/result](https://github.com/haji84/AI-/issues/1219#issuecomment-6902027999) before treating older PENDING entries below as current.

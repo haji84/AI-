@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "goalId": "goal-fcc81c97e09153f7",
+  "jobId": "rotation-recovery-37",
+  "status": "NOT_ACHIEVED",
+  "G1": "HOLD",
+  "baselineMain": "4a1af669b68f1c82f3c8d3a5516070bfe28ae31f",
+  "author": "Codex",
+  "actualLocalModel": "NOT_RUN",
+  "kind": "BOUNDED_METADATA_ROUTE_SOURCE_CANDIDATE",
+  "sourceHashes": {
+    "scripts/goriq-zbook-original-state-locator.ps1": "ed9ab6ed276b6ae99cfb01694194d37762a7d0f65ef5a065ab9c36ce5ea37f01",
+    ".github/workflows/goriq-zbook-fleet-liveness.yml": "faa535eed613efeaabc4cf19c6bc3fed3d801689c4b7c599dbbc571ff991dfeb",
+    "tests/goriq-zbook-original-state-locator.test.mjs": "af654b474b470cbf735dfb1aa34e4e181d275d56a3220a6a42ac76cb30f409db"
+  },
+  "scope": {
+    "existingWindowsOnlyWorkflow": true,
+    "manualBoolean": "original_state_only",
+    "default": false,
+    "readOnlyOriginals": true,
+    "contentsRead": false,
+    "recursiveDriveScan": false,
+    "protectedConfigDecryption": false,
+    "maxVolumes": 32,
+    "maxCandidates": 512,
+    "candidateBudgetSeconds": 45,
+    "hardJobTimeoutMinutes": 5,
+    "limitsReported": true,
+    "sourceGate": "current exact main and successful push CI",
+    "actor": "haji84",
+    "runner": "ZBook",
+    "permissions": "contents:read unchanged",
+    "newCredentials": 0,
+    "newPermissions": 0,
+    "originalWrites": 0
+  },
+  "localVerification": {
+    "initialNewTests": "2 RED before implementation",
+    "focused": "10 PASS, existing8 unchanged, new2",
+    "security": "332 PASS",
+    "typecheck": "PASS",
+    "lint": "initial missing Buffer import corrected; final PASS",
+    "audit": "626 surfaces/341 requirements PASS",
+    "full": "Initial run inherited umask077:4187 total/4159PASS/2FAIL/26SKIP/241290.785883ms; unchanged negative-permission fixtures require022. Same32 tests under process-only022:32PASS. Final full under022 in progress; no tests/security guards changed.",
+    "independentReview": "No unresolved material findings; final affected8PASS overlapping root10; extra context8/unsafe6/budget0/source-metadata6/cap coverage fixtures PASS. Linux/pwsh7.6.9 only; Windows5.1/native ACL NOT_RUN.",
+    "build": "PASS"
+  },
+  "knownLimitations": [
+    "Metadata can establish neither original match nor original absence",
+    "DriveInfo letter roots only; directory-mounted volumes not enumerated",
+    "Media type UNKNOWN; no SSD identity claim",
+    "Configured production path unavailable without decryption",
+    "Per-call platform I/O may consume hard job budget",
+    "No native Windows/PS5.1/ACL outcome before actual workflow run"
+  ],
+  "integrationAndNativeExecution": "PENDING exact-HEAD CI, protected merge, exact-main CI and one bounded true-mode dispatch; see Issue1219 for later results",
+  "writeback": "https://github.com/haji84/AI-/issues/1219#issuecomment-6903697279",
+  "rollback": "Normal protected source revert; no runtime/store/config/ACL/credential mutation to reverse"
+}
