@@ -168,7 +168,7 @@ function Invoke-GoriqOriginalLocationInspection {
     $volumes.Add(@{id=$id;driveLetter=$drive.Name.Substring(0,1).ToUpperInvariant();driveType=[string]$drive.DriveType;ready=$ready})
     if ($ready) { $driveRoots.Add($drive.RootDirectory.FullName) } else { $driveRoots.Add('') }
   }
-  $candidates = @(New-GoriqOriginalLocationCandidates -ProfilePath $env:USERPROFILE -CheckoutPath (Get-Location).Path -TaskWorkingDirectory $taskDirectory -LocalAppData $env:LOCALAPPDATA -DriveRoots $driveRoots.ToArray())
+  $candidates = @(New-GoriqOriginalLocationCandidates -ProfilePath $env:USERPROFILE -CheckoutPath $env:GITHUB_WORKSPACE -TaskWorkingDirectory $taskDirectory -LocalAppData $env:LOCALAPPDATA -DriveRoots $driveRoots.ToArray())
   New-GoriqOriginalLocationReport -Volumes $volumes.ToArray() -Candidates $candidates -SourceRevision $env:GITHUB_SHA -RunId $env:GITHUB_RUN_ID | ConvertTo-Json -Depth 12 -Compress
 }
 

@@ -9,8 +9,8 @@
   "actualLocalModel": "NOT_RUN",
   "kind": "BOUNDED_METADATA_ROUTE_SOURCE_CANDIDATE",
   "sourceHashes": {
-    "scripts/goriq-zbook-original-state-locator.ps1": "ed9ab6ed276b6ae99cfb01694194d37762a7d0f65ef5a065ab9c36ce5ea37f01",
-    ".github/workflows/goriq-zbook-fleet-liveness.yml": "faa535eed613efeaabc4cf19c6bc3fed3d801689c4b7c599dbbc571ff991dfeb",
+    "scripts/goriq-zbook-original-state-locator.ps1": "a7ca4f50c60a6da54feab92f14f50308899858ff7e932b85d6eb971707748590",
+    ".github/workflows/goriq-zbook-fleet-liveness.yml": "276b692f23e351b186ae226d05840e018ee8e089c5f9b5844ca6ce7a61279a3f",
     "tests/goriq-zbook-original-state-locator.test.mjs": "af654b474b470cbf735dfb1aa34e4e181d275d56a3220a6a42ac76cb30f409db"
   },
   "scope": {
@@ -104,6 +104,32 @@
       "previousBrokerSuiteMs": 20531.079066,
       "extraPollCause": "HYPOTHESIS_NOT_PROVEN_FOR_CI",
       "issueWriteback": "https://github.com/haji84/AI-/issues/1219#issuecomment-6904242649"
+    },
+    {
+      "head": "5e8ee0e56f22b094da729aa04b31dc59cdf27641",
+      "run": 43783805271,
+      "attempt": 1,
+      "overall": "SUCCESS",
+      "allFourJobs": "SUCCESS",
+      "sixCheckAudit": "Fresh valid6record Ed25519/source/image4contexts/outputSHA/commands/runtimecaps/boundaries/6distinctcleanup PASS; physicalAcceptance false",
+      "artifactId": 14189872273,
+      "zipSha256": "c52e0512867dab6b84a1e6240507ca01de1c34ecd7f44bcf36a8671a8d7b1313",
+      "unit": {
+        "total": 4190,
+        "pass": 4164,
+        "fail": 0,
+        "skip": 26,
+        "cliMs": 285580.109604
+      },
+      "integration": {
+        "total": 4190,
+        "pass": 4164,
+        "fail": 0,
+        "skip": 26,
+        "cliMs": 284795.61048
+      },
+      "receiptExpiresAt": "2026-11-16T01:34:05.131Z",
+      "scope": "Prior source baseline only; v4 sourcecheckout preservation fix requires newHEADCI; not originalGoal/physicalGoal evidence"
     }
   ],
   "recovery": {
@@ -143,5 +169,20 @@
     "liveProductionConfigurationChanges": 0,
     "newControllerOrState": false,
     "requiredNext": "Fresh exactHEAD protectedCI/mainCI and nativeZBook run, originalGoalHOLD"
+  },
+  "sourceCheckoutPreservation": {
+    "problem": "Current checkoutv5 defaultclean can delete ignored/untracked .jarvis candidates before metadata; originalrunnerworkspace must not becheckouttarget",
+    "publicActionSource": "actions/checkout@v5 action.yml +gitcommandmanager +gitdirectoryhelper read; clean-ffdx and fallbackdeletion confirmed",
+    "localRepro": "Exactgitclean-ffdx removed onlyself-createdignoredtempfixture .jarvis/compass.db; original/native data nottouched",
+    "scope": "ALLmodesincludingpush/default useunusedfixedperrunattemptsourcepath; no originalworkspacecleanup",
+    "preflight": "InlinePS beforecheckout; rejectexistingfile/dir/reparse/inaccessible/invalidcontext; neverremoveorreuse",
+    "legacyCwd": "OriginalGITHUB_WORKSPACE preserved for oldFleet resolution; explicitfreshscriptpath andfreshartifactdir",
+    "locatorCheckoutCandidate": "OriginalGITHUB_WORKSPACE, notfreshsourceCWD",
+    "upload": "Bothpaths fresh; oldalwaysuploadrequiresprecheck+checkoutsuccess+currentFleetoutcome success/failure/cancelled torejectstaleuploads afterrefusal",
+    "sameOwnerRace": "Not claimed atomic against malicioussameowner check-to-checkout race",
+    "tests": "Newpreservation1RED→affected11PASS, realPSpreflighttempfixtures+original/sourcecanaries+uploadtruth-table; actualWindows/actions/native pending",
+    "permissionsTokenOnPushDefaults": "Unchanged; only isolatedsourcepath/preflight/artifactrouting",
+    "liveOriginalMutations": 0,
+    "requiredNext": "NewexactHEADCI thenprotectedmerge/exactmainCI/nativeonce"
   }
 }

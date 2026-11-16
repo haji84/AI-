@@ -1,3 +1,13 @@
+# 2026-11-16: preserve original runner workspace before any native checkout
+
+Original `goal-fcc81c97e09153f7` / `rotation-recovery-37` remains **NOT_ACHIEVED / G1 HOLD**, main4a1af669 unchanged. PR1920 head5e8ee0e passed all4CI43783805271 jobs and fresh6checkaudit; Unit285580ms/Integration284796ms, each4190total4164PASS0FAIL26skip underunchangedlimits. Prior2CI failures remain preserved. This successfulbaseline is not originalGoal/native acceptance.
+
+Do notmerge that baseline unchanged: before native execution ROOT found checkoutv5 defaults to gitclean-ffdx/reset/fallbackcleanup at the existing workspace, which coulddelete .jarvis candidates before inspection. Fixedpublicactionsource was read and the exactclean command removed a self-createdignoredtempDB fixture; no realZBook/originaldata touched. Allmodes, includingautomaticpush/default, now use a fresh fixed perrun+attempt source subdirectory. Inlineprecheck rejects existingfile/dir/reparse/inaccessible targets instead of deleting/reusing. LegacyFleet keeps originalworkspacecwd but executesfreshsource path; all artifacts arefresh-pathscoped, and oldalwaysupload requires successfulprecheck/checkout pluscurrentFleet attempt toavoidstaleuploads. Locator explicitly inspects originalGITHUB_WORKSPACE, notfreshsourceCWD. Checkoutdefaults/tokenuse/permissions/onpush remain unchanged. This closesordinarycollision/cleanup risk, not malicioussameowner race-proof storage.
+
+Newpreservation1RED→affected11PASS includesactualPowerShellpreflight ontempfixtures and unchangedoriginal/source canaries; Windows/native action stillrequiresactualprotectedmain run. NewexactHEADCI/mainCI andoneboundedZBookmetadata dispatch remainrequired. No originalrecreation, keys/permissions/runtimeactivation or newController. [Evidence/history](../evidence/1219-20261116-zbook-original-location.json). Retainolderpassed/failedproofs asdatedcheckpoints.
+
+---
+
 # 2026-11-16: real receipt polling cadence after second CI timeout
 
 Original Goal/Job remains **NOT_ACHIEVED / G1 HOLD**, main4a1af669 unchanged. [PR1920 ebef4a5 CI43781008729](https://github.com/haji84/AI-/actions/runs/43781008729) also timed out restrictedUnit300008.242ms, other3jobs succeeded and3record partialcrypto/source/cleanup is valid; no6checkPASS. [Preserved result](https://github.com/haji84/AI-/issues/1219#issuecomment-6904242649). Installer correction actually saved8.733s withinCI, while an unchangedBroker fixture grew~14.862s; CIcause remains unproven. No unchangedretry.
