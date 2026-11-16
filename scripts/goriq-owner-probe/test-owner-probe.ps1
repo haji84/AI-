@@ -8,7 +8,13 @@ function Assert-Case([string]$Name,[bool]$Condition) {
 }
 $source=Join-Path $PSScriptRoot 'goriq-private-owner-probe.cs'
 Assert-Case 'standalone_source_exists' ([IO.File]::Exists($source))
-$null=Add-Type -TypeDefinition ([IO.File]::ReadAllText($source)) -Language CSharp -CompilerOptions '/langversion:5' -ErrorAction Stop
+if($PSVersionTable.PSVersion.Major -eq 5) {
+  # WindowsPS5 uses the installed .NET Framework C#5 CodeDOM compiler and has
+  # no Add-Type -CompilerOptions parameter. Exercise that real native path.
+  $null=Add-Type -TypeDefinition ([IO.File]::ReadAllText($source)) -Language CSharp -ErrorAction Stop
+}else{
+  $null=Add-Type -TypeDefinition ([IO.File]::ReadAllText($source)) -Language CSharp -CompilerOptions '/langversion:5' -ErrorAction Stop
+}
 Assert-Case 'csharp5_compile' ($null -ne ('GoriqPrivateOwnerProbe' -as [type]))
 foreach($path in @('C:\Users\Owner','d:\','D:\Profiles\Alice\.goriq-handoff')) {
   Assert-Case ('canonical_good_'+$checks) ([GoriqPrivateOwnerProbe]::CanonicalLocalPath($path))

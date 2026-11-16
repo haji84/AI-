@@ -8,7 +8,7 @@ import { runInNewContext } from 'node:vm';
 import process from 'node:process';
 import { createPowerShellFixtureBatch } from './helpers/powershell-fixture-batch.mjs';
 
-const workflow = readFileSync('.github/workflows/goriq-pc-private-network-probe.yml', 'utf8');
+const workflow = readFileSync('.github/workflows/goriq-pc-private-network-probe.yml', 'utf8').replaceAll('\r\n', '\n');
 const job = workflow.split('\n  zbook_owner_probe:')[1]?.split('\n  observe:')[0];
 const root = mkdtempSync(join(tmpdir(), 'owner-probe-workflow-'));
 after(() => rmSync(root, { recursive: true, force: true }));

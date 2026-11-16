@@ -45,3 +45,24 @@ No original/private target, ACL, owner, key, service, permission or production
 state was modified by this local source work. Compass MCP is unavailable; this
 source record and the existing Issue/PR are the governed handoff surfaces.
 Rollback is normal protected revert of the diagnostic source and selector.
+
+## Windows compatibility correction
+
+PR1925 CI43976594339 / Windows job133682034280 rejected the new fixtures:
+the workflow extractor assumed LF after the YAML block marker, and the pure
+compiler fixture used Add-Type -CompilerOptions, absent in WindowsPS5. The
+real supervised child had not yet been tested and no ZBook dispatch occurred.
+Preserve that failure. The correction normalizes fixture workflow line endings,
+keeps exact-byte public diagnostic sources LF through .gitattributes, and uses
+the installed WindowsPS5/.NET Framework C#5 compiler path on Windows. The Linux
+Roslyn C#5 language-floor check remains explicit. No source guard, original test
+assertion, CI limit or actual observer/supervisor byte changes are involved.
+
+The first full local run completed4373 cases /4345PASS/2FAIL/26existingSKIP.
+Both failures reproduced on unchanged main48d. The process umask0077 made the
+fixtures' deliberately requested0644/0755 objects become private0600/0700,
+so their expected unsafe-mode refusals did not occur. Running the same two
+unchanged baseline tests with per-test-process umask0022 passed2/2. This is a
+fixture environment distinction, not a Windows ownership diagnosis or a test
+relaxation. The frozen-source broad confirmation runs with that standard CI
+fixture mask; its final outcome is recorded separately.
