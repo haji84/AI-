@@ -66,3 +66,14 @@ unchanged baseline tests with per-test-process umask0022 passed2/2. This is a
 fixture environment distinction, not a Windows ownership diagnosis or a test
 relaxation. The frozen-source broad confirmation runs with that standard CI
 fixture mask; its final outcome is recorded separately.
+
+The second Windows run43977798568 / job133686164095 reached491PASS/1FAIL
+of492. Only the new inert supervised-child test failed after26.352s; no real
+private metadata was inspected. The one-record stdin channel was left open.
+The next bounded hypothesis closes the writer only after its asynchronous
+source write completes, with both transfer and exit using the remaining25s
+budget. A real cross-platform child that reads to EOF now verifies byte-exact
+transfer and termination. Windows acceptance of this hypothesis still requires
+the next exact-head CI. If it fails, inert-only fixed progress markers expose
+signature/workspace/input/compiler boundaries while preserving the assertion;
+the real observer and public output remain uninstrumented.

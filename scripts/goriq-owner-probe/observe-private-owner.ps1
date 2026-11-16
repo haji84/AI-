@@ -89,6 +89,15 @@ function Wait-OwnerProbeOutput([Threading.Tasks.Task[]]$Tasks,[int]$RemainingMil
  if($RemainingMilliseconds -lt 0 -or $RemainingMilliseconds -gt 25000){throw 'REFUSED'}
  return [Threading.Tasks.Task]::WhenAll($Tasks).Wait($RemainingMilliseconds)
 }
+function Send-OwnerProbeSource([Diagnostics.Process]$Child,[string]$NativeSource,[Diagnostics.Stopwatch]$Clock) {
+ $write=$Child.StandardInput.WriteLineAsync([Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($NativeSource)))
+ $remaining=[int][Math]::Max(0,25000-$Clock.ElapsedMilliseconds)
+ if(-not (Wait-OwnerProbeOutput -Tasks ([Threading.Tasks.Task[]]@($write)) -RemainingMilliseconds $remaining)){return $false}
+ # This source channel contains exactly one record. Signal EOF before waiting
+ # for the Windows PowerShell host to exit; do not leave redirected input open.
+ $Child.StandardInput.Close()
+ return $true
+}
 function Invoke-OwnerProbeObservation([string]$NativeSource) {
  $ErrorActionPreference='Stop';$child=$null;$started=$false
  try {
@@ -144,14 +153,15 @@ try {
   $stdout=$child.StandardOutput.ReadToEndAsync();$stderr=$child.StandardError.ReadToEndAsync()
   # Async line transfer stays inside the child deadline and does not require
   # source files or an overlong Windows command line. Never inherit tokens.
-  $inputTask=$child.StandardInput.WriteLineAsync([Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($NativeSource)))
-  if(-not $child.WaitForExit(25000)){
+  $inputReady=Send-OwnerProbeSource -Child $child -NativeSource $NativeSource -Clock $clock
+  $remaining=[int][Math]::Max(0,25000-$clock.ElapsedMilliseconds)
+  if(-not $inputReady -or -not $child.WaitForExit($remaining)){
    $child.Kill()
    if(-not $child.WaitForExit(2000)){return New-OwnerProbeFailure 'CHILD_STOP_UNCONFIRMED'}
    return New-OwnerProbeFailure 'TIMEOUT'
   }
   $remaining=[int][Math]::Max(0,25000-$clock.ElapsedMilliseconds)
-  if(-not (Wait-OwnerProbeOutput -Tasks ([Threading.Tasks.Task[]]@($inputTask,$stdout,$stderr)) -RemainingMilliseconds $remaining)){return New-OwnerProbeFailure 'TIMEOUT'}
+  if(-not (Wait-OwnerProbeOutput -Tasks ([Threading.Tasks.Task[]]@($stdout,$stderr)) -RemainingMilliseconds $remaining)){return New-OwnerProbeFailure 'TIMEOUT'}
   if($child.ExitCode -ne 0){return New-OwnerProbeFailure 'OUTPUT_REJECTED'}
   $text=$stdout.GetAwaiter().GetResult();$errorText=$stderr.GetAwaiter().GetResult()
   if($errorText.Length -ne 0){return New-OwnerProbeFailure 'OUTPUT_REJECTED'}

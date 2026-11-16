@@ -92,7 +92,7 @@ jobs:
 
             $failure = 'OWNER_PROBE_SOURCE_UNVERIFIED'
             $pins = [ordered]@{
-              'scripts/goriq-owner-probe/observe-private-owner.ps1'='4bfe9a7da355b80c982a7540633a6f5f3c3127971013871793c8b10416f93457'
+              'scripts/goriq-owner-probe/observe-private-owner.ps1'='487f7ac17002e56699bb63f585f5331bd8b2e26e9544f00295f53f5d345143d3'
               'scripts/goriq-owner-probe/goriq-private-owner-probe.cs'='9788d6aa785f713b0f90fde62c3ae2d39c7214456e80bfb6afcb43bcff3ce5a0'
             }
             $sources = @{}

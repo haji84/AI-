@@ -145,6 +145,24 @@ Assert-Case 'drained_output_is_complete' $pending.IsCompleted
 $blocked=New-Object 'Threading.Tasks.TaskCompletionSource[bool]'
 Assert-Case 'unclosed_output_pipe_is_bounded' (-not (Wait-OwnerProbeOutput -Tasks ([Threading.Tasks.Task[]]@($blocked.Task)) -RemainingMilliseconds 1))
 $blocked.SetResult($true)
+# A one-record source transfer must close its writer after completion. Windows
+# PowerShell's redirected-input host can keep running while that pipe is open.
+Assert-Case 'source_transfer_function_exists' ($null -ne (Get-Command Send-OwnerProbeSource -ErrorAction SilentlyContinue))
+$child=$null
+try {
+  $info=New-Object Diagnostics.ProcessStartInfo
+  $info.FileName=[Diagnostics.Process]::GetCurrentProcess().MainModule.FileName
+  $reader='if([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String([Console]::In.ReadToEnd().Trim())) -ceq "fixed-inert-source"){[Console]::Out.WriteLine("OWNER_SOURCE_EOF")}else{exit 1}'
+  $info.Arguments='-NoLogo -NoProfile -NonInteractive -EncodedCommand '+[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($reader))
+  $info.UseShellExecute=$false;$info.CreateNoWindow=$true;$info.RedirectStandardInput=$true;$info.RedirectStandardOutput=$true;$info.RedirectStandardError=$true
+  $child=New-Object Diagnostics.Process;$child.StartInfo=$info;$null=$child.Start()
+  $output=$child.StandardOutput.ReadToEndAsync();$errors=$child.StandardError.ReadToEndAsync()
+  $clock=[Diagnostics.Stopwatch]::StartNew()
+  Assert-Case 'source_writer_finishes_and_closes' (Send-OwnerProbeSource -Child $child -NativeSource 'fixed-inert-source' -Clock $clock)
+  Assert-Case 'source_reader_observes_eof' ($child.WaitForExit(3000))
+  Assert-Case 'source_output_is_drained' (Wait-OwnerProbeOutput -Tasks ([Threading.Tasks.Task[]]@($output,$errors)) -RemainingMilliseconds 1000)
+  Assert-Case 'source_roundtrip_exact' ($child.ExitCode -eq 0 -and $output.GetAwaiter().GetResult().Trim() -ceq 'OWNER_SOURCE_EOF' -and $errors.GetAwaiter().GetResult().Length -eq 0)
+}finally{if($null -ne $child){if(-not $child.HasExited){$child.Kill();$null=$child.WaitForExit(2000)};$child.Dispose()}}
 # Actual WindowsPS5 child supervision with inert C# only; no native private
 # observer is invoked by these fixtures. Guard binding before any child call.
 if([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) {
@@ -153,7 +171,26 @@ if([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) {
   $literal=$wire.Replace('"','""')
   $inert='public static class GoriqPrivateOwnerProbe { public static string ObserveJson() { return @"'+$literal+'"; } }'
   $result=Invoke-OwnerProbeObservation -NativeSource $inert | ConvertFrom-Json
-  Assert-Case 'native_ps5_child_compiles_supplied_source' ($result.reason -ceq 'UNSUPPORTED_PLATFORM' -and $result.observations.Count -eq 0)
+  if($result.reason -cne 'UNSUPPORTED_PLATFORM'){
+    # Failure-only instrumentation on this inert fixture, never on the real
+    # observer. Fixed markers distinguish native startup/signature/workspace/
+    # source-input/compiler boundaries without raw paths or exception output.
+    $definition=(Get-Command Invoke-OwnerProbeObservation).Definition
+    foreach($pair in @(
+      @(' $signature=Microsoft.PowerShell.Security',' [Console]::Out.WriteLine("INERT_SIGNATURE_START");$signature=Microsoft.PowerShell.Security'),
+      @(' try {$workspaceReady=Test-OwnerProbeCompilerWorkspace',' [Console]::Out.WriteLine("INERT_WORKSPACE_START");try {$workspaceReady=Test-OwnerProbeCompilerWorkspace'),
+      @(' $encoded=[Console]::In.ReadLine()',' [Console]::Out.WriteLine("INERT_INPUT_START");$encoded=[Console]::In.ReadLine();[Console]::Out.WriteLine("INERT_INPUT_FINISHED")'),
+      @(' $null=Add-Type -TypeDefinition $source',' [Console]::Out.WriteLine("INERT_BUILD_START");$null=Add-Type -TypeDefinition $source'),
+      @(' [Console]::Out.WriteLine([GoriqPrivateOwnerProbe]',' [Console]::Out.WriteLine("INERT_BUILD_FINISHED");[Console]::Out.WriteLine([GoriqPrivateOwnerProbe]')
+    )){$definition=$definition.Replace($pair[0],$pair[1])}
+    $definition=$definition.Replace('$child.WaitForExit($remaining)','$child.WaitForExit([Math]::Min(3000,$remaining))')
+    $definition=$definition.Replace('$child.Kill()','$child.Kill();$null=$child.WaitForExit(2000);if($stdout.IsCompleted){[Console]::Out.WriteLine($stdout.GetAwaiter().GetResult())}')
+    . ([ScriptBlock]::Create('function Invoke-OwnerProbeInertTrace {'+$definition+'}'))
+    $trace=Invoke-OwnerProbeInertTrace -NativeSource $inert
+    Write-Output ('INERT_SUPERVISOR_REASON '+$result.reason)
+    Write-Output ('INERT_TRACE_RESULT '+$trace)
+  }
+  Assert-Case ('native_ps5_child_compiles_supplied_source_'+$result.reason) ($result.reason -ceq 'UNSUPPORTED_PLATFORM' -and $result.observations.Count -eq 0)
   $invalid=Invoke-OwnerProbeObservation -NativeSource 'deliberately invalid PRIVATE C#' | ConvertFrom-Json
   Assert-Case 'native_ps5_child_build_failure_closed' ($invalid.reason -ceq 'NATIVE_BUILD_UNAVAILABLE')
   $extra=$inert.Replace('return @"','System.Console.WriteLine("PRIVATE_SID_PATH"); return @"')
