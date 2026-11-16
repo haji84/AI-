@@ -77,3 +77,13 @@ transfer and termination. Windows acceptance of this hypothesis still requires
 the next exact-head CI. If it fails, inert-only fixed progress markers expose
 signature/workspace/input/compiler boundaries while preserving the assertion;
 the real observer and public output remain uninstrumented.
+
+Further actual Windows evidence: run43979311714 retained491PASS/1FAIL; the
+inert supervisor returned OUTPUT_REJECTED. Run43980512538 isolated that fixture
+first, and its retained trace showed child exit0 with stderr present,
+CLIXML=true and MODULE_PROGRESS=true ("Preparing modules for first use"). The
+initial cold invocation timed out while the traced invocation completed. The
+next single-variable correction suppresses normal child progress output using
+ProgressPreference=SilentlyContinue. Nonempty real stderr still refuses and the
+25s budget remains. This fixes a proven progress-channel refusal; cold-start
+timing remains subject to actual Windows validation, not assumed solved.

@@ -186,7 +186,7 @@ if([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) {
     $definition=$definition.Replace('$child.WaitForExit($remaining)','$child.WaitForExit([Math]::Min(3000,$remaining))')
     $definition=$definition.Replace('$child.Kill()','$child.Kill();$null=$child.WaitForExit(2000);if($stdout.IsCompleted){[Console]::Out.WriteLine($stdout.GetAwaiter().GetResult())}')
     $definition=$definition.Replace('if($child.ExitCode -ne 0)','[Console]::Out.WriteLine("INERT_CHILD_EXIT "+$child.ExitCode);if($child.ExitCode -ne 0)')
-    $definition=$definition.Replace('if($errorText.Length -ne 0)','[Console]::Out.WriteLine("INERT_STDERR_NONEMPTY "+[bool]$errorText.Length+" CLIXML "+$errorText.Contains("#< CLIXML")+" MODULE_PROGRESS "+$errorText.Contains("Preparing modules for first use"));if($errorText.Length -ne 0)')
+    $definition=$definition.Replace('if($errorText.Length -ne 0)','[Console]::Out.WriteLine("INERT_CHILD_STDOUT "+$text);[Console]::Out.WriteLine("INERT_STDERR_NONEMPTY "+[bool]$errorText.Length+" CLIXML "+$errorText.Contains("#< CLIXML")+" MODULE_PROGRESS "+$errorText.Contains("Preparing modules for first use"));if($errorText.Length -ne 0)')
     $definition=$definition.Replace('return ConvertTo-OwnerProbeClosedJson $text','[Console]::Out.WriteLine("INERT_CHILD_STDOUT "+$text);return ConvertTo-OwnerProbeClosedJson $text')
     . ([ScriptBlock]::Create('function Invoke-OwnerProbeInertTrace {'+$definition+'}'))
     $trace=Invoke-OwnerProbeInertTrace -NativeSource $inert

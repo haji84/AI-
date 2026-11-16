@@ -120,7 +120,7 @@ function Invoke-OwnerProbeObservation([string]$NativeSource) {
   $contextFailure=New-OwnerProbeFailure 'NATIVE_CONTEXT_UNVERIFIED'
   $unsafeFailure=New-OwnerProbeFailure 'UNSAFE_PROFILE'
   $code=@'
-$ErrorActionPreference='Stop';$WarningPreference='SilentlyContinue';$env:PSModulePath=Join-Path $PSHOME 'Modules'
+$ErrorActionPreference='Stop';$WarningPreference='SilentlyContinue';$ProgressPreference='SilentlyContinue';$env:PSModulePath=Join-Path $PSHOME 'Modules'
 try {
  $fixed=[IO.Path]::Combine([Environment]::GetFolderPath('System'),'WindowsPowerShell','v1.0','powershell.exe')
  $signature=Microsoft.PowerShell.Security\Get-AuthenticodeSignature -LiteralPath $fixed -ErrorAction Stop
