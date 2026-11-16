@@ -133,7 +133,7 @@ jobs:
 
             $failure = 'FIXED_READER_SOURCE_UNVERIFIED'
             $pins = [ordered]@{
-              'scripts/goriq-zbook-bridge-original-read.ps1'='50439b6ed4f6daff1f051ee9d929df4e5b6c3cfceb14d978bd8cbf825c3d5740'
+              'scripts/goriq-zbook-bridge-original-read.ps1'='fb4b08d8eaac207b37ebacffc40002412c7a65a04efd10e3d5ed7c2dff3d4bee'
               'scripts/goriq-zbook-bridge-original-read.mjs'='3a2bc58a0d07b5d605da38acfad6851df01c258136046e8772aa2a36d55528ab'
               'scripts/goriq-g1-backup-inventory.mjs'='63d236135979ca681212f6b51b7b5d63c5a284c332fdb3615ba1f6c529fc2f66'
               'scripts/goriq-zbook-bridge-capture.cs'='489f668760b3ae283525b3775bc98202c8a88e99f6248d8f11b284ae0ce8c1c2'

@@ -37,14 +37,19 @@ function Get-GoriqBridgeInitializationFailure([Exception]$Exception) {
  if($null -eq $captureType){return 'PRIVATE_STORAGE_UNAVAILABLE'}
  $expected=$captureType.Assembly.GetType('GoriqBridgeInitializationException',$false,$false)
  if($null -eq $expected){return 'PRIVATE_STORAGE_UNAVAILABLE'}
+ $phaseProperty=$expected.GetProperty('PhaseCode')
+ $innerProperty=[Exception].GetProperty('InnerException')
+ if($null -eq $phaseProperty -or $null -eq $innerProperty){return 'PRIVATE_STORAGE_UNAVAILABLE'}
  # Only the source-owned CLR exception can supply a constructor checkpoint.
+ # CLR membership/getters ignore ETS-shadows of GetType, PhaseCode or InnerException.
  # Raw messages, Data, HResult and lookalike properties are never reflected.
  for($depth=0;$depth -lt 8 -and $null -ne $Exception;$depth++){
-  if($Exception.GetType() -eq $expected){
-   if($Exception.PhaseCode -is [string] -and $Exception.PhaseCode -cin $allowed){return $Exception.PhaseCode}
+  if($Exception -is $expected){
+   $code=$phaseProperty.GetValue($Exception,$null)
+   if($code -is [string] -and $code -cin $allowed){return $code}
    return 'PRIVATE_STORAGE_UNAVAILABLE'
   }
-  $Exception=$Exception.InnerException
+  $Exception=$innerProperty.GetValue($Exception,$null)
  }
  return 'PRIVATE_STORAGE_UNAVAILABLE'
 }

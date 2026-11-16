@@ -7,7 +7,7 @@ import process from 'node:process';
 import { createPowerShellFixtureBatch } from './helpers/powershell-fixture-batch.mjs';
 const phases=['PRIVATE_IDENTITY_UNAVAILABLE','PRIVATE_ENVIRONMENT_UNAVAILABLE','PRIVATE_ANCESTRY_UNAVAILABLE','PRIVATE_PARENT_UNAVAILABLE','PRIVATE_LAYOUT_UNAVAILABLE','PRIVATE_CONTEXT_UNAVAILABLE'];
 const reasons=['PRIVATE_PATH_UNVERIFIED','PRIVATE_LOCAL_STORAGE_UNAVAILABLE','PRIVATE_NATIVE_OPEN_UNAVAILABLE','PRIVATE_FILE_METADATA_UNVERIFIED','PRIVATE_FINAL_PATH_UNVERIFIED','PRIVATE_OWNER_UNVERIFIED','PRIVATE_DACL_UNVERIFIED','PRIVATE_CREATE_UNAVAILABLE'];
-const cases=['build',...phases.map((_,i)=>'phase-'+i),...reasons.map((_,i)=>'reason-'+i),'unknown','spoof','same-name','unknown-enum','nested','too-deep','valid',...['NATIVE_BUILD_UNAVAILABLE',...phases,...reasons].map((_,i)=>'workflow-'+i),'workflow-unknown','workflow-malicious'];
+const cases=['ets-type','ets-phase','ets-inner','build',...phases.map((_,i)=>'phase-'+i),...reasons.map((_,i)=>'reason-'+i),'unknown','spoof','same-name','unknown-enum','nested','too-deep','valid',...['NATIVE_BUILD_UNAVAILABLE',...phases,...reasons].map((_,i)=>'workflow-'+i),'workflow-unknown','workflow-malicious'];
 const root=mkdtempSync(join(tmpdir(),'bridge-initialization-'));after(()=>rmSync(root,{recursive:true,force:true}));
 const adapter=resolve('scripts/goriq-zbook-bridge-original-read.ps1'),native=resolve('scripts/goriq-zbook-bridge-capture.cs');
 const workflow=readFileSync('.github/workflows/goriq-pc-private-network-probe.yml','utf8');
@@ -21,6 +21,21 @@ $ErrorActionPreference='Stop'
 if(-not ('GoriqBridgeCapture' -as [type])){Add-Type -Path $Native -ErrorAction Stop}
 $phases=@(${phases.map(quote).join(',')})
 $reasons=@(${reasons.map(quote).join(',')})
+if($Scenario.StartsWith('ets-')){
+ $nativeException=[GoriqBridgeInitializationException]::new([GoriqBridgeInitializationPhase]::PRIVATE_IDENTITY_UNAVAILABLE,[InvalidOperationException]::new('PRIVATE_NATIVE_PATH_SID_ACL_HASH_CONTENT'))
+ if($Scenario -ceq 'ets-type'){
+  $e=[InvalidOperationException]::new('PRIVATE_RAW_HRESULT_PATH')
+  $e|Add-Member ScriptMethod GetType {return [GoriqBridgeInitializationException]} -Force
+  $e|Add-Member NoteProperty PhaseCode 'PRIVATE_CONTEXT_UNAVAILABLE' -Force
+ }elseif($Scenario -ceq 'ets-phase'){
+  $e=$nativeException;$e|Add-Member NoteProperty PhaseCode 'PRIVATE_CONTEXT_UNAVAILABLE' -Force
+ }else{
+  $e=[InvalidOperationException]::new('PRIVATE_RAW_HRESULT_PATH');$e|Add-Member NoteProperty InnerException $nativeException -Force
+ }
+ [ordered]@{code=(Get-GoriqBridgeInitializationFailure $e);actualNative=($e -is [GoriqBridgeInitializationException]);actualInnerPresent=($null -ne [Exception].GetProperty('InnerException').GetValue($e,$null))}|ConvertTo-Json -Compress
+ return
+}
+
 if($Scenario.StartsWith('workflow-')) {
  $codes=@('NATIVE_BUILD_UNAVAILABLE')+$phases+$reasons
  $summary=New-GoriqBridgeSummary
@@ -85,7 +100,7 @@ $result=Invoke-GoriqBridgeRead -QuerySource ([byte[]]@(1)) -InventorySource ([by
 `);
 const run=createPowerShellFixtureBatch({shell:process.platform==='win32'?'powershell.exe':'pwsh',fixture:file,scenarios:cases,parameters:{Adapter:adapter,Native:native,Root:root},timeoutMs:10000});
 function result(scenario){const r=run(scenario);assert.equal(r.status,0,r.stderr);assert.equal(r.stderr,'');assert.doesNotMatch(r.stdout,/PRIVATE_(?:COMPILER_EXCEPTION_PATH|RAW_HRESULT_PATH|ROOT|NATIVE_PATH_SID_ACL_HASH_CONTENT|WRAPPER|PATH_SID_CONTENT|PHASE_CONFLATED)/);return r.stdout;}
-for(const scenario of cases.filter(x=>!x.startsWith('workflow-')))test('initialization '+scenario+' has fixed phase, unchanged closed summary and no premature acquisition',()=>{
+for(const scenario of cases.filter(x=>!x.startsWith('workflow-')&&!x.startsWith('ets-')))test('initialization '+scenario+' has fixed phase, unchanged closed summary and no premature acquisition',()=>{
  const {result:r,calls,partialExists}=JSON.parse(result(scenario));assert.equal(Object.keys(r).length,25);assert.equal(r.originalGoalRecovered,false);assert.equal(r.g1,'HOLD');
  if(scenario==='valid'){assert.equal(r.status,'COPIED_STATE_READ');assert.deepEqual(calls,['build','constructor','acquire','runtime','query','dispose']);return;}
  assert.equal(r.status,'INCOMPLETE');assert.equal(r.preserved,false);assert.equal(r.queryVerified,false);assert.equal(r.currentGoalMatches,null);assert.ok(!calls.includes('acquire'));assert.ok(!calls.includes('runtime'));assert.ok(!calls.includes('query'));
@@ -101,4 +116,8 @@ for(const name of ['workflow-unknown','workflow-malicious'])test(name+' remains 
 test('existing bounded Windows PowerShell CI selects the inert initialization compiler and phase fixtures',()=>{
  const ci=readFileSync('.github/workflows/ci.yml','utf8').split('  windows-runtime-byte-fixtures:')[1];
  assert.match(ci,/timeout-minutes: 5/);assert.match(ci,/shell: powershell/);assert.match(ci,/run: node --test .* tests\/goriq-zbook-bridge-initialization.test.mjs(?:\n|$)/);
+});
+
+for(const name of ['ets-type','ets-phase','ets-inner'])test(name+' cannot shadow CLR exception membership, phase or traversal',()=>{
+ const r=JSON.parse(result(name));assert.equal(r.code,name==='ets-phase'?'PRIVATE_IDENTITY_UNAVAILABLE':'PRIVATE_STORAGE_UNAVAILABLE');assert.equal(r.actualNative,name==='ets-phase');if(name==='ets-inner')assert.equal(r.actualInnerPresent,false);
 });
