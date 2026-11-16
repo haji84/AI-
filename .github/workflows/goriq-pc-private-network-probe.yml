@@ -2,6 +2,11 @@ name: GORIQ PC Private Network Read-only Probe
 
 on:
   workflow_dispatch:
+    inputs:
+      zbook_runner_only:
+        description: Observe existing ZBook SSH runner processes from Mac only
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -16,20 +21,44 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner: [[self-hosted, macOS, ARM64], [self-hosted, Windows, X64]]
+        runner: ${{ inputs.zbook_runner_only && fromJSON('[["self-hosted","macOS","ARM64"]]') || fromJSON('[["self-hosted","macOS","ARM64"],["self-hosted","Windows","X64"]]') }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 3
     steps:
-      - uses: actions/checkout@v5
-        with:
-          ref: ${{ github.sha }}
-          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 24.19.0
+      - name: Require unused per-run source directory
+        id: source_precheck
+        shell: bash
+        run: >-
+          node -e 'const fs=require("node:fs"),p=require("node:path"),e=process.env; if(!/^[1-9][0-9]{0,19}$/.test(e.GITHUB_RUN_ID||"")||!/^[1-9][0-9]{0,19}$/.test(e.GITHUB_RUN_ATTEMPT||"")||!p.isAbsolute(e.GITHUB_WORKSPACE||""))throw Error("PC_SOURCE_CONTEXT_INVALID");let canonical;try{canonical=fs.realpathSync(e.GITHUB_WORKSPACE)}catch{throw Error("PC_SOURCE_CONTEXT_INVALID")}if(canonical!==e.GITHUB_WORKSPACE||p.resolve(e.GITHUB_WORKSPACE)!==e.GITHUB_WORKSPACE)throw Error("PC_SOURCE_CONTEXT_INVALID");const target=p.join(e.GITHUB_WORKSPACE,"goriq-pc-route-source-"+e.GITHUB_RUN_ID+"-"+e.GITHUB_RUN_ATTEMPT);try{fs.mkdirSync(target,{recursive:false})}catch{throw Error("PC_SOURCE_DIRECTORY_NOT_FRESH")}'
+      - uses: actions/checkout@v5
+        id: source_checkout
+        with:
+          ref: ${{ github.sha }}
+          path: goriq-pc-route-source-${{ github.run_id }}-${{ github.run_attempt }}
+          clean: false
+          persist-credentials: false
       - name: Require exact current main with successful CI
+        id: approved_source
+        working-directory: goriq-pc-route-source-${{ github.run_id }}-${{ github.run_attempt }}
         env:
           GORIQ_PC_APPROVED_REVISION: ${{ github.sha }}
         run: node scripts/goriq-pc-approved-source.mjs
       - name: Observe native private route and local health without changing state
+        if: ${{ !inputs.zbook_runner_only }}
+        working-directory: goriq-pc-route-source-${{ github.run_id }}-${{ github.run_attempt }}
         run: node scripts/goriq-pc-private-network-probe.mjs
+      - name: Observe existing ZBook runner processes from Mac
+        id: runner_observation
+        if: ${{ inputs.zbook_runner_only }}
+        working-directory: goriq-pc-route-source-${{ github.run_id }}-${{ github.run_attempt }}
+        run: node scripts/goriq-zbook-runner-readonly.mjs
+      - name: Upload sanitized runner observation
+        if: ${{ inputs.zbook_runner_only && steps.source_precheck.outcome == 'success' && steps.source_checkout.outcome == 'success' && steps.approved_source.outcome == 'success' && steps.runner_observation.outcome == 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: zbook-runner-readonly-${{ github.run_id }}-${{ github.run_attempt }}
+          path: goriq-pc-route-source-${{ github.run_id }}-${{ github.run_attempt }}/.gai-results/zbook-runner-readonly.json
+          if-no-files-found: error
