@@ -46,7 +46,8 @@
     "focused": 162,
     "focusedPass": 162,
     "combinedPolicyTest": "New capability matrix reuses existing same-source C# types; all assertions retained; Node still requires new native16+7markers.",
-    "freshReview": "Source review and fixture-only followup:0Critical/0Important; documentation clarified InheritOnly, combined batch20s vs former10s, and all test .NET child environment scope. Explicit DOTNET value preservation executed by reviewer."
+    "freshReview": "Source review and fixture-only followup:0Critical/0Important; documentation clarified InheritOnly, combined batch20s vs former10s, and all test .NET child environment scope. Explicit DOTNET value preservation executed by reviewer.",
+    "focusedLatest": "99owner+batch33/33PASS"
   },
   "history": {
     "supersededDiagnosticOnlySource": "58fb45d6e1bc37c4fc46fb0cb28dedbc08e71cb6",
@@ -60,7 +61,7 @@
   "actualAuthor": "Codex",
   "localModel": "NOT_RUN",
   "pending": [
-    "host-pin review and exact-source/main4CI with signed6",
+    "new exact-source/main4CI and signed6",
     "actual error disappearance and original fixed-read validation within current ordinary task authority"
   ],
   "verificationRuntimeRecovery": {
@@ -85,5 +86,21 @@
     "hostCorrelation": "Ubuntu26.04 image20261111.196.1 vs prior success20261111.82.6; root cause not proven",
     "change": "Only independent verifier host ubuntu-latest -> supportedubuntu-24.04; allchecks/deadlines/CPU2/memory2GB/pids128/networknone/UID65534/signer/protection preserved",
     "localFull96": "Frozen clean before/after4376total4349pass1unrelatedexistingpwshstartup15s timeout26skip500s; actualumask0022/private per-run Node compile cache. Isolated unchanged dialog test97PASS; no failed full run accepted."
+  },
+  "ownerFixtureSharding": {
+    "caseCallbacksAndAssertionsUnchangedFrom": "752f4e9e8b6b51a7b924b1da4b8af76afab4d6f8",
+    "all25Preserved": true,
+    "groups": [
+      9,
+      9,
+      7
+    ],
+    "perProcessMs": 10000,
+    "combinedMaxMs": 30000,
+    "previousCombinedMaxMs": 10000,
+    "globalMs": 300000,
+    "focused99": "33/33PASS0skip",
+    "review": "profile_capability_final_review0Critical0Important; no assertion/production/gate changes",
+    "red": "752CI44160045692 Windows134311089248 shared25case PSbatch10s timeout. No unchanged rerun; split preparation only."
   }
 }

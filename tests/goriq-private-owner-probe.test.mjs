@@ -91,7 +91,20 @@ foreach($key in @([Environment]::GetEnvironmentVariables().Keys)){if(-not $initi
 foreach($key in $initial.Keys){[Environment]::SetEnvironmentVariable([string]$key,[string]$initial[$key])}
 [ordered]@{output=@($output);status=$status;http=$global:ownerProbeHttp}|ConvertTo-Json -Depth 6 -Compress
 `);
-  run = createPowerShellFixtureBatch({ shell: 'pwsh', fixture: wrapper, scenarios, parameters: { Manifest: manifestFile }, timeoutMs: 10000 });
+  // Keep all25 cases and each process's10s bound. Smaller owned batches leave
+  // room for Windows parsing/startup while every case retains a fresh runspace.
+  assert.equal(scenarios.length, 25);
+  const runners = new Map();
+  for (let offset = 0; offset < scenarios.length; offset += 9) {
+    const group = scenarios.slice(offset, offset + 9);
+    const execute = createPowerShellFixtureBatch({ shell: 'pwsh', fixture: wrapper, scenarios: group, parameters: { Manifest: manifestFile }, timeoutMs: 10000 });
+    for (const scenario of group) runners.set(scenario, execute);
+  }
+  run = scenario => {
+    const execute = runners.get(scenario);
+    assert.ok(execute, 'PS_FIXTURE_CASE_UNKNOWN');
+    return execute(scenario);
+  };
 }
 
 for (const scenario of scenarios) test('owner observation workflow refuses unsafe boundary: ' + scenario, () => {

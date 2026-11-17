@@ -62,3 +62,8 @@ hostは両方Ubuntu26.04だが、image更新版は成功時20261111.82.6、失�
 公式にサポートされているx64 Ubuntu24.04 poolへ固定する。全6check・署名・300s期限・CPU2・memory2GB・
 pids128・network none・UID65534、branch protectionと実機の条件は変更しない。
 同じhost割当の追加再試行予算は0。label変更のprotected revertは独立して可能で、原本・OSへの復元操作はない。
+
+752f4e9のWindows再実行で、owner workflowの25case共有batchが10s上限に達した。
+全25case・既存callback/assertionとfresh runspaceを残し、最大9caseの3owned processへ分割する。
+各process10s、CI全体300sは維持し、この25caseの合計batch予算は従来10sから最大30sへ変わる。
+製品コード、native境界試験、実機のtimeoutには変更しない。
