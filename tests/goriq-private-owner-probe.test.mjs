@@ -128,3 +128,11 @@ test('embedded owner bootstrap preserves closed failure phases before observatio
   assert.match(result.stdout, /TOTAL_PASS=14/);
   assert.match(result.stdout, /SOURCE_STREAM_PASS=16/);
 });
+
+test('approved SYSTEM owner exception is confined to the verified profile root', { timeout: 20000 }, () => {
+  const shell = process.platform === 'win32' ? 'powershell.exe' : 'pwsh';
+  const result = spawnSync(shell, ['-NoLogo', '-NoProfile', '-NonInteractive', '-File', resolve('scripts/goriq-owner-probe/test-profile-system-owner.ps1')], { encoding: 'utf8', timeout: 17000, windowsHide: true });
+  assert.equal(result.status, 0, result.stderr + '\n' + result.stdout);
+  assert.equal(result.stderr, '');
+  assert.match(result.stdout, /PROFILE_POLICY_PASS=\d+/);
+});

@@ -78,6 +78,12 @@ public sealed class GoriqBridgeCapture : IDisposable {
   }
   return true;
  }
+ public static bool IsExactProfileDirectory(uint attributes,string finalPath,string profilePath) {
+  return (attributes&DIRECTORY)!=0&&(attributes&REPARSE)==0&&CanonicalLocalPath(profilePath)&&profilePath.Length>3&&String.Equals(finalPath,"\\\\?\\"+profilePath,StringComparison.OrdinalIgnoreCase);
+ }
+ public static bool PrivateOwnerPermitted(string ownerSid,string userSid,bool exactProfileDirectory) {
+  return !String.IsNullOrEmpty(ownerSid)&&!String.IsNullOrEmpty(userSid)&&(ownerSid==userSid||(exactProfileDirectory&&ownerSid=="S-1-5-18"));
+ }
  public static bool AcePermitted(string who,uint mask,bool privacy,bool runtime,string ownerSid) {
   if(!privacy&&!runtime)return true; // metadata-only ancestors; no permission inference
   bool trusted=who=="S-1-5-18"||who=="S-1-5-32-544"||(privacy&&who==ownerSid)||who=="S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464";
@@ -93,7 +99,20 @@ public sealed class GoriqBridgeCapture : IDisposable {
   try {
    uint size=GetSecurityDescriptorLength(descriptor);Require(size>0&&size<=65536,GoriqBridgePrivateGuardReason.PRIVATE_DACL_UNVERIFIED);byte[] bytes=new byte[size];Marshal.Copy(descriptor,bytes,0,(int)size);
    var sd=new RawSecurityDescriptor(bytes,0);Require(sd.Owner!=null&&sd.DiscretionaryAcl!=null&&(sd.ControlFlags&ControlFlags.DiscretionaryAclPresent)!=0,GoriqBridgePrivateGuardReason.PRIVATE_DACL_UNVERIFIED);
-   if(privacy)Require(sd.Owner.Value==sid,GoriqBridgePrivateGuardReason.PRIVATE_OWNER_UNVERIFIED);
+   if(privacy) {
+    // Centralize the approved exception so descriptor snapshots and rechecks
+    // receive the same handle-derived scope as Open/Inspect. Never trust a
+    // caller's path label for SYSTEM ownership of a private child or file.
+    bool exactProfileDirectory=false;
+    if(!runtime&&sd.Owner.Value=="S-1-5-18") {
+     Budget();Info ownerInfo;
+     if(GetFileInformationByHandle(handle,out ownerInfo)) {
+      var ownerFinal=new StringBuilder(1024);Budget();uint ownerCount=GetFinalPathNameByHandle(handle,ownerFinal,1024,0);
+      exactProfileDirectory=ownerCount>0&&ownerCount<1024&&IsExactProfileDirectory(ownerInfo.attributes,ownerFinal.ToString(),profile);
+     }
+    }
+    Require(PrivateOwnerPermitted(sd.Owner.Value,sid,exactProfileDirectory),GoriqBridgePrivateGuardReason.PRIVATE_OWNER_UNVERIFIED);
+   }
    if(runtime)Require(sd.Owner.Value=="S-1-5-18"||sd.Owner.Value=="S-1-5-32-544"||sd.Owner.Value=="S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464",GoriqBridgePrivateGuardReason.PRIVATE_OWNER_UNVERIFIED);
    foreach(GenericAce ace in sd.DiscretionaryAcl) {
     if((ace.AceFlags&AceFlags.InheritOnly)!=0)continue;

@@ -1,0 +1,72 @@
+{
+  "goal": "goal-fcc81c97e09153f7",
+  "job": "rotation-recovery-37",
+  "goalStatus": "NOT_ACHIEVED",
+  "g1": "HOLD",
+  "recovered": false,
+  "baselineMain": "506be8ccef0d59aeec566c9faf17f100b6034952",
+  "observedBaseline": {
+    "run": 44022022751,
+    "job": 133833487214,
+    "runnerId": 21,
+    "runnerName": "ZBook",
+    "target": "PROFILE",
+    "reason": "PRIVATE_OWNER_UNVERIFIED",
+    "owner": "OTHER",
+    "dacl": "UNOBSERVED",
+    "observedAtUTC": "2026-11-17T05:56:35.6378415Z"
+  },
+  "userReportedCurrentProfileOwner": "SYSTEM; user-provided PowerShell result, not the native report's raw principal",
+  "authorization": {
+    "class": "EXPLICIT_USER_APPROVAL_IN_ACTIVE_CHAT",
+    "reply": "進めていいよ。",
+    "proposalSHA256": "1403258e2f53839059c0ced041d9ea86049f7ee9842a2fc633963bcb6c75030c",
+    "risk": "HIGH limited security-owner predicate exception",
+    "scope": "Exact verified profile directory only: SYSTEM or CURRENT_USER. Normal protected integration, all four source/main CI jobs, one new read-only owner observation.",
+    "builder": "Codex root",
+    "finalVerifier": "Separate fresh-context source reviewer and machine CI",
+    "gateAuthority": "Owner's explicit approval of this exact exception"
+  },
+  "change": "Central handle-derived exact-profile scope applies to capture Security snapshots/rechecks; observer and closed validator classify SYSTEM without exporting raw identities. All private children remain CURRENT_USER only.",
+  "preserved": [
+    "Strict DACL",
+    "Fixed NTFS",
+    "Canonical non-reparse final path",
+    "Identity and stability checks",
+    "Deadlines",
+    "Source hash pins",
+    "All CI and protected-merge requirements"
+  ],
+  "prohibited": [
+    "Windows owner/ACL changes",
+    "Broader owner exceptions",
+    "Original Capture/Acquire replay",
+    "New credentials or privileges",
+    "Runtime activation",
+    "Goal/state recreation"
+  ],
+  "redEvidence": "New executable policy test failed at capture_profile_scope_exists before implementation, then passed with the limited predicate.",
+  "windowsBoundary": "Test-only in-memory metadata stubs invoke production central Security twice using synthetic descriptors/handles; no native objects or ACL mutation.",
+  "rollback": "Protected revert of capture, observer, validator and their dependent workflow pins together; no OS/data restoration needed because no OS/data mutation is authorized.",
+  "limits": "Current owner does not establish the creator or historical state. DACL and descendants remain unobserved until a fresh native run. Source/CI success does not prove original Goal recovery.",
+  "compassWriteBack": "UNAVAILABLE; repository evidence and PR provide the governed handoff, no Controller state is fabricated.",
+  "actualAuthor": "Codex",
+  "localModel": "NOT_RUN",
+  "pending": [
+    "Fresh source review",
+    "Full exact-source and Windows CI",
+    "Protected integration and exact-main CI",
+    "One new bounded native owner observation"
+  ],
+  "localValidation": {
+    "focused": 159,
+    "pass": 159,
+    "fail": 0,
+    "lint": "PASS",
+    "types": "PASS",
+    "requirements": 341,
+    "surfaces": 626,
+    "syntheticBoundaryCompile": "PASS; actual Security execution requires Windows CI",
+    "initialAttempt": "Default 7-file concurrency caused an existing PS batch 10s timeout (153/159); unchanged standard concurrency2 passed159/159. No caps/assertions changed."
+  }
+}

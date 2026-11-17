@@ -57,21 +57,22 @@ function ConvertTo-OwnerProbeClosedJson([string]$Text) {
   $keys=@('target','reason','storageVerified','attributesVerified','finalPathVerified','owner','dacl')
   if($null -eq $fact -or @($fact.PSObject.Properties).Count -ne $keys.Count -or $failed){throw 'REFUSED'}
   foreach($key in $keys){if($fact.PSObject.Properties.Name -cnotcontains $key){throw 'REFUSED'}}
-  if($fact.target -isnot [string] -or $fact.target -ceq 'NONE' -or $fact.target -cnotin $targets -or $fact.target -cin $seen -or $fact.reason -isnot [string] -or $fact.reason -cnotin $reasons -or $fact.owner -isnot [string] -or $fact.owner -cnotin @('UNOBSERVED','CURRENT_USER','OTHER') -or $fact.dacl -isnot [string] -or $fact.dacl -cnotin @('UNOBSERVED','PRIVATE_POLICY_MATCH','ANCESTOR_METADATA_ONLY','UNVERIFIED')){throw 'REFUSED'}
+  if($fact.target -isnot [string] -or $fact.target -ceq 'NONE' -or $fact.target -cnotin $targets -or $fact.target -cin $seen -or $fact.reason -isnot [string] -or $fact.reason -cnotin $reasons -or $fact.owner -isnot [string] -or $fact.owner -cnotin @('UNOBSERVED','CURRENT_USER','OTHER','SYSTEM') -or $fact.dacl -isnot [string] -or $fact.dacl -cnotin @('UNOBSERVED','PRIVATE_POLICY_MATCH','ANCESTOR_METADATA_ONLY','UNVERIFIED')){throw 'REFUSED'}
   foreach($key in @('storageVerified','attributesVerified','finalPathVerified')){if($fact.$key -isnot [bool]){throw 'REFUSED'}}
   if($fact.reason -cmatch '^(?:NATIVE_|CHILD_)'){throw 'REFUSED'}
   if($facts.Count -ge $sequence.Count -or $fact.target -cne $sequence[$facts.Count]){throw 'REFUSED'}
   $native=$fact.target -cnotin @('IDENTITY','PROFILE_ENVIRONMENT')
   $private=$fact.target -cin @('PROFILE','HANDOFF','LAYOUT','RAW','WORK','CONTEXT')
+  $ownerPermitted=$fact.owner -ceq 'CURRENT_USER' -or ($fact.target -ceq 'PROFILE' -and $fact.owner -ceq 'SYSTEM')
   if(($fact.attributesVerified -and -not $fact.storageVerified) -or ($fact.finalPathVerified -and -not $fact.attributesVerified) -or
      ($fact.owner -cne 'UNOBSERVED' -and -not $fact.finalPathVerified) -or ($fact.dacl -cne 'UNOBSERVED' -and $fact.owner -ceq 'UNOBSERVED')){throw 'REFUSED'}
   if(-not $native){
    if($fact.storageVerified -or $fact.attributesVerified -or $fact.finalPathVerified -or $fact.owner -cne 'UNOBSERVED' -or $fact.dacl -cne 'UNOBSERVED'){throw 'REFUSED'}
   }elseif($fact.reason -ceq 'OBSERVED_POLICY_MATCH'){
    $expectedDacl='ANCESTOR_METADATA_ONLY';if($private){$expectedDacl='PRIVATE_POLICY_MATCH'}
-   if(-not $fact.finalPathVerified -or $fact.owner -ceq 'UNOBSERVED' -or $fact.dacl -cne $expectedDacl -or ($private -and $fact.owner -cne 'CURRENT_USER')){throw 'REFUSED'}
+   if(-not $fact.finalPathVerified -or $fact.owner -ceq 'UNOBSERVED' -or $fact.dacl -cne $expectedDacl -or ($private -and -not $ownerPermitted)){throw 'REFUSED'}
   }
-  if($fact.reason -ceq 'PRIVATE_OWNER_UNVERIFIED' -and (-not $private -or -not $fact.finalPathVerified -or $fact.owner -cne 'OTHER' -or $fact.dacl -cne 'UNOBSERVED')){throw 'REFUSED'}
+  if($fact.reason -ceq 'PRIVATE_OWNER_UNVERIFIED' -and (-not $private -or -not $fact.finalPathVerified -or $ownerPermitted -or $fact.owner -cnotin @('OTHER','SYSTEM') -or $fact.dacl -cne 'UNOBSERVED')){throw 'REFUSED'}
   $seen+=$fact.target;$failed=$fact.reason -cne 'OBSERVED_POLICY_MATCH'
   $facts+=@{target=$fact.target;reason=$fact.reason;storageVerified=$fact.storageVerified;attributesVerified=$fact.attributesVerified;finalPathVerified=$fact.finalPathVerified;owner=$fact.owner;dacl=$fact.dacl}
  }

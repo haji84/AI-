@@ -13,7 +13,7 @@ using Microsoft.Win32.SafeHandles;
 
 public enum OwnerProbeTarget { NONE, IDENTITY, PROFILE_ENVIRONMENT, VOLUME_ROOT, ANCESTOR_01, ANCESTOR_02, ANCESTOR_03, ANCESTOR_04, ANCESTOR_05, ANCESTOR_06, ANCESTOR_07, PROFILE, HANDOFF, LAYOUT, RAW, WORK, CONTEXT }
 public enum OwnerProbeReason { NOT_STARTED, OBSERVED_POLICY_MATCH, UNSUPPORTED_PLATFORM, IDENTITY_UNVERIFIED, UNSAFE_PROFILE, TARGET_LIMIT, TIMEOUT, TARGET_MISSING, ACCESS_DENIED, PRIVATE_LOCAL_STORAGE_UNAVAILABLE, PRIVATE_NATIVE_OPEN_UNAVAILABLE, PRIVATE_FILE_METADATA_UNVERIFIED, PRIVATE_FINAL_PATH_UNVERIFIED, PRIVATE_OWNER_UNVERIFIED, PRIVATE_DACL_UNVERIFIED, UNEXPECTED_FAILURE, OUTPUT_REJECTED }
-public enum OwnerProbeOwner { UNOBSERVED, CURRENT_USER, OTHER }
+public enum OwnerProbeOwner { UNOBSERVED, CURRENT_USER, OTHER, SYSTEM }
 public enum OwnerProbeDacl { UNOBSERVED, PRIVATE_POLICY_MATCH, ANCESTOR_METADATA_ONLY, UNVERIFIED }
 public enum OwnerProbeAccount { CURRENT_USER, SYSTEM, ADMINISTRATORS, TRUSTED_INSTALLER, OTHER }
 public enum OwnerProbeQualifier { ALLOW, DENY, OTHER }
@@ -74,11 +74,19 @@ public static class GoriqPrivateOwnerProbe {
   foreach(var target in result)if(!CanonicalLocalPath(target.Path))return new OwnerProbeSpec[0];
   return result.ToArray();
  }
- // Mirrors main48 Security(...privacy...) ordering, including inherit-only skip,
- // unknown/callback refusal, and no permission inference for metadata ancestors.
+ public static bool PrivateOwnerPermitted(OwnerProbeTarget target,OwnerProbeOwner owner) {
+  return Defined(target)&&Defined(owner)&&(owner==OwnerProbeOwner.CURRENT_USER||(target==OwnerProbeTarget.PROFILE&&owner==OwnerProbeOwner.SYSTEM));
+ }
+ // Preserve the original pure API; callers without a validated target never
+ // acquire the profile-only SYSTEM exception.
  public static OwnerProbeReason ReduceSecurity(bool ownerPresent,bool daclPresent,bool ownerMatches,bool privacy,OwnerProbeAce[] aces) {
+  return ReduceSecurity(ownerPresent,daclPresent,ownerMatches?OwnerProbeOwner.CURRENT_USER:OwnerProbeOwner.OTHER,privacy,aces,OwnerProbeTarget.NONE);
+ }
+ // Owner remains checked before ACEs. Only the fixed PROFILE role receives
+ // the approved exception after native attributes/final path validation.
+ public static OwnerProbeReason ReduceSecurity(bool ownerPresent,bool daclPresent,OwnerProbeOwner owner,bool privacy,OwnerProbeAce[] aces,OwnerProbeTarget target) {
   if(!ownerPresent||!daclPresent||aces==null)return OwnerProbeReason.PRIVATE_DACL_UNVERIFIED;
-  if(privacy&&!ownerMatches)return OwnerProbeReason.PRIVATE_OWNER_UNVERIFIED;
+  if(privacy&&!PrivateOwnerPermitted(target,owner))return OwnerProbeReason.PRIVATE_OWNER_UNVERIFIED;
   foreach(var ace in aces) {
    if(ace==null)return OwnerProbeReason.PRIVATE_DACL_UNVERIFIED;
    if(ace.InheritOnly)continue;
@@ -100,10 +108,10 @@ public static class GoriqPrivateOwnerProbe {
    uint size=GetSecurityDescriptorLength(descriptor);Require(size>0&&size<=65536,OwnerProbeReason.PRIVATE_DACL_UNVERIFIED);
    byte[] bytes=new byte[size];Marshal.Copy(descriptor,bytes,0,(int)size);var sd=new RawSecurityDescriptor(bytes,0);
    bool present=sd.DiscretionaryAcl!=null&&(sd.ControlFlags&ControlFlags.DiscretionaryAclPresent)!=0;
-   bool matches=sd.Owner!=null&&sd.Owner.Value==sid;
-   if(sd.Owner!=null)fact.Owner=matches?OwnerProbeOwner.CURRENT_USER:OwnerProbeOwner.OTHER;
-   // Stop at owner mismatch before examining ACEs, as main48 does.
-   var preliminary=ReduceSecurity(sd.Owner!=null,present,matches,privacy,new OwnerProbeAce[0]);
+   if(sd.Owner!=null)fact.Owner=sd.Owner.Value==sid?OwnerProbeOwner.CURRENT_USER:sd.Owner.Value=="S-1-5-18"?OwnerProbeOwner.SYSTEM:OwnerProbeOwner.OTHER;
+   // Stop at nonpermitted owner before examining ACEs; DACL remains strict
+   // for the SYSTEM-owned profile just as for a current-user-owned profile.
+   var preliminary=ReduceSecurity(sd.Owner!=null,present,fact.Owner,privacy,new OwnerProbeAce[0],fact.Target);
    Require(preliminary==OwnerProbeReason.OBSERVED_POLICY_MATCH,preliminary);
    var aces=new List<OwnerProbeAce>();
    foreach(GenericAce ace in sd.DiscretionaryAcl) {
@@ -114,7 +122,7 @@ public static class GoriqPrivateOwnerProbe {
     }
     aces.Add(item);
    }
-   var reason=ReduceSecurity(true,true,matches,privacy,aces.ToArray());
+   var reason=ReduceSecurity(true,true,fact.Owner,privacy,aces.ToArray(),fact.Target);
    fact.Dacl=reason==OwnerProbeReason.OBSERVED_POLICY_MATCH?(privacy?OwnerProbeDacl.PRIVATE_POLICY_MATCH:OwnerProbeDacl.ANCESTOR_METADATA_ONLY):OwnerProbeDacl.UNVERIFIED;
    Require(reason==OwnerProbeReason.OBSERVED_POLICY_MATCH,reason);
   } finally {if(descriptor!=IntPtr.Zero)LocalFree(descriptor);}
