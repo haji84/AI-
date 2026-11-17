@@ -92,8 +92,8 @@ jobs:
 
             $failure = 'OWNER_PROBE_SOURCE_UNVERIFIED'
             $pins = [ordered]@{
-              'scripts/goriq-owner-probe/observe-private-owner.ps1'='4a0ce2aaade4d4184c9897273f4f015712293267b3f512502684d4a34707c69c'
-              'scripts/goriq-owner-probe/goriq-private-owner-probe.cs'='37ee4e634e0b388bcc31f9ce090d62b754ed865825fda2075b8a7f81adb9aeb9'
+              'scripts/goriq-owner-probe/observe-private-owner.ps1'='0e303527f4f053c7e4c85874853ceea2d9b6adc6a536f91e19ba16b16ee7a4d3'
+              'scripts/goriq-owner-probe/goriq-private-owner-probe.cs'='77407d09e45af986247b9eb506d1c4813f93fecfcfece71aecb4e89dac81cbc6'
             }
             $sources = @{}
             foreach ($file in $pins.Keys) {

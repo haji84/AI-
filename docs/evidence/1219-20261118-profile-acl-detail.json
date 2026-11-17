@@ -1,0 +1,23 @@
+{
+  "goal": "goal-fcc81c97e09153f7",
+  "job": "rotation-recovery-37",
+  "issue": 1219,
+  "goalStatus": "NOT_ACHIEVED",
+  "g1": "HOLD",
+  "baselineMain": "4432cebe1ad99a3b7974f0c0c269aa2c0bb3540a",
+  "observed": {"run":44129203049,"job":134201287550,"runnerId":21,"sourceMain":"4432cebe1ad99a3b7974f0c0c269aa2c0bb3540a","target":"PROFILE","owner":"SYSTEM","dacl":"UNVERIFIED","reason":"PRIVATE_DACL_UNVERIFIED","observedUTC":"2026-11-17T16:44:41.5159933Z"},
+  "ownerInstruction": "完全解消的まで進めてほしいんだけど。",
+  "taskScope": "Completely resolve the current ZBook private owner/profile ACL error within Issue1219; not a new Goal or unrelated whole-product acceptance claim.",
+  "authority": "Explicit task completion for ordinary scoped source/test/protected integration/CI/read-only diagnosis. No new OS permission, credential, runtime or DACL safety relaxation inferred.",
+  "risk": "MEDIUM diagnostic-only; acceptance predicates unchanged",
+  "change": "Existing failed dacl enum now classifies first refused ACE shape/public principal class/nonwriting-vs-writing-control-unknown bits. Existing report keys/reason/targets/limits/transport retained; old UNVERIFIED remains valid.",
+  "privacy": "No raw usernames, SIDs, paths, SDDL or ACL lists exported. Known principal classes are public enum labels only.",
+  "policyProof": "Capture SHA256 remains0f00b5a6332baf2ac6259112bb2bae7157d49df3783c4f63c6f2f478a5a7e661; original Account and six-argument ReduceSecurity bodies byte-identical to baseline. Every new principal/mask case still refused by existing private policy.",
+  "verification": {"newTest":"missing classifier RED65 then GREEN66","focused":160,"focusedPass":160,"ownerFinal":31,"ownerPass":31,"lint":"PASS","types":"PASS","requirements":341,"surfaces":626,"windowsFixture":"in-memory synthetic descriptors call actual InspectSecurity; all9cases required in existing Windows job; compile passed locally, actual Windows CI pending"},
+  "remaining": "No actual rejected principal class/rights proved yet; one newly classifying observation after all exact-source/main gates. Continue from that result. Generic observation is not repeated unchanged.",
+  "rollback": "Protected revert of classifier, closed validator and2dependent source pins together; no OS or original state mutation to restore.",
+  "compassWriteBack": "UNAVAILABLE; repository and PR handoff, no fabricated Controller state",
+  "actualAuthor": "Codex",
+  "localModel": "NOT_RUN",
+  "pending": ["fixed-source full test","fresh source review","all4source CI and signed6 audit","protected integration and exact-main all4CI/audit","one actual classified observation and minimal root-cause fix"]
+}

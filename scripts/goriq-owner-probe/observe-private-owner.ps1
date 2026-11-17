@@ -52,12 +52,13 @@ function ConvertTo-OwnerProbeClosedJson([string]$Text) {
  $sequence=@('IDENTITY','PROFILE_ENVIRONMENT','VOLUME_ROOT')
  for($n=1;$n -le $ancestorCount;$n++){$sequence+=('ANCESTOR_0'+$n)}
  $sequence+=@('PROFILE','HANDOFF','LAYOUT','RAW','WORK','CONTEXT')
+ $daclDetails=@('REFUSED_UNQUALIFIED_ACE','REFUSED_CALLBACK_ACE','REFUSED_EVERYONE_NONWRITING','REFUSED_EVERYONE_WRITE_OR_OTHER','REFUSED_AUTHENTICATED_USERS_NONWRITING','REFUSED_AUTHENTICATED_USERS_WRITE_OR_OTHER','REFUSED_BUILTIN_USERS_NONWRITING','REFUSED_BUILTIN_USERS_WRITE_OR_OTHER','REFUSED_ALL_APPLICATION_PACKAGES_NONWRITING','REFUSED_ALL_APPLICATION_PACKAGES_WRITE_OR_OTHER','REFUSED_ALL_RESTRICTED_APPLICATION_PACKAGES_NONWRITING','REFUSED_ALL_RESTRICTED_APPLICATION_PACKAGES_WRITE_OR_OTHER','REFUSED_OTHER_ACCOUNT_NONWRITING','REFUSED_OTHER_ACCOUNT_WRITE_OR_OTHER')
  $facts=@();$seen=@();$failed=$false
  foreach($fact in $p.observations){
   $keys=@('target','reason','storageVerified','attributesVerified','finalPathVerified','owner','dacl')
   if($null -eq $fact -or @($fact.PSObject.Properties).Count -ne $keys.Count -or $failed){throw 'REFUSED'}
   foreach($key in $keys){if($fact.PSObject.Properties.Name -cnotcontains $key){throw 'REFUSED'}}
-  if($fact.target -isnot [string] -or $fact.target -ceq 'NONE' -or $fact.target -cnotin $targets -or $fact.target -cin $seen -or $fact.reason -isnot [string] -or $fact.reason -cnotin $reasons -or $fact.owner -isnot [string] -or $fact.owner -cnotin @('UNOBSERVED','CURRENT_USER','OTHER','SYSTEM') -or $fact.dacl -isnot [string] -or $fact.dacl -cnotin @('UNOBSERVED','PRIVATE_POLICY_MATCH','ANCESTOR_METADATA_ONLY','UNVERIFIED')){throw 'REFUSED'}
+  if($fact.target -isnot [string] -or $fact.target -ceq 'NONE' -or $fact.target -cnotin $targets -or $fact.target -cin $seen -or $fact.reason -isnot [string] -or $fact.reason -cnotin $reasons -or $fact.owner -isnot [string] -or $fact.owner -cnotin @('UNOBSERVED','CURRENT_USER','OTHER','SYSTEM') -or $fact.dacl -isnot [string] -or $fact.dacl -cnotin (@('UNOBSERVED','PRIVATE_POLICY_MATCH','ANCESTOR_METADATA_ONLY','UNVERIFIED')+$daclDetails)){throw 'REFUSED'}
   foreach($key in @('storageVerified','attributesVerified','finalPathVerified')){if($fact.$key -isnot [bool]){throw 'REFUSED'}}
   if($fact.reason -cmatch '^(?:NATIVE_|CHILD_)'){throw 'REFUSED'}
   if($facts.Count -ge $sequence.Count -or $fact.target -cne $sequence[$facts.Count]){throw 'REFUSED'}
@@ -73,6 +74,10 @@ function ConvertTo-OwnerProbeClosedJson([string]$Text) {
    if(-not $fact.finalPathVerified -or $fact.owner -ceq 'UNOBSERVED' -or $fact.dacl -cne $expectedDacl -or ($private -and -not $ownerPermitted)){throw 'REFUSED'}
   }
   if($fact.reason -ceq 'PRIVATE_OWNER_UNVERIFIED' -and (-not $private -or -not $fact.finalPathVerified -or $ownerPermitted -or $fact.owner -cnotin @('OTHER','SYSTEM') -or $fact.dacl -cne 'UNOBSERVED')){throw 'REFUSED'}
+  if($fact.dacl -cin $daclDetails){
+   if(-not $native -or -not $fact.finalPathVerified -or $fact.owner -ceq 'UNOBSERVED' -or $fact.reason -cne 'PRIVATE_DACL_UNVERIFIED' -or ($private -and -not $ownerPermitted)){throw 'REFUSED'}
+   if($fact.dacl -cnotin @('REFUSED_UNQUALIFIED_ACE','REFUSED_CALLBACK_ACE') -and -not $private){throw 'REFUSED'}
+  }
   $seen+=$fact.target;$failed=$fact.reason -cne 'OBSERVED_POLICY_MATCH'
   $facts+=@{target=$fact.target;reason=$fact.reason;storageVerified=$fact.storageVerified;attributesVerified=$fact.attributesVerified;finalPathVerified=$fact.finalPathVerified;owner=$fact.owner;dacl=$fact.dacl}
  }

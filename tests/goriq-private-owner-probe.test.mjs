@@ -19,6 +19,15 @@ const context = { GITHUB_REPOSITORY: 'haji84/AI-', GITHUB_ACTOR: 'haji84', GITHU
 const scenarios = ['valid', ...Object.keys(context).map(k => k.toLowerCase().replaceAll('_', '-')), 'main', 'partial-ci', 'bad-job', 'source-0', 'source-1', 'extra-output', 'raw-target', 'raw-owner', 'bad-authority', 'source-path'];
 let run;
 
+test('read-only DACL refusal detail preserves policy and rejects forged output', { timeout: 20000 }, () => {
+  const shell = process.platform === 'win32' ? 'powershell.exe' : 'pwsh';
+  const result = spawnSync(shell, ['-NoLogo', '-NoProfile', '-NonInteractive', '-File', 'scripts/goriq-owner-probe/test-dacl-refusal.ps1'], { encoding: 'utf8', timeout: 17000, windowsHide: true });
+  assert.equal(result.status, 0, result.stderr + result.stdout);
+  assert.equal(result.stderr, '');
+  assert.match(result.stdout, /DACL_DETAIL_PASS=\d+/);
+  if (process.platform === 'win32') assert.match(result.stdout, /DACL_BOUNDARY_PASS=9/);
+});
+
 // An enabled acquisition job during owner-only inspection would mutate private storage.
 test('owner-only mode excludes all existing native/acquisition jobs and conflicting modes', () => {
   assert.ok(job, 'fixed owner observation mode is required');
