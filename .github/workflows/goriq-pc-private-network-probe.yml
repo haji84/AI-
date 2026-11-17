@@ -92,8 +92,8 @@ jobs:
 
             $failure = 'OWNER_PROBE_SOURCE_UNVERIFIED'
             $pins = [ordered]@{
-              'scripts/goriq-owner-probe/observe-private-owner.ps1'='4a0ce2aaade4d4184c9897273f4f015712293267b3f512502684d4a34707c69c'
-              'scripts/goriq-owner-probe/goriq-private-owner-probe.cs'='955f11579616a42e47c2f03087d67b953e9fd01483f1a807bccf6377b2f240a7'
+              'scripts/goriq-owner-probe/observe-private-owner.ps1'='dcd0f8a1ec35e235b77a68ce7d6530c7793e4a08b558cdac508fcf8e63140ec6'
+              'scripts/goriq-owner-probe/goriq-private-owner-probe.cs'='42bb4baa436e5ab1d5ad01317a23e0656444b529560afdff2d85d8c7436efcb3'
             }
             $sources = @{}
             foreach ($file in $pins.Keys) {
@@ -116,7 +116,12 @@ jobs:
             $raw = @(Invoke-OwnerProbeObservation -NativeSource $utf8.GetString($sources['scripts/goriq-owner-probe/goriq-private-owner-probe.cs']) 2>&1 3>&1 4>&1 5>&1 6>&1)
             if ($raw.Count -ne 1 -or $raw[0] -isnot [string] -or $raw[0].Length -gt 16384) { throw 'REFUSED' }
             $clean = ConvertTo-OwnerProbeClosedJson -Text $raw[0]
+            $failure = 'SOURCE_ACL_PROBE_RESULT_UNVERIFIED'
+            $sourceRaw = @(Invoke-SourceAclProbeObservation -NativeSource $utf8.GetString($sources['scripts/goriq-owner-probe/goriq-private-owner-probe.cs']) 2>&1 3>&1 4>&1 5>&1 6>&1)
+            if ($sourceRaw.Count -ne 1 -or $sourceRaw[0] -isnot [string] -or $sourceRaw[0].Length -gt 131072) { throw 'REFUSED' }
+            $sourceClean = ConvertTo-SourceAclProbeClosedJson -Text $sourceRaw[0]
             Write-Output ('GORIQ_ZBOOK_OWNER_OBSERVATION ' + $clean)
+            Write-Output ('GORIQ_ZBOOK_SOURCE_ACL_OBSERVATION ' + $sourceClean)
           } catch {
             Write-Output ('GORIQ_ZBOOK_OWNER_REFUSED ' + $failure)
             exit 1

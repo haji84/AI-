@@ -197,9 +197,9 @@ if([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) {
   # Compile every original declaration through the actual stripped-environment
   # child. Replace only the entry with an inert return; never invoke observation.
   $complete=[IO.File]::ReadAllText($source)
-  $entry='public static string ObserveJson() {'
-  Assert-Case 'full_source_has_one_entry' ([regex]::Matches($complete,[regex]::Escape($entry)).Count -eq 1)
-  $complete=$complete.Replace($entry,('public static string ObserveJson() { return @"'+$literal+'"; } public static string ObserveJsonNeverInvoked() {'))
+  $entry='public\s+static\s+string\s+ObserveJson\s*\(\s*\)\s*\{'
+  Assert-Case 'full_source_has_two_known_metadata_entries' ([regex]::Matches($complete,$entry).Count -eq 2 -and $complete.Contains('public static class GoriqPrivateOwnerProbe') -and $complete.Contains('public static class GoriqSourceAclProbe'))
+  $complete=[regex]::Replace($complete,$entry,('public static string ObserveJson() { return @"'+$literal+'"; } public static string ObserveJsonNeverInvoked() {'))
   $compiled=Invoke-OwnerProbeObservation -NativeSource $complete | ConvertFrom-Json
   Assert-Case ('native_ps5_child_compiles_complete_inert_source_'+$compiled.reason) ($compiled.reason -ceq 'UNSUPPORTED_PLATFORM' -and $compiled.observations.Count -eq 0)
   # Inject a Unicode preamble at the owned source-pipe boundary, keeping the
@@ -224,5 +224,7 @@ if([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) {
   $extra=$inert.Replace('return @"','System.Console.WriteLine("PRIVATE_SID_PATH"); return @"')
   $rejected=Invoke-OwnerProbeObservation -NativeSource $extra
   Assert-Case 'native_ps5_child_extra_output_discarded' (($rejected|ConvertFrom-Json).reason -ceq 'OUTPUT_REJECTED' -and $rejected -notmatch 'PRIVATE_SID_PATH')
+  & (Join-Path $PSScriptRoot 'test-source-acl-envelope.ps1') -SupervisedOnly
 }
+& (Join-Path $PSScriptRoot 'test-source-acl-envelope.ps1') -ReusePolicyTypes
 Write-Output ('TOTAL_PASS='+$checks)
