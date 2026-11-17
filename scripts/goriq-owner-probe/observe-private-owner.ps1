@@ -154,7 +154,7 @@ try {
  if($stage -ceq '__FAILURE__'){
   $cause=$_.Exception
   for($depth=0;$null -ne $cause -and $depth -lt 8;$depth++){
-   if($cause -is [UnauthorizedAccessException]){$stage='__NATIVE_BUILD_ACCESS_DENIED__';break}
+   if($cause -is [UnauthorizedAccessException] -or ($cause -is [ComponentModel.Win32Exception] -and $cause.NativeErrorCode -eq 5)){$stage='__NATIVE_BUILD_ACCESS_DENIED__';break}
    if($cause -is [ComponentModel.Win32Exception] -and $cause.NativeErrorCode -in @(2,3)){$stage='__NATIVE_BUILD_COMPILER_MISSING__';break}
    $message=$cause.Message;if($message.Length -gt 16384){$message=$message.Substring(0,16384)}
    if($message -cmatch '\berror CS(?:0006|0012|0234|0246)\b'){$stage='__NATIVE_BUILD_REFERENCE_UNAVAILABLE__';break}

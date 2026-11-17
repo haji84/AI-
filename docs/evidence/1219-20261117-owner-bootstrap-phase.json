@@ -25,15 +25,47 @@
     "BOOTSTRAP_PHASE_LOST:build-access:NATIVE_BUILD_UNAVAILABLE",
     "BOOTSTRAP_REASON_ACCEPTED_AS_TARGET_OBSERVATION:NATIVE_MODULE_MANAGEMENT_UNAVAILABLE"
   ],
-  "localFocused": {"tests": 158, "pass": 158, "fail": 0, "skip": 0},
-  "checks": {"lint": "PASS", "types": "PASS", "requirements": 341, "surfaces": 626},
+  "localFocused": {
+    "tests": 158,
+    "pass": 158,
+    "fail": 0,
+    "skip": 0
+  },
+  "checks": {
+    "lint": "PASS",
+    "types": "PASS",
+    "requirements": 341,
+    "surfaces": 626
+  },
   "actualAuthor": "Codex",
   "localModel": "NOT_RUN",
   "compassWriteBack": "UNAVAILABLE",
-  "pending": ["fresh source review", "full suite", "exact-head and exact-main all-four CI", "new bounded actual phase observation"],
+  "pending": [
+    "fresh source review",
+    "full suite",
+    "exact-head and exact-main all-four CI",
+    "new bounded actual phase observation"
+  ],
   "limits": [
     "Owner target and account explanation remain unproven.",
     "The original C# bytes and all native metadata/security predicates are unchanged.",
     "No Capture/Acquire, original contents, ownership/ACL/credential/enrolment change or recovery claim."
-  ]
+  ],
+  "freshReview": {
+    "critical": 0,
+    "important": 1,
+    "importantFinding": "Compiler launch Win32Exception5 access denial collapsed to generic build failure",
+    "fix": "Distinct Win32Exception5 inert fixture reproduces loss; map to closed access-denied reason without changing permissions",
+    "minorDeferred": "Invalid signature/workspace/UTF8 early-stop fixture coverage absent; existing production guard predicates unchanged.",
+    "noReReview": "One fresh review; material finding verified by root RED/GREEN; exact-source suite/CI still pending"
+  },
+  "frozenLocalFull": {
+    "source": "150ec6ca4a34f9ee344cf2a6d6067740ab894294",
+    "tests": 4375,
+    "pass": 4349,
+    "fail": 0,
+    "skip": 26,
+    "elapsedMs": 302539.63694,
+    "frozenBeforeAfter": true
+  }
 }

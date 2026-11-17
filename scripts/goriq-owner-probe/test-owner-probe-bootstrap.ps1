@@ -32,6 +32,7 @@ function Add-Type {
  $script:builds++
  if($global:OwnerBootstrapScenario -ceq 'build'){throw 'PRIVATE_COMPILER_PATH'}
  if($global:OwnerBootstrapScenario -ceq 'build-access'){throw [UnauthorizedAccessException]::new('PRIVATE_COMPILER_PATH')}
+ if($global:OwnerBootstrapScenario -ceq 'build-os-access'){throw [ComponentModel.Win32Exception]::new(5,'PRIVATE_COMPILER_PATH')}
  if($global:OwnerBootstrapScenario -ceq 'build-missing'){throw [ComponentModel.Win32Exception]::new(2,'PRIVATE_COMPILER_PATH')}
  if($global:OwnerBootstrapScenario -ceq 'build-reference'){throw 'PRIVATE_COMPILER_PATH error CS0246: PRIVATE_SOURCE'}
  if($global:OwnerBootstrapScenario -ceq 'build-source'){throw 'PRIVATE_COMPILER_PATH error CS1002: PRIVATE_SOURCE'}
@@ -44,6 +45,7 @@ $scenarios=[ordered]@{
  'source'='NATIVE_SOURCE_UNAVAILABLE'
  'build'='NATIVE_BUILD_UNAVAILABLE'
  'build-access'='NATIVE_BUILD_ACCESS_DENIED'
+ 'build-os-access'='NATIVE_BUILD_ACCESS_DENIED'
  'build-missing'='NATIVE_BUILD_COMPILER_MISSING'
  'build-reference'='NATIVE_BUILD_REFERENCE_UNAVAILABLE'
  'build-source'='NATIVE_BUILD_SOURCE_REJECTED'
