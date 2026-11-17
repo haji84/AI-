@@ -1,7 +1,25 @@
 # Synthetic Windows boundary only: no capture constructor, native handles or OS ACLs.
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
-if([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT){throw 'WINDOWS_FIXTURE_ONLY'}
+$user='S-1-5-21-1-2-3-1001';$profile='\\?\C:\Users\Fixture'
+$cases=@(
+ @('profile_system_snapshot','SY',$user,16,$profile,$true,$false,'PASS'),
+ @('profile_system_strict_dacl','SY','WD',16,$profile,$true,$false,'PRIVATE_DACL_UNVERIFIED'),
+ @('profile_other_owner',($user+'2'),$user,16,$profile,$true,$false,'PRIVATE_OWNER_UNVERIFIED'),
+ @('handoff_system','SY',$user,16,($profile+'\.goriq-handoff'),$true,$false,'PRIVATE_OWNER_UNVERIFIED'),
+ @('handoff_current_user',$user,$user,16,($profile+'\.goriq-handoff'),$true,$false,'PASS'),
+ @('profile_system_reparse','SY',$user,1040,$profile,$true,$false,'PRIVATE_OWNER_UNVERIFIED'),
+ @('profile_system_file','SY',$user,0,$profile,$true,$false,'PRIVATE_OWNER_UNVERIFIED'),
+ @('profile_metadata_failure','SY',$user,16,$profile,$false,$false,'PRIVATE_OWNER_UNVERIFIED'),
+ @('profile_final_path_mismatch','SY',$user,16,($profile+'2'),$true,$false,'PRIVATE_OWNER_UNVERIFIED'),
+ @('runtime_system_preserved','SY','SY',0,'fixture',$false,$true,'PASS'),
+ @('runtime_other_write_refused',$user,$user,0,'fixture',$false,$true,'PRIVATE_OWNER_UNVERIFIED')
+)
+foreach($case in $cases){
+ if(@($case).Count -ne 8 -or $case[3] -isnot [int] -or $case[5] -isnot [bool] -or $case[6] -isnot [bool]){throw 'FIXTURE_CASE_SHAPE_INVALID'}
+}
+Write-Output ('SECURITY_CASES_PASS='+$cases.Count)
+if([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT){return}
 $source=[IO.File]::ReadAllText((Join-Path $PSScriptRoot '../goriq-zbook-bridge-capture.cs'))
 $source=$source.Replace('GoriqBridge','GoriqBridgeProfileFixture')
 $replacements=@{
@@ -48,20 +66,6 @@ $marker='public sealed class GoriqBridgeProfileFixtureCapture : IDisposable {'
 if($source.Split(@($marker),[StringSplitOptions]::None).Length -ne 2){throw 'FIXTURE_CLASS_NOT_FOUND'}
 $source=$source.Replace($marker,($marker+"`n"+$fixture))
 $null=Add-Type -TypeDefinition $source -Language CSharp
-$user='S-1-5-21-1-2-3-1001';$profile='\\?\C:\Users\Fixture'
-$cases=@(
- @('profile_system_snapshot','SY',$user,16,$profile,$true,$false,'PASS'),
- @('profile_system_strict_dacl','SY','WD',16,$profile,$true,$false,'PRIVATE_DACL_UNVERIFIED'),
- @('profile_other_owner',$user+'2',$user,16,$profile,$true,$false,'PRIVATE_OWNER_UNVERIFIED'),
- @('handoff_system','SY',$user,16,($profile+'\.goriq-handoff'),$true,$false,'PRIVATE_OWNER_UNVERIFIED'),
- @('handoff_current_user',$user,$user,16,($profile+'\.goriq-handoff'),$true,$false,'PASS'),
- @('profile_system_reparse','SY',$user,1040,$profile,$true,$false,'PRIVATE_OWNER_UNVERIFIED'),
- @('profile_system_file','SY',$user,0,$profile,$true,$false,'PRIVATE_OWNER_UNVERIFIED'),
- @('profile_metadata_failure','SY',$user,16,$profile,$false,$false,'PRIVATE_OWNER_UNVERIFIED'),
- @('profile_final_path_mismatch','SY',$user,16,($profile+'2'),$true,$false,'PRIVATE_OWNER_UNVERIFIED'),
- @('runtime_system_preserved','SY','SY',0,'fixture',$false,$true,'PASS'),
- @('runtime_other_write_refused',$user,$user,0,'fixture',$false,$true,'PRIVATE_OWNER_UNVERIFIED')
-)
 foreach($case in $cases){
  $actual=[GoriqBridgeProfileFixtureCapture]::CheckSecurity([string]$case[1],[string]$case[2],[uint32]$case[3],[string]$case[4],[bool]$case[5],[bool]$case[6])
  if($actual -cne $case[7]){throw ('FIXTURE_SECURITY_FAILED:'+$case[0]+':'+$actual)}

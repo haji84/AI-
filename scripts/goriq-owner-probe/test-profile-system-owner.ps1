@@ -75,7 +75,5 @@ foreach($bad in @('foreign_profile','system_child_success','system_profile_owner
  $refused=$false;try{$null=ConvertTo-OwnerProbeClosedJson ($p|ConvertTo-Json -Depth 5 -Compress)}catch{$refused=$true}
  Assert-Policy ('closed_refuses_'+$bad) $refused
 }
-if([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT){
- & (Join-Path $PSScriptRoot 'test-profile-security-boundary.ps1')
-}
+& (Join-Path $PSScriptRoot 'test-profile-security-boundary.ps1')
 Write-Output ('PROFILE_POLICY_PASS='+$checks)

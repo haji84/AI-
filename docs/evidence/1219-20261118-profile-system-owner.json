@@ -68,5 +68,16 @@
     "surfaces": 626,
     "syntheticBoundaryCompile": "PASS; actual Security execution requires Windows CI",
     "initialAttempt": "Default 7-file concurrency caused an existing PS batch 10s timeout (153/159); unchanged standard concurrency2 passed159/159. No caps/assertions changed."
+  },
+  "freshReview": {
+    "sourceHead": "561e774ea5caa4e6e9c0d6e7f98055bb56717569",
+    "reviewer": "Separate fresh-context gpt-6-astra high",
+    "critical": 0,
+    "important": 1,
+    "minor": 0,
+    "finding": "Windows fixture comma precedence created9fields; not a production policy defect. Actual sourceCI Windows failed at134176001466.",
+    "correction": "Parenthesized synthetic owner expression;8-field/type preflight executes on every platform; Windows acceptance explicitly requires all11centralSecurity cases.",
+    "redGreen": "61 FIXTURE_CASE_SHAPE_INVALID reproduced;62 targeted PASS after correction.",
+    "declined": "Windows execution/device metadata delegated to required actual CI/read-only observation; original Acquire, creator/history/recovery/deployment unverified and outside this approval."
   }
 }
