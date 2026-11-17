@@ -157,6 +157,7 @@ test('approved SYSTEM owner exception is confined to the verified profile root',
   assert.equal(result.stderr, '');
   assert.match(result.stdout, /PROFILE_POLICY_PASS=\d+/);
   assert.match(result.stdout, /PROFILE_CAPABILITY_PASS=\d+/);
+  assert.match(result.stdout, /SOURCE_GUARD_DIAGNOSTIC_PASS=\d+/);
   if (process.platform === 'win32') {
     assert.match(result.stdout, /CAPTURE_CAPABILITY_BOUNDARY_PASS=16/);
     assert.match(result.stdout, /OBSERVER_CAPABILITY_BOUNDARY_PASS=7/);
