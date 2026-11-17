@@ -119,3 +119,11 @@ test('owned observer timeout has its own bounded inert process fixture', { timeo
   assert.equal(result.status, 0, result.stderr + '\n' + result.stdout.slice(-6000));
   assert.equal(result.stderr, ''); assert.match(result.stdout, /TOTAL_PASS=1/);
 });
+
+test('embedded owner bootstrap preserves closed failure phases before observation', { timeout: 15000 }, () => {
+  const shell = process.platform === 'win32' ? 'powershell.exe' : 'pwsh';
+  const result = spawnSync(shell, ['-NoLogo', '-NoProfile', '-NonInteractive', '-File', resolve('scripts/goriq-owner-probe/test-owner-probe-bootstrap.ps1')], { encoding: 'utf8', timeout: 12000, windowsHide: true });
+  assert.equal(result.status, 0, result.stderr + '\n' + result.stdout);
+  assert.equal(result.stderr, '');
+  assert.match(result.stdout, /TOTAL_PASS=12/);
+});

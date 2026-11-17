@@ -27,6 +27,16 @@ identify who created the object. `OBSERVED_POLICY_MATCH` describes current
 metadata, not a recovered original, historical proof or runtime acceptance.
 Every result remains INCOMPLETE / NOT_AUTHORITATIVE / recovered=false / G1 HOLD.
 
+Actual ZBook run44010426909 reached the signed supervisor but returned the
+former generic NATIVE_BUILD_UNAVAILABLE before any owner observation. Fixed
+bootstrap reasons now distinguish the three Microsoft module imports, signature
+exceptions, source decoding, compilation and entry invocation. Compiler access
+denial, missing process and standard reference/source errors use closed enums;
+unknown compiler failures retain the generic reason. No exception text or
+compiler diagnostics are emitted. Internet connectivity does not by itself
+establish a working GitHub Actions listener; this run did establish that the
+existing ZBook21 listener accepted the diagnostic at that time.
+
 The existing signed WindowsPowerShell5 host starts a token-free child using
 that same fixed executable. Compiler TEMP/TMP use only the pre-existing
 GITHUB_WORKSPACE after bounded ancestor metadata/reparse/fixed-NTFS checks in

@@ -1,0 +1,39 @@
+{
+  "goal": "goal-fcc81c97e09153f7",
+  "job": "rotation-recovery-37",
+  "goalStatus": "NOT_ACHIEVED",
+  "g1": "HOLD",
+  "recovered": false,
+  "actualNative": {
+    "run": 44010426909,
+    "job": 133795858480,
+    "attempt": 1,
+    "runnerId": 21,
+    "runnerName": "ZBook",
+    "source": "48c23e097fc265c45a8cafc622a6fc0fe713acb8",
+    "startedAt": "2026-11-17T03:28:16Z",
+    "actualOutputAt": "2026-11-17T03:28:21.3686392Z",
+    "target": "NONE",
+    "reason": "NATIVE_BUILD_UNAVAILABLE",
+    "observations": [],
+    "meaning": "Existing runner accepted the diagnostic; bootstrap refused before any owner observation. Exact bootstrap phase remains unknown."
+  },
+  "ownerConfirmation": "ZBook is network-connected; do not equate internet access with listener readiness or infer a different account.",
+  "sourceChange": "Preserve fixed module/signature/source/build/entry refusal attribution and closed compiler error categories; no raw exception output.",
+  "redEvidence": [
+    "BOOTSTRAP_PHASE_LOST:Microsoft.PowerShell.Management:NATIVE_BUILD_UNAVAILABLE",
+    "BOOTSTRAP_PHASE_LOST:build-access:NATIVE_BUILD_UNAVAILABLE",
+    "BOOTSTRAP_REASON_ACCEPTED_AS_TARGET_OBSERVATION:NATIVE_MODULE_MANAGEMENT_UNAVAILABLE"
+  ],
+  "localFocused": {"tests": 158, "pass": 158, "fail": 0, "skip": 0},
+  "checks": {"lint": "PASS", "types": "PASS", "requirements": 341, "surfaces": 626},
+  "actualAuthor": "Codex",
+  "localModel": "NOT_RUN",
+  "compassWriteBack": "UNAVAILABLE",
+  "pending": ["fresh source review", "full suite", "exact-head and exact-main all-four CI", "new bounded actual phase observation"],
+  "limits": [
+    "Owner target and account explanation remain unproven.",
+    "The original C# bytes and all native metadata/security predicates are unchanged.",
+    "No Capture/Acquire, original contents, ownership/ACL/credential/enrolment change or recovery claim."
+  ]
+}
