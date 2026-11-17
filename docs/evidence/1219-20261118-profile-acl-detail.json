@@ -5,19 +5,77 @@
   "goalStatus": "NOT_ACHIEVED",
   "g1": "HOLD",
   "baselineMain": "4432cebe1ad99a3b7974f0c0c269aa2c0bb3540a",
-  "observed": {"run":44129203049,"job":134201287550,"runnerId":21,"sourceMain":"4432cebe1ad99a3b7974f0c0c269aa2c0bb3540a","target":"PROFILE","owner":"SYSTEM","dacl":"UNVERIFIED","reason":"PRIVATE_DACL_UNVERIFIED","observedUTC":"2026-11-17T16:44:41.5159933Z"},
   "ownerInstruction": "完全解消的まで進めてほしいんだけど。",
-  "taskScope": "Completely resolve the current ZBook private owner/profile ACL error within Issue1219; not a new Goal or unrelated whole-product acceptance claim.",
-  "authority": "Explicit task completion for ordinary scoped source/test/protected integration/CI/read-only diagnosis. No new OS permission, credential, runtime or DACL safety relaxation inferred.",
-  "risk": "MEDIUM diagnostic-only; acceptance predicates unchanged",
-  "change": "Existing failed dacl enum now classifies first refused ACE shape/public principal class/nonwriting-vs-writing-control-unknown bits. Existing report keys/reason/targets/limits/transport retained; old UNVERIFIED remains valid.",
-  "privacy": "No raw usernames, SIDs, paths, SDDL or ACL lists exported. Known principal classes are public enum labels only.",
-  "policyProof": "Capture SHA256 remains0f00b5a6332baf2ac6259112bb2bae7157d49df3783c4f63c6f2f478a5a7e661; original Account and six-argument ReduceSecurity bodies byte-identical to baseline. Every new principal/mask case still refused by existing private policy.",
-  "verification": {"newTest":"missing classifier RED65 then GREEN66","focused":160,"focusedPass":160,"ownerFinal":31,"ownerPass":31,"lint":"PASS","types":"PASS","requirements":341,"surfaces":626,"windowsFixture":"in-memory synthetic descriptors call actual InspectSecurity; all9cases required in existing Windows job; compile passed locally, actual Windows CI pending"},
-  "remaining": "No actual rejected principal class/rights proved yet; one newly classifying observation after all exact-source/main gates. Continue from that result. Generic observation is not repeated unchanged.",
-  "rollback": "Protected revert of classifier, closed validator and2dependent source pins together; no OS or original state mutation to restore.",
-  "compassWriteBack": "UNAVAILABLE; repository and PR handoff, no fabricated Controller state",
+  "currentTask": "Completely resolve current private owner/profile ACL guard error; preserve original Goal and all data.",
+  "actualNative": {
+    "run": 44129203049,
+    "job": 134201287550,
+    "runnerId": 21,
+    "target": "PROFILE",
+    "owner": "SYSTEM",
+    "dacl": "UNVERIFIED",
+    "reason": "PRIVATE_DACL_UNVERIFIED"
+  },
+  "decisiveUserEvidence": {
+    "class": "USER_REPORTED",
+    "source": "Inline GetOwnerSid match guard followed by GetAcl; no reported guard failure",
+    "profileAcl": "SYSTEM/Admin/CurrentUser FullControl plus explicit app-silo capability FILE_TRAVERSE|SYNCHRONIZE only, no inheritance",
+    "mask": 1048608,
+    "flags": 0,
+    "privateUsernameAndSid": "OMITTED"
+  },
+  "publicSdkReference": {
+    "url": "https://github.com/microsoft/win32metadata/blob/main/generation/WinSDK/RecompiledIdlHeaders/um/winnt.h",
+    "authority": 15,
+    "capabilityBase": 3,
+    "appSiloRid": 65536,
+    "FILE_TRAVERSE": 32,
+    "SYNCHRONIZE": 1048576
+  },
+  "rootCause": "Private DACL guard treats harmless noninheriting profile-directory traversal as forbidden private data access.",
+  "fixScope": "Exact validated profile directory, app-silo SID shape with8canonical uint32 suffixes, exact0x100020, flagsNone, noncallback allow only. Capture obtains scope from actual handle centrally for snapshots/rechecks; observer fixed PROFILE role follows existing native metadata checks.",
+  "risk": "MEDIUM correctness fix; no new read/list/write/control/inherited access, private children/files and owner/runtime rules remain strict, no OS ACL/owner mutation. Existing completion authority covers ordinary scoped implementation; no privileged/permission/safety-weakening authority inferred.",
+  "validation": {
+    "red": "76 missing predicate",
+    "green": "77 executable C#5 positive/negative/mirror policy",
+    "nativeFixtures": "Capture16 + Observer7 production parsing cases with synthetic descriptors, compiled locally; actual Windows execution pending",
+    "lint": "PASS",
+    "types": "PASS",
+    "requirements": 341,
+    "surfaces": 626,
+    "focused": 159,
+    "focusedPass": 159,
+    "combinedPolicyTest": "New capability matrix reuses existing same-source C# types; all assertions retained; Node still requires new native16+7markers."
+  },
+  "history": {
+    "supersededDiagnosticOnlySource": "58fb45d6e1bc37c4fc46fb0cb28dedbc08e71cb6",
+    "ci": 44133606525,
+    "attempts": 2,
+    "status": "Both independentUnit timeout; failures preserved, no third unchanged retry",
+    "newEvidence": "User ACL made generic classifier unnecessary; final source fixes real cause. Old classifier removed from final change."
+  },
+  "rollback": "Protected revert of Capture, observer, dependent2pins together; no Windows settings or original state changed to restore.",
+  "compassWriteBack": "UNAVAILABLE; PR/evidence handoff, no Controller state fabricated.",
   "actualAuthor": "Codex",
   "localModel": "NOT_RUN",
-  "pending": ["fixed-source full test","fresh source review","all4source CI and signed6 audit","protected integration and exact-main all4CI/audit","one actual classified observation and minimal root-cause fix"]
+  "pending": [
+    "final native and related verification",
+    "fresh final-scope review",
+    "exact-source/main4CI and signed6 audits",
+    "actual error disappearance and original fixed-read validation within current ordinary task authority"
+  ],
+  "verificationRuntimeRecovery": {
+    "why": "Old diagnostic-only source58fb Unit timedout twice; local baseline actionfree PSbatch10s also fails. No third unchanged retry.",
+    "measuredOldBatchMs": {
+      "compile": 2792.4723,
+      "state": 253.2664,
+      "open": 1340.7095,
+      "invoke": 8760.2416,
+      "dispose": 858.9549
+    },
+    "change": "Inert mock data once per fresh case, exact-case JSON instead of repeated whole manifest parsing, byte-identical program file reuse. Existing helper/runspace/nativeprocess/callback/assertion/canary/caps unchanged.",
+    "equivalence": "Complete26+60status/stdout/stderr equal after JSON key order and valid live observation time normalization only.",
+    "strictLocal": "Final related159/159PASS at concurrency2; old failures and timing variants retained.",
+    "limits": "No timeout/resource/assertion reductions or production test command changes."
+  }
 }

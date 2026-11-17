@@ -35,22 +35,17 @@ identifies who created the object. `OBSERVED_POLICY_MATCH` describes current
 metadata, not a recovered original, historical proof or runtime acceptance.
 Every result remains INCOMPLETE / NOT_AUTHORITATIVE / recovered=false / G1 HOLD.
 
-After the owner exception, actual run44129203049 observed PROFILE owner=SYSTEM
-but refused its DACL. The existing generic reason remains
-`PRIVATE_DACL_UNVERIFIED`; closed `dacl=REFUSED_*` labels now distinguish the
-first rejected ACE's shape or public principal class. NONWRITING means only
-read/execute/read-control/synchronize bits (including zero); WRITE_OR_OTHER
-includes writes, permission control or unknown bits. Neither class is accepted
-by the private policy. The original Account/ReduceSecurity predicate is
-unchanged. Raw names, SIDs, SDDL, paths and ACL lists are never exported.
-The existing UNVERIFIED value remains valid for unclassified failures.
-
-`test-dacl-refusal.ps1` checks principal/mask/refusal ordering and unchanged
-policy with actual C#5, plus contradictory closed-report refusals. Its Windows
-fixture supplies synthetic descriptor bytes at the metadata boundary and calls
-the production InspectSecurity path; all9cases must run. No OS object is opened
-or changed by the fixture. Only a new gated native observation establishes the
-actual first rejected class on ZBook.
+The owner-provided profile ACL subsequently identified the refused entry as an
+explicit noninheriting Windows app-silo capability ACE with only
+FILE_TRAVERSE|SYNCHRONIZE (0x100020). The SDK defines authority15/capability3/
+app-silo65536. The corrected capture/observer permit exactly that observed SID
+form (eight canonical uint32 suffixes), mask and zero flags only on the verified
+profile directory. No list/read/write/control rights or descendant inheritance
+are admitted. Callback, other principals/masks/flags and private children/files
+retain existing refusals. Windows ownership and ACL bytes remain unchanged.
+Capture derives scope centrally from the actual handle, also for descriptor
+snapshots/rechecks; the observer uses only its already metadata-verified fixed
+PROFILE role. Raw SIDs remain local and are never serialized in reports.
 
 Actual ZBook run44010426909 reached the signed supervisor but returned the
 former generic NATIVE_BUILD_UNAVAILABLE before any owner observation. Fixed

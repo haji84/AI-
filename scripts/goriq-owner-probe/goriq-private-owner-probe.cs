@@ -14,20 +14,10 @@ using Microsoft.Win32.SafeHandles;
 public enum OwnerProbeTarget { NONE, IDENTITY, PROFILE_ENVIRONMENT, VOLUME_ROOT, ANCESTOR_01, ANCESTOR_02, ANCESTOR_03, ANCESTOR_04, ANCESTOR_05, ANCESTOR_06, ANCESTOR_07, PROFILE, HANDOFF, LAYOUT, RAW, WORK, CONTEXT }
 public enum OwnerProbeReason { NOT_STARTED, OBSERVED_POLICY_MATCH, UNSUPPORTED_PLATFORM, IDENTITY_UNVERIFIED, UNSAFE_PROFILE, TARGET_LIMIT, TIMEOUT, TARGET_MISSING, ACCESS_DENIED, PRIVATE_LOCAL_STORAGE_UNAVAILABLE, PRIVATE_NATIVE_OPEN_UNAVAILABLE, PRIVATE_FILE_METADATA_UNVERIFIED, PRIVATE_FINAL_PATH_UNVERIFIED, PRIVATE_OWNER_UNVERIFIED, PRIVATE_DACL_UNVERIFIED, UNEXPECTED_FAILURE, OUTPUT_REJECTED }
 public enum OwnerProbeOwner { UNOBSERVED, CURRENT_USER, OTHER, SYSTEM }
-public enum OwnerProbeDacl {
- UNOBSERVED, PRIVATE_POLICY_MATCH, ANCESTOR_METADATA_ONLY, UNVERIFIED,
- REFUSED_UNQUALIFIED_ACE, REFUSED_CALLBACK_ACE,
- REFUSED_EVERYONE_NONWRITING, REFUSED_EVERYONE_WRITE_OR_OTHER,
- REFUSED_AUTHENTICATED_USERS_NONWRITING, REFUSED_AUTHENTICATED_USERS_WRITE_OR_OTHER,
- REFUSED_BUILTIN_USERS_NONWRITING, REFUSED_BUILTIN_USERS_WRITE_OR_OTHER,
- REFUSED_ALL_APPLICATION_PACKAGES_NONWRITING, REFUSED_ALL_APPLICATION_PACKAGES_WRITE_OR_OTHER,
- REFUSED_ALL_RESTRICTED_APPLICATION_PACKAGES_NONWRITING, REFUSED_ALL_RESTRICTED_APPLICATION_PACKAGES_WRITE_OR_OTHER,
- REFUSED_OTHER_ACCOUNT_NONWRITING, REFUSED_OTHER_ACCOUNT_WRITE_OR_OTHER
-}
+public enum OwnerProbeDacl { UNOBSERVED, PRIVATE_POLICY_MATCH, ANCESTOR_METADATA_ONLY, UNVERIFIED }
 public enum OwnerProbeAccount { CURRENT_USER, SYSTEM, ADMINISTRATORS, TRUSTED_INSTALLER, OTHER }
 public enum OwnerProbeQualifier { ALLOW, DENY, OTHER }
-public enum OwnerProbeDaclPrincipal { OTHER_ACCOUNT, EVERYONE, AUTHENTICATED_USERS, BUILTIN_USERS, ALL_APPLICATION_PACKAGES, ALL_RESTRICTED_APPLICATION_PACKAGES }
-public sealed class OwnerProbeAce { public bool InheritOnly, Qualified, Callback; public OwnerProbeAccount Account; public OwnerProbeQualifier Qualifier; public OwnerProbeDaclPrincipal Principal; public uint Mask; }
+public sealed class OwnerProbeAce { public bool InheritOnly, Qualified, Callback; public OwnerProbeAccount Account; public OwnerProbeQualifier Qualifier; public string Sid; public uint Mask; public int Flags; }
 public sealed class OwnerProbeSpec { public OwnerProbeTarget Target; public string Path; public bool Directory, Private; }
 public sealed class OwnerProbeFact {
  public OwnerProbeTarget Target; public OwnerProbeReason Reason=OwnerProbeReason.NOT_STARTED;
@@ -87,6 +77,14 @@ public static class GoriqPrivateOwnerProbe {
  public static bool PrivateOwnerPermitted(OwnerProbeTarget target,OwnerProbeOwner owner) {
   return Defined(target)&&Defined(owner)&&(owner==OwnerProbeOwner.CURRENT_USER||(target==OwnerProbeTarget.PROFILE&&owner==OwnerProbeOwner.SYSTEM));
  }
+ public static bool ProfileCapabilityTraversePermitted(string who,uint mask,int flags,bool exactProfileDirectory) {
+  // Keep identical to Capture: only noninheriting app-silo directory traversal,
+  // never list/read/write/control access or a private child/file exception.
+  if(!exactProfileDirectory||mask!=0x100020u||flags!=0||String.IsNullOrEmpty(who)||who.Length>184||!Regex.IsMatch(who,@"^S-1-15-3-65536-(?:[0-9]+-){7}[0-9]+\z"))return false;
+  string[] parts=who.Split('-');
+  for(int n=5;n<parts.Length;n++){uint value;if(!UInt32.TryParse(parts[n],out value)||value.ToString(System.Globalization.CultureInfo.InvariantCulture)!=parts[n])return false;}
+  return true;
+ }
  // Preserve the original pure API; callers without a validated target never
  // acquire the profile-only SYSTEM exception.
  public static OwnerProbeReason ReduceSecurity(bool ownerPresent,bool daclPresent,bool ownerMatches,bool privacy,OwnerProbeAce[] aces) {
@@ -101,43 +99,9 @@ public static class GoriqPrivateOwnerProbe {
    if(ace==null)return OwnerProbeReason.PRIVATE_DACL_UNVERIFIED;
    if(ace.InheritOnly)continue;
    if(!ace.Qualified||ace.Callback)return OwnerProbeReason.PRIVATE_DACL_UNVERIFIED;
-   if(ace.Qualifier==OwnerProbeQualifier.ALLOW&&privacy&&ace.Account==OwnerProbeAccount.OTHER)return OwnerProbeReason.PRIVATE_DACL_UNVERIFIED;
+   if(ace.Qualifier==OwnerProbeQualifier.ALLOW&&privacy&&ace.Account==OwnerProbeAccount.OTHER&&!ProfileCapabilityTraversePermitted(ace.Sid,ace.Mask,ace.Flags,target==OwnerProbeTarget.PROFILE))return OwnerProbeReason.PRIVATE_DACL_UNVERIFIED;
   }
   return OwnerProbeReason.OBSERVED_POLICY_MATCH;
- }
- // Diagnostic classification only. The original Account and ReduceSecurity
- // predicates remain authoritative; no principal or mask grants permission.
- public static OwnerProbeDaclPrincipal ClassifyDaclPrincipal(string who) {
-  switch(who) {
-   case "S-1-1-0":return OwnerProbeDaclPrincipal.EVERYONE;
-   case "S-1-5-11":return OwnerProbeDaclPrincipal.AUTHENTICATED_USERS;
-   case "S-1-5-32-545":return OwnerProbeDaclPrincipal.BUILTIN_USERS;
-   case "S-1-15-2-1":return OwnerProbeDaclPrincipal.ALL_APPLICATION_PACKAGES;
-   case "S-1-15-2-2":return OwnerProbeDaclPrincipal.ALL_RESTRICTED_APPLICATION_PACKAGES;
-   default:return OwnerProbeDaclPrincipal.OTHER_ACCOUNT;
-  }
- }
- public static OwnerProbeDacl ClassifyDaclRefusal(bool privacy,OwnerProbeAce[] aces) {
-  if(aces==null)return OwnerProbeDacl.UNVERIFIED;
-  foreach(var ace in aces) {
-   if(ace==null)return OwnerProbeDacl.UNVERIFIED;
-   if(ace.InheritOnly)continue;
-   if(!ace.Qualified)return OwnerProbeDacl.REFUSED_UNQUALIFIED_ACE;
-   if(ace.Callback)return OwnerProbeDacl.REFUSED_CALLBACK_ACE;
-   if(ace.Qualifier!=OwnerProbeQualifier.ALLOW||!privacy||ace.Account!=OwnerProbeAccount.OTHER)continue;
-   // Zero and read/execute/synchronize/read-control are nonwriting. Any
-   // unknown bit stays in WRITE_OR_OTHER rather than being called harmless.
-   bool nonwriting=(ace.Mask&~0xA01200A9u)==0;
-   switch(ace.Principal) {
-    case OwnerProbeDaclPrincipal.EVERYONE:return nonwriting?OwnerProbeDacl.REFUSED_EVERYONE_NONWRITING:OwnerProbeDacl.REFUSED_EVERYONE_WRITE_OR_OTHER;
-    case OwnerProbeDaclPrincipal.AUTHENTICATED_USERS:return nonwriting?OwnerProbeDacl.REFUSED_AUTHENTICATED_USERS_NONWRITING:OwnerProbeDacl.REFUSED_AUTHENTICATED_USERS_WRITE_OR_OTHER;
-    case OwnerProbeDaclPrincipal.BUILTIN_USERS:return nonwriting?OwnerProbeDacl.REFUSED_BUILTIN_USERS_NONWRITING:OwnerProbeDacl.REFUSED_BUILTIN_USERS_WRITE_OR_OTHER;
-    case OwnerProbeDaclPrincipal.ALL_APPLICATION_PACKAGES:return nonwriting?OwnerProbeDacl.REFUSED_ALL_APPLICATION_PACKAGES_NONWRITING:OwnerProbeDacl.REFUSED_ALL_APPLICATION_PACKAGES_WRITE_OR_OTHER;
-    case OwnerProbeDaclPrincipal.ALL_RESTRICTED_APPLICATION_PACKAGES:return nonwriting?OwnerProbeDacl.REFUSED_ALL_RESTRICTED_APPLICATION_PACKAGES_NONWRITING:OwnerProbeDacl.REFUSED_ALL_RESTRICTED_APPLICATION_PACKAGES_WRITE_OR_OTHER;
-    default:return nonwriting?OwnerProbeDacl.REFUSED_OTHER_ACCOUNT_NONWRITING:OwnerProbeDacl.REFUSED_OTHER_ACCOUNT_WRITE_OR_OTHER;
-   }
-  }
-  return OwnerProbeDacl.UNVERIFIED;
  }
  static OwnerProbeAccount Account(string who,string sid) {
   if(who==sid)return OwnerProbeAccount.CURRENT_USER;
@@ -162,12 +126,12 @@ public static class GoriqPrivateOwnerProbe {
     var item=new OwnerProbeAce();item.InheritOnly=(ace.AceFlags&AceFlags.InheritOnly)!=0;
     if(!item.InheritOnly) {
      var known=ace as QualifiedAce;item.Qualified=known!=null;
-     if(known!=null){item.Callback=known.IsCallback;item.Qualifier=known.AceQualifier==AceQualifier.AccessAllowed?OwnerProbeQualifier.ALLOW:known.AceQualifier==AceQualifier.AccessDenied?OwnerProbeQualifier.DENY:OwnerProbeQualifier.OTHER;item.Account=Account(known.SecurityIdentifier.Value,sid);item.Principal=ClassifyDaclPrincipal(known.SecurityIdentifier.Value);item.Mask=(uint)known.AccessMask;}
+     if(known!=null){item.Callback=known.IsCallback;item.Qualifier=known.AceQualifier==AceQualifier.AccessAllowed?OwnerProbeQualifier.ALLOW:known.AceQualifier==AceQualifier.AccessDenied?OwnerProbeQualifier.DENY:OwnerProbeQualifier.OTHER;item.Account=Account(known.SecurityIdentifier.Value,sid);item.Sid=known.SecurityIdentifier.Value;item.Mask=(uint)known.AccessMask;item.Flags=(int)known.AceFlags;}
     }
     aces.Add(item);
    }
    var reason=ReduceSecurity(true,true,fact.Owner,privacy,aces.ToArray(),fact.Target);
-   fact.Dacl=reason==OwnerProbeReason.OBSERVED_POLICY_MATCH?(privacy?OwnerProbeDacl.PRIVATE_POLICY_MATCH:OwnerProbeDacl.ANCESTOR_METADATA_ONLY):ClassifyDaclRefusal(privacy,aces.ToArray());
+   fact.Dacl=reason==OwnerProbeReason.OBSERVED_POLICY_MATCH?(privacy?OwnerProbeDacl.PRIVATE_POLICY_MATCH:OwnerProbeDacl.ANCESTOR_METADATA_ONLY):OwnerProbeDacl.UNVERIFIED;
    Require(reason==OwnerProbeReason.OBSERVED_POLICY_MATCH,reason);
   } finally {if(descriptor!=IntPtr.Zero)LocalFree(descriptor);}
  }

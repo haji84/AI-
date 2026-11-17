@@ -1,43 +1,47 @@
-# PROFILEのACL拒否を読み取りだけで区別する
+# 検証済みPROFILEのapp-silo capability通過権限の誤拒否を修正
 
-同じGoal `goal-fcc81c97e09153f7` / Job `rotation-recovery-37`。
-実機run44129203049はSYSTEM所有のPROFILEを確認しowner判定を通過したが、
-DACL=UNVERIFIEDで止まった。ユーザーはエラーの完全解消を指示した。
-直前の手動helperは端末に保存されておらず、相対pathから実行できなかった。
+Goal goal-fcc81c97e09153f7 / Job rotation-recovery-37 / Issue1219の現在の所有者・ACLエラーを完全解消する。
+Ownerのinline読取り結果は、ランナーとのuser SID照合後のprofile ACLに、信頼済み3主体のFullControlと、
+明示的・非継承のapp-silo capability SIDによるExecuteFile|Synchronizeだけを示した。
+ディレクトリではFILE_TRAVERSE|SYNCHRONIZE=0x100020で、一覧・内容読取・書込・権限制御を含まない。
+実機44129203049はownerSYSTEMを確認し、これを汎用private DACL違反として拒否した。
+個人名や実SIDは公開しない。原本の作成者・過去の状態を推測しない。
 
-## 方針
+## 実装
 
-同じgeneric診断の反復では原因が増えない。既存の安全なobserverに、最初の
-拒否ACEのclosed分類を追加する。既存7fact keysとreason、ターゲット、transport、
-時限、native権限は維持し、失敗時のdacl enumだけを詳しくする。
-旧UNVERIFIEDも維持する。個人名、SID、path、SDDL、raw ACLは出力しない。
+検証済みのprofile本体だけで、正規なapp-silo capability SIDの形（authority15/base3/app-silo65536/8uint32）、
+exact0x100020、AceFlags.None、非callbackのALLOWを適正な通過ACEとして扱う。
+名前付きcapability以外、ゼロ・追加rights、継承・inherited・その他flags、private子対象とfileは従来どおり拒否する。
+Capture中央Securityは実handleから属性・final pathを再確認してscopeを判定し、descriptor snapshot/recheckでも
+同じ規則を適用する。所有者は本人/SYSTEMの既存profile規則、全private子対象は本人のみを維持する。
+observerはmetadata検証済みのfixed PROFILE roleだけで同じpredicateを使い、legacy reducerに例外を広げない。
 
-分類はunsupported/callbackの形状、またはOTHERへのALLOWを、既知の公開principal
-class（Everyone/AuthenticatedUsers/BuiltinUsers/ApplicationPackages/
-RestrictedApplicationPackages/OtherAccount）と「read/execute許可のみ」または
-「書込・権限制御・その他bitあり」に分ける。mask=0もnonwriting分類とする。
-新しいprincipal分類は既存Accountとは分け、既存Reducerの拒否条件を変えない。
-Capture本体の規則を変更せず、何を拒否したかの観測だけを追加する。
+Windows ACLや所有者を変更しない。原本・専用保存先への新たな読み書き・実行・制御権限を誰にも与えず、
+private子対象へ継承させない。これは既存privacy/integrity制御を維持する限定された誤拒否修正（MEDIUM）であり、
+安全性の弱体化やpermission変更を本件の完了指示から推論しない。
 
-parent closed validatorは列挙値だけを許可し、成功やowner拒否との矛盾を拒否する。
-ALLOW拒否をmetadata-only ancestorへ付ける偽reportも拒否する。
-observer/parentの2pinsを同じ変更として更新する。
+## 方針と履歴
 
-## 比較と判断
+新しいユーザー証拠により、一般的なdiagnostic classifierを先に統合する必要はなくなった。
+旧head58fb45dと2回のCI失敗は履歴として保持し、その未統合classifierを最小修正へ置き換える。
+OS profileのACL削除や広い例外化は不要。既存の専用private子対象・原本の厳格な拒否を残す。
 
-ローカルのinline読取りは最短のためuserへ別途提示した。reply待ちだけで停止せず、
-既存の実機経路から自動で取れるclosed分類を用意する。
-OS ACL修復やprofileのDACL例外化は、実際のACLが不明な現時点では選ばない。
-追加緩和・OS権限変更・原本Acquireは本診断では承認しない。
+## 検証
 
-## 検証・次の行動
+実C#5でcapturer/observer両predicateの正負・mirror・owner/flags/masks/targetをRED→GREEN検証する。
+Windowsの模擬descriptorで中央Securityのsnapshot/recheckとobserverの実parseを実行する。
+fresh review、全4exact-source/main CI、署名付き6項目を確認後、実機でprofile DACLの通過を確認し、
+必要な元の固定読取りの検証へ継続する。runtime/credential/OS権限/原本変更の期限切れ許可を再利用しない。
+元Goal全体の復旧と現在のエラー解消を区別し、未証明のGoal完了を宣言しない。
+rollbackはCapture/observer/依存pinsをまとめた保護付きrevert。Windows設定の復元操作は生じない。
 
-純粋なclass/mask/順序/既存Reducer維持をC#5でRED→GREEN検証し、偽closed reportを拒否。
-関連試験と固定source全体、fresh source review、全4source/main CI、署名付きartifactを
-確認後、新しい分類を返すowner-only観測を1回だけ実行する。
-実結果から原因と最小修正を決める。通常のcode修正は進め、別のsecurity緩和が必要なら
-差分・リスク・rollbackを具体化して本当に必要なHuman Gateだけを求める。
-元Goalは証拠が揃うまでNOT_ACHIEVED / G1 HOLDのまま。
+## 必要になった検証実行の修正
 
-rollbackはclassifier、closed validator、2pinsをまとめた保護付きrevert。
-Windows側の設定・原本を変更しないため、その復元操作はない。
+旧head58fbは別hostでも300s Unit上限に達し、追加の同一再試行は行わない。
+localでは既存の60case action-free PSbatchが基準版でも10sを超え、実測はコンパイル2.8s、
+各ケースinvoke合計8.8sだった。新しい本体修正を検証するため、inert fixtureだけで
+模擬応答を各caseで1回作り、case自身のJSONだけを解析し、同じprogramは同じbytesで共有する。
+fresh runspace、native processの区別、unique原本canary、状態復元、全assertionと10s上限は維持する。
+26+60caseの完全なstatus/stdout/stderrはJSON key orderと実行時刻以外で一致した。
+純粋な新predicate試験も既存の同一source C#compileを再利用し、全assertionとWindows16+7caseを残す。
+これは検証省略ではなく準備処理の重複削減である。最終related159/159PASS。
