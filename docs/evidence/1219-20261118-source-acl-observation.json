@@ -32,14 +32,23 @@
     "legacySourceStream": 16,
     "integrationFinal122": "165/165PASS0skip26816ms",
     "lint114": "PASS",
-    "WindowsSyntheticAndSupervised": "PENDING actualWindowsCI; inertonly, no privateobjects"
+    "WindowsSyntheticAndSupervised": "PENDING actualWindowsCI; inertonly, no privateobjects",
+    "WindowsFirstSourceCI": {
+      "run": 44185914139,
+      "job": 134402262708,
+      "result": "FAIL TYPE_ALREADY_EXISTS GoriqSourceAclProbe in existing synthetic capability observer fixture",
+      "correction": "Fixture-only rename appended Source class as well as legacy OwnerProbe types; production source/pins and assertions unchanged",
+      "finalSourceCI": "PENDING",
+      "local129": "33/33PASS0skip29989ms; actual Windows PS5 newsource still pending"
+    }
   },
   "review": {
     "agent": "source_acl_final_review",
     "criticalOpen": 0,
     "importantOpen": 0,
     "minorOpen": 0,
-    "fixed": "ancestryresampling/timeoutboundary, childbootstrapphase, JSONgrammar/objectroot/ASCII/ordinalreason/duplicatekeys+legacycompat"
+    "fixed": "ancestryresampling/timeoutboundary, childbootstrapphase, JSONgrammar/objectroot/ASCII/ordinalreason/duplicatekeys+legacycompat",
+    "fixtureDelta": "fresh source_acl_final_review 0Critical/0Important/0Minor; all12fixture type names disjoint; other same-source compile fixtures checked"
   },
   "expectedTestCounts": {
     "root": 4379,
@@ -57,5 +66,5 @@
   "g1": "HOLD",
   "actualAuthor": "Codex",
   "localModel": "NOT_RUN",
-  "atUTC": "2026-11-17T22:01:10.858411+00:00"
+  "atUTC": "2026-11-17T22:07:12.765766+00:00"
 }

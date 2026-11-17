@@ -76,7 +76,7 @@ foreach($case in $cases){
 }
 Write-Output ('CAPTURE_CAPABILITY_BOUNDARY_PASS='+$cases.Count)
 
-$source=[IO.File]::ReadAllText((Join-Path $PSScriptRoot 'goriq-private-owner-probe.cs')).Replace('OwnerProbe','CapabilityFixture')
+$source=[IO.File]::ReadAllText((Join-Path $PSScriptRoot 'goriq-private-owner-probe.cs')).Replace('OwnerProbe','CapabilityFixture').Replace('GoriqSourceAclProbe','GoriqSourceAclCapabilityFixture')
 foreach($name in @('GetSecurityInfo','GetSecurityDescriptorLength','LocalFree')){
  $pattern='(?m)^ \[DllImport\([^\r\n]+ static extern [^\r\n]+\b'+$name+'\([^\r\n]+;\r?$'
  if([regex]::Matches($source,$pattern).Count -ne 1){throw 'CAPABILITY_OBSERVER_BOUNDARY_NOT_FOUND'}
