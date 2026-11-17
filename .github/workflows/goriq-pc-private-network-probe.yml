@@ -93,7 +93,7 @@ jobs:
             $failure = 'OWNER_PROBE_SOURCE_UNVERIFIED'
             $pins = [ordered]@{
               'scripts/goriq-owner-probe/observe-private-owner.ps1'='4a0ce2aaade4d4184c9897273f4f015712293267b3f512502684d4a34707c69c'
-              'scripts/goriq-owner-probe/goriq-private-owner-probe.cs'='37ee4e634e0b388bcc31f9ce090d62b754ed865825fda2075b8a7f81adb9aeb9'
+              'scripts/goriq-owner-probe/goriq-private-owner-probe.cs'='955f11579616a42e47c2f03087d67b953e9fd01483f1a807bccf6377b2f240a7'
             }
             $sources = @{}
             foreach ($file in $pins.Keys) {
@@ -233,7 +233,7 @@ jobs:
               'scripts/goriq-zbook-bridge-original-read.ps1'='fb4b08d8eaac207b37ebacffc40002412c7a65a04efd10e3d5ed7c2dff3d4bee'
               'scripts/goriq-zbook-bridge-original-read.mjs'='3a2bc58a0d07b5d605da38acfad6851df01c258136046e8772aa2a36d55528ab'
               'scripts/goriq-g1-backup-inventory.mjs'='63d236135979ca681212f6b51b7b5d63c5a284c332fdb3615ba1f6c529fc2f66'
-              'scripts/goriq-zbook-bridge-capture.cs'='0f00b5a6332baf2ac6259112bb2bae7157d49df3783c4f63c6f2f478a5a7e661'
+              'scripts/goriq-zbook-bridge-capture.cs'='66d0a40c10e60cab97615335699377bdaf1fc18ee453c29d7e064ea0119054fe'
             }
             $sources = @{}
             foreach ($file in $pins.Keys) {

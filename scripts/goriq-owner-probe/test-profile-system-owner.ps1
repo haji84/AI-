@@ -76,4 +76,5 @@ foreach($bad in @('foreign_profile','system_child_success','system_profile_owner
  Assert-Policy ('closed_refuses_'+$bad) $refused
 }
 & (Join-Path $PSScriptRoot 'test-profile-security-boundary.ps1')
+& (Join-Path $PSScriptRoot 'test-profile-capability-traverse.ps1') -ReusePolicyTypes
 Write-Output ('PROFILE_POLICY_PASS='+$checks)

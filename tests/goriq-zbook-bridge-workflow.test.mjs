@@ -24,11 +24,15 @@ function prepare() {
   if(scenario==='partial-ci')ciJobs.pop();if(scenario==='bad-job')ciJobs[0].head_sha='b'.repeat(40);
   const responses=[{object:{sha:scenario==='main'?'b'.repeat(40):sha}},{workflow_runs:[{id:71,name:'CI',path:'.github/workflows/ci.yml',event:'push',head_branch:'main',head_sha:sha,status:'completed',conclusion:'success'}]},{total_count:ciJobs.length,jobs:ciJobs},...files.map((f,i)=>{const bytes=readFileSync(f);return {path:scenario==='source-path'?'PRIVATE_PATH':f,type:'file',encoding:scenario==='source-encoding'?'utf8':'base64',size:bytes.length,content:scenario==='source-'+i?'UFJJVkFURV9CQURfU09VUkNF':bytes.toString('base64')};})];
   const paths=['git/ref/heads/main',`actions/workflows/ci.yml/runs?head_sha=${sha}&event=push&per_page=100`,'actions/runs/71/jobs?filter=latest&per_page=100',...files.map(f=>`contents/${f}?ref=${sha}`)];
-  const prefix=`$script:http=0
+ // Initialize mock response data once in each fresh case, before the unchanged
+ // workflow body; API call counters, replies and assertions remain identical.
+ const prefix=`$script:http=0
+$script:fixtureResponses=$null
 function Invoke-RestMethod { [CmdletBinding()] param($Uri,$Method,$Headers,$TimeoutSec,$MaximumRedirection)
  if($Method -cne 'Get' -or $TimeoutSec -ne 10 -or $MaximumRedirection -ne 0 -or $Headers.Count -ne 2){throw 'PRIVATE_HTTP'}
  $paths=@(${paths.map(p=>quote('https://api.github.com/repos/haji84/AI-/'+p)).join(',')});if($Uri -cne $paths[$script:http]){throw 'PRIVATE_URI'}
- $responses=@(${responses.map(object).join(',')});$r=$responses[$script:http];$script:http++;return $r
+ if($null -eq $script:fixtureResponses){$script:fixtureResponses=@(${responses.map(object).join(',')})}
+ $r=$script:fixtureResponses[$script:http];$script:http++;return $r
 }
 function Invoke-BridgeFixtureRead { param([byte[]]$QuerySource,[byte[]]$InventorySource,[string]$NativeSource)
  if($QuerySource.Length -lt 100 -or $InventorySource.Length -lt 100 -or $NativeSource.Length -lt 100){throw 'PRIVATE_SOURCE'}
@@ -43,8 +47,10 @@ function Invoke-BridgeFixtureRead { param([byte[]]$QuerySource,[byte[]]$Inventor
   const file=join(root,'case-'+index+'.ps1');writeFileSync(file,prefix+script);manifest.push({scenario,file,env});
  }
  const manifestFile=join(root,'manifest.json');writeFileSync(manifestFile,JSON.stringify(manifest));
+ for(const row of manifest)writeFileSync(manifestFile+'.'+row.scenario+'.json',JSON.stringify(row));
  const wrapper=join(root,'wrapper.ps1');writeFileSync(wrapper,`param([string]$Scenario,[string]$Manifest)
-$case=@(Get-Content -LiteralPath $Manifest -Raw|ConvertFrom-Json|Where-Object {$_.scenario -ceq $Scenario})[0]
+$case=@(Get-Content -LiteralPath ($Manifest+'.'+$Scenario+'.json') -Raw|ConvertFrom-Json)[0]
+if($case.scenario -cne $Scenario){throw 'PS_FIXTURE_CASE_UNKNOWN'}
 foreach($p in $case.env.PSObject.Properties){[Environment]::SetEnvironmentVariable($p.Name,[string]$p.Value)}
 $output=@(& $case.file);$status=0;if($null -ne $LASTEXITCODE){$status=$LASTEXITCODE};$LASTEXITCODE=0
 [ordered]@{output=@($output);status=$status;http=$script:http}|ConvertTo-Json -Depth 6 -Compress

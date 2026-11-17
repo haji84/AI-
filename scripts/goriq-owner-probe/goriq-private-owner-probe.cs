@@ -17,7 +17,7 @@ public enum OwnerProbeOwner { UNOBSERVED, CURRENT_USER, OTHER, SYSTEM }
 public enum OwnerProbeDacl { UNOBSERVED, PRIVATE_POLICY_MATCH, ANCESTOR_METADATA_ONLY, UNVERIFIED }
 public enum OwnerProbeAccount { CURRENT_USER, SYSTEM, ADMINISTRATORS, TRUSTED_INSTALLER, OTHER }
 public enum OwnerProbeQualifier { ALLOW, DENY, OTHER }
-public sealed class OwnerProbeAce { public bool InheritOnly, Qualified, Callback; public OwnerProbeAccount Account; public OwnerProbeQualifier Qualifier; }
+public sealed class OwnerProbeAce { public bool InheritOnly, Qualified, Callback; public OwnerProbeAccount Account; public OwnerProbeQualifier Qualifier; public string Sid; public uint Mask; public int Flags; }
 public sealed class OwnerProbeSpec { public OwnerProbeTarget Target; public string Path; public bool Directory, Private; }
 public sealed class OwnerProbeFact {
  public OwnerProbeTarget Target; public OwnerProbeReason Reason=OwnerProbeReason.NOT_STARTED;
@@ -77,6 +77,14 @@ public static class GoriqPrivateOwnerProbe {
  public static bool PrivateOwnerPermitted(OwnerProbeTarget target,OwnerProbeOwner owner) {
   return Defined(target)&&Defined(owner)&&(owner==OwnerProbeOwner.CURRENT_USER||(target==OwnerProbeTarget.PROFILE&&owner==OwnerProbeOwner.SYSTEM));
  }
+ public static bool ProfileCapabilityTraversePermitted(string who,uint mask,int flags,bool exactProfileDirectory) {
+  // Keep identical to Capture: only noninheriting app-silo directory traversal,
+  // never list/read/write/control access or a private child/file exception.
+  if(!exactProfileDirectory||mask!=0x100020u||flags!=0||String.IsNullOrEmpty(who)||who.Length>184||!Regex.IsMatch(who,@"^S-1-15-3-65536-(?:[0-9]+-){7}[0-9]+\z"))return false;
+  string[] parts=who.Split('-');
+  for(int n=5;n<parts.Length;n++){uint value;if(!UInt32.TryParse(parts[n],out value)||value.ToString(System.Globalization.CultureInfo.InvariantCulture)!=parts[n])return false;}
+  return true;
+ }
  // Preserve the original pure API; callers without a validated target never
  // acquire the profile-only SYSTEM exception.
  public static OwnerProbeReason ReduceSecurity(bool ownerPresent,bool daclPresent,bool ownerMatches,bool privacy,OwnerProbeAce[] aces) {
@@ -91,7 +99,7 @@ public static class GoriqPrivateOwnerProbe {
    if(ace==null)return OwnerProbeReason.PRIVATE_DACL_UNVERIFIED;
    if(ace.InheritOnly)continue;
    if(!ace.Qualified||ace.Callback)return OwnerProbeReason.PRIVATE_DACL_UNVERIFIED;
-   if(ace.Qualifier==OwnerProbeQualifier.ALLOW&&privacy&&ace.Account==OwnerProbeAccount.OTHER)return OwnerProbeReason.PRIVATE_DACL_UNVERIFIED;
+   if(ace.Qualifier==OwnerProbeQualifier.ALLOW&&privacy&&ace.Account==OwnerProbeAccount.OTHER&&!ProfileCapabilityTraversePermitted(ace.Sid,ace.Mask,ace.Flags,target==OwnerProbeTarget.PROFILE))return OwnerProbeReason.PRIVATE_DACL_UNVERIFIED;
   }
   return OwnerProbeReason.OBSERVED_POLICY_MATCH;
  }
@@ -118,7 +126,7 @@ public static class GoriqPrivateOwnerProbe {
     var item=new OwnerProbeAce();item.InheritOnly=(ace.AceFlags&AceFlags.InheritOnly)!=0;
     if(!item.InheritOnly) {
      var known=ace as QualifiedAce;item.Qualified=known!=null;
-     if(known!=null){item.Callback=known.IsCallback;item.Qualifier=known.AceQualifier==AceQualifier.AccessAllowed?OwnerProbeQualifier.ALLOW:known.AceQualifier==AceQualifier.AccessDenied?OwnerProbeQualifier.DENY:OwnerProbeQualifier.OTHER;item.Account=Account(known.SecurityIdentifier.Value,sid);}
+     if(known!=null){item.Callback=known.IsCallback;item.Qualifier=known.AceQualifier==AceQualifier.AccessAllowed?OwnerProbeQualifier.ALLOW:known.AceQualifier==AceQualifier.AccessDenied?OwnerProbeQualifier.DENY:OwnerProbeQualifier.OTHER;item.Account=Account(known.SecurityIdentifier.Value,sid);item.Sid=known.SecurityIdentifier.Value;item.Mask=(uint)known.AccessMask;item.Flags=(int)known.AceFlags;}
     }
     aces.Add(item);
    }

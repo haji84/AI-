@@ -7,6 +7,7 @@ import { join, resolve } from 'node:path';
 import { runInNewContext } from 'node:vm';
 import process from 'node:process';
 import { createPowerShellFixtureBatch } from './helpers/powershell-fixture-batch.mjs';
+import { createHash } from 'node:crypto';
 
 const workflow = readFileSync('.github/workflows/goriq-pc-private-network-probe.yml', 'utf8').replaceAll('\r\n', '\n');
 const job = workflow.split('\n  zbook_owner_probe:')[1]?.split('\n  observe:')[0];
@@ -36,7 +37,7 @@ function prepare() {
   body = body.replace('[Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT', '$false');
   assert.equal(body.split('Invoke-OwnerProbeObservation -NativeSource').length, 2);
   body = body.replace('Invoke-OwnerProbeObservation -NativeSource', 'Invoke-OwnerProbeFixtureObservation -NativeSource');
-  const manifest = [];
+  const manifest = [], programs = new Map();
   for (const [i, scenario] of scenarios.entries()) {
     const jobs = ['repository-guard', 'project-checks', 'independent-verifier-container', 'windows-runtime-byte-fixtures'].map(name => ({ name, run_id: 71, head_sha: sha, status: 'completed', conclusion: 'success' }));
     if (scenario === 'partial-ci') jobs.pop();
@@ -44,11 +45,13 @@ function prepare() {
     const paths = ['git/ref/heads/main', `actions/workflows/ci.yml/runs?head_sha=${sha}&event=push&per_page=100`, 'actions/runs/71/jobs?filter=latest&per_page=100', ...files.map(f => `contents/${f}?ref=${sha}`)];
     const responses = [{ object: { sha: scenario === 'main' ? 'b'.repeat(40) : sha } }, { workflow_runs: [{ id: 71, name: 'CI', path: '.github/workflows/ci.yml', event: 'push', head_branch: 'main', head_sha: sha, status: 'completed', conclusion: 'success' }] }, { total_count: jobs.length, jobs }, ...files.map((f, n) => ({ path: scenario === 'source-path' ? 'PRIVATE_PATH' : f, type: 'file', encoding: 'base64', size: readFileSync(f).length, content: scenario === 'source-' + n ? 'UFJJVkFURQ==' : readFileSync(f).toString('base64') }))];
     const fixture = `$global:ownerProbeHttp=0
+$global:ownerProbeFixtureResponses=$null
 function Invoke-RestMethod { [CmdletBinding()] param($Uri,$Method,$Headers,$TimeoutSec,$MaximumRedirection)
  if($Method -cne 'Get' -or $TimeoutSec -ne 10 -or $MaximumRedirection -ne 0 -or $Headers.Count -ne 2){throw 'PRIVATE_HTTP'}
  $paths=@(${paths.map(p => quote('https://api.github.com/repos/haji84/AI-/' + p)).join(',')})
  if($Uri -cne $paths[$global:ownerProbeHttp]){throw 'PRIVATE_URI'}
- $responses=@(${responses.map(object).join(',')});$response=$responses[$global:ownerProbeHttp];$global:ownerProbeHttp++;return $response
+ if($null -eq $global:ownerProbeFixtureResponses){$global:ownerProbeFixtureResponses=@(${responses.map(object).join(',')})}
+ $response=$global:ownerProbeFixtureResponses[$global:ownerProbeHttp];$global:ownerProbeHttp++;return $response
 }
 function Invoke-OwnerProbeFixtureObservation { param([string]$NativeSource)
  if($NativeSource.Length -lt 100){throw 'PRIVATE_SOURCE'}
@@ -69,21 +72,39 @@ function Invoke-OwnerProbeFixtureObservation { param([string]$NativeSource)
 `;
     const key = scenario.toUpperCase().replaceAll('-', '_');
     const env = { ...context, ...(key in context ? { [key]: 'untrusted' } : {}) };
-    const file = join(root, 'case-' + i + '.ps1');
-    writeFileSync(file, fixture + body); manifest.push({ scenario, file, env });
+    const text = fixture + body, digest = createHash('sha256').update(text).digest('hex');
+    let file = programs.get(digest);
+    if (!file) { file = join(root, 'case-' + i + '.ps1'); writeFileSync(file, text); programs.set(digest, file); }
+    else assert.equal(readFileSync(file, 'utf8'), text);
+    manifest.push({ scenario, file, env });
   }
   const manifestFile = join(root, 'manifest.json'); writeFileSync(manifestFile, JSON.stringify(manifest));
+  for (const row of manifest) writeFileSync(manifestFile + '.' + row.scenario + '.json', JSON.stringify(row));
   const wrapper = join(root, 'wrapper.ps1');
   writeFileSync(wrapper, `param([string]$Scenario,[string]$Manifest)
 $initial=[Environment]::GetEnvironmentVariables()
-$case=@(Get-Content -LiteralPath $Manifest -Raw|ConvertFrom-Json|Where-Object {$_.scenario -ceq $Scenario})[0]
+$case=@(Get-Content -LiteralPath ($Manifest+'.'+$Scenario+'.json') -Raw|ConvertFrom-Json)[0]
+if($case.scenario -cne $Scenario){throw 'PS_FIXTURE_CASE_UNKNOWN'}
 foreach($p in $case.env.PSObject.Properties){[Environment]::SetEnvironmentVariable($p.Name,[string]$p.Value)}
 $output=@(& $case.file);$status=0;if($null -ne $LASTEXITCODE){$status=$LASTEXITCODE};$LASTEXITCODE=0
 foreach($key in @([Environment]::GetEnvironmentVariables().Keys)){if(-not $initial.Contains($key)){[Environment]::SetEnvironmentVariable([string]$key,[NullString]::Value)}}
 foreach($key in $initial.Keys){[Environment]::SetEnvironmentVariable([string]$key,[string]$initial[$key])}
 [ordered]@{output=@($output);status=$status;http=$global:ownerProbeHttp}|ConvertTo-Json -Depth 6 -Compress
 `);
-  run = createPowerShellFixtureBatch({ shell: 'pwsh', fixture: wrapper, scenarios, parameters: { Manifest: manifestFile }, timeoutMs: 10000 });
+  // Keep all25 cases and each process's10s bound. Smaller owned batches leave
+  // room for Windows parsing/startup while every case retains a fresh runspace.
+  assert.equal(scenarios.length, 25);
+  const runners = new Map();
+  for (let offset = 0; offset < scenarios.length; offset += 9) {
+    const group = scenarios.slice(offset, offset + 9);
+    const execute = createPowerShellFixtureBatch({ shell: 'pwsh', fixture: wrapper, scenarios: group, parameters: { Manifest: manifestFile }, timeoutMs: 10000 });
+    for (const scenario of group) runners.set(scenario, execute);
+  }
+  run = scenario => {
+    const execute = runners.get(scenario);
+    assert.ok(execute, 'PS_FIXTURE_CASE_UNKNOWN');
+    return execute(scenario);
+  };
 }
 
 for (const scenario of scenarios) test('owner observation workflow refuses unsafe boundary: ' + scenario, () => {
@@ -135,6 +156,11 @@ test('approved SYSTEM owner exception is confined to the verified profile root',
   assert.equal(result.status, 0, result.stderr + '\n' + result.stdout);
   assert.equal(result.stderr, '');
   assert.match(result.stdout, /PROFILE_POLICY_PASS=\d+/);
+  assert.match(result.stdout, /PROFILE_CAPABILITY_PASS=\d+/);
+  if (process.platform === 'win32') {
+    assert.match(result.stdout, /CAPTURE_CAPABILITY_BOUNDARY_PASS=16/);
+    assert.match(result.stdout, /OBSERVER_CAPABILITY_BOUNDARY_PASS=7/);
+  }
   assert.match(result.stdout, /SECURITY_CASES_PASS=11/);
   if (process.platform === 'win32') assert.match(result.stdout, /SECURITY_BOUNDARY_PASS=11/);
 });

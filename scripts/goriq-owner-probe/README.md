@@ -35,6 +35,18 @@ identifies who created the object. `OBSERVED_POLICY_MATCH` describes current
 metadata, not a recovered original, historical proof or runtime acceptance.
 Every result remains INCOMPLETE / NOT_AUTHORITATIVE / recovered=false / G1 HOLD.
 
+The owner-provided profile ACL subsequently identified the refused entry as an
+explicit noninheriting Windows app-silo capability ACE with only
+FILE_TRAVERSE|SYNCHRONIZE (0x100020). The SDK defines authority15/capability3/
+app-silo65536. The corrected capture/observer permit exactly that observed SID
+form (eight canonical uint32 suffixes), mask and zero flags only on the verified
+profile directory. No list/read/write/control rights or descendant inheritance
+are admitted. Callback, other principals/masks/flags and private children/files
+retain existing refusals. Windows ownership and ACL bytes remain unchanged.
+Capture derives scope centrally from the actual handle, also for descriptor
+snapshots/rechecks; the observer uses only its already metadata-verified fixed
+PROFILE role. Raw SIDs remain local and are never serialized in reports.
+
 Actual ZBook run44010426909 reached the signed supervisor but returned the
 former generic NATIVE_BUILD_UNAVAILABLE before any owner observation. Fixed
 bootstrap reasons now distinguish the three Microsoft module imports, signature

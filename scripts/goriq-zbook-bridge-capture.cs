@@ -84,6 +84,14 @@ public sealed class GoriqBridgeCapture : IDisposable {
  public static bool PrivateOwnerPermitted(string ownerSid,string userSid,bool exactProfileDirectory) {
   return !String.IsNullOrEmpty(ownerSid)&&!String.IsNullOrEmpty(userSid)&&(ownerSid==userSid||(exactProfileDirectory&&ownerSid=="S-1-5-18"));
  }
+ public static bool ProfileCapabilityTraversePermitted(string who,uint mask,int flags,bool exactProfileDirectory) {
+  // SDK app-package authority15, capability3, app-silo65536. This directory
+  // ACE grants only FILE_TRAVERSE|SYNCHRONIZE and never propagates to data.
+  if(!exactProfileDirectory||mask!=0x100020u||flags!=0||String.IsNullOrEmpty(who)||who.Length>184||!Regex.IsMatch(who,@"^S-1-15-3-65536-(?:[0-9]+-){7}[0-9]+\z"))return false;
+  string[] parts=who.Split('-');
+  for(int n=5;n<parts.Length;n++){uint value;if(!UInt32.TryParse(parts[n],out value)||value.ToString(System.Globalization.CultureInfo.InvariantCulture)!=parts[n])return false;}
+  return true;
+ }
  public static bool AcePermitted(string who,uint mask,bool privacy,bool runtime,string ownerSid) {
   if(!privacy&&!runtime)return true; // metadata-only ancestors; no permission inference
   bool trusted=who=="S-1-5-18"||who=="S-1-5-32-544"||(privacy&&who==ownerSid)||who=="S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464";
@@ -94,22 +102,23 @@ public sealed class GoriqBridgeCapture : IDisposable {
   if(volumeRoot)mask&=~6u; // create a new child is not replacement of a protected existing child
   return AcePermitted(who,mask,false,true,null);
  }
+ bool ExactProfileScope(SafeFileHandle handle) {
+  Budget();Info info;if(!GetFileInformationByHandle(handle,out info))return false;
+  var final=new StringBuilder(1024);Budget();uint count=GetFinalPathNameByHandle(handle,final,1024,0);
+  return count>0&&count<1024&&IsExactProfileDirectory(info.attributes,final.ToString(),profile);
+ }
  byte[] Security(SafeFileHandle handle,bool privacy,bool runtime=false,bool runtimeDirectory=false,bool volumeRoot=false) {
   IntPtr owner,group,dacl,sacl,descriptor;Require(GetSecurityInfo(handle,1,5,out owner,out group,out dacl,out sacl,out descriptor)==0&&descriptor!=IntPtr.Zero,GoriqBridgePrivateGuardReason.PRIVATE_DACL_UNVERIFIED);
   try {
    uint size=GetSecurityDescriptorLength(descriptor);Require(size>0&&size<=65536,GoriqBridgePrivateGuardReason.PRIVATE_DACL_UNVERIFIED);byte[] bytes=new byte[size];Marshal.Copy(descriptor,bytes,0,(int)size);
    var sd=new RawSecurityDescriptor(bytes,0);Require(sd.Owner!=null&&sd.DiscretionaryAcl!=null&&(sd.ControlFlags&ControlFlags.DiscretionaryAclPresent)!=0,GoriqBridgePrivateGuardReason.PRIVATE_DACL_UNVERIFIED);
+   bool exactProfileDirectory=false;
    if(privacy) {
     // Centralize the approved exception so descriptor snapshots and rechecks
     // receive the same handle-derived scope as Open/Inspect. Never trust a
     // caller's path label for SYSTEM ownership of a private child or file.
-    bool exactProfileDirectory=false;
     if(!runtime&&sd.Owner.Value=="S-1-5-18") {
-     Budget();Info ownerInfo;
-     if(GetFileInformationByHandle(handle,out ownerInfo)) {
-      var ownerFinal=new StringBuilder(1024);Budget();uint ownerCount=GetFinalPathNameByHandle(handle,ownerFinal,1024,0);
-      exactProfileDirectory=ownerCount>0&&ownerCount<1024&&IsExactProfileDirectory(ownerInfo.attributes,ownerFinal.ToString(),profile);
-     }
+     exactProfileDirectory=ExactProfileScope(handle);
     }
     Require(PrivateOwnerPermitted(sd.Owner.Value,sid,exactProfileDirectory),GoriqBridgePrivateGuardReason.PRIVATE_OWNER_UNVERIFIED);
    }
@@ -119,6 +128,10 @@ public sealed class GoriqBridgeCapture : IDisposable {
     var known=ace as QualifiedAce;Require(known!=null&&!known.IsCallback,GoriqBridgePrivateGuardReason.PRIVATE_DACL_UNVERIFIED);
     if(known.AceQualifier!=AceQualifier.AccessAllowed)continue;
     string who=known.SecurityIdentifier.Value;
+    if(privacy&&!runtime&&ProfileCapabilityTraversePermitted(who,(uint)known.AccessMask,(int)known.AceFlags,true)) {
+     if(!exactProfileDirectory)exactProfileDirectory=ExactProfileScope(handle);
+     if(exactProfileDirectory)continue;
+    }
     Require(runtimeDirectory?RuntimeDirectoryAcePermitted(who,(uint)known.AccessMask,volumeRoot):AcePermitted(who,(uint)known.AccessMask,privacy,runtime,sid),GoriqBridgePrivateGuardReason.PRIVATE_DACL_UNVERIFIED);
    }
    return bytes;
