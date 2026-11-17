@@ -1,0 +1,78 @@
+{
+  "goal": "goal-fcc81c97e09153f7",
+  "job": "rotation-recovery-37",
+  "issue": 1219,
+  "baseMain": "eb01e111fa60ecb54941415f18ad309fa7d0a498",
+  "currentActualFailure": {
+    "run": 44178348410,
+    "code": "SOURCE_PRIVATE_DACL_UNVERIFIED",
+    "preserved": false,
+    "specificTargetProven": false
+  },
+  "scope": "READ_CONTROL/READ_ATTRIBUTES fixedsource and fixedfailedcapture44178348410-1 ACL metadata only; no contents or sourcepolicy/OS/runtime/credential writes",
+  "legacyOwnerSourcePrefixBytes": 16839,
+  "legacyOwnerPrefixUnchanged": true,
+  "CaptureByteIdentical": true,
+  "nativeSourceBytes": 40633,
+  "sourceHeaderLimits": {
+    "targets": 48,
+    "aces": 16,
+    "descriptorBytes": 65536,
+    "budgetSeconds": 20,
+    "outputBytes": 131072
+  },
+  "supervisor": "Existing25s/signature/cleanenv/sourceUTF8/BOM/workspace unchanged, Source fixedentry optional, legacydefault16384, strictSource/emptylegacyBootstrapresolver",
+  "privacy": "No actualSID/username/path/rawexceptions/content output; opaqueOTHER mask0isunknownsentinel",
+  "tests": {
+    "nativeRED": "111,116,119",
+    "nativeGREEN": 136,
+    "envelopeRED": "109,118,124,125",
+    "envelopeGREEN": 329,
+    "legacyBootstrap": 14,
+    "legacySourceStream": 16,
+    "integrationFinal122": "165/165PASS0skip26816ms",
+    "lint114": "PASS",
+    "WindowsSyntheticAndSupervised": "PENDING actualWindowsCI; inertonly, no privateobjects",
+    "WindowsFirstSourceCI": {
+      "run": 44185914139,
+      "job": 134402262708,
+      "result": "FAIL TYPE_ALREADY_EXISTS GoriqSourceAclProbe in existing synthetic capability observer fixture",
+      "correction": "Fixture-only rename appended Source class as well as legacy OwnerProbe types; production source/pins and assertions unchanged",
+      "finalSourceCI": "PENDING",
+      "local129": "33/33PASS0skip29989ms; actual Windows PS5 newsource still pending"
+    },
+    "WindowsSecondSourceCI": {
+      "run": 44186929012,
+      "job": 134405818813,
+      "result": "FAIL undefined .NET Framework AceType17 directcast in Windows-only opaqueACEfixture",
+      "correction": "Enum.ToObject preserves typed raw17 for CustomAce; no assertions removed",
+      "local132": "Native136PASS; actualPS5newsource PENDING"
+    }
+  },
+  "review": {
+    "agent": "source_acl_final_review",
+    "criticalOpen": 0,
+    "importantOpen": 0,
+    "minorOpen": 0,
+    "fixed": "ancestryresampling/timeoutboundary, childbootstrapphase, JSONgrammar/objectroot/ASCII/ordinalreason/duplicatekeys+legacycompat",
+    "fixtureDelta": "fresh source_acl_final_review 0Critical/0Important/0Minor; all12fixture type names disjoint; other same-source compile fixtures checked",
+    "enumDelta": "fresh source_acl_final_review0Critical0Important0Minor; first6WindowsdescriptorvariantsalreadyPASS;17ACEusespassingconversions"
+  },
+  "expectedTestCounts": {
+    "root": 4379,
+    "hosted": 4380,
+    "existingSkip": 26
+  },
+  "workflow": "Sameowner-onlyflags/permissions, validatebothclosedenvelopesbeforeprinting2prefixes; 28casefixtures4x7each10s totalbatch30->40s;global300s unchanged",
+  "pending": [
+    "source4CI+signed6",
+    "protectedmerge/main4CI+signed6",
+    "one newactualreadonlySourceACLobservation",
+    "specificcausefix/originalreadsuccess"
+  ],
+  "goalStatus": "NOT_ACHIEVED",
+  "g1": "HOLD",
+  "actualAuthor": "Codex",
+  "localModel": "NOT_RUN",
+  "atUTC": "2026-11-17T22:11:21.294616+00:00"
+}

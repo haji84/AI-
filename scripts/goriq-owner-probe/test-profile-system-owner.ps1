@@ -78,4 +78,5 @@ foreach($bad in @('foreign_profile','system_child_success','system_profile_owner
 & (Join-Path $PSScriptRoot 'test-profile-security-boundary.ps1')
 & (Join-Path $PSScriptRoot 'test-profile-capability-traverse.ps1') -ReusePolicyTypes
 & (Join-Path $PSScriptRoot 'test-source-guard-diagnostic.ps1') -ReusePolicyTypes
+& (Join-Path $PSScriptRoot 'test-source-acl-native.ps1') -ReusePolicyTypes
 Write-Output ('PROFILE_POLICY_PASS='+$checks)

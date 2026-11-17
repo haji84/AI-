@@ -17,7 +17,7 @@ const files = ['scripts/goriq-owner-probe/observe-private-owner.ps1', 'scripts/g
 const sha = 'a'.repeat(40), quote = s => "'" + s.replaceAll("'", "''") + "'";
 const object = v => `(ConvertFrom-Json -InputObject ${quote(JSON.stringify(v))})`;
 const context = { GITHUB_REPOSITORY: 'haji84/AI-', GITHUB_ACTOR: 'haji84', GITHUB_REF: 'refs/heads/main', GITHUB_EVENT_NAME: 'workflow_dispatch', RUNNER_NAME: 'ZBook', RUNNER_OS: 'Windows', OS: 'Windows_NT', GITHUB_SHA: sha, GITHUB_RUN_ID: '42', GITHUB_RUN_ATTEMPT: '1', GORIQ_ZBOOK_OWNER_PROBE_ONLY: 'true', GORIQ_ZBOOK_BRIDGE_ORIGINAL_ONLY: 'false', GORIQ_ZBOOK_NATIVE_ONLY: 'false', GORIQ_ZBOOK_RUNNER_ONLY: 'false' };
-const scenarios = ['valid', ...Object.keys(context).map(k => k.toLowerCase().replaceAll('_', '-')), 'main', 'partial-ci', 'bad-job', 'source-0', 'source-1', 'extra-output', 'raw-target', 'raw-owner', 'bad-authority', 'source-path'];
+const scenarios = ['valid', ...Object.keys(context).map(k => k.toLowerCase().replaceAll('_', '-')), 'main', 'partial-ci', 'bad-job', 'source-0', 'source-1', 'extra-output', 'raw-target', 'raw-owner', 'bad-authority', 'source-path', 'source-acl-extra', 'source-acl-raw', 'source-acl-mask'];
 let run;
 
 // An enabled acquisition job during owner-only inspection would mutate private storage.
@@ -37,6 +37,8 @@ function prepare() {
   body = body.replace('[Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT', '$false');
   assert.equal(body.split('Invoke-OwnerProbeObservation -NativeSource').length, 2);
   body = body.replace('Invoke-OwnerProbeObservation -NativeSource', 'Invoke-OwnerProbeFixtureObservation -NativeSource');
+  assert.equal(body.split('Invoke-SourceAclProbeObservation -NativeSource').length, 2);
+  body = body.replace('Invoke-SourceAclProbeObservation -NativeSource', 'Invoke-SourceAclProbeFixtureObservation -NativeSource');
   const manifest = [], programs = new Map();
   for (const [i, scenario] of scenarios.entries()) {
     const jobs = ['repository-guard', 'project-checks', 'independent-verifier-container', 'windows-runtime-byte-fixtures'].map(name => ({ name, run_id: 71, head_sha: sha, status: 'completed', conclusion: 'success' }));
@@ -69,6 +71,13 @@ function Invoke-OwnerProbeFixtureObservation { param([string]$NativeSource)
  ${scenario === 'bad-authority' ? "$r.recovered=$true" : ''}
  $r|ConvertTo-Json -Depth 5 -Compress
 }
+function Invoke-SourceAclProbeFixtureObservation { param([string]$NativeSource)
+ $r=New-SourceAclProbeFailure 'UNSUPPORTED_PLATFORM'|ConvertFrom-Json
+ ${scenario === 'source-acl-extra' ? "Write-Output 'PRIVATE_EXTRA'" : ''}
+ ${scenario === 'source-acl-raw' ? "$r|Add-Member NoteProperty privatePath 'PRIVATE_PATH'" : ''}
+ ${scenario === 'source-acl-mask' ? "$r.observations=@(@{target='VOLUME_ROOT';status='ACL_OBSERVED';storageVerified=$true;attributesVerified=$true;finalPathVerified=$true;owner='CURRENT_USER';dacl='PRESENT';aces=@(@{account='OTHER';qualifier='ALLOW';mask=-1;flags=0})})" : ''}
+ $r|ConvertTo-Json -Depth 7 -Compress
+}
 `;
     const key = scenario.toUpperCase().replaceAll('-', '_');
     const env = { ...context, ...(key in context ? { [key]: 'untrusted' } : {}) };
@@ -91,12 +100,12 @@ foreach($key in @([Environment]::GetEnvironmentVariables().Keys)){if(-not $initi
 foreach($key in $initial.Keys){[Environment]::SetEnvironmentVariable([string]$key,[string]$initial[$key])}
 [ordered]@{output=@($output);status=$status;http=$global:ownerProbeHttp}|ConvertTo-Json -Depth 6 -Compress
 `);
-  // Keep all25 cases and each process's10s bound. Smaller owned batches leave
+  // Keep every case and each process's10s bound. Smaller owned batches leave
   // room for Windows parsing/startup while every case retains a fresh runspace.
-  assert.equal(scenarios.length, 25);
+  assert.equal(scenarios.length, 28);
   const runners = new Map();
-  for (let offset = 0; offset < scenarios.length; offset += 9) {
-    const group = scenarios.slice(offset, offset + 9);
+  for (let offset = 0; offset < scenarios.length; offset += 7) {
+    const group = scenarios.slice(offset, offset + 7);
     const execute = createPowerShellFixtureBatch({ shell: 'pwsh', fixture: wrapper, scenarios: group, parameters: { Manifest: manifestFile }, timeoutMs: 10000 });
     for (const scenario of group) runners.set(scenario, execute);
   }
@@ -110,12 +119,16 @@ foreach($key in $initial.Keys){[Environment]::SetEnvironmentVariable([string]$ke
 for (const scenario of scenarios) test('owner observation workflow refuses unsafe boundary: ' + scenario, () => {
   if (!run) prepare();
   const result = run(scenario); assert.equal(result.status, 0, result.stderr); assert.equal(result.stderr, ''); assert.doesNotMatch(result.stdout, /PRIVATE_PATH|PRIVATE_EXTRA|S-1-5|PRIVATE_SOURCE/);
-  const value = JSON.parse(result.stdout); assert.equal(value.output.length, 1);
+  const value = JSON.parse(result.stdout); assert.equal(value.output.length, scenario === 'valid' ? 2 : 1);
   if (scenario === 'valid') {
     assert.equal(value.status, 0); assert.match(value.output[0], /^GORIQ_ZBOOK_OWNER_OBSERVATION /);
     const report = JSON.parse(value.output[0].slice('GORIQ_ZBOOK_OWNER_OBSERVATION '.length));
     assert.equal(report.target, 'HANDOFF'); assert.equal(report.reason, 'PRIVATE_OWNER_UNVERIFIED');
     assert.equal(report.observations.at(-1).owner, 'OTHER'); assert.equal(report.recovered, false); assert.equal(report.historicalStateProven, false);
+    assert.match(value.output[1], /^GORIQ_ZBOOK_SOURCE_ACL_OBSERVATION /);
+    const sourceReport = JSON.parse(value.output[1].slice('GORIQ_ZBOOK_SOURCE_ACL_OBSERVATION '.length));
+    assert.equal(sourceReport.schema, 'SOURCE_ACL_PROBE_V1'); assert.equal(sourceReport.reason, 'UNSUPPORTED_PLATFORM');
+    assert.equal(sourceReport.readOnly, true); assert.equal(sourceReport.metadataOnly, true); assert.equal(sourceReport.recovered, false);
   } else {
     assert.equal(value.status, 1); assert.match(value.output[0], /^GORIQ_ZBOOK_OWNER_REFUSED [A-Z_]+$/);
     const key = scenario.toUpperCase().replaceAll('-', '_');
@@ -132,6 +145,8 @@ test('owner probe pure suite and in-memory supervised child fixtures', { timeout
   const shell = process.platform === 'win32' ? 'powershell.exe' : 'pwsh';
   const result = spawnSync(shell, ['-NoLogo', '-NoProfile', '-NonInteractive', '-File', file], { encoding: 'utf8', timeout: 55000, windowsHide: true });
   assert.equal(result.status, 0, result.stderr + '\n' + result.stdout.slice(-6000)); assert.equal(result.stderr, ''); assert.match(result.stdout, /TOTAL_PASS=\d+/);
+  assert.match(result.stdout, /SOURCE_ACL_ENVELOPE_PASS=\d+/);
+  if (process.platform === 'win32') assert.match(result.stdout, /SOURCE_ACL_SUPERVISED_PASS=\d+/);
 });
 
 test('owned observer timeout has its own bounded inert process fixture', { timeout: 60000 }, () => {
@@ -158,6 +173,7 @@ test('approved SYSTEM owner exception is confined to the verified profile root',
   assert.match(result.stdout, /PROFILE_POLICY_PASS=\d+/);
   assert.match(result.stdout, /PROFILE_CAPABILITY_PASS=\d+/);
   assert.match(result.stdout, /SOURCE_GUARD_DIAGNOSTIC_PASS=\d+/);
+  assert.match(result.stdout, /SOURCE_ACL_NATIVE_PASS=\d+/);
   if (process.platform === 'win32') {
     assert.match(result.stdout, /CAPTURE_CAPABILITY_BOUNDARY_PASS=16/);
     assert.match(result.stdout, /OBSERVER_CAPABILITY_BOUNDARY_PASS=7/);

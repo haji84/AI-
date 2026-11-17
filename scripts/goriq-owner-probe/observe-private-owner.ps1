@@ -87,6 +87,129 @@ function ConvertTo-OwnerProbeClosedJson([string]$Text) {
  $template.allFixedTargetsObserved=$p.allFixedTargetsObserved;$template.target=$p.target;$template.reason=$p.reason;$template.observations=$facts
  return ($template | ConvertTo-Json -Depth 5 -Compress)
 }
+function New-SourceAclProbeFailure([string]$Reason) {
+ $known=@('UNSUPPORTED_PLATFORM','IDENTITY_UNVERIFIED','UNSAFE_PROFILE','TARGET_LIMIT','TIMEOUT','UNEXPECTED_FAILURE','OUTPUT_REJECTED','NATIVE_CONTEXT_UNVERIFIED','NATIVE_BUILD_UNAVAILABLE','NATIVE_BUILD_ACCESS_DENIED','NATIVE_BUILD_COMPILER_MISSING','NATIVE_BUILD_REFERENCE_UNAVAILABLE','NATIVE_BUILD_SOURCE_REJECTED','NATIVE_MODULE_MANAGEMENT_UNAVAILABLE','NATIVE_MODULE_SECURITY_UNAVAILABLE','NATIVE_MODULE_UTILITY_UNAVAILABLE','NATIVE_SIGNATURE_UNAVAILABLE','NATIVE_SOURCE_UNAVAILABLE','NATIVE_SOURCE_EMPTY','NATIVE_SOURCE_OVERSIZED','NATIVE_SOURCE_BASE64_REJECTED','NATIVE_SOURCE_UTF8_REJECTED','NATIVE_ENTRY_UNAVAILABLE','CHILD_START_UNAVAILABLE','CHILD_STOP_UNCONFIRMED')
+ $canonical='OUTPUT_REJECTED'
+ foreach($candidate in $known){if([string]::Equals($Reason,$candidate,[StringComparison]::Ordinal)){$canonical=$candidate;break}}
+ $Reason=$canonical
+ return ([ordered]@{schema='SOURCE_ACL_PROBE_V1';authority='NOT_AUTHORITATIVE';status='INCOMPLETE';readOnly=$true;metadataOnly=$true;recovered=$false;g1='HOLD';historicalStateProven=$false;maxTargets=48;maxAces=16;budgetSeconds=20;reason=$Reason;observations=@()} | ConvertTo-Json -Depth 8 -Compress)
+}
+function Assert-SourceAclProbeJsonSyntax([string]$Text) {
+ if([Text.Encoding]::UTF8.GetByteCount($Text) -gt 131072){throw 'REFUSED'}
+ # The fixed native DTO uses literal ASCII strings and unsigned integers only.
+ # Escaped strings, non-ASCII text, and other JSON scalar forms are refused
+ # explicitly rather than relying on permissive PowerShell JSON conversion.
+ $tokens=[regex]::Matches($Text,'\G[ \t\r\n]*(?<token>"[\x20-\x21\x23-\x5b\x5d-\x7e]*"|[{}\[\],:]|(?:0|[1-9][0-9]*)|true|false|null)[ \t\r\n]*',[Text.RegularExpressions.RegexOptions]::CultureInvariant,[TimeSpan]::FromMilliseconds(1000))
+ if($tokens.Count -eq 0 -or $tokens.Count -gt 16384 -or $tokens[$tokens.Count-1].Index+$tokens[$tokens.Count-1].Length -ne $Text.Length -or $tokens[0].Groups['token'].Value -cne '{'){throw 'REFUSED'}
+ # States: object key-or-end/key/colon/value/comma-or-end (0..4), then
+ # array value-or-end/value/comma-or-end (5..7). A comma requires a value/key;
+ # neither comments nor trailing commas can cross this container grammar.
+ $frames=New-Object 'Collections.Generic.List[int]';$frames.Add(0)
+ for($n=1;$n -lt $tokens.Count;$n++){
+  if($frames.Count -eq 0){throw 'REFUSED'}
+  $token=$tokens[$n].Groups['token'].Value;$last=$frames.Count-1;$valueExpected=$false
+  switch($frames[$last]){
+   0 {if($token -ceq '}'){$frames.RemoveAt($last)}elseif($token[0] -ceq '"'){$frames[$last]=2}else{throw 'REFUSED'}}
+   1 {if($token[0] -ceq '"'){$frames[$last]=2}else{throw 'REFUSED'}}
+   2 {if($token -ceq ':'){$frames[$last]=3}else{throw 'REFUSED'}}
+   3 {$frames[$last]=4;$valueExpected=$true}
+   4 {if($token -ceq ','){$frames[$last]=1}elseif($token -ceq '}'){$frames.RemoveAt($last)}else{throw 'REFUSED'}}
+   5 {if($token -ceq ']'){$frames.RemoveAt($last)}else{$frames[$last]=7;$valueExpected=$true}}
+   6 {$frames[$last]=7;$valueExpected=$true}
+   7 {if($token -ceq ','){$frames[$last]=6}elseif($token -ceq ']'){$frames.RemoveAt($last)}else{throw 'REFUSED'}}
+   default {throw 'REFUSED'}
+  }
+  if($valueExpected){
+   if($token -ceq '{'){$frames.Add(0)}elseif($token -ceq '['){$frames.Add(5)}elseif($token[0] -cne '"' -and $token[0] -notmatch '[0-9]' -and $token -cnotin @('true','false','null')){throw 'REFUSED'}
+   if($frames.Count -gt 5){throw 'REFUSED'}
+  }
+ }
+ if($frames.Count -ne 0){throw 'REFUSED'}
+}
+function ConvertTo-SourceAclProbeClosedJson([string]$Text) {
+ Assert-SourceAclProbeJsonSyntax $Text
+ $p=ConvertFrom-Json -InputObject $Text -ErrorAction Stop
+ $template=[ordered]@{schema='SOURCE_ACL_PROBE_V1';authority='NOT_AUTHORITATIVE';status='INCOMPLETE';readOnly=$true;metadataOnly=$true;recovered=$false;g1='HOLD';historicalStateProven=$false;maxTargets=48;maxAces=16;budgetSeconds=20;reason='OUTPUT_REJECTED';observations=@()}
+ if($null -eq $p -or @($p.PSObject.Properties).Count -ne $template.Count){throw 'REFUSED'}
+ foreach($key in $template.Keys){if($p.PSObject.Properties.Name -cnotcontains $key){throw 'REFUSED'}}
+ foreach($key in @('schema','authority','g1')){if($p.$key -isnot [string] -or $p.$key -cne $template[$key]){throw 'REFUSED'}}
+ foreach($key in @('readOnly','metadataOnly','recovered','historicalStateProven')){if($p.$key -isnot [bool] -or $p.$key -cne $template[$key]){throw 'REFUSED'}}
+ foreach($key in @('maxTargets','maxAces','budgetSeconds')){if(($p.$key -isnot [int] -and $p.$key -isnot [long]) -or $p.$key -ne $template[$key]){throw 'REFUSED'}}
+ $reasons=@('OBSERVED','UNSUPPORTED_PLATFORM','IDENTITY_UNVERIFIED','UNSAFE_PROFILE','TARGET_LIMIT','TIMEOUT','UNEXPECTED_FAILURE','OUTPUT_REJECTED','NATIVE_CONTEXT_UNVERIFIED','NATIVE_BUILD_UNAVAILABLE','NATIVE_BUILD_ACCESS_DENIED','NATIVE_BUILD_COMPILER_MISSING','NATIVE_BUILD_REFERENCE_UNAVAILABLE','NATIVE_BUILD_SOURCE_REJECTED','NATIVE_MODULE_MANAGEMENT_UNAVAILABLE','NATIVE_MODULE_SECURITY_UNAVAILABLE','NATIVE_MODULE_UTILITY_UNAVAILABLE','NATIVE_SIGNATURE_UNAVAILABLE','NATIVE_SOURCE_UNAVAILABLE','NATIVE_SOURCE_EMPTY','NATIVE_SOURCE_OVERSIZED','NATIVE_SOURCE_BASE64_REJECTED','NATIVE_SOURCE_UTF8_REJECTED','NATIVE_ENTRY_UNAVAILABLE','CHILD_START_UNAVAILABLE','CHILD_STOP_UNCONFIRMED')
+ if($p.status -isnot [string] -or $p.status -cnotin @('METADATA_ONLY_COMPLETE','INCOMPLETE') -or $p.reason -isnot [string] -or $p.reason -cnotin $reasons -or $p.observations -isnot [array] -or $p.observations.Count -gt 48){throw 'REFUSED'}
+ $statuses=@('ACL_OBSERVED','TARGET_MISSING','ACCESS_DENIED','ANCESTOR_UNVERIFIED','STORAGE_UNVERIFIED','ATTRIBUTES_UNVERIFIED','FINAL_PATH_UNVERIFIED','SECURITY_DESCRIPTOR_UNVERIFIED','ACE_LIMIT','TIMEOUT','UNEXPECTED_FAILURE')
+ $owners=@('UNOBSERVED','CURRENT_USER','SYSTEM','ADMINISTRATORS','TRUSTED_INSTALLER','OTHER')
+ $accounts=@('CURRENT_USER','SYSTEM','ADMINISTRATORS','TRUSTED_INSTALLER','APP_SILO','APP_CAPABILITY','APP_PACKAGE','EVERYONE','AUTHENTICATED_USERS','USERS','OTHER')
+ $fixed=@('APPDATA','LOCAL','WORKER','SOURCE','DB','WAL','SHM','JOURNAL','SIDECAR','JOBS','CHANGES','HANDOFF','CAPTURE','RAW','WORK','CONTEXT','RAW_DB','RAW_WAL','RAW_SHM','RAW_JOBS','RAW_CHANGES','WORK_DB','WORK_WAL','WORK_SHM','WORK_JOBS','WORK_CHANGES')
+ $targets=@('VOLUME_ROOT','PROFILE')+$fixed
+ foreach($prefix in @('PROFILE_ANCESTOR_0','SOURCE_ANCESTOR_0')){foreach($n in 1..7){$targets+=($prefix+$n)}}
+ $facts=@();$seen=@();$profileAncestors=0;$sourceAncestors=0;$propertyCount=$template.Count
+ foreach($fact in $p.observations){
+  $keys=@('target','status','storageVerified','attributesVerified','finalPathVerified','owner','dacl','aces')
+  if($null -eq $fact -or @($fact.PSObject.Properties).Count -ne $keys.Count){throw 'REFUSED'}
+  foreach($key in $keys){if($fact.PSObject.Properties.Name -cnotcontains $key){throw 'REFUSED'}}
+  if($fact.target -isnot [string] -or $fact.target -cnotin $targets -or $fact.target -cin $seen -or $fact.status -isnot [string] -or $fact.status -cnotin $statuses -or $fact.owner -isnot [string] -or $fact.owner -cnotin $owners -or $fact.dacl -isnot [string] -or $fact.dacl -cnotin @('UNOBSERVED','PRESENT','NULL','ABSENT') -or $fact.aces -isnot [array] -or $fact.aces.Count -gt 16){throw 'REFUSED'}
+  foreach($key in @('storageVerified','attributesVerified','finalPathVerified')){if($fact.$key -isnot [bool]){throw 'REFUSED'}}
+  if(($fact.attributesVerified -and -not $fact.storageVerified) -or ($fact.finalPathVerified -and -not $fact.attributesVerified)){throw 'REFUSED'}
+  if($fact.status -cin @('ACL_OBSERVED','ACE_LIMIT')){
+   if(-not $fact.finalPathVerified -or $fact.owner -ceq 'UNOBSERVED' -or $fact.dacl -ceq 'UNOBSERVED'){throw 'REFUSED'}
+   if($fact.status -ceq 'ACE_LIMIT' -and ($fact.dacl -cne 'PRESENT' -or $fact.aces.Count -ne 16)){throw 'REFUSED'}
+  }elseif($fact.owner -cne 'UNOBSERVED' -or $fact.dacl -cne 'UNOBSERVED' -or $fact.aces.Count -ne 0){throw 'REFUSED'}
+  if($fact.dacl -cne 'PRESENT' -and $fact.aces.Count -ne 0){throw 'REFUSED'}
+  $aces=@();$propertyCount+=$keys.Count
+  foreach($ace in $fact.aces){
+   $aceKeys=@('account','qualifier','mask','flags')
+   if($null -eq $ace -or @($ace.PSObject.Properties).Count -ne $aceKeys.Count){throw 'REFUSED'}
+   foreach($key in $aceKeys){if($ace.PSObject.Properties.Name -cnotcontains $key){throw 'REFUSED'}}
+   if($ace.account -isnot [string] -or $ace.account -cnotin $accounts -or $ace.qualifier -isnot [string] -or $ace.qualifier -cnotin @('ALLOW','DENY','CALLBACK_ALLOW','CALLBACK_DENY','OTHER')){throw 'REFUSED'}
+   if(($ace.mask -isnot [int] -and $ace.mask -isnot [long]) -or $ace.mask -lt 0 -or $ace.mask -gt [long]4294967295 -or ($ace.flags -isnot [int] -and $ace.flags -isnot [long]) -or $ace.flags -lt 0 -or $ace.flags -gt 255){throw 'REFUSED'}
+   $aces+=[ordered]@{account=$ace.account;qualifier=$ace.qualifier;mask=[uint32]$ace.mask;flags=[byte]$ace.flags};$propertyCount+=$aceKeys.Count
+  }
+  if($fact.target -cmatch '^PROFILE_ANCESTOR_0[1-7]$'){$profileAncestors++}
+  if($fact.target -cmatch '^SOURCE_ANCESTOR_0[1-7]$'){$sourceAncestors++}
+  $seen+=$fact.target
+  $facts+=[ordered]@{target=$fact.target;status=$fact.status;storageVerified=$fact.storageVerified;attributesVerified=$fact.attributesVerified;finalPathVerified=$fact.finalPathVerified;owner=$fact.owner;dacl=$fact.dacl;aces=$aces}
+ }
+ $sequence=@('VOLUME_ROOT')
+ for($n=1;$n -le $profileAncestors;$n++){$sequence+=('PROFILE_ANCESTOR_0'+$n)}
+ $sequence+='PROFILE'
+ for($n=1;$n -le $sourceAncestors;$n++){$sequence+=('SOURCE_ANCESTOR_0'+$n)}
+ $sequence+=$fixed
+ for($n=0;$n -lt $facts.Count;$n++){if($n -ge $sequence.Count -or $facts[$n].target -cne $sequence[$n]){throw 'REFUSED'}}
+ if($p.status -ceq 'METADATA_ONLY_COMPLETE'){
+  if($p.reason -cne 'OBSERVED' -or $facts.Count -ne $sequence.Count){throw 'REFUSED'}
+ }elseif($p.reason -ceq 'OBSERVED' -or ($facts.Count -gt 0 -and $p.reason -cnotin @('TIMEOUT','TARGET_LIMIT','UNEXPECTED_FAILURE'))){throw 'REFUSED'}
+ # ConvertFrom-Json can collapse duplicate property names. Every accepted
+ # string value is a closed enum, so count JSON property tokens independently
+ # before reconstruction to reject duplicates at every object level as well.
+ if([regex]::Matches($Text,'"(?:[^"\\]|\\.)*"\s*:').Count -ne $propertyCount){throw 'REFUSED'}
+ $template.status=$p.status;$template.reason=$p.reason;$template.observations=$facts
+ $closed=$template|ConvertTo-Json -Depth 8 -Compress
+ if([Text.Encoding]::UTF8.GetByteCount($closed) -gt 131072){throw 'REFUSED'}
+ return $closed
+}
+function Resolve-SourceAclProbeOutput([string]$Text) {
+ try{return ConvertTo-SourceAclProbeClosedJson $Text}catch{}
+ try {
+  # Bootstrap still uses the legacy supervisor's fixed failure envelopes. Only
+  # an already-closed empty failure may cross schemas; legacy facts never do.
+  # Apply the Source wire grammar here too: legacy's permissive parser must not
+  # admit array roots, comments, or Unicode via this compatibility boundary.
+  Assert-SourceAclProbeJsonSyntax $Text
+  $legacy=ConvertTo-OwnerProbeClosedJson $Text|ConvertFrom-Json
+  # The sole compatibility object has exactly the twelve legacy header keys
+  # and no row/ACE objects. Count raw keys to catch duplicates collapsed by the
+  # unchanged legacy converter, including duplicate observations/reason keys.
+  if($legacy.target -ceq 'NONE' -and -not $legacy.allFixedTargetsObserved -and $legacy.observations.Count -eq 0 -and [regex]::Matches($Text,'"(?:[^"\\]|\\.)*"\s*:').Count -eq 12){return New-SourceAclProbeFailure $legacy.reason}
+ }catch{}
+ return New-SourceAclProbeFailure 'OUTPUT_REJECTED'
+}
+function Invoke-SourceAclProbeObservation([string]$NativeSource) {
+ try {
+  if($PSBoundParameters.ContainsKey('NativeSource')){$text=Invoke-OwnerProbeObservation -NativeSource $NativeSource -SourceAcl}else{$text=Invoke-OwnerProbeObservation -SourceAcl}
+  return Resolve-SourceAclProbeOutput $text
+ }catch{return New-SourceAclProbeFailure 'OUTPUT_REJECTED'}
+}
 function Wait-OwnerProbeOutput([Threading.Tasks.Task[]]$Tasks,[int]$RemainingMilliseconds) {
  if($RemainingMilliseconds -lt 0 -or $RemainingMilliseconds -gt 25000){throw 'REFUSED'}
  return [Threading.Tasks.Task]::WhenAll($Tasks).Wait($RemainingMilliseconds)
@@ -114,7 +237,7 @@ function Read-OwnerProbeNativeSource([IO.Stream]$InputStream) {
   try {return [Text.UTF8Encoding]::new($false,$true).GetString($bytes)}catch{throw 'NATIVE_SOURCE_UTF8_REJECTED'}
  }finally{$reader.Dispose()}
 }
-function Invoke-OwnerProbeObservation([string]$NativeSource) {
+function Invoke-OwnerProbeObservation([string]$NativeSource,[switch]$SourceAcl) {
  $ErrorActionPreference='Stop';$child=$null;$started=$false
  try {
   if([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT){return New-OwnerProbeFailure 'UNSUPPORTED_PLATFORM'}
@@ -181,6 +304,7 @@ try {
  [Console]::Out.WriteLine($stage)
 }
 '@
+  if($SourceAcl){$code=$code.Replace('[GoriqPrivateOwnerProbe]::ObserveJson()','[GoriqSourceAclProbe]::ObserveJson()')}
   $definitions=''
   foreach($name in @('Test-OwnerProbeCanonical','Get-OwnerProbeCompilerAncestors','Test-OwnerProbeCompilerMetadata','Test-OwnerProbeCompilerWorkspace','Read-OwnerProbeNativeSource')){$definitions+='function '+$name+' {'+(Get-Command $name -CommandType Function).Definition+"}`n"}
   $code=$definitions+$code.Replace('__FAILURE__',$failure).Replace('__CONTEXT_FAILURE__',$contextFailure).Replace('__UNSAFE_FAILURE__',$unsafeFailure)
@@ -211,6 +335,7 @@ try {
   if($child.ExitCode -ne 0){return New-OwnerProbeFailure 'OUTPUT_REJECTED'}
   $text=$stdout.GetAwaiter().GetResult();$errorText=$stderr.GetAwaiter().GetResult()
   if($errorText.Length -ne 0){return New-OwnerProbeFailure 'OUTPUT_REJECTED'}
+  if($SourceAcl){return Resolve-SourceAclProbeOutput $text}
   return ConvertTo-OwnerProbeClosedJson $text
  }catch{return New-OwnerProbeFailure 'OUTPUT_REJECTED'}
  finally {
