@@ -60,3 +60,14 @@ The historical run can only prove its generic refusal. A new observation
 identifies a current target; do not rewrite the old run as if it contained
 that detail. Do not redispatch the original acquisition unchanged, repair
 permissions speculatively, or recreate the original Goal/state.
+
+The source pipe now has an explicit UTF8 fallback and detects Unicode preambles.
+.NET Framework Process.StandardInput inherits Console.InputEncoding, whereas
+Console.In disables preamble detection. The actual embedded-bootstrap fixture
+reproduced rejection of a UTF8-BOM source frame before this correction. Tests
+also cover8 frame encodings, strict source UTF8, exact65536-byte boundary and
+closed malformed/oversized/empty refusals. The real Windows child is exercised
+with an inert entry and an injected preamble, without changing console state.
+Actual run44015612283 refused source decoding; the old device bytes were not
+recorded, so a particular device encoding/BOM is a hypothesis, not historical
+proof. Only a fresh authenticated observation can establish device progress.

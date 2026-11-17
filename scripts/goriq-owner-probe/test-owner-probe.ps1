@@ -202,6 +202,23 @@ if([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) {
   $complete=$complete.Replace($entry,('public static string ObserveJson() { return @"'+$literal+'"; } public static string ObserveJsonNeverInvoked() {'))
   $compiled=Invoke-OwnerProbeObservation -NativeSource $complete | ConvertFrom-Json
   Assert-Case ('native_ps5_child_compiles_complete_inert_source_'+$compiled.reason) ($compiled.reason -ceq 'UNSUPPORTED_PLATFORM' -and $compiled.observations.Count -eq 0)
+  # Inject a Unicode preamble at the owned source-pipe boundary, keeping the
+  # actual child/signature/workspace/compiler logic and all console state intact.
+  function Send-OwnerProbeBomFixture($Child,[string]$NativeSource,$Clock) {
+   if($Child.StandardInput.Encoding.GetPreamble().Length -gt 0){return Send-OwnerProbeSource -Child $Child -NativeSource $NativeSource -Clock $Clock}
+   $payload=[Text.Encoding]::ASCII.GetBytes([Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($NativeSource))+"`n")
+   $frame=[byte[]]([Text.Encoding]::UTF8.GetPreamble()+$payload)
+   $write=$Child.StandardInput.BaseStream.WriteAsync($frame,0,$frame.Length)
+   $remaining=[int][Math]::Max(0,25000-$Clock.ElapsedMilliseconds)
+   if(-not (Wait-OwnerProbeOutput -Tasks ([Threading.Tasks.Task[]]@($write)) -RemainingMilliseconds $remaining)){return $false}
+   $Child.StandardInput.Close();return $true
+  }
+  $bomDefinition=(Get-Command Invoke-OwnerProbeObservation).Definition
+  Assert-Case 'bom_fixture_has_one_owned_transport' ($bomDefinition.Split(@('Send-OwnerProbeSource -Child'),[StringSplitOptions]::None).Count -eq 2)
+  $bomDefinition=$bomDefinition.Replace('Send-OwnerProbeSource -Child','Send-OwnerProbeBomFixture -Child')
+  . ([ScriptBlock]::Create('function Invoke-OwnerProbeBomFixture {'+$bomDefinition+'}'))
+  $bomResult=Invoke-OwnerProbeBomFixture -NativeSource $inert|ConvertFrom-Json
+  Assert-Case ('native_ps5_bom_source_transfer_'+$bomResult.reason) ($bomResult.reason -ceq 'UNSUPPORTED_PLATFORM' -and $bomResult.observations.Count -eq 0)
   $invalid=Invoke-OwnerProbeObservation -NativeSource 'deliberately invalid PRIVATE C#' | ConvertFrom-Json
   Assert-Case 'native_ps5_child_build_failure_closed' ($invalid.reason -ceq 'NATIVE_BUILD_SOURCE_REJECTED')
   $extra=$inert.Replace('return @"','System.Console.WriteLine("PRIVATE_SID_PATH"); return @"')
