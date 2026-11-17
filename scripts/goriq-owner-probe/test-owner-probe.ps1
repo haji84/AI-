@@ -194,8 +194,16 @@ if([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) {
     Write-Output ('INERT_TRACE_RESULT '+$trace)
   }
   Assert-Case ('native_ps5_child_compiles_supplied_source_'+$result.reason) ($result.reason -ceq 'UNSUPPORTED_PLATFORM' -and $result.observations.Count -eq 0)
+  # Compile every original declaration through the actual stripped-environment
+  # child. Replace only the entry with an inert return; never invoke observation.
+  $complete=[IO.File]::ReadAllText($source)
+  $entry='public static string ObserveJson() {'
+  Assert-Case 'full_source_has_one_entry' ([regex]::Matches($complete,[regex]::Escape($entry)).Count -eq 1)
+  $complete=$complete.Replace($entry,('public static string ObserveJson() { return @"'+$literal+'"; } public static string ObserveJsonNeverInvoked() {'))
+  $compiled=Invoke-OwnerProbeObservation -NativeSource $complete | ConvertFrom-Json
+  Assert-Case ('native_ps5_child_compiles_complete_inert_source_'+$compiled.reason) ($compiled.reason -ceq 'UNSUPPORTED_PLATFORM' -and $compiled.observations.Count -eq 0)
   $invalid=Invoke-OwnerProbeObservation -NativeSource 'deliberately invalid PRIVATE C#' | ConvertFrom-Json
-  Assert-Case 'native_ps5_child_build_failure_closed' ($invalid.reason -ceq 'NATIVE_BUILD_UNAVAILABLE')
+  Assert-Case 'native_ps5_child_build_failure_closed' ($invalid.reason -ceq 'NATIVE_BUILD_SOURCE_REJECTED')
   $extra=$inert.Replace('return @"','System.Console.WriteLine("PRIVATE_SID_PATH"); return @"')
   $rejected=Invoke-OwnerProbeObservation -NativeSource $extra
   Assert-Case 'native_ps5_child_extra_output_discarded' (($rejected|ConvertFrom-Json).reason -ceq 'OUTPUT_REJECTED' -and $rejected -notmatch 'PRIVATE_SID_PATH')

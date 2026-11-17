@@ -1,0 +1,71 @@
+{
+  "goal": "goal-fcc81c97e09153f7",
+  "job": "rotation-recovery-37",
+  "goalStatus": "NOT_ACHIEVED",
+  "g1": "HOLD",
+  "recovered": false,
+  "actualNative": {
+    "run": 44010426909,
+    "job": 133795858480,
+    "attempt": 1,
+    "runnerId": 21,
+    "runnerName": "ZBook",
+    "source": "48c23e097fc265c45a8cafc622a6fc0fe713acb8",
+    "startedAt": "2026-11-17T03:28:16Z",
+    "actualOutputAt": "2026-11-17T03:28:21.3686392Z",
+    "target": "NONE",
+    "reason": "NATIVE_BUILD_UNAVAILABLE",
+    "observations": [],
+    "meaning": "Existing runner accepted the diagnostic; bootstrap refused before any owner observation. Exact bootstrap phase remains unknown."
+  },
+  "ownerConfirmation": "ZBook is network-connected; do not equate internet access with listener readiness or infer a different account.",
+  "sourceChange": "Preserve fixed module/signature/source/build/entry refusal attribution and closed compiler error categories; no raw exception output.",
+  "redEvidence": [
+    "BOOTSTRAP_PHASE_LOST:Microsoft.PowerShell.Management:NATIVE_BUILD_UNAVAILABLE",
+    "BOOTSTRAP_PHASE_LOST:build-access:NATIVE_BUILD_UNAVAILABLE",
+    "BOOTSTRAP_REASON_ACCEPTED_AS_TARGET_OBSERVATION:NATIVE_MODULE_MANAGEMENT_UNAVAILABLE"
+  ],
+  "localFocused": {
+    "tests": 158,
+    "pass": 158,
+    "fail": 0,
+    "skip": 0
+  },
+  "checks": {
+    "lint": "PASS",
+    "types": "PASS",
+    "requirements": 341,
+    "surfaces": 626
+  },
+  "actualAuthor": "Codex",
+  "localModel": "NOT_RUN",
+  "compassWriteBack": "UNAVAILABLE",
+  "pending": [
+    "fresh source review",
+    "full suite",
+    "exact-head and exact-main all-four CI",
+    "new bounded actual phase observation"
+  ],
+  "limits": [
+    "Owner target and account explanation remain unproven.",
+    "The original C# bytes and all native metadata/security predicates are unchanged.",
+    "No Capture/Acquire, original contents, ownership/ACL/credential/enrolment change or recovery claim."
+  ],
+  "freshReview": {
+    "critical": 0,
+    "important": 1,
+    "importantFinding": "Compiler launch Win32Exception5 access denial collapsed to generic build failure",
+    "fix": "Distinct Win32Exception5 inert fixture reproduces loss; map to closed access-denied reason without changing permissions",
+    "minorDeferred": "Invalid signature/workspace/UTF8 early-stop fixture coverage absent; existing production guard predicates unchanged.",
+    "noReReview": "One fresh review; material finding verified by root RED/GREEN; exact-source suite/CI still pending"
+  },
+  "frozenLocalFull": {
+    "source": "150ec6ca4a34f9ee344cf2a6d6067740ab894294",
+    "tests": 4375,
+    "pass": 4349,
+    "fail": 0,
+    "skip": 26,
+    "elapsedMs": 302539.63694,
+    "frozenBeforeAfter": true
+  }
+}
