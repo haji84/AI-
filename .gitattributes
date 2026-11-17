@@ -47,6 +47,10 @@ scripts/owner-code-rotation-native-stage.test.mjs text eol=lf
 .github/workflows/gai-zbook-diagnostic-1218.yml text eol=lf
 .github/workflows/goriq-owner-rotation-acceptance-1218.yml text eol=lf
 .gitattributes text eol=lf
+# Fixed public owner-observation source hashes must survive Windows checkout.
+.github/workflows/goriq-pc-private-network-probe.yml text eol=lf
+scripts/goriq-owner-probe/*.cs text eol=lf
+scripts/goriq-owner-probe/*.ps1 text eol=lf
 scripts/owner-code-protection-diagnostics.test.mjs text eol=lf
 scripts/owner-code-protection-failure-details.test.mjs text eol=lf
 scripts/owner-code-launcher-binding-inspection-1218.ps1 text eol=lf
