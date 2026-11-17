@@ -60,8 +60,7 @@
   "actualAuthor": "Codex",
   "localModel": "NOT_RUN",
   "pending": [
-    "frozen full suite",
-    "exact-source/main4CI and signed6 audits",
+    "host-pin review and exact-source/main4CI with signed6",
     "actual error disappearance and original fixed-read validation within current ordinary task authority"
   ],
   "verificationRuntimeRecovery": {
@@ -77,5 +76,14 @@
     "equivalence": "Complete26+60status/stdout/stderr equal after JSON key order and valid live observation time normalization only.",
     "strictLocal": "90:162/162PASS at default environment, Node concurrency2,26760ms; includes all159related and3batch contract/timeout cases; lintPASS. CPU admission hypothesis89:159/159PASS.",
     "limits": "All assertions/cases retained. Each process10s and global300s/resources unchanged; POSIX60case combined budget now20s vs former10s. package.test adds test-only preload while Node concurrency2 remains; recognized processor count applies to all test .NET children and is not an enforced CPU quota. Production timeouts/environment unchanged."
+  },
+  "verificationHostRecovery": {
+    "failedSource": "04ee463343baa34f54031b551a4845ea457c84c4",
+    "run": 44155345743,
+    "attempts": 2,
+    "result": "IndependentUnit300s timeout both,4042passmarkers0failuremarkers; allother3jobsPASS. No further identical retry.",
+    "hostCorrelation": "Ubuntu26.04 image20261111.196.1 vs prior success20261111.82.6; root cause not proven",
+    "change": "Only independent verifier host ubuntu-latest -> supportedubuntu-24.04; allchecks/deadlines/CPU2/memory2GB/pids128/networknone/UID65534/signer/protection preserved",
+    "localFull96": "Frozen clean before/after4376total4349pass1unrelatedexistingpwshstartup15s timeout26skip500s; actualumask0022/private per-run Node compile cache. Isolated unchanged dialog test97PASS; no failed full run accepted."
   }
 }

@@ -16,7 +16,7 @@ Execute inline; one fresh final source review of the changed final scope.
 - Named SID lexical/uint bounds and flags/mask checks cannot admit file read/write/list/control or inheritance.
 - Descendants/files/other accounts and old reducer API retain strict policy.
 - Observer uses fixed role only after existing storage/attrs/finalpath checks; raw identifiers stay private.
-- Workflow only changes dependent pins; all CI/transport/deadlines remain.
+- Native workflow changes only dependent pins; all transport/deadlines remain. CI independent verifier host is pinned to supported ubuntu-24.04 after two latest-image timeouts, retaining all6checks/limits/signatures/protection; no unchanged host retry.
 - Fixture preparation reuse must preserve all111cases/results/assertions, fresh-runspace/native-process boundaries and canaries. POSIX60 cases use2x30 owned processes, each10s (combined budget increases10s to20s); global300s unchanged. Test-only .NET recognized processor count defaults1, respects explicit configuration and applies to all test .NET children; production unaffected.
 
 ## Tasks

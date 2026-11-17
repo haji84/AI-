@@ -52,3 +52,13 @@ CPU競合を抑える。この環境変数は試験から起動する.NET子proc
 認識processor数を設定するもので強制CPU上限ではない。既存の明示設定を尊重し、製品の実行環境やNode並列度2は変更しない。
 これは検証省略ではなく準備処理の重複削減と試験workerのCPU admissionである。
 標準環境のrelated159件とbatch境界3件、計162/162PASS。実Windowsでも新16+7件と既存owner11件が通過した。
+
+## 独立検証hostの固定
+
+最終04ee463の独立Unitは別hostでも300sに達し、4042件の成功marker・失敗marker0で終了した。
+同じ割当戦略の再試行は終了する。直前の成功と比較した既存950caseは合計1.536倍・中央値1.613倍だった。
+hostは両方Ubuntu26.04だが、image更新版は成功時20261111.82.6、失敗時20261111.196.1と異なる。
+これは相関でありOS原因を断定しない。次の別戦略としてindependent-verifier-containerのhostだけを
+公式にサポートされているx64 Ubuntu24.04 poolへ固定する。全6check・署名・300s期限・CPU2・memory2GB・
+pids128・network none・UID65534、branch protectionと実機の条件は変更しない。
+同じhost割当の追加再試行予算は0。label変更のprotected revertは独立して可能で、原本・OSへの復元操作はない。
