@@ -11,7 +11,8 @@ Ownerのinline読取り結果は、ランナーとのuser SID照合後のprofile
 
 検証済みのprofile本体だけで、正規なapp-silo capability SIDの形（authority15/base3/app-silo65536/8uint32）、
 exact0x100020、AceFlags.None、非callbackのALLOWを適正な通過ACEとして扱う。
-名前付きcapability以外、ゼロ・追加rights、継承・inherited・その他flags、private子対象とfileは従来どおり拒否する。
+新しい例外はflags0の実効ACEだけに適用し、従来のInheritOnly skipは変更しない。
+対象外のSID・mask・flags、private子対象とfileの既存拒否は維持する。
 Capture中央Securityは実handleから属性・final pathを再確認してscopeを判定し、descriptor snapshot/recheckでも
 同じ規則を適用する。所有者は本人/SYSTEMの既存profile規則、全private子対象は本人のみを維持する。
 observerはmetadata検証済みのfixed PROFILE roleだけで同じpredicateを使い、legacy reducerに例外を広げない。
@@ -40,8 +41,14 @@ rollbackはCapture/observer/依存pinsをまとめた保護付きrevert。Window
 旧head58fbは別hostでも300s Unit上限に達し、追加の同一再試行は行わない。
 localでは既存の60case action-free PSbatchが基準版でも10sを超え、実測はコンパイル2.8s、
 各ケースinvoke合計8.8sだった。新しい本体修正を検証するため、inert fixtureだけで
-模擬応答を各caseで1回作り、case自身のJSONだけを解析し、同じprogramは同じbytesで共有する。
-fresh runspace、native processの区別、unique原本canary、状態復元、全assertionと10s上限は維持する。
+模擬応答は必要になったcaseで1回だけ作り、case自身のJSONだけを解析し、同じprogramは同じbytesで共有する。
+POSIXの60caseは30caseずつの2つのowned processへ分割し、各processの10s上限と全体300s上限を維持する。
+60caseの合計batch予算は従来の10sから最大20sへ変わる。製品のtimeoutは変更しない。
+fresh runspace、Windowsのnative processの区別、unique原本canary、状態復元、全assertionは維持する。
 26+60caseの完全なstatus/stdout/stderrはJSON key orderと実行時刻以外で一致した。
 純粋な新predicate試験も既存の同一source C#compileを再利用し、全assertionとWindows16+7caseを残す。
-これは検証省略ではなく準備処理の重複削減である。最終related159/159PASS。
+試験専用preload/helperでDOTNET_PROCESSOR_COUNTを未指定時だけ1にし、並列Node試験とCLR内部workerの
+CPU競合を抑える。この環境変数は試験から起動する.NET子process全体に継承され、
+認識processor数を設定するもので強制CPU上限ではない。既存の明示設定を尊重し、製品の実行環境やNode並列度2は変更しない。
+これは検証省略ではなく準備処理の重複削減と試験workerのCPU admissionである。
+標準環境のrelated159件とbatch境界3件、計162/162PASS。実Windowsでも新16+7件と既存owner11件が通過した。

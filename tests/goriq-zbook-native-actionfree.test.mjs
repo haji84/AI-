@@ -43,12 +43,13 @@ function fixtureProgram({env={},main=sha,runs,jobs,source,queryError=false,proce
   const responses=[{object:{sha:main}},{workflow_runs:ci},{total_count:ciJobs.length,jobs:ciJobs},source??{type:'file',encoding:'base64',size:locator.length,content:locator.toString('base64')}];
   const paths=['git/ref/heads/main',`actions/workflows/ci.yml/runs?head_sha=${sha}&event=push&per_page=100`,'actions/runs/71/jobs?filter=latest&per_page=100',`contents/scripts/goriq-zbook-original-state-locator.ps1?ref=${sha}`];
   const prefix=`$script:httpCalls=0
-$script:fixtureResponses=@(${responses.map(object).join(',')})
+$script:fixtureResponses=$null
 function Invoke-RestMethod { [CmdletBinding()] param($Uri,$Method,$Headers,$TimeoutSec,$MaximumRedirection)
   [Console]::Error.WriteLine('FIXTURE_HTTP')
   if ($Method -ne 'Get' -or $TimeoutSec -gt 10 -or $TimeoutSec -le 0 -or $MaximumRedirection -ne 0 -or $Headers.Count -ne 2 -or $Headers['User-Agent'] -cne 'goriq-zbook-actionfree-readonly' -or $Headers['Accept'] -cne 'application/vnd.github+json') { throw 'PRIVATE_HTTP_OPTIONS' }
   $paths=@(${paths.map(p=>quote('https://api.github.com/repos/haji84/AI-/'+p)).join(',')})
   if ($Uri -cne $paths[$script:httpCalls]) { throw 'PRIVATE_URI' }
+  if($null -eq $script:fixtureResponses){$script:fixtureResponses=@(${responses.map(object).join(',')})}
   $answers=$script:fixtureResponses
   ${httpError?"throw 'PRIVATE_API_BODY'":'$answer=$answers[$script:httpCalls]; $script:httpCalls++; return $answer'}
 }
@@ -153,7 +154,16 @@ $stderr=$privateError.ToString();$privateError.Dispose()
 $LASTEXITCODE=0
 [ordered]@{status=$exitStatus;stdout=$stdout;stderr=$stderr}|ConvertTo-Json -Compress
 `);
-  batchRun=createPowerShellFixtureBatch({shell:'pwsh',fixture:wrapper,scenarios:manifest.map(row=>row.scenario),parameters:{Manifest:manifestFile},timeoutMs:10000});
+  // Keep the original per-process10s cap and full60-case contract. Two owned
+  // batches reduce startup/parse contention; every case still gets a fresh
+  // runspace and all results remain required by the unchanged test callbacks.
+  const runners=new Map();
+  for(let offset=0;offset<manifest.length;offset+=30){
+    const group=manifest.slice(offset,offset+30).map(row=>row.scenario);
+    const execute=createPowerShellFixtureBatch({shell:'pwsh',fixture:wrapper,scenarios:group,parameters:{Manifest:manifestFile},timeoutMs:10000});
+    for(const scenario of group)runners.set(scenario,execute);
+  }
+  batchRun=scenario=>{const execute=runners.get(scenario);assert.ok(execute,'PS_FIXTURE_CASE_UNKNOWN');return execute(scenario);};
 }
 function fixture(options={}) {
   let root,file,canary,result;

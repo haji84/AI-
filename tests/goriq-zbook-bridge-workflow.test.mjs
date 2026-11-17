@@ -27,10 +27,11 @@ function prepare() {
  // Initialize mock response data once in each fresh case, before the unchanged
  // workflow body; API call counters, replies and assertions remain identical.
  const prefix=`$script:http=0
-$script:fixtureResponses=@(${responses.map(object).join(',')})
+$script:fixtureResponses=$null
 function Invoke-RestMethod { [CmdletBinding()] param($Uri,$Method,$Headers,$TimeoutSec,$MaximumRedirection)
  if($Method -cne 'Get' -or $TimeoutSec -ne 10 -or $MaximumRedirection -ne 0 -or $Headers.Count -ne 2){throw 'PRIVATE_HTTP'}
  $paths=@(${paths.map(p=>quote('https://api.github.com/repos/haji84/AI-/'+p)).join(',')});if($Uri -cne $paths[$script:http]){throw 'PRIVATE_URI'}
+ if($null -eq $script:fixtureResponses){$script:fixtureResponses=@(${responses.map(object).join(',')})}
  $r=$script:fixtureResponses[$script:http];$script:http++;return $r
 }
 function Invoke-BridgeFixtureRead { param([byte[]]$QuerySource,[byte[]]$InventorySource,[string]$NativeSource)

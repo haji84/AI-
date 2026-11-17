@@ -17,7 +17,7 @@ Execute inline; one fresh final source review of the changed final scope.
 - Descendants/files/other accounts and old reducer API retain strict policy.
 - Observer uses fixed role only after existing storage/attrs/finalpath checks; raw identifiers stay private.
 - Workflow only changes dependent pins; all CI/transport/deadlines remain.
-- Fixture preparation reuse must preserve all86cases/results/assertions, fresh-runspace/native-process boundaries, canaries and10s caps.
+- Fixture preparation reuse must preserve all111cases/results/assertions, fresh-runspace/native-process boundaries and canaries. POSIX60 cases use2x30 owned processes, each10s (combined budget increases10s to20s); global300s unchanged. Test-only .NET recognized processor count defaults1, respects explicit configuration and applies to all test .NET children; production unaffected.
 
 ## Tasks
 

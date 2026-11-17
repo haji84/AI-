@@ -38,14 +38,15 @@
   "validation": {
     "red": "76 missing predicate",
     "green": "77 executable C#5 positive/negative/mirror policy",
-    "nativeFixtures": "Capture16 + Observer7 production parsing cases with synthetic descriptors, compiled locally; actual Windows execution pending",
+    "nativeFixtures": "Actual Windows job134265619239 at source9323: Capture16 + Observer7 new boundaries and existing owner11 all PASS; inert workflow batch later exceeded10s, CI not accepted.",
     "lint": "PASS",
-    "types": "PASS",
+    "types": "PASS92",
     "requirements": 341,
     "surfaces": 626,
-    "focused": 159,
-    "focusedPass": 159,
-    "combinedPolicyTest": "New capability matrix reuses existing same-source C# types; all assertions retained; Node still requires new native16+7markers."
+    "focused": 162,
+    "focusedPass": 162,
+    "combinedPolicyTest": "New capability matrix reuses existing same-source C# types; all assertions retained; Node still requires new native16+7markers.",
+    "freshReview": "Source review and fixture-only followup:0Critical/0Important; documentation clarified InheritOnly, combined batch20s vs former10s, and all test .NET child environment scope. Explicit DOTNET value preservation executed by reviewer."
   },
   "history": {
     "supersededDiagnosticOnlySource": "58fb45d6e1bc37c4fc46fb0cb28dedbc08e71cb6",
@@ -59,8 +60,7 @@
   "actualAuthor": "Codex",
   "localModel": "NOT_RUN",
   "pending": [
-    "final native and related verification",
-    "fresh final-scope review",
+    "frozen full suite",
     "exact-source/main4CI and signed6 audits",
     "actual error disappearance and original fixed-read validation within current ordinary task authority"
   ],
@@ -73,9 +73,9 @@
       "invoke": 8760.2416,
       "dispose": 858.9549
     },
-    "change": "Inert mock data once per fresh case, exact-case JSON instead of repeated whole manifest parsing, byte-identical program file reuse. Existing helper/runspace/nativeprocess/callback/assertion/canary/caps unchanged.",
+    "change": "Lazy inert mock data once per used fresh case, exact-case JSON, byte-identical program reuse. POSIX60 cases split into2owned batches30cases, each10s. Test-only DOTNET_PROCESSOR_COUNT defaults1 unless explicitly configured; package.test preloads helper, direct PS batch test files import same helper. Production environment unchanged.",
     "equivalence": "Complete26+60status/stdout/stderr equal after JSON key order and valid live observation time normalization only.",
-    "strictLocal": "Final related159/159PASS at concurrency2; old failures and timing variants retained.",
-    "limits": "No timeout/resource/assertion reductions or production test command changes."
+    "strictLocal": "90:162/162PASS at default environment, Node concurrency2,26760ms; includes all159related and3batch contract/timeout cases; lintPASS. CPU admission hypothesis89:159/159PASS.",
+    "limits": "All assertions/cases retained. Each process10s and global300s/resources unchanged; POSIX60case combined budget now20s vs former10s. package.test adds test-only preload while Node concurrency2 remains; recognized processor count applies to all test .NET children and is not an enforced CPU quota. Production timeouts/environment unchanged."
   }
 }

@@ -1,3 +1,4 @@
+import './dotnet-fixture-admission.mjs';
 import { spawnSync } from 'node:child_process';
 import { Buffer } from 'node:buffer';
 import { isAbsolute } from 'node:path';
