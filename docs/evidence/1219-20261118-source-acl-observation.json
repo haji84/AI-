@@ -40,6 +40,13 @@
       "correction": "Fixture-only rename appended Source class as well as legacy OwnerProbe types; production source/pins and assertions unchanged",
       "finalSourceCI": "PENDING",
       "local129": "33/33PASS0skip29989ms; actual Windows PS5 newsource still pending"
+    },
+    "WindowsSecondSourceCI": {
+      "run": 44186929012,
+      "job": 134405818813,
+      "result": "FAIL undefined .NET Framework AceType17 directcast in Windows-only opaqueACEfixture",
+      "correction": "Enum.ToObject preserves typed raw17 for CustomAce; no assertions removed",
+      "local132": "Native136PASS; actualPS5newsource PENDING"
     }
   },
   "review": {
@@ -48,7 +55,8 @@
     "importantOpen": 0,
     "minorOpen": 0,
     "fixed": "ancestryresampling/timeoutboundary, childbootstrapphase, JSONgrammar/objectroot/ASCII/ordinalreason/duplicatekeys+legacycompat",
-    "fixtureDelta": "fresh source_acl_final_review 0Critical/0Important/0Minor; all12fixture type names disjoint; other same-source compile fixtures checked"
+    "fixtureDelta": "fresh source_acl_final_review 0Critical/0Important/0Minor; all12fixture type names disjoint; other same-source compile fixtures checked",
+    "enumDelta": "fresh source_acl_final_review0Critical0Important0Minor; first6WindowsdescriptorvariantsalreadyPASS;17ACEusespassingconversions"
   },
   "expectedTestCounts": {
     "root": 4379,
@@ -66,5 +74,5 @@
   "g1": "HOLD",
   "actualAuthor": "Codex",
   "localModel": "NOT_RUN",
-  "atUTC": "2026-11-17T22:07:12.765766+00:00"
+  "atUTC": "2026-11-17T22:11:21.294616+00:00"
 }

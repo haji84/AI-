@@ -196,7 +196,7 @@ if([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT){
    }
   }
   if($kind -eq 'object_ace'){$acl=[Security.AccessControl.RawAcl]::new([byte]4,1);$acl.InsertAce(0,[Security.AccessControl.ObjectAce]::new([Security.AccessControl.AceFlags]16,[Security.AccessControl.AceQualifier]::AccessDenied,-2147483648,[Security.Principal.SecurityIdentifier]::new('S-1-1-0'),[Security.AccessControl.ObjectAceFlags]::None,[Guid]::Empty,[Guid]::Empty,$false,$null))}
-  if($kind -eq 'unknown_ace'){$acl.InsertAce(0,[Security.AccessControl.CustomAce]::new([Security.AccessControl.AceType]17,[Security.AccessControl.AceFlags]128,[byte[]]@(0,0,0,0)))}
+  if($kind -eq 'unknown_ace'){$acl.InsertAce(0,[Security.AccessControl.CustomAce]::new([Enum]::ToObject([Security.AccessControl.AceType],17),[Security.AccessControl.AceFlags]128,[byte[]]@(0,0,0,0)))}
   $sd.DiscretionaryAcl=$acl
   if($kind -eq 'null'){$sd.DiscretionaryAcl=$null}
   if($kind -eq 'absent'){$sd=[Security.AccessControl.RawSecurityDescriptor]::new([Security.AccessControl.ControlFlags]::SelfRelative,[Security.Principal.SecurityIdentifier]::new($user),$null,$null,$null)}
