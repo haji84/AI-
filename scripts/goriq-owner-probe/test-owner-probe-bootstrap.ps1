@@ -8,6 +8,12 @@ $code=$matches[0].Groups[1].Value
 $code=$code.Replace('__FAILURE__',(New-OwnerProbeFailure 'NATIVE_BUILD_UNAVAILABLE')).Replace('__CONTEXT_FAILURE__',(New-OwnerProbeFailure 'NATIVE_CONTEXT_UNVERIFIED')).Replace('__UNSAFE_FAILURE__',(New-OwnerProbeFailure 'UNSAFE_PROFILE'))
 $phases=@('NATIVE_MODULE_MANAGEMENT_UNAVAILABLE','NATIVE_MODULE_SECURITY_UNAVAILABLE','NATIVE_MODULE_UTILITY_UNAVAILABLE','NATIVE_SIGNATURE_UNAVAILABLE','NATIVE_SOURCE_UNAVAILABLE','NATIVE_ENTRY_UNAVAILABLE','NATIVE_BUILD_ACCESS_DENIED','NATIVE_BUILD_COMPILER_MISSING','NATIVE_BUILD_REFERENCE_UNAVAILABLE','NATIVE_BUILD_SOURCE_REJECTED')
 foreach($phase in $phases){$code=$code.Replace(('__'+$phase+'__'),(New-OwnerProbeFailure $phase))}
+$definitions=''
+foreach($name in @('Test-OwnerProbeCanonical','Get-OwnerProbeCompilerAncestors','Test-OwnerProbeCompilerMetadata','Test-OwnerProbeCompilerWorkspace','Read-OwnerProbeNativeSource')){$definitions+='function '+$name+' {'+(Get-Command $name -CommandType Function).Definition+"}`n"}
+$arguments='-NoLogo -NoProfile -NonInteractive -EncodedCommand '+[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($definitions+$code))
+if($arguments.Length+512 -ge 32767){throw 'BOOTSTRAP_WINDOWS_COMMAND_LINE_TOO_LONG'}
+Write-Output ('PASS bootstrap_command_line_chars_'+$arguments.Length)
+if($code.Contains('[Console]::OpenStandardInput()')){$code=$code.Replace('[Console]::OpenStandardInput()','$script:ownerBootstrapInputStream')}
 $wire=(New-OwnerProbeFailure 'UNSUPPORTED_PLATFORM').Replace('"','""')
 # This type is inert, even when the embedded production entry is reached.
 $null=Add-Type -TypeDefinition ('public static class GoriqPrivateOwnerProbe { public static bool EntryFailure; public static string ObserveJson() { if(EntryFailure) throw new System.InvalidOperationException("PRIVATE_ENTRY_PATH"); return @"'+$wire+'"; } }')
@@ -42,7 +48,8 @@ $scenarios=[ordered]@{
  'Microsoft.PowerShell.Security'='NATIVE_MODULE_SECURITY_UNAVAILABLE'
  'Microsoft.PowerShell.Utility'='NATIVE_MODULE_UTILITY_UNAVAILABLE'
  'signature'='NATIVE_SIGNATURE_UNAVAILABLE'
- 'source'='NATIVE_SOURCE_UNAVAILABLE'
+ 'source'='NATIVE_SOURCE_BASE64_REJECTED'
+ 'source-bom'='UNSUPPORTED_PLATFORM'
  'build'='NATIVE_BUILD_UNAVAILABLE'
  'build-access'='NATIVE_BUILD_ACCESS_DENIED'
  'build-os-access'='NATIVE_BUILD_ACCESS_DENIED'
@@ -67,11 +74,16 @@ foreach($scenario in $scenarios.Keys){
  $encoded=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes('inert bootstrap source'))
  if($scenario -ceq 'source'){$encoded='PRIVATE_INVALID_BASE64!'}
  $savedIn=[Console]::In;$savedOut=[Console]::Out
- $reader=New-Object IO.StringReader($encoded);$writer=New-Object IO.StringWriter
+ $inputBytes=[Text.Encoding]::UTF8.GetBytes($encoded+"`n")
+ if($scenario -ceq 'source-bom'){$inputBytes=[byte[]]([Text.Encoding]::UTF8.GetPreamble()+$inputBytes)}
+ $inputStream=[IO.MemoryStream]::new($inputBytes);$script:ownerBootstrapInputStream=$inputStream
+ # Model .NET Framework Console.In: the original reader disables BOM detection.
+ $reader=[IO.StreamReader]::new($inputStream,[Text.UTF8Encoding]::new($false),$false,1024,$true)
+ $writer=New-Object IO.StringWriter
  try {
   [Console]::SetIn($reader);[Console]::SetOut($writer)
   & ([ScriptBlock]::Create($code))
- }finally{[Console]::SetIn($savedIn);[Console]::SetOut($savedOut);$reader.Dispose()}
+ }finally{[Console]::SetIn($savedIn);[Console]::SetOut($savedOut);$reader.Dispose();$inputStream.Dispose()}
  $text=$writer.ToString();$writer.Dispose()
  $clean=ConvertTo-OwnerProbeClosedJson $text
  $result=$clean|ConvertFrom-Json
@@ -81,8 +93,9 @@ foreach($scenario in $scenarios.Keys){
  if($scenario -ceq 'Microsoft.PowerShell.Management'){$expectedImports=1}
  if($scenario -ceq 'Microsoft.PowerShell.Security'){$expectedImports=2}
  if($script:imports.Count -ne $expectedImports){throw 'BOOTSTRAP_DID_NOT_STOP_AT_IMPORT'}
- $expectedBuilds=0;if($scenario.StartsWith('build') -or $scenario -cin @('entry','success')){$expectedBuilds=1}
+ $expectedBuilds=0;if($scenario.StartsWith('build') -or $scenario -cin @('entry','success','source-bom')){$expectedBuilds=1}
  if($script:builds -ne $expectedBuilds){throw 'BOOTSTRAP_BUILD_EARLY_STOP_FAILED'}
  $checks++;Write-Output ('PASS bootstrap_phase_'+$scenario)
 }
 Write-Output ('TOTAL_PASS='+$checks)
+& (Join-Path $PSScriptRoot 'test-owner-probe-source-stream.ps1')

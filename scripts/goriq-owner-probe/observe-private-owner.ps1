@@ -2,7 +2,7 @@
 param([switch]$Observe)
 # Dormant without -Observe. The gated workflow supplies pinned source in memory.
 function New-OwnerProbeFailure([string]$Reason) {
- $known=@('UNSUPPORTED_PLATFORM','UNSAFE_PROFILE','NATIVE_CONTEXT_UNVERIFIED','NATIVE_BUILD_UNAVAILABLE','NATIVE_BUILD_ACCESS_DENIED','NATIVE_BUILD_COMPILER_MISSING','NATIVE_BUILD_REFERENCE_UNAVAILABLE','NATIVE_BUILD_SOURCE_REJECTED','NATIVE_MODULE_MANAGEMENT_UNAVAILABLE','NATIVE_MODULE_SECURITY_UNAVAILABLE','NATIVE_MODULE_UTILITY_UNAVAILABLE','NATIVE_SIGNATURE_UNAVAILABLE','NATIVE_SOURCE_UNAVAILABLE','NATIVE_ENTRY_UNAVAILABLE','CHILD_START_UNAVAILABLE','TIMEOUT','CHILD_STOP_UNCONFIRMED','OUTPUT_REJECTED')
+ $known=@('UNSUPPORTED_PLATFORM','UNSAFE_PROFILE','NATIVE_CONTEXT_UNVERIFIED','NATIVE_BUILD_UNAVAILABLE','NATIVE_BUILD_ACCESS_DENIED','NATIVE_BUILD_COMPILER_MISSING','NATIVE_BUILD_REFERENCE_UNAVAILABLE','NATIVE_BUILD_SOURCE_REJECTED','NATIVE_MODULE_MANAGEMENT_UNAVAILABLE','NATIVE_MODULE_SECURITY_UNAVAILABLE','NATIVE_MODULE_UTILITY_UNAVAILABLE','NATIVE_SIGNATURE_UNAVAILABLE','NATIVE_SOURCE_UNAVAILABLE','NATIVE_SOURCE_EMPTY','NATIVE_SOURCE_OVERSIZED','NATIVE_SOURCE_BASE64_REJECTED','NATIVE_SOURCE_UTF8_REJECTED','NATIVE_ENTRY_UNAVAILABLE','CHILD_START_UNAVAILABLE','TIMEOUT','CHILD_STOP_UNCONFIRMED','OUTPUT_REJECTED')
  if($Reason -cnotin $known){$Reason='OUTPUT_REJECTED'}
  return ([ordered]@{schema='OWNER_PROBE_V1';authority='NOT_AUTHORITATIVE';status='INCOMPLETE';readOnly=$true;metadataOnly=$true;recovered=$false;g1='HOLD';historicalStateProven=$false;allFixedTargetsObserved=$false;target='NONE';reason=$Reason;observations=@()} | ConvertTo-Json -Depth 5 -Compress)
 }
@@ -46,7 +46,7 @@ function ConvertTo-OwnerProbeClosedJson([string]$Text) {
  foreach($key in @('schema','authority','status','g1')){if($p.$key -isnot [string] -or $p.$key -cne $template[$key]){throw 'REFUSED'}}
  foreach($key in @('readOnly','metadataOnly','recovered','historicalStateProven')){if($p.$key -isnot [bool] -or $p.$key -cne $template[$key]){throw 'REFUSED'}}
  $targets=@('NONE','IDENTITY','PROFILE_ENVIRONMENT','VOLUME_ROOT','ANCESTOR_01','ANCESTOR_02','ANCESTOR_03','ANCESTOR_04','ANCESTOR_05','ANCESTOR_06','ANCESTOR_07','PROFILE','HANDOFF','LAYOUT','RAW','WORK','CONTEXT')
- $reasons=@('NOT_STARTED','OBSERVED_POLICY_MATCH','UNSUPPORTED_PLATFORM','IDENTITY_UNVERIFIED','UNSAFE_PROFILE','TARGET_LIMIT','TIMEOUT','TARGET_MISSING','ACCESS_DENIED','PRIVATE_LOCAL_STORAGE_UNAVAILABLE','PRIVATE_NATIVE_OPEN_UNAVAILABLE','PRIVATE_FILE_METADATA_UNVERIFIED','PRIVATE_FINAL_PATH_UNVERIFIED','PRIVATE_OWNER_UNVERIFIED','PRIVATE_DACL_UNVERIFIED','UNEXPECTED_FAILURE','OUTPUT_REJECTED','NATIVE_CONTEXT_UNVERIFIED','NATIVE_BUILD_UNAVAILABLE','NATIVE_BUILD_ACCESS_DENIED','NATIVE_BUILD_COMPILER_MISSING','NATIVE_BUILD_REFERENCE_UNAVAILABLE','NATIVE_BUILD_SOURCE_REJECTED','NATIVE_MODULE_MANAGEMENT_UNAVAILABLE','NATIVE_MODULE_SECURITY_UNAVAILABLE','NATIVE_MODULE_UTILITY_UNAVAILABLE','NATIVE_SIGNATURE_UNAVAILABLE','NATIVE_SOURCE_UNAVAILABLE','NATIVE_ENTRY_UNAVAILABLE','CHILD_START_UNAVAILABLE','CHILD_STOP_UNCONFIRMED')
+ $reasons=@('NOT_STARTED','OBSERVED_POLICY_MATCH','UNSUPPORTED_PLATFORM','IDENTITY_UNVERIFIED','UNSAFE_PROFILE','TARGET_LIMIT','TIMEOUT','TARGET_MISSING','ACCESS_DENIED','PRIVATE_LOCAL_STORAGE_UNAVAILABLE','PRIVATE_NATIVE_OPEN_UNAVAILABLE','PRIVATE_FILE_METADATA_UNVERIFIED','PRIVATE_FINAL_PATH_UNVERIFIED','PRIVATE_OWNER_UNVERIFIED','PRIVATE_DACL_UNVERIFIED','UNEXPECTED_FAILURE','OUTPUT_REJECTED','NATIVE_CONTEXT_UNVERIFIED','NATIVE_BUILD_UNAVAILABLE','NATIVE_BUILD_ACCESS_DENIED','NATIVE_BUILD_COMPILER_MISSING','NATIVE_BUILD_REFERENCE_UNAVAILABLE','NATIVE_BUILD_SOURCE_REJECTED','NATIVE_MODULE_MANAGEMENT_UNAVAILABLE','NATIVE_MODULE_SECURITY_UNAVAILABLE','NATIVE_MODULE_UTILITY_UNAVAILABLE','NATIVE_SIGNATURE_UNAVAILABLE','NATIVE_SOURCE_UNAVAILABLE','NATIVE_SOURCE_EMPTY','NATIVE_SOURCE_OVERSIZED','NATIVE_SOURCE_BASE64_REJECTED','NATIVE_SOURCE_UTF8_REJECTED','NATIVE_ENTRY_UNAVAILABLE','CHILD_START_UNAVAILABLE','CHILD_STOP_UNCONFIRMED')
  if($p.allFixedTargetsObserved -isnot [bool] -or $p.target -isnot [string] -or $p.target -cnotin $targets -or $p.reason -isnot [string] -or $p.reason -cnotin $reasons -or $p.observations -isnot [array] -or $p.observations.Count -gt 16){throw 'REFUSED'}
  $ancestorCount=@($p.observations|Where-Object {$_.target -cmatch '^ANCESTOR_0[1-7]$'}).Count
  $sequence=@('IDENTITY','PROFILE_ENVIRONMENT','VOLUME_ROOT')
@@ -76,7 +76,7 @@ function ConvertTo-OwnerProbeClosedJson([string]$Text) {
   $facts+=@{target=$fact.target;reason=$fact.reason;storageVerified=$fact.storageVerified;attributesVerified=$fact.attributesVerified;finalPathVerified=$fact.finalPathVerified;owner=$fact.owner;dacl=$fact.dacl}
  }
  if($facts.Count -eq 0){
-  if($p.target -cne 'NONE' -or $p.allFixedTargetsObserved -or $p.reason -cnotin @('UNSUPPORTED_PLATFORM','UNSAFE_PROFILE','NATIVE_CONTEXT_UNVERIFIED','NATIVE_BUILD_UNAVAILABLE','NATIVE_BUILD_ACCESS_DENIED','NATIVE_BUILD_COMPILER_MISSING','NATIVE_BUILD_REFERENCE_UNAVAILABLE','NATIVE_BUILD_SOURCE_REJECTED','NATIVE_MODULE_MANAGEMENT_UNAVAILABLE','NATIVE_MODULE_SECURITY_UNAVAILABLE','NATIVE_MODULE_UTILITY_UNAVAILABLE','NATIVE_SIGNATURE_UNAVAILABLE','NATIVE_SOURCE_UNAVAILABLE','NATIVE_ENTRY_UNAVAILABLE','CHILD_START_UNAVAILABLE','TIMEOUT','CHILD_STOP_UNCONFIRMED','OUTPUT_REJECTED')){throw 'REFUSED'}
+  if($p.target -cne 'NONE' -or $p.allFixedTargetsObserved -or $p.reason -cnotin @('UNSUPPORTED_PLATFORM','UNSAFE_PROFILE','NATIVE_CONTEXT_UNVERIFIED','NATIVE_BUILD_UNAVAILABLE','NATIVE_BUILD_ACCESS_DENIED','NATIVE_BUILD_COMPILER_MISSING','NATIVE_BUILD_REFERENCE_UNAVAILABLE','NATIVE_BUILD_SOURCE_REJECTED','NATIVE_MODULE_MANAGEMENT_UNAVAILABLE','NATIVE_MODULE_SECURITY_UNAVAILABLE','NATIVE_MODULE_UTILITY_UNAVAILABLE','NATIVE_SIGNATURE_UNAVAILABLE','NATIVE_SOURCE_UNAVAILABLE','NATIVE_SOURCE_EMPTY','NATIVE_SOURCE_OVERSIZED','NATIVE_SOURCE_BASE64_REJECTED','NATIVE_SOURCE_UTF8_REJECTED','NATIVE_ENTRY_UNAVAILABLE','CHILD_START_UNAVAILABLE','TIMEOUT','CHILD_STOP_UNCONFIRMED','OUTPUT_REJECTED')){throw 'REFUSED'}
  }else{
   $last=$facts[$facts.Count-1]
   if($p.target -cne $last.target -or $p.reason -cne $last.reason){throw 'REFUSED'}
@@ -98,6 +98,20 @@ function Send-OwnerProbeSource([Diagnostics.Process]$Child,[string]$NativeSource
  # for the Windows PowerShell host to exit; do not leave redirected input open.
  $Child.StandardInput.Close()
  return $true
+}
+function Read-OwnerProbeNativeSource([IO.Stream]$InputStream) {
+ # Process.StandardInput uses Console.InputEncoding on .NET Framework. Detect
+ # its Unicode preamble rather than treating it as part of the base64 record.
+ $reader=[IO.StreamReader]::new($InputStream,[Text.UTF8Encoding]::new($false,$true),$true,1024)
+ try {
+  $encoded=$reader.ReadLine()
+  if([string]::IsNullOrEmpty($encoded)){throw 'NATIVE_SOURCE_EMPTY'}
+  if($encoded.Length -gt 87384){throw 'NATIVE_SOURCE_OVERSIZED'}
+  try {$bytes=[Convert]::FromBase64String($encoded)}catch{throw 'NATIVE_SOURCE_BASE64_REJECTED'}
+  if($bytes.Length -eq 0){throw 'NATIVE_SOURCE_EMPTY'}
+  if($bytes.Length -gt 65536){throw 'NATIVE_SOURCE_OVERSIZED'}
+  try {return [Text.UTF8Encoding]::new($false,$true).GetString($bytes)}catch{throw 'NATIVE_SOURCE_UTF8_REJECTED'}
+ }finally{$reader.Dispose()}
 }
 function Invoke-OwnerProbeObservation([string]$NativeSource) {
  $ErrorActionPreference='Stop';$child=$null;$started=$false
@@ -124,6 +138,7 @@ function Invoke-OwnerProbeObservation([string]$NativeSource) {
 $ErrorActionPreference='Stop';$WarningPreference='SilentlyContinue';$ProgressPreference='SilentlyContinue'
 $moduleRoot=[IO.Path]::Combine($PSHOME,'Modules');$env:PSModulePath=$moduleRoot
 $PSModuleAutoLoadingPreference='None'
+$sourceFailure='__NATIVE_SOURCE_UNAVAILABLE__'
 $stage='__NATIVE_MODULE_MANAGEMENT_UNAVAILABLE__'
 try {
  foreach($module in @('Microsoft.PowerShell.Management','Microsoft.PowerShell.Security','Microsoft.PowerShell.Utility')){
@@ -140,17 +155,16 @@ try {
  if($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch '(?:^|, )O=Microsoft Corporation(?:,|$)'){[Console]::Out.WriteLine('__CONTEXT_FAILURE__');exit}
  try {$workspaceReady=Test-OwnerProbeCompilerWorkspace $env:GITHUB_WORKSPACE}catch{$workspaceReady=$false}
  if(-not $workspaceReady){[Console]::Out.WriteLine('__UNSAFE_FAILURE__');exit}
- $stage='__NATIVE_SOURCE_UNAVAILABLE__'
- $encoded=[Console]::In.ReadLine()
- if(-not $encoded -or $encoded.Length -gt 87384){throw 'REFUSED'}
- $bytes=[Convert]::FromBase64String($encoded)
- if($bytes.Length -gt 65536){throw 'REFUSED'}
- $source=[Text.UTF8Encoding]::new($false,$true).GetString($bytes)
+ $stage=$sourceFailure
+ $source=Read-OwnerProbeNativeSource -InputStream ([Console]::OpenStandardInput())
  $stage='__FAILURE__'
  $null=Add-Type -TypeDefinition $source -Language CSharp -ErrorAction Stop
  $stage='__NATIVE_ENTRY_UNAVAILABLE__'
  [Console]::Out.WriteLine([GoriqPrivateOwnerProbe]::ObserveJson())
 }catch{
+ if($stage -ceq $sourceFailure -and $_.Exception.Message -cin @('NATIVE_SOURCE_EMPTY','NATIVE_SOURCE_OVERSIZED','NATIVE_SOURCE_BASE64_REJECTED','NATIVE_SOURCE_UTF8_REJECTED')){
+  $stage=$sourceFailure.Replace('"reason":"NATIVE_SOURCE_UNAVAILABLE"',('"reason":"'+$_.Exception.Message+'"'))
+ }
  if($stage -ceq '__FAILURE__'){
   $cause=$_.Exception
   for($depth=0;$null -ne $cause -and $depth -lt 8;$depth++){
@@ -167,9 +181,9 @@ try {
 }
 '@
   $definitions=''
-  foreach($name in @('Test-OwnerProbeCanonical','Get-OwnerProbeCompilerAncestors','Test-OwnerProbeCompilerMetadata','Test-OwnerProbeCompilerWorkspace')){$definitions+='function '+$name+' {'+(Get-Command $name -CommandType Function).Definition+"}`n"}
+  foreach($name in @('Test-OwnerProbeCanonical','Get-OwnerProbeCompilerAncestors','Test-OwnerProbeCompilerMetadata','Test-OwnerProbeCompilerWorkspace','Read-OwnerProbeNativeSource')){$definitions+='function '+$name+' {'+(Get-Command $name -CommandType Function).Definition+"}`n"}
   $code=$definitions+$code.Replace('__FAILURE__',$failure).Replace('__CONTEXT_FAILURE__',$contextFailure).Replace('__UNSAFE_FAILURE__',$unsafeFailure)
-  foreach($phase in @('NATIVE_MODULE_MANAGEMENT_UNAVAILABLE','NATIVE_MODULE_SECURITY_UNAVAILABLE','NATIVE_MODULE_UTILITY_UNAVAILABLE','NATIVE_SIGNATURE_UNAVAILABLE','NATIVE_SOURCE_UNAVAILABLE','NATIVE_ENTRY_UNAVAILABLE','NATIVE_BUILD_ACCESS_DENIED','NATIVE_BUILD_COMPILER_MISSING','NATIVE_BUILD_REFERENCE_UNAVAILABLE','NATIVE_BUILD_SOURCE_REJECTED')){$code=$code.Replace(('__'+$phase+'__'),(New-OwnerProbeFailure $phase))}
+  foreach($phase in @('NATIVE_MODULE_MANAGEMENT_UNAVAILABLE','NATIVE_MODULE_SECURITY_UNAVAILABLE','NATIVE_MODULE_UTILITY_UNAVAILABLE','NATIVE_SIGNATURE_UNAVAILABLE','NATIVE_SOURCE_UNAVAILABLE','NATIVE_SOURCE_EMPTY','NATIVE_SOURCE_OVERSIZED','NATIVE_SOURCE_BASE64_REJECTED','NATIVE_SOURCE_UTF8_REJECTED','NATIVE_ENTRY_UNAVAILABLE','NATIVE_BUILD_ACCESS_DENIED','NATIVE_BUILD_COMPILER_MISSING','NATIVE_BUILD_REFERENCE_UNAVAILABLE','NATIVE_BUILD_SOURCE_REJECTED')){$code=$code.Replace(('__'+$phase+'__'),(New-OwnerProbeFailure $phase))}
   $info=New-Object Diagnostics.ProcessStartInfo;$info.FileName=$fixed;$info.Arguments='-NoLogo -NoProfile -NonInteractive -EncodedCommand '+[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($code))
   $info.UseShellExecute=$false;$info.CreateNoWindow=$true;$info.RedirectStandardInput=$true;$info.RedirectStandardOutput=$true;$info.RedirectStandardError=$true;$info.WorkingDirectory=$workspace
   # No token or other inherited environment is passed. Compilation may create

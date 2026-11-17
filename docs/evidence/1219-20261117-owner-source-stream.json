@@ -1,0 +1,32 @@
+{
+  "goal": "goal-fcc81c97e09153f7",
+  "job": "rotation-recovery-37",
+  "goalStatus": "NOT_ACHIEVED",
+  "g1": "HOLD",
+  "recovered": false,
+  "actualNative": {
+    "run": 44015612283,
+    "job": 133812711463,
+    "runnerId": 21,
+    "runnerName": "ZBook",
+    "sourceMain": "4a84979fa84be03495af8c4a271b3c333766aebb",
+    "observedAt": "2026-11-17T04:13:07.6418694Z",
+    "target": "NONE",
+    "reason": "NATIVE_SOURCE_UNAVAILABLE",
+    "observations": []
+  },
+  "sourceEvidence": [
+    "microsoft/referencesource Process.cs constructs StandardInput using Console.InputEncoding.",
+    "microsoft/referencesource console.cs constructs Console.In StreamReader with BOM detection false.",
+    "Actual embedded-bootstrap fixture with a UTF8-BOM input frame reproduces NATIVE_SOURCE_UNAVAILABLE before the fix."
+  ],
+  "hypothesisLimit": "The old device frame bytes and encoding were not recorded. Do not claim a specific BOM was observed there, or that owner metadata was read.",
+  "change": "Explicit BOM-aware input stream with UTF8 fallback; strict decoded source UTF8; closed source refusal subcodes. Same transfer channel, caps, EOF, deadlines and token-free environment; no console codepage change.",
+  "localValidation": {"focused": 158, "pass": 158, "fail": 0, "skip": 0, "sourceFrameCases": 16, "bootstrapCases": 14, "lint": "PASS", "types": "PASS", "requirements": 341, "surfaces": 626},
+  "originalCSharpSHA256": "9788d6aa785f713b0f90fde62c3ae2d39c7214456e80bfb6afcb43bcff3ce5a0",
+  "actualAuthor": "Codex",
+  "localModel": "NOT_RUN",
+  "compassWriteBack": "UNAVAILABLE",
+  "pending": ["fresh review", "full exact-source/Windows CI", "protected integration and exact-main CI", "new bounded actual observation"],
+  "limits": ["No owner target or different-account explanation established.", "No Capture/Acquire, original contents, permission/owner/ACL/credential/service/Goal changes."]
+}

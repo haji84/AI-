@@ -125,5 +125,6 @@ test('embedded owner bootstrap preserves closed failure phases before observatio
   const result = spawnSync(shell, ['-NoLogo', '-NoProfile', '-NonInteractive', '-File', resolve('scripts/goriq-owner-probe/test-owner-probe-bootstrap.ps1')], { encoding: 'utf8', timeout: 12000, windowsHide: true });
   assert.equal(result.status, 0, result.stderr + '\n' + result.stdout);
   assert.equal(result.stderr, '');
-  assert.match(result.stdout, /TOTAL_PASS=13/);
+  assert.match(result.stdout, /TOTAL_PASS=14/);
+  assert.match(result.stdout, /SOURCE_STREAM_PASS=16/);
 });
