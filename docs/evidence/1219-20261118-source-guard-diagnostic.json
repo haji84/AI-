@@ -1,0 +1,34 @@
+{
+  "goal": "goal-fcc81c97e09153f7",
+  "job": "rotation-recovery-37",
+  "baseMain": "c7e6e19cf11d7e35ed32cc1b96e3c9dc8c9fcddf",
+  "scope": "Diagnostic-only8SOURCE_PRIVATE codes from exactsealedCLR.Code, stageboundSOURCE_ACQUISITION_INCOMPLETE, max8chain, noMessage/Data/ETS/lookalike orunknownEnum projection",
+  "reportKeys": 25,
+  "nativePolicyChanged": false,
+  "OSpermissionsOrOriginalWrites": false,
+  "red": "100 missingprojector exit1",
+  "green": "102 standalone68PASS then3newscope/sanitizer negatives; final103related162/162PASS0skip with diagnostic marker required",
+  "lint": "104PASS exit0",
+  "review": {
+    "agent": "source_guard_review",
+    "critical": 0,
+    "important": 0,
+    "minor": 1,
+    "minorResolved": "Fixture comment explicitly lists doubled boundaries; new source diagnostic does not identify a specific file without separate evidence"
+  },
+  "pending": [
+    "exact-source4CI+signed6",
+    "normalprotectedmerge",
+    "exact-main4CI+signed6",
+    "one new instrumented actualread; determine specificcause and fix without policyguess"
+  ],
+  "goalStatus": "NOT_ACHIEVED",
+  "g1": "HOLD",
+  "actualAuthor": "Codex",
+  "localModel": "NOT_RUN",
+  "atUTC": "2026-11-17T20:39:49.899547+00:00",
+  "unchangedPolicySHA256": {
+    "scripts/goriq-zbook-bridge-capture.cs": "66d0a40c10e60cab97615335699377bdaf1fc18ee453c29d7e064ea0119054fe",
+    "scripts/goriq-owner-probe/goriq-private-owner-probe.cs": "955f11579616a42e47c2f03087d67b953e9fd01483f1a807bccf6377b2f240a7"
+  }
+}

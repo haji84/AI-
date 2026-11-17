@@ -53,6 +53,28 @@ function Get-GoriqBridgeInitializationFailure([Exception]$Exception) {
  }
  return 'PRIVATE_STORAGE_UNAVAILABLE'
 }
+function Get-GoriqBridgeSourceFailure([Exception]$Exception) {
+ $fallback='SOURCE_ACQUISITION_INCOMPLETE'
+ $allowed=@('PRIVATE_PATH_UNVERIFIED','PRIVATE_LOCAL_STORAGE_UNAVAILABLE','PRIVATE_NATIVE_OPEN_UNAVAILABLE','PRIVATE_FILE_METADATA_UNVERIFIED','PRIVATE_FINAL_PATH_UNVERIFIED','PRIVATE_OWNER_UNVERIFIED','PRIVATE_DACL_UNVERIFIED','PRIVATE_CREATE_UNAVAILABLE')
+ $captureType='GoriqBridgeCapture' -as [type]
+ if($null -eq $captureType){return $fallback}
+ $expected=$captureType.Assembly.GetType('GoriqBridgePrivateGuardException',$false,$false)
+ if($null -eq $expected){return $fallback}
+ $codeProperty=$expected.GetProperty('Code')
+ $innerProperty=[Exception].GetProperty('InnerException')
+ if($null -eq $codeProperty -or $null -eq $innerProperty){return $fallback}
+ # Source-owned CLR membership and getters bypass ETS shadows. Never classify
+ # source failures from raw messages, Data, HResult or lookalike exception types.
+ for($depth=0;$depth -lt 8 -and $null -ne $Exception;$depth++){
+  if($Exception -is $expected){
+   $code=$codeProperty.GetValue($Exception,$null)
+   if($code -is [string] -and $code -cin $allowed){return ('SOURCE_'+$code)}
+   return $fallback
+  }
+  $Exception=$innerProperty.GetValue($Exception,$null)
+ }
+ return $fallback
+}
 function Get-GoriqBridgeNode($Capture) {
  $node=$Capture.TrustedNode()
  $signature=Microsoft.PowerShell.Security\Get-AuthenticodeSignature -LiteralPath $node -ErrorAction Stop
@@ -109,6 +131,7 @@ function Invoke-GoriqBridgeRead([byte[]]$QuerySource,[byte[]]$InventorySource,[s
   $result=ConvertFrom-GoriqBridgeSummary $raw;$result.preserved=$true;$result.preservationMode='OBSERVED_STABLE_SHARED'
  }catch{
   if($failure -ceq 'PRIVATE_STORAGE_UNAVAILABLE'){$failure=Get-GoriqBridgeInitializationFailure $_.Exception}
+  elseif($failure -ceq 'SOURCE_ACQUISITION_INCOMPLETE'){$failure=Get-GoriqBridgeSourceFailure $_.Exception}
   $result=New-GoriqBridgeSummary;$result.failureCode=$failure
   if($null -ne $capture){$result.preserved=[bool]$capture.Preserved;if($result.preserved){$result.preservationMode='OBSERVED_STABLE_SHARED'};try{$capture.WritePrivate('failure.txt',[Text.Encoding]::UTF8.GetBytes($_.ToString()))}catch{}}
  }finally{if($null -ne $capture){$capture.Dispose()}}
