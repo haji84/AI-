@@ -1,0 +1,39 @@
+# プロファイル本体のSYSTEM所有を認める限定修正
+
+既存Goal `goal-fcc81c97e09153f7` / Job `rotation-recovery-37` を継続する。
+実機run44022022751/ZBook21はPROFILEでowner不一致を確認した。Ownerは現在の
+PowerShellでProfileOwner=SYSTEMを確認し、限定修正案への「進めていいよ。」を
+明示した。承認対象はproposal SHA256
+`1403258e2f53839059c0ced041d9ea86049f7ee9842a2fc633963bcb6c75030c`。
+Windowsの所有者/ACL変更や原本Acquireへの承認ではない。
+
+## 変更範囲
+
+現在のユーザー所有は従来どおり許可する。SYSTEM所有の追加許可は、属性が通常の
+ディレクトリであり、handleから得たfinal pathが正規化済みprofile本体と正確に
+一致する場合だけとする。profile直下や別のユーザー、volume root、file、reparse
+には拡張しない。既存のDACL/NTFS/identity/安定性/時限検査は維持する。
+
+Captureの中央Security経路で、この条件をhandleから確認する。通常のOpen/Inspect
+だけでなく、Ancestorsで取得するdescriptorやsourceDirectories再検査からの
+直接Security呼び出しにも同じ規則を適用し、呼出し側のflag渡し忘れを避ける。
+元データ/runtimeの既存owner規則や専用private領域の本人所有条件は変更しない。
+
+読み取り専用observerもPROFILEだけに同じ例外を適用する。閉じたowner enumに
+SYSTEMを追加し、validatorはprivate成功としてSYSTEMを認める対象をPROFILEに
+限定する。private子対象のSYSTEM所有は引き続きowner拒否となる。
+
+Windows profileの所有者を変更する案と比べ、コード側の限定規則を選ぶ判断は
+承認済みの提案に基づく。全private領域でSYSTEMを認める案は対象外。
+
+## 検証と権限
+
+純粋なowner/handle-scope判定を実C#5で実行し、SYSTEMのscope正負例とDACL維持を
+固定する。closed reportのPROFILE成功/子対象拒否/偽SYSTEM成功を検証する。
+fresh reviewとCIをBuilderから独立させ、Ownerの明示承認をGate根拠として記録。
+全4source/main CIとhash pinの確認後、owner-only読み取り診断を1回だけ実行する。
+旧native取得は再実行しない。profileのDACLや後続対象は未観測のため、別の拒否が
+残る場合は実結果で次を判断する。元GoalはNOT_ACHIEVED / G1 HOLD。
+
+rollbackはcodeと依存するobserver/validator/hash pinsをまとめた通常保護revert。
+Windows側は変更しないため、OS権限や原本データを復元する操作は生じない。

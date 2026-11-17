@@ -8,9 +8,16 @@ on ZBook. `observe-private-owner.ps1` remains inert without `-Observe` or an
 explicit function call. The standalone default loads its adjacent C# source;
 the workflow passes those pinned bytes explicitly over redirected child stdin.
 
-The C# source is byte-identical to the uploaded diagnostic
-`goriq-owner-diagnostic-20261117.zip`, SHA256
+The initial C# source was byte-identical to the uploaded diagnostic
+`goriq-owner-diagnostic-20261117.zip`, with historical SHA256
 `9788d6aa785f713b0f90fde62c3ae2d39c7214456e80bfb6afcb43bcff3ce5a0`.
+The owner's explicit approval on 2026-11-18 authorizes one limited policy
+change: the verified, canonical, non-reparse profile directory itself may
+be owned by SYSTEM or the current user. Private children still require the
+current user; all DACL, storage, final-path and identity checks remain.
+The capture implementation derives the exception from the actual handle in
+its central Security method, including descriptor snapshots and rechecks.
+No Windows owner or ACL is changed. Source pins track the revised bytes.
 Targets are fixed to the current identity/environment, the bounded profile
 ancestor chain, profile and `.goriq-handoff`, and the **existing**
 `1219-original-inspection-43843790970-1` layout/raw/work/context.
@@ -22,8 +29,9 @@ enumerates directories, creates a missing target or changes ACLs/owners.
 Only closed target/reason/owner/DACL enums and booleans leave the observer.
 The supervisor reconstructs the JSON, verifies the ordered prefix, summary
 agreement and complete-sequence claim, and rejects extra/raw/malformed output.
-`owner=OTHER` means owner differs from the executing Windows user; it does not
-identify who created the object. `OBSERVED_POLICY_MATCH` describes current
+`owner=SYSTEM` identifies the well-known Windows principal without exporting
+a raw SID. `owner=OTHER` means a different, non-SYSTEM owner. Neither value
+identifies who created the object. `OBSERVED_POLICY_MATCH` describes current
 metadata, not a recovered original, historical proof or runtime acceptance.
 Every result remains INCOMPLETE / NOT_AUTHORITATIVE / recovered=false / G1 HOLD.
 
@@ -55,6 +63,13 @@ Windows it additionally exercises the real WindowsPS5 supervisor with inert
 C# supplied in memory: successful compilation, invalid build, extra output
 and owned-child timeout. Actual ZBook observation requires the gated workflow;
 source tests alone do not establish that the device was inspected.
+
+`test-profile-system-owner.ps1` exercises the approved scope and closed output.
+On Windows, its synthetic boundary fixture replaces only metadata P/Invoke
+declarations in an in-memory test copy and invokes the actual central Security
+method twice. Synthetic security descriptors verify profile acceptance,
+private-child refusal and strict DACL behavior. It opens no native object and
+does not run the capture constructor or Acquire.
 
 The historical run can only prove its generic refusal. A new observation
 identifies a current target; do not rewrite the old run as if it contained
