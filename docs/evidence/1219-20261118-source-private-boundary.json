@@ -24,5 +24,13 @@
     "root": 4403,
     "hosted": 4404,
     "existingSkip": 26
+  },
+  "firstSourceCI": {
+    "run": 44337946791,
+    "head": "6747bbcbbf06e9186e30bd782350d7710f328bab",
+    "windowsJob": 134919659283,
+    "status": "FAILED native temporary fixture NATIVE_PARENT_UNCHANGED; ancestor91/native51 passed",
+    "evidence": "Private retained log155; parent comparison used synthetic descriptor before setup Set rather than observed post-setup descriptor",
+    "correction": "Fixture only: assert exact setup Owner/Group/binaryDACL with only auto-inheritance control normalization allowed, freeze observed setup, exact parent comparison after every Source/sidecar/file/future/rollback phase. Numeric-only temporary diagnostics; production/pins unchanged. Windows confirmation pending."
   }
 }
