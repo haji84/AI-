@@ -25,7 +25,7 @@ export function anchorAudit(findings, patch) {
       continue;
     }
     if (current===null||path===null)continue;
-    if(row.startsWith("+")&&!row.startsWith("+++")){
+    if(row.startsWith("+")){
       additions.get(path).set(current,row.slice(1));current++;
     } else if(row.startsWith(" "))current++;
     else if(row.startsWith("-")||row.startsWith("\\")||row.startsWith("#")){ /* source old line or metadata */ }
