@@ -1,0 +1,36 @@
+{
+  "issue": 1219,
+  "goal": "goal-fcc81c97e09153f7",
+  "job": "rotation-recovery-37",
+  "baseMain": "0eb98473257289df708a4ac92b2843215fbfd3cb",
+  "ownerApproval": "477f156730cab88b3a27588ef4bee6af52dcb88a2594d7978c4b57aa935b5599",
+  "expiresUTC": "2026-11-18T16:58:55.255367+00:00",
+  "risk": "HIGH permission/security-condition change explicitly approved; Builder/independentVerifier/ownerGate separated",
+  "scope": "FixedSourceDACLonly and exactsourceancestorintegritypolicy; no ancestorACL/owner/group/SACL/bytes/service/credential changes",
+  "tests": "Final153 affected150/150PASS0skip40671ms; Native102portable/C#5PASS; ancestor91pure/51WindowsSyntheticcompile; wrapper44internal/workflow21cases; lint154PASS. ActualWindows newcases/source-mainCI pending",
+  "review": "0Critical0Important0Minor components+integrated; finalization Outcome accounting fixed102regressions, RootentryBOMordinal bug caught/fixed44tests",
+  "nativeApiPriorProof": "Windows75PASS source54378/CI44197570069",
+  "actualDeviceChanged": false,
+  "actualOriginalReadSuccess": false,
+  "goalStatus": "NOT_ACHIEVED",
+  "g1": "HOLD",
+  "atUTC": "2026-11-18T15:36:48.890937+00:00",
+  "sourceHashes": {
+    "scripts/goriq-zbook-bridge-capture.cs": "c149d00466bd75d35282fb44a5940ff64ef926c17f624b4e5d84d2ac1751b68c",
+    "scripts/goriq-source-private-acl-repair.cs": "1ca44025cc06169656c054f6cdfced4b3527aa5bba49e3740aa1972f5d2ce85d",
+    "scripts/goriq-source-private-acl-repair.ps1": "50396f93268ab416b68ce08e5b86391f0a441580c28386a8f25779118f95ecdc"
+  },
+  "expectedCounts": {
+    "root": 4403,
+    "hosted": 4404,
+    "existingSkip": 26
+  },
+  "firstSourceCI": {
+    "run": 44337946791,
+    "head": "6747bbcbbf06e9186e30bd782350d7710f328bab",
+    "windowsJob": 134919659283,
+    "status": "FAILED native temporary fixture NATIVE_PARENT_UNCHANGED; ancestor91/native51 passed",
+    "evidence": "Private retained log155; parent comparison used synthetic descriptor before setup Set rather than observed post-setup descriptor",
+    "correction": "Fixture only: assert exact setup Owner/Group/binaryDACL with only auto-inheritance control normalization allowed, freeze observed setup, exact parent comparison after every Source/sidecar/file/future/rollback phase. Numeric-only temporary diagnostics; production/pins unchanged. Windows confirmation pending."
+  }
+}

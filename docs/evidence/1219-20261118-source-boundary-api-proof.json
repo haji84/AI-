@@ -1,0 +1,27 @@
+{
+  "issue": 1219,
+  "goal": "goal-fcc81c97e09153f7",
+  "job": "rotation-recovery-37",
+  "baseMain": "0eb98473257289df708a4ac92b2843215fbfd3cb",
+  "scope": "Synthetic disposable Windows temp ACL fixture only; no product guard or actual device ACL modifications",
+  "api": "SetSecurityInfo on MAXIMUM_ALLOWED samehandle",
+  "reference": "https://learn.microsoft.com/en-us/windows/win32/api/aclapi/nf-aclapi-setsecurityinfo",
+  "checks": [
+    "existing child/sibling descriptor unchanged on parent update",
+    "future children use newdefault",
+    "direct selected child update isolated",
+    "parentfirst compareguarded rollback/protectionreattachment",
+    "concurrent descriptor mismatch refusesrestore"
+  ],
+  "localCompile": "AST+C#5 CompileOnly+25pureinheritanceflagcasesPASS; defaultLinuxrefusalPASS/noWindowsproofmarker",
+  "windowsNative": "PENDING",
+  "review": "Final0Critical0Important0Minor; exactflags+SIDECARfuturebothrollbacks+creationIDandcleanupscopefixed",
+  "CIJobCount": 4,
+  "existingNodeCountsHosted": 4380,
+  "actualOriginalReadSuccess": false,
+  "OSSourcePermissionApproval": "NOT_GRANTED",
+  "goalStatus": "NOT_ACHIEVED",
+  "g1": "HOLD",
+  "atUTC": "2026-11-17T23:13:32.106880+00:00",
+  "relatedRegression": "136:60/60PASS0skip22225ms"
+}

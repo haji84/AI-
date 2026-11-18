@@ -59,6 +59,7 @@ public sealed class GoriqBridgeCapture : IDisposable {
  readonly List<SafeFileHandle> held=new List<SafeFileHandle>();
  readonly List<FileStream> streams=new List<FileStream>();
  readonly List<Tuple<string,SafeFileHandle,string,string>> sourceDirectories=new List<Tuple<string,SafeFileHandle,string,string>>();
+ readonly Dictionary<SafeFileHandle,string> sourceAncestorHandles=new Dictionary<SafeFileHandle,string>();
  readonly List<string> provenance=new List<string>();
  readonly string sid,profile,source;
  readonly List<Tuple<string,SafeFileHandle,string,string>> runtimeDirectories=new List<Tuple<string,SafeFileHandle,string,string>>();
@@ -84,6 +85,20 @@ public sealed class GoriqBridgeCapture : IDisposable {
  public static bool PrivateOwnerPermitted(string ownerSid,string userSid,bool exactProfileDirectory) {
   return !String.IsNullOrEmpty(ownerSid)&&!String.IsNullOrEmpty(userSid)&&(ownerSid==userSid||(exactProfileDirectory&&ownerSid=="S-1-5-18"));
  }
+ public static bool SourceAncestorOwnerPermitted(string who,string currentSid) {
+  return !String.IsNullOrEmpty(who)&&(who=="S-1-5-18"||who=="S-1-5-32-544"||who=="S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464"||(!String.IsNullOrEmpty(currentSid)&&who==currentSid));
+ }
+ public static bool SourceAncestorAcePermitted(string who,uint mask,string currentSid) {
+  return SourceAncestorOwnerPermitted(who,currentSid)||(mask&~0x001200A9u)==0;
+ }
+ public static bool SourceAncestorAceShapePermitted(int aceType,int flags,bool callback) {
+  return !callback&&(aceType==0||aceType==1)&&(flags&~31)==0;
+ }
+ public static bool IsSourceAncestorDirectory(uint attributes,string finalPath,string profilePath,string sourcePath) {
+  if((attributes&DIRECTORY)==0||(attributes&REPARSE)!=0||!CanonicalLocalPath(profilePath)||profilePath.Length<=3||!CanonicalLocalPath(sourcePath)||!Within(profilePath,sourcePath)||!sourcePath.EndsWith(@"\GAIWorker\goal-1218-bridge-state",StringComparison.OrdinalIgnoreCase)||String.IsNullOrEmpty(finalPath)||!finalPath.StartsWith(@"\\?\",StringComparison.OrdinalIgnoreCase))return false;
+  string path=finalPath.Substring(4);
+  return CanonicalLocalPath(path)&&!path.Equals(profilePath,StringComparison.OrdinalIgnoreCase)&&Within(profilePath,path)&&!path.Equals(sourcePath,StringComparison.OrdinalIgnoreCase)&&Within(path,sourcePath);
+ }
  public static bool ProfileCapabilityTraversePermitted(string who,uint mask,int flags,bool exactProfileDirectory) {
   // SDK app-package authority15, capability3, app-silo65536. This directory
   // ACE grants only FILE_TRAVERSE|SYNCHRONIZE and never propagates to data.
@@ -107,23 +122,36 @@ public sealed class GoriqBridgeCapture : IDisposable {
   var final=new StringBuilder(1024);Budget();uint count=GetFinalPathNameByHandle(handle,final,1024,0);
   return count>0&&count<1024&&IsExactProfileDirectory(info.attributes,final.ToString(),profile);
  }
+ bool SourceAncestorScope(SafeFileHandle handle) {
+  string walkedPath;if(!sourceAncestorHandles.TryGetValue(handle,out walkedPath))return false;
+  Budget();Info info;Require(GetFileInformationByHandle(handle,out info),GoriqBridgePrivateGuardReason.PRIVATE_FILE_METADATA_UNVERIFIED);
+  var final=new StringBuilder(1024);Budget();uint count=GetFinalPathNameByHandle(handle,final,1024,0);
+  Require(count>0&&count<1024&&String.Equals(final.ToString(),@"\\?\"+walkedPath,StringComparison.OrdinalIgnoreCase),GoriqBridgePrivateGuardReason.PRIVATE_FINAL_PATH_UNVERIFIED);
+  Require(IsSourceAncestorDirectory(info.attributes,final.ToString(),profile,source),GoriqBridgePrivateGuardReason.PRIVATE_FILE_METADATA_UNVERIFIED);return true;
+ }
  byte[] Security(SafeFileHandle handle,bool privacy,bool runtime=false,bool runtimeDirectory=false,bool volumeRoot=false) {
   IntPtr owner,group,dacl,sacl,descriptor;Require(GetSecurityInfo(handle,1,5,out owner,out group,out dacl,out sacl,out descriptor)==0&&descriptor!=IntPtr.Zero,GoriqBridgePrivateGuardReason.PRIVATE_DACL_UNVERIFIED);
   try {
    uint size=GetSecurityDescriptorLength(descriptor);Require(size>0&&size<=65536,GoriqBridgePrivateGuardReason.PRIVATE_DACL_UNVERIFIED);byte[] bytes=new byte[size];Marshal.Copy(descriptor,bytes,0,(int)size);
    var sd=new RawSecurityDescriptor(bytes,0);Require(sd.Owner!=null&&sd.DiscretionaryAcl!=null&&(sd.ControlFlags&ControlFlags.DiscretionaryAclPresent)!=0,GoriqBridgePrivateGuardReason.PRIVATE_DACL_UNVERIFIED);
-   bool exactProfileDirectory=false;
+   bool exactProfileDirectory=false,sourceAncestor=privacy&&!runtime&&SourceAncestorScope(handle);
    if(privacy) {
     // Centralize the approved exception so descriptor snapshots and rechecks
     // receive the same handle-derived scope as Open/Inspect. Never trust a
     // caller's path label for SYSTEM ownership of a private child or file.
-    if(!runtime&&sd.Owner.Value=="S-1-5-18") {
+    if(!runtime&&!sourceAncestor&&sd.Owner.Value=="S-1-5-18") {
      exactProfileDirectory=ExactProfileScope(handle);
     }
-    Require(PrivateOwnerPermitted(sd.Owner.Value,sid,exactProfileDirectory),GoriqBridgePrivateGuardReason.PRIVATE_OWNER_UNVERIFIED);
+    Require(sourceAncestor?SourceAncestorOwnerPermitted(sd.Owner.Value,sid):PrivateOwnerPermitted(sd.Owner.Value,sid,exactProfileDirectory),GoriqBridgePrivateGuardReason.PRIVATE_OWNER_UNVERIFIED);
    }
    if(runtime)Require(sd.Owner.Value=="S-1-5-18"||sd.Owner.Value=="S-1-5-32-544"||sd.Owner.Value=="S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464",GoriqBridgePrivateGuardReason.PRIVATE_OWNER_UNVERIFIED);
    foreach(GenericAce ace in sd.DiscretionaryAcl) {
+    if(sourceAncestor) {
+     var common=ace as CommonAce;
+     Require(common!=null&&SourceAncestorAceShapePermitted((int)common.AceType,(int)common.AceFlags,common.IsCallback),GoriqBridgePrivateGuardReason.PRIVATE_DACL_UNVERIFIED);
+     if(common.AceQualifier==AceQualifier.AccessAllowed)Require(SourceAncestorAcePermitted(common.SecurityIdentifier.Value,unchecked((uint)common.AccessMask),sid),GoriqBridgePrivateGuardReason.PRIVATE_DACL_UNVERIFIED);
+     continue;
+    }
     if((ace.AceFlags&AceFlags.InheritOnly)!=0)continue;
     var known=ace as QualifiedAce;Require(known!=null&&!known.IsCallback,GoriqBridgePrivateGuardReason.PRIVATE_DACL_UNVERIFIED);
     if(known.AceQualifier!=AceQualifier.AccessAllowed)continue;
@@ -137,23 +165,26 @@ public sealed class GoriqBridgeCapture : IDisposable {
    return bytes;
   } finally{if(descriptor!=IntPtr.Zero)LocalFree(descriptor);}
  }
- Info Inspect(SafeFileHandle handle,string path,bool directory,bool privacy,bool runtime=false) {
+ Info Inspect(SafeFileHandle handle,string path,bool directory,bool privacy,bool runtime=false,bool sourceWalk=false) {
   Require(!handle.IsInvalid,GoriqBridgePrivateGuardReason.PRIVATE_NATIVE_OPEN_UNAVAILABLE);Info i;Require(GetFileInformationByHandle(handle,out i),GoriqBridgePrivateGuardReason.PRIVATE_FILE_METADATA_UNVERIFIED);
   Require((i.attributes&REPARSE)==0&&((i.attributes&DIRECTORY)!=0)==directory,GoriqBridgePrivateGuardReason.PRIVATE_FILE_METADATA_UNVERIFIED);
   if(!directory)Require(i.links==1,GoriqBridgePrivateGuardReason.PRIVATE_FILE_METADATA_UNVERIFIED);
   var final=new StringBuilder(1024);uint count=GetFinalPathNameByHandle(handle,final,1024,0);
   Require(count>0&&count<1024&&String.Equals(final.ToString(),"\\\\?\\"+path,StringComparison.OrdinalIgnoreCase),GoriqBridgePrivateGuardReason.PRIVATE_FINAL_PATH_UNVERIFIED);
+  // Only the fixed source walk can register an ancestor. Security snapshots
+  // and identity rechecks independently revalidate its native directory/path.
+  if(sourceWalk&&privacy&&!runtime&&directory&&IsSourceAncestorDirectory(i.attributes,final.ToString(),profile,source))sourceAncestorHandles[handle]=path;
   Security(handle,privacy,runtime,runtime&&directory,directory&&path.Equals(Path.GetPathRoot(path),StringComparison.OrdinalIgnoreCase));return i;
  }
- SafeFileHandle Open(string path,bool directory,bool privacy,bool runtime=false,uint access=READ_CONTROL|READ_ATTRIBUTES,uint share=FILE_SHARE_READ) {
+ SafeFileHandle Open(string path,bool directory,bool privacy,bool runtime=false,uint access=READ_CONTROL|READ_ATTRIBUTES,uint share=FILE_SHARE_READ,bool sourceWalk=false) {
   Budget();Require(CanonicalLocalPath(path),GoriqBridgePrivateGuardReason.PRIVATE_PATH_UNVERIFIED);var drive=new DriveInfo(Path.GetPathRoot(path));Require(drive.IsReady&&drive.DriveType==DriveType.Fixed&&drive.DriveFormat=="NTFS",GoriqBridgePrivateGuardReason.PRIVATE_LOCAL_STORAGE_UNAVAILABLE);
   var handle=CreateFileW(path,access,share,IntPtr.Zero,OPEN_EXISTING,BACKUP|OPEN_REPARSE,IntPtr.Zero);
-  try{Inspect(handle,path,directory,privacy,runtime);held.Add(handle);return handle;}catch{handle.Dispose();throw;}
+  try{Inspect(handle,path,directory,privacy,runtime,sourceWalk);held.Add(handle);return handle;}catch{sourceAncestorHandles.Remove(handle);handle.Dispose();throw;}
  }
  void Ancestors(string path,bool privateBelowProfile,bool observe=false) {
   string root=Path.GetPathRoot(path),current=root;Open(current,true,false,false,READ_CONTROL|READ_ATTRIBUTES,FILE_SHARE_READWRITEDELETE);
   foreach(string part in path.Substring(root.Length).Split('\\')) {
-   if(part.Length==0)continue;current=Path.Combine(current,part);var handle=Open(current,true,privateBelowProfile&&Within(profile,current),false,READ_CONTROL|READ_ATTRIBUTES,FILE_SHARE_READWRITEDELETE);if(observe)sourceDirectories.Add(Tuple.Create(current,handle,SourceIdentity(handle,current,true),Hash(Security(handle,privateBelowProfile&&Within(profile,current)))));
+   if(part.Length==0)continue;current=Path.Combine(current,part);var handle=Open(current,true,privateBelowProfile&&Within(profile,current),false,READ_CONTROL|READ_ATTRIBUTES,FILE_SHARE_READWRITEDELETE,observe&&Within(source,path));if(observe)sourceDirectories.Add(Tuple.Create(current,handle,SourceIdentity(handle,current,true),Hash(Security(handle,privateBelowProfile&&Within(profile,current)))));
   }
  }
  static long Size(Info i){return ((long)i.sizeHigh<<32)|i.sizeLow;}

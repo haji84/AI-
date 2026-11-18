@@ -109,6 +109,18 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
+      - name: Verify non-propagating source ACL updates in a temporary fixture
+        shell: powershell
+        run: ./scripts/goriq-owner-probe/test-source-boundary-acl-native.ps1
+      - name: Verify approved Source ancestor and DACL transaction fixtures
+        shell: powershell
+        run: |
+          powershell.exe -NoLogo -NoProfile -NonInteractive -File scripts/goriq-owner-probe/test-source-ancestor-integrity.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          powershell.exe -NoLogo -NoProfile -NonInteractive -File scripts/goriq-owner-probe/test-source-ancestor-native.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          powershell.exe -NoLogo -NoProfile -NonInteractive -File scripts/goriq-owner-probe/test-source-private-acl-repair.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - uses: actions/setup-node@v4
         with:
           node-version: 24.19.0
