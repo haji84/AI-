@@ -959,7 +959,7 @@
     },
     {
       "path": "scripts/jarvis-broker.ts",
-      "sha256": "69f3ed3d8726b61cab0ff0abc3d089a119a2d905df55a2946eb7ca4a2d1c11c7",
+      "sha256": "e1604e78b47d533c01cfb67905980d45cd67da1cd3d2588fab7c865fb3bea000",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "NET-003",
@@ -982,7 +982,7 @@
         "OPS-015",
         "OPS-016"
       ],
-      "reason": "Protected Broker now exposes bounded local-first voice discovery and synthesis while preserving existing owner authority and all prior Broker responsibilities. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim. #1858 approved host-selected completion integration and isolated verification; no live activation or physical acceptance inference. Protected Broker now exposes bounded local-first voice discovery and synthesis while preserving existing owner authority and all prior Broker responsibilities. #1219 only accepted nonterminal Goal resumed on changed verifier receipt; signature and authorizations still checked in child Executor. #1219 current vs historical authenticated WorkRun readback; existing parent requirements remain PARTIAL pending live evidence. Issue #1219: transient local writer contention returns an explicit non-owner process status, with bounded Broker rechecks of the same accepted Goal; no cross-host authority or live acceptance claim. Issue #1219: owner-auth current Goal now binds actual same-host persisted DevelopmentJobs by digest, phase and scope without granting cross-host authority or execution approval."
+      "reason": "Protected Broker now exposes bounded local-first voice discovery and synthesis while preserving existing owner authority and all prior Broker responsibilities. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim. #1858 approved host-selected completion integration and isolated verification; no live activation or physical acceptance inference. Protected Broker now exposes bounded local-first voice discovery and synthesis while preserving existing owner authority and all prior Broker responsibilities. #1219 only accepted nonterminal Goal resumed on changed verifier receipt; signature and authorizations still checked in child Executor. #1219 current vs historical authenticated WorkRun readback; existing parent requirements remain PARTIAL pending live evidence. Issue #1219: transient local writer contention returns an explicit non-owner process status, with bounded Broker rechecks of the same accepted Goal; no cross-host authority or live acceptance claim. Issue #1219: owner-auth current Goal now binds actual same-host persisted DevelopmentJobs by digest, phase and scope without granting cross-host authority or execution approval. Issue #1219: a read-only known-issued enrollment-token lookup selects the unchanged expiry/mode/usage/replay consume path before invitation-prefix routing. Existing credential issuer, roles, scopes, TTL, fleet limits and unknown/malformed invitation refusal/rate/revocation checks remain; no functional or physical completion claim."
     },
     {
       "path": "scripts/jarvis-direct-commander-service.sh",
@@ -3958,7 +3958,7 @@
     },
     {
       "path": "src/jarvis/enrollment.ts",
-      "sha256": "3b5ebf2bfe36c4b128fa7bdba7ce14950f1905a60cfbe1f2227e62533dbcd76d",
+      "sha256": "f541793b3fa315c158078e305ec4ca96e2a9d6c59c3c9501205ddc9af8c0e146",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "FLEET-001",
@@ -3970,7 +3970,7 @@
         "FLEET-007",
         "FLEET-008"
       ],
-      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification"
+      "reason": "Existing canonical implementation_refs; linked parent only, not complete behavior verification Issue #1219: a read-only known-issued enrollment-token lookup selects the unchanged expiry/mode/usage/replay consume path before invitation-prefix routing. Existing credential issuer, roles, scopes, TTL, fleet limits and unknown/malformed invitation refusal/rate/revocation checks remain; no functional or physical completion claim."
     },
     {
       "path": "src/jarvis/execution-router.ts",
