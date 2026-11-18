@@ -100,12 +100,13 @@ foreach($key in @([Environment]::GetEnvironmentVariables().Keys)){if(-not $initi
 foreach($key in $initial.Keys){[Environment]::SetEnvironmentVariable([string]$key,[string]$initial[$key])}
 [ordered]@{output=@($output);status=$status;http=$global:ownerProbeHttp}|ConvertTo-Json -Depth 6 -Compress
 `);
-  // Keep every case and each process's10s bound. Smaller owned batches leave
-  // room for Windows parsing/startup while every case retains a fresh runspace.
+  // Valid decodes both pinned sources; give it its own unchanged 10s budget.
+  // Limit the remaining parsing/runspace work to four cases per owned process.
   assert.equal(scenarios.length, 28);
+  const groups = [scenarios.slice(0, 1)];
+  for (let offset = 1; offset < scenarios.length; offset += 4) groups.push(scenarios.slice(offset, offset + 4));
   const runners = new Map();
-  for (let offset = 0; offset < scenarios.length; offset += 7) {
-    const group = scenarios.slice(offset, offset + 7);
+  for (const group of groups) {
     const execute = createPowerShellFixtureBatch({ shell: 'pwsh', fixture: wrapper, scenarios: group, parameters: { Manifest: manifestFile }, timeoutMs: 10000 });
     for (const scenario of group) runners.set(scenario, execute);
   }

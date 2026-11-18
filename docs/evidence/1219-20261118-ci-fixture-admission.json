@@ -1,0 +1,23 @@
+{
+  "issue": 1219,
+  "goal": "goal-fcc81c97e09153f7",
+  "job": "rotation-recovery-37",
+  "baseMain": "3f24f48f7759f229ceb09751052eaecb019428db",
+  "atUTC": "2026-11-18T16:26:47.708232+00:00",
+  "failureEvidence": {
+    "windowsAttempt1": "44341375033/job134931955636 canceled at5min inlastmediafixture; previous355uniquecases sum1.2628 slower than exacttree sourcepass",
+    "windowsAttempt2": "job134940773167 first7ownerprobe workflowcases PS_FIXTURE_BATCH_TIMEOUT10.273sec; no unchangedretry after this"
+  },
+  "change": "Validcase alone/remainingmax4 fresh-runspace batches retaining10s caps; independent atomic8/media3 in2 ownedfreshPowerShell lanes with90s execution+bounded15steardown, then originalnativeResume freshstep",
+  "preservation": "11parallelizedscriptbytes plus nativeResume bytes identical; SourceCSharp/wrapper/pins unchanged; 4job names/Windows5min/Node300/resource/signature/security checks retained",
+  "tests": "independentownerprobe33PASS, helper6PASS includingconcurrency/awaitpeerfailure/ownedgrandchilddeadline; final3PASS/lintgreen182/PSparsePASS",
+  "expectedCounts": {
+    "root": 4406,
+    "hosted": 4407,
+    "skip": 26
+  },
+  "review": "finalsupervisor review pending; ownerprobe0open",
+  "actualDeviceChanged": false,
+  "goalStatus": "NOT_ACHIEVED",
+  "g1": "HOLD"
+}
