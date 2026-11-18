@@ -238,7 +238,7 @@ jobs:
               'scripts/goriq-zbook-bridge-original-read.ps1'='bbbcfe2a7c4c8b58597d43cc05629ace0788d829587713e67f33311ef986d96c'
               'scripts/goriq-zbook-bridge-original-read.mjs'='3a2bc58a0d07b5d605da38acfad6851df01c258136046e8772aa2a36d55528ab'
               'scripts/goriq-g1-backup-inventory.mjs'='63d236135979ca681212f6b51b7b5d63c5a284c332fdb3615ba1f6c529fc2f66'
-              'scripts/goriq-zbook-bridge-capture.cs'='66d0a40c10e60cab97615335699377bdaf1fc18ee453c29d7e064ea0119054fe'
+              'scripts/goriq-zbook-bridge-capture.cs'='c149d00466bd75d35282fb44a5940ff64ef926c17f624b4e5d84d2ac1751b68c'
             }
             $sources = @{}
             foreach ($file in $pins.Keys) {

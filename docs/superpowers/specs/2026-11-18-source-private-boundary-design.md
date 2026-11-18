@@ -1,0 +1,28 @@
+# 承認済みの取得元本人専用ACL境界
+
+Issue #1219 / Goal goal-fcc81c97e09153f7 / Job rotation-recovery-37。
+所有者は2026-11-18の会話で、凍結修正案に対して「承認」と回答した。範囲のSHA256は `477f156730cab88b3a27588ef4bee6af52dcb88a2594d7978c4b57aa935b5599`、期限は2026-11-18T16:58:55.255367Z。元の修正案の本文・ファイルhashを変更して承認を拡張しない。
+
+## 対象と判定
+
+取得元はKnownFolderで決まるLocalApplicationData配下のGAIWorker/goal-1218-bridge-stateだけ。既存の固定DB/WAL/SHM/JOURNALとself-development/jobs.json/change-sets.jsonを最大16対象で検査する。未知の対象、再解析点、複数hardlink、所有者・ACLの想定違いは変更前に停止する。
+
+Captureの新しい祖先roleは、既存の固定Source探索で登録し、実際のhandle属性・最終pathでPROFILEより下／SOURCEより上のディレクトリであることを再確認する。本人／SYSTEM／Administrators／TrustedInstaller所有と、非信頼主体の許可maskが0x1200A9以内であることを要求する。generic/MAXIMUM_ALLOWED/未知bits、作成・変更・削除・DACL/owner操作権、非対応ACEは拒否する。SourceIdentity、snapshot、再検査でも同じroleを使う。この親用条件は今後の取得に適用される。PROFILE・SOURCE以下・コピー・実行環境等は従来の条件を保持する。
+
+## 一度のDACL修正
+
+実行時に一意に確認した追加Windowsアカウント／グループの継承read1179817を、取得元の固定対象内だけから除く。取得元ルートのみ保護DACLにし、既存子の保護状態と本人SIDへの既存FullControl（継承も可）、SYSTEM/Admin/既存TIの権限を保持する。親AppData/Local/GAIWorkerの権限・所有者、原本bytes、Owner/Group/SACL、サービス、認証情報は変更しない。
+
+MAXIMUM_ALLOWEDで開いた検証済み同一handleからSetSecurityInfoのDACL/protectionだけを更新し、既存の他の子へ自動伝播させない。将来の子は新しいprivate既定ACLを継承する。このAPI動作はWindowsの隔離fixture75件で検証済み。
+
+## 証拠・復元
+
+実際のSID指紋・fileID・実装hashとbefore/intendedAfterを固定し、CurrentUser DPAPI暗号化baseline/journalを読み戻して検証する。scope別の永続CREATE_NEW claimを最初のDACL書込み前に作り、成功・失敗を問わず削除して許可を再利用しない。各書込みの直前に期限・全対象・記述子を確認し、直後も検証してjournalに記録する。
+
+失敗時の復元は同じfileIDと処理自身のafterが一致する場合だけ、親から順に行う。元のread許可の再付与を含む。新規・削除・差替え・別のACL編集や不明状態があれば追加変更を止め、manualRecoveryを報告する。read/compare/setは原子的ではなく、別のACL編集が割り込む可能性までは排除できない。完全復元を観測していない場合に成功としない。稼働中プロセス内の条件付き復元であり、プロセスが消失した場合の自動復元入口は持たない。暗号化した退避・journalを残してmanualRecoveryを報告する。
+
+## 実行経路と受入
+
+専用の手動workflowはplan既定、apply明示。既存ZBook runner21、所有者actor、exactmain、4CI、pinned公知ソース、期限を確認し、PS5 Microsoft署名とRunner.Listener/currentSIDを照合する。新workflowの5分は追加repairと既存readを合わせた上限で、既存readonlyjob3分・WindowsCI5分・Node300秒・資源制限は変えない。
+
+apply成功後は新しいPowerShellプロセスで既存の固定原本コピー・readOnly問い合わせを行う。preserved=true/queryVerified=true/COPIED_STATE_READがそろわなければworkflowも失敗になる。Source/mainの新しい4CIと署名6項目、実機preflight・一度の適用・原本読み取りまで確認してから、このエラーの解消を判定する。Goal/Jobの再作成やController状態の自己更新は行わず、元Goal NOT_ACHIEVED/G1 HOLDは別の原本受入証拠がそろうまで保持する。
