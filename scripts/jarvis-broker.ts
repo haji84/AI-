@@ -1123,7 +1123,8 @@ async function handler(request: IncomingMessage, response: ServerResponse): Prom
     const key = createPublicKey(identityInput.publicKeyPem);
     if (algorithm === "ecdsa-p256-sha256" && key.asymmetricKeyType !== "ec") return json(response, 400, { message: "ECDSA worker must provide EC public key" });
     if (algorithm === "ed25519" && key.asymmetricKeyType !== "ed25519") return json(response, 400, { message: "Ed25519 worker must provide Ed25519 public key" });
-    if (tokenValue.startsWith(INVITATION_PREFIX)) {
+    // An issued opaque enrollment token can share the invitation prefix.
+    if (tokenValue.startsWith(INVITATION_PREFIX) && !plane.enrollment.hasToken(tokenValue)) {
       if (!invitationLimiter.consume(request.socket.remoteAddress || "unknown").allowed) return json(response, 429, { message: "Registration rate limit" });
       if (plane.fleet.get(node.id)) return json(response, 409, { message: "Existing identity must reconnect, not re-enroll" });
       if (plane.snapshot().fleet.length >= 100) return json(response, 409, { message: "Fleet capacity reached" });

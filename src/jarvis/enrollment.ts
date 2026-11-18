@@ -24,6 +24,10 @@ export class JarvisEnrollmentService {
     return { ...token };
   }
 
+  hasToken(tokenValue: string): boolean {
+    return this.tokens.has(tokenValue);
+  }
+
   consume(tokenValue: string, node: JarvisNode, now = new Date()): { node: JarvisNode; token: JarvisEnrollmentToken } {
     const token = this.tokens.get(tokenValue);
     if (!token) throw new Error("Invalid JARVIS enrollment token");

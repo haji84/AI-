@@ -1,5 +1,7 @@
 # Project State
 
+GORIQ_1219_ISSUED_TOKEN_ROUTING_20261118: Exactmainf7 CI44353014757 Windows/project/repoPASS, Unit4407PASS butIntegration1FAIL403(enrollment). Existingquick32base64url canstartji_; prefix-onlyroute wronglyselects46charinvitation. Root+independentcanonicalprefix/controlrepro. SeparateMEDIUM known-issuedMaplookup selects existingconsume; allcredentialissuer/roles/scopes/expiry/cap/replay/invitationguards retained. RED5→related19PASS/typecheck/lintPASS; newsource/main4CI+signed6 PENDING. OriginalSourceNative/wrapper/pins/launch100bytes unchanged. SourceOSscope477 expired16:58:55, extension04:58JST questionPENDING/unapproved/private; plan0/apply0. GoalFCC/rotation37 NOT_ACHIEVED/G1HOLD. Evidence docs/evidence/1219-20261118-issued-enrollment-token-routing.json.
+
 GORIQ_1219_CI_FIXTURE_ADMISSION_20261118: Main3f24 Windowsa1job5mincancel then boundedonefreshhosta2 ownerworkflow7case10stimeout; failedlogs171/177 retained. Test-only validalone+max4, atomic8/media3 two ownedfreshPS lanes then standaloneResume, all12scriptbytes/assertions/10s/5min/Node300/nativeSource/pins unchanged. Ownerprobe33/ownedlane6PASS; source/main4CI+signed6/newWindows/actualplan-apply-originalread PENDING. Scope477f1567 ownerapproved until16:58:55UTC; apply0. GoalFCC/rotation-recovery-37 NOT_ACHIEVED/G1HOLD. Evidence docs/evidence/1219-20261118-ci-fixture-admission.json.
 
 PROJECT: General Autonomous AI / Unified AI Creator Studio / GAI Research OS
