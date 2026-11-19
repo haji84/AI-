@@ -1,0 +1,68 @@
+{
+  "issue": 1219,
+  "goal": "goal-fcc81c97e09153f7",
+  "job": "rotation-recovery-37",
+  "baseMain": "abaa3e29a7f4b902798e895bbe1aa21b923ec203",
+  "atUTC": "2026-11-19T22:53:55.777123+00:00",
+  "risk": "MEDIUM bounded metadata-only diagnosis under owner completion authority",
+  "authority": "Owner fully-resolve request + current So needs to do continuation; no OS permission change authority inferred",
+  "knownActualFailure": {
+    "run": 44629314535,
+    "job": 135931484871,
+    "runner": 21,
+    "nativeStatus": "REFUSED",
+    "nativeReason": "UNKNOWN_SOURCE_OBJECT",
+    "changedObjects": 0,
+    "claimCreatedByThisAttempt": false
+  },
+  "frozenRepairBudget": {
+    "planMax": 1,
+    "planConsumed": 1,
+    "applyMax": 1,
+    "applyConsumed": 0,
+    "notReset": true
+  },
+  "diagnosticOnly": {
+    "fixedRoots": "KnownFolder Local/GAIWorker/goal-1218-bridge-state and its literal self-development child",
+    "maxPerBranch": 32,
+    "maxEntries": 64,
+    "softElapsedMs": 10000,
+    "hardJobMinutes": 3,
+    "deadlineUTC": "2026-11-20T06:00:00Z",
+    "publicOutput": "Only fixed category/location/kind enums and counts; no literal unknown names/paths/SIDs/contents/exception messages",
+    "consistency": "LIVE_SAMPLED",
+    "originalContentRead": false,
+    "originalPermissionOrDataWrites": false,
+    "separateMaxDispatches": 1
+  },
+  "codeUnchanged": [
+    "scripts/goriq-source-private-acl-repair.cs",
+    "scripts/goriq-source-private-acl-repair.ps1",
+    "scripts/goriq-zbook-bridge-capture.cs",
+    ".github/workflows/goriq-source-private-acl-repair-1219.yml",
+    "scripts/goriq-zbook-bridge-original-read.ps1",
+    "scripts/goriq-zbook-bridge-original-read.mjs"
+  ],
+  "observerSha256": "fd8fafd7a20b9c7a07712cbb577efb19b435c5d14790e28224ec5795950401ca",
+  "tests": "Final related65PASS0skip, PowerShell55checksPASS, typecheckPASS and audit626surfaces341requirementsPASS; lint after fixes PASS. Missingfeature/workflow, JSON Int64, arrays/escape/ordinal regressions and three review findings RED->GREEN retained.",
+  "newSourceCI": "PENDING exact head4 and signed6",
+  "newMainCI": "PENDING exact protectedmerge4 and signed6",
+  "actualDiagnostic": "NOT_DISPATCHED",
+  "actualRepairApply": "NOT_DISPATCHED",
+  "goalStatus": "NOT_ACHIEVED",
+  "g1": "HOLD",
+  "expectedTests": {
+    "root": 4442,
+    "hosted": 4443,
+    "existingSkip": 26
+  },
+  "next": "One actual metadata observation after fresh gates. Any new ACL target or extra preflight requires a separately reviewable amended scope; do not weaken unknown guard or reuse exhausted plan budget.",
+  "independentReview": {
+    "critical": 0,
+    "important": 3,
+    "minor": 0,
+    "fixed": 3,
+    "open": 0,
+    "fixEvidence": "Sampled-child deletion, final clock expiry, foreign triggering actor/rerun2 rejected in actual fixtures; one fix pass, full suite in required CI pending"
+  }
+}
