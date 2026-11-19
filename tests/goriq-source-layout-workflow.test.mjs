@@ -11,15 +11,16 @@ const job=workflow.split('\n  source_layout:')[1];
 const root=mkdtempSync(join(tmpdir(),'source-repair-gates-'));after(()=>rmSync(root,{recursive:true,force:true}));
 const files=['scripts/goriq-source-layout-observer.ps1'];
 const sha='a'.repeat(40),quote=s=>"'"+s.replaceAll("'","''")+"'",object=v=>`(ConvertFrom-Json -InputObject ${quote(JSON.stringify(v))})`;
-const context={GITHUB_REPOSITORY:'haji84/AI-',GITHUB_ACTOR:'haji84',GITHUB_REF:'refs/heads/main',GITHUB_EVENT_NAME:'workflow_dispatch',RUNNER_NAME:'ZBook',RUNNER_OS:'Windows',OS:'Windows_NT',GITHUB_SHA:sha,GITHUB_RUN_ID:'42',GITHUB_RUN_ATTEMPT:'1'};
-const scenarios=['valid','clock-before-expiry','clock-at-expiry','clock-after-expiry','clock-before-notbefore','actor','ref','event','main','ci-incomplete','ci-wrong-head','runner-id','runner-name','source-0','source-path','source-encoding','native-extra','native-private','native-count','native-true','native-duplicate'];
+const context={GITHUB_REPOSITORY:'haji84/AI-',GITHUB_ACTOR:'haji84',GITHUB_TRIGGERING_ACTOR:'haji84',GITHUB_REF:'refs/heads/main',GITHUB_EVENT_NAME:'workflow_dispatch',RUNNER_NAME:'ZBook',RUNNER_OS:'Windows',OS:'Windows_NT',GITHUB_SHA:sha,GITHUB_RUN_ID:'42',GITHUB_RUN_ATTEMPT:'1'};
+const scenarios=['valid','clock-before-expiry','clock-at-expiry','clock-after-expiry','clock-before-notbefore','actor','ref','event','trigger-actor','attempt-two','attempt-zero','main','ci-incomplete','ci-wrong-head','runner-id','runner-name','source-0','source-path','source-encoding','native-extra','native-private','native-count','native-true','native-duplicate'];
 let execute;
 test('Source layout observation is manual owner/main only',()=>{
  assert.ok(workflow,'missing metadata-only workflow');
  const expression=job.match(/^ {4}if: (.*)$/m)[1];
- const values={github:{repository:'haji84/AI-',ref:'refs/heads/main',actor:'haji84',event_name:'workflow_dispatch'}};
+ const values={github:{repository:'haji84/AI-',ref:'refs/heads/main',actor:'haji84',triggering_actor:'haji84',run_attempt:1,event_name:'workflow_dispatch'}};
  assert.equal(runInNewContext(expression,values),true);
- for(const key of ['actor','repository','ref','event_name']){const bad={github:{...values.github}};bad.github[key]='other';assert.equal(runInNewContext(expression,bad),false);}
+ for(const key of ['actor','repository','ref','event_name','triggering_actor']){const bad={github:{...values.github}};bad.github[key]='other';assert.equal(runInNewContext(expression,bad),false);}
+ for(const attempt of [0,2]){const bad={github:{...values.github,run_attempt:attempt}};assert.equal(runInNewContext(expression,bad),false);}
 });
 function prepare(){
  assert.ok(workflow,'missing metadata-only workflow');
@@ -52,6 +53,7 @@ function Invoke-LayoutFixture {
 }
 `;
   const env={...context};
+  if(scenario==='trigger-actor')env.GITHUB_TRIGGERING_ACTOR='other';if(scenario==='attempt-two')env.GITHUB_RUN_ATTEMPT='2';if(scenario==='attempt-zero')env.GITHUB_RUN_ATTEMPT='0';
   for(const[k,s]of [['GITHUB_ACTOR','actor'],['GITHUB_REF','ref'],['GITHUB_EVENT_NAME','event']])if(scenario===s)env[k]='untrusted';
   const file=join(root,`${i}.ps1`);writeFileSync(file,program+clockBody);manifest.push({scenario,file,env});
  }

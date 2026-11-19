@@ -36,3 +36,5 @@
 - [ ] Run related tests, types/lint/audit and fresh full CI; retain every failure.
 - [ ] Review whole branch in fresh context, resolve material findings, then normal protected integration and fresh exactmain4CI/signed6.
 - [ ] Record distinct one-shot metadata budget, dispatch once, verify result; do not consume/replay original repair plan or apply.
+
+Review fix pass: sampled-child disappearance must refuse, final elapsed10s must refuse, owner triggering actor/attempt1 required. Literal regression fixtures cover all3; old repair bytes remain unchanged.

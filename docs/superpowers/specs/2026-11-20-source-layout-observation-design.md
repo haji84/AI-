@@ -18,3 +18,6 @@ Issue1219 / Goal goal-fcc81c97e09153f7 / rotation-recovery-37。実機4462931453
 
 ## 検証
 純粋な分類・closed JSON・OTHER/例外の非漏えい・32/64境界・temporary treeの非再帰/非変更を実行で検証。workflowをinert時計/HTTP/観測境界で実行し、owner/main/CI/runner/pin/期限とoutput拒否を確認。Windows PS5 fixtureも既存5分CI内で実行。既存上限・テストを弱めない。
+
+## レビューで確定した拒否条件
+Rootの観測が示したself-developmentは必ず列挙し、消失・アクセス失敗を空とは扱わない。最後のmetadata取得・分類の後も10秒境界を検査する。新しい一度のdispatchだけを許可し、GITHUB_RUN_ATTEMPT=1とGITHUB_TRIGGERING_ACTOR=haji84をjob/Bootstrap/操作入口で要求する。

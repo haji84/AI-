@@ -91,12 +91,26 @@ function Read-GoriqSourceLayoutDirectory {
   }finally{if($iterator -is [IDisposable]){$iterator.Dispose()}}
 }
 
+function Read-GoriqSourceLayoutTree {
+  param([string]$Source,[Diagnostics.Stopwatch]$Clock,[string[]]$Chain)
+  $rows=@(Read-GoriqSourceLayoutDirectory $Source 'SOURCE' $Clock)
+  $side=Join-Path $Source 'self-development'
+  $children=@($rows|Where-Object {[string]::Equals($_.name,'self-development',[StringComparison]::OrdinalIgnoreCase) -and ($_.attributes -band 16) -ne 0})
+  if($children.Count -gt 1){throw 'REPORT_UNVERIFIED'}
+  if($children.Count -eq 1){$rows+=@(Read-GoriqSourceLayoutDirectory $side 'SELF_DEVELOPMENT' $Clock)}
+  foreach($path in $Chain){if(([IO.File]::GetAttributes($path) -band [IO.FileAttributes]::ReparsePoint) -ne 0){throw 'REPARSE_ENTRY'}}
+  $report=ConvertTo-GoriqSourceLayoutReport $rows
+  if($Clock.ElapsedMilliseconds -ge 10000){throw 'OBSERVATION_TIMEOUT'}
+  return $report
+}
+
 function Invoke-GoriqSourceLayoutObservation {
   $failure='CONTEXT_UNVERIFIED'
   try{
     if([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT -or $env:RUNNER_OS -cne 'Windows' -or $env:OS -cne 'Windows_NT' -or
        $env:RUNNER_NAME -cne 'ZBook' -or $env:GITHUB_REPOSITORY -cne 'haji84/AI-' -or $env:GITHUB_ACTOR -cne 'haji84' -or
        $env:GITHUB_REF -cne 'refs/heads/main' -or $env:GITHUB_EVENT_NAME -cne 'workflow_dispatch' -or $env:GITHUB_ACTIONS -cne 'true' -or
+       $env:GITHUB_TRIGGERING_ACTOR -cne 'haji84' -or $env:GITHUB_RUN_ATTEMPT -cne '1' -or
        $env:GITHUB_SHA -cnotmatch '^[a-f0-9]{40}\z' -or $PSVersionTable.PSVersion.Major -ne 5 -or
        $ExecutionContext.SessionState.LanguageMode -ne 'FullLanguage'){throw 'REFUSED'}
     if([datetimeoffset]::UtcNow -ge [datetimeoffset]::Parse('2026-11-20T06:00:00Z')){$failure='SCOPE_EXPIRED';throw 'REFUSED'}
@@ -125,11 +139,7 @@ function Invoke-GoriqSourceLayoutObservation {
     while($path.Length -gt 3){$chain.Add($path);$path=[IO.Path]::GetDirectoryName($path)}
     foreach($path in $chain){$a=[IO.File]::GetAttributes($path);if(($a -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or ($a -band [IO.FileAttributes]::Directory) -eq 0){throw 'REPARSE_ENTRY'}}
     $failure='OBSERVATION_UNAVAILABLE';$clock=[Diagnostics.Stopwatch]::StartNew()
-    $rows=@(Read-GoriqSourceLayoutDirectory $source 'SOURCE' $clock)
-    $side=Join-Path $source 'self-development'
-    if([IO.Directory]::Exists($side)){$rows+=@(Read-GoriqSourceLayoutDirectory $side 'SELF_DEVELOPMENT' $clock)}
-    foreach($path in $chain){if(([IO.File]::GetAttributes($path) -band [IO.FileAttributes]::ReparsePoint) -ne 0){throw 'REPARSE_ENTRY'}}
-    $report=ConvertTo-GoriqSourceLayoutReport $rows
+    $report=Read-GoriqSourceLayoutTree $source $clock @($chain.ToArray())
     return ($report|ConvertTo-Json -Depth 5 -Compress)
   }catch{
     if($_.Exception.Message -cin @('REPARSE_ENTRY','LAYOUT_BOUND','OBSERVATION_TIMEOUT','REPORT_UNVERIFIED')){$failure=$_.Exception.Message}

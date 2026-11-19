@@ -92,6 +92,30 @@ try{
  $failed=$false;try{$null=@(Read-GoriqSourceLayoutDirectory $temp 'SOURCE' ([Diagnostics.Stopwatch]::StartNew()))}catch{$failed=$true}
  Check-Layout $failed 'actual_directory_overflow_refused'
 }finally{[IO.Directory]::Delete($temp,$true)}
+Check-Layout ($null -ne (Get-Command Read-GoriqSourceLayoutTree -ErrorAction SilentlyContinue)) 'tree_reader_definition_missing'
+$race=Join-Path ([IO.Path]::GetTempPath()) ('source-layout-race-'+[guid]::NewGuid().ToString('N'))
+$null=[IO.Directory]::CreateDirectory((Join-Path $race 'self-development'))
+$script:layoutRealReader=(Get-Command Read-GoriqSourceLayoutDirectory).ScriptBlock
+try{
+ $script:layoutFixtureMode='delete-child'
+ Set-Item Function:Read-GoriqSourceLayoutDirectory -Value {
+  param($Path,$Location,$Clock)
+  $rows=@(& $script:layoutRealReader $Path $Location $Clock)
+  if($Location -ceq 'SOURCE'){
+   if($script:layoutFixtureMode -ceq 'delete-child'){[IO.Directory]::Delete((Join-Path $Path 'self-development'))}
+   elseif($script:layoutFixtureMode -ceq 'expire-after-enumeration'){$Clock|Add-Member -MemberType NoteProperty -Name ElapsedMilliseconds -Value 10000 -Force}
+  }
+  return $rows
+ }
+ $failed=$false;try{$null=Read-GoriqSourceLayoutTree $race ([Diagnostics.Stopwatch]::StartNew()) @($race)}catch{$failed=$true}
+ Check-Layout $failed 'sampled_child_disappeared_must_not_look_empty'
+ $script:layoutFixtureMode='expire-after-enumeration'
+ $failed=$false;try{$null=Read-GoriqSourceLayoutTree $race ([Diagnostics.Stopwatch]::StartNew()) @($race)}catch{$failed=$_.Exception.Message -ceq 'OBSERVATION_TIMEOUT'}
+ Check-Layout $failed 'final_metadata_budget_must_be_checked'
+}finally{
+ Set-Item Function:Read-GoriqSourceLayoutDirectory -Value $script:layoutRealReader
+ if([IO.Directory]::Exists($race)){[IO.Directory]::Delete($race,$true)}
+}
 $savedRunner=$env:RUNNER_NAME
 try{$env:RUNNER_NAME='NOT_THE_APPROVED_RUNNER';$closed=Invoke-GoriqSourceLayoutObservation|ConvertFrom-Json}finally{$env:RUNNER_NAME=$savedRunner}
 Check-Layout ($closed.status -ceq 'REFUSED' -and $closed.reason -ceq 'CONTEXT_UNVERIFIED' -and $closed.entries.Count -eq 0) 'wrong_context_refused_before_source_read'

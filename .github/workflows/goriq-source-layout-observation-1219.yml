@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   source_layout:
-    if: github.repository == 'haji84/AI-' && github.ref == 'refs/heads/main' && github.actor == 'haji84' && github.event_name == 'workflow_dispatch'
+    if: github.repository == 'haji84/AI-' && github.ref == 'refs/heads/main' && github.actor == 'haji84' && github.triggering_actor == 'haji84' && github.run_attempt == 1 && github.event_name == 'workflow_dispatch'
     runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 3
     steps:
@@ -29,7 +29,7 @@ jobs:
                 $env:GITHUB_REPOSITORY -cne 'haji84/AI-' -or $env:GITHUB_ACTOR -cne 'haji84' -or
                 $env:GITHUB_REF -cne 'refs/heads/main' -or $env:GITHUB_EVENT_NAME -cne 'workflow_dispatch' -or
                 $env:GITHUB_SHA -cnotmatch '^[a-f0-9]{40}\z' -or $env:GITHUB_RUN_ID -cnotmatch '^[1-9][0-9]{0,19}\z' -or
-                $env:GITHUB_RUN_ATTEMPT -cnotmatch '^[1-9][0-9]{0,3}\z') { throw 'REFUSED' }
+                $env:GITHUB_RUN_ATTEMPT -cne '1' -or $env:GITHUB_TRIGGERING_ACTOR -cne 'haji84') { throw 'REFUSED' }
             $failure = 'OWNER_SCOPE_UNVERIFIED'
             $now = [datetimeoffset]::UtcNow
             if ($now -lt [datetimeoffset]::Parse('2026-11-19T22:42:29Z') -or $now -ge [datetimeoffset]::Parse('2026-11-20T06:00:00Z')) { throw 'REFUSED' }
@@ -66,7 +66,7 @@ jobs:
                 $own.status -cne 'in_progress' -or $own.runner_id -ne 21 -or $own.runner_name -cne 'ZBook') { throw 'REFUSED' }
             $failure = 'SOURCE_BYTES_UNVERIFIED'
             $pins = [ordered]@{
-              'scripts/goriq-source-layout-observer.ps1'='86b4f09cc5a77debcab039c8cdecf8692278b119b58ce85b9c1eca10125d76ca'
+              'scripts/goriq-source-layout-observer.ps1'='fd8fafd7a20b9c7a07712cbb577efb19b435c5d14790e28224ec5795950401ca'
             }
             $sources = @{}
             $utf8 = [Text.UTF8Encoding]::new($false,$true)

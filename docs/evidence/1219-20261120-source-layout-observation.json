@@ -43,8 +43,8 @@
     "scripts/goriq-zbook-bridge-original-read.ps1",
     "scripts/goriq-zbook-bridge-original-read.mjs"
   ],
-  "observerSha256": "86b4f09cc5a77debcab039c8cdecf8692278b119b58ce85b9c1eca10125d76ca",
-  "tests": "Newcapability/workflow missing RED; Int64 JSON parser issue fixed; malformed arrays/escaped enums/ordinal filename cases RED->GREEN; final related62PASS0skip and PowerShell52checksPASS. Typecheck/lint and requirement audit626surfaces341requirementsPASS. Initial fixture-only lint global reference corrected without rule changes.",
+  "observerSha256": "fd8fafd7a20b9c7a07712cbb577efb19b435c5d14790e28224ec5795950401ca",
+  "tests": "Final related65PASS0skip, PowerShell55checksPASS, typecheckPASS and audit626surfaces341requirementsPASS; lint after fixes PASS. Missingfeature/workflow, JSON Int64, arrays/escape/ordinal regressions and three review findings RED->GREEN retained.",
   "newSourceCI": "PENDING exact head4 and signed6",
   "newMainCI": "PENDING exact protectedmerge4 and signed6",
   "actualDiagnostic": "NOT_DISPATCHED",
@@ -52,9 +52,17 @@
   "goalStatus": "NOT_ACHIEVED",
   "g1": "HOLD",
   "expectedTests": {
-    "root": 4439,
-    "hosted": 4440,
+    "root": 4442,
+    "hosted": 4443,
     "existingSkip": 26
   },
-  "next": "One actual metadata observation after fresh gates. Any new ACL target or extra preflight requires a separately reviewable amended scope; do not weaken unknown guard or reuse exhausted plan budget."
+  "next": "One actual metadata observation after fresh gates. Any new ACL target or extra preflight requires a separately reviewable amended scope; do not weaken unknown guard or reuse exhausted plan budget.",
+  "independentReview": {
+    "critical": 0,
+    "important": 3,
+    "minor": 0,
+    "fixed": 3,
+    "open": 0,
+    "fixEvidence": "Sampled-child deletion, final clock expiry, foreign triggering actor/rerun2 rejected in actual fixtures; one fix pass, full suite in required CI pending"
+  }
 }
