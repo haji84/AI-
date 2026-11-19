@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { URL } from 'node:url';
 import { test } from 'node:test';
 import { evaluateQualityCampaign, formatReport } from '../scripts/ai-employee-quality-audit.mjs';
 const dataset = JSON.parse(readFileSync(new URL('../docs/evidence/1216-20261119-ai-employee-quality-cases.json', import.meta.url), 'utf8'));
-function copy() { return structuredClone(dataset); }
+function copy() { return JSON.parse(JSON.stringify(dataset)); }
 test('historical process checks are paired and never called AI-model accuracy', () => {
   const report = evaluateQualityCampaign(copy());
   assert.equal(report.caseCount, 2);
@@ -30,7 +31,7 @@ test('source CI success never completes original production goal', () => {
 test('missing mandatory checks and duplicate cases are rejected', () => {
   let data = copy(); delete data.cases[0].after.checks.live_goal_verified;
   assert.throws(() => evaluateQualityCampaign(data), /checks mismatch/);
-  data = copy(); data.cases.push(structuredClone(data.cases[0]));
+  data = copy(); data.cases.push(JSON.parse(JSON.stringify(data.cases[0])));
   assert.throws(() => evaluateQualityCampaign(data), /duplicate case/);
 });
 test('manual corrections must be measured rather than guessed', () => {
