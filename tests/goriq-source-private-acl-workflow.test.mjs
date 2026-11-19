@@ -11,7 +11,7 @@ const root=mkdtempSync(join(tmpdir(),'source-repair-gates-'));after(()=>rmSync(r
 const files=['scripts/goriq-source-private-acl-repair.ps1','scripts/goriq-zbook-bridge-capture.cs','scripts/goriq-source-private-acl-repair.cs'];
 const sha='a'.repeat(40),quote=s=>"'"+s.replaceAll("'","''")+"'",object=v=>`(ConvertFrom-Json -InputObject ${quote(JSON.stringify(v))})`;
 const context={GITHUB_REPOSITORY:'haji84/AI-',GITHUB_ACTOR:'haji84',GITHUB_REF:'refs/heads/main',GITHUB_EVENT_NAME:'workflow_dispatch',RUNNER_NAME:'ZBook',RUNNER_OS:'Windows',OS:'Windows_NT',GITHUB_SHA:sha,GITHUB_RUN_ID:'42',GITHUB_RUN_ATTEMPT:'1',GORIQ_SOURCE_REPAIR_PHASE:'plan'};
-const scenarios=['valid-plan','valid-apply','actor','ref','event','phase','main','ci-incomplete','ci-wrong-head','runner-id','runner-name','source-0','source-1','source-2','source-path','source-encoding','native-extra','native-private','native-plan-write','native-apply-plan'];
+const scenarios=['valid-plan','valid-apply','clock-old-expiry','clock-before-expiry','clock-at-expiry','clock-after-expiry','clock-before-notbefore','actor','ref','event','phase','main','ci-incomplete','ci-wrong-head','runner-id','runner-name','source-0','source-1','source-2','source-path','source-encoding','native-extra','native-private','native-plan-write','native-apply-plan'];
 let execute;
 test('approved Source repair has one owner/main-only plan/apply job',()=>{
  const expression=job.match(/^ {4}if: (.*)$/m)[1];
@@ -25,7 +25,9 @@ function prepare(){
  const raw=job.split('      - name: Read the fixed candidate after verified repair')[0];
  const body=raw.match(/ {8}run: \|\n([\s\S]*)$/)[1].split('\n').map(x=>x.replace(/^ {10}/,'')).join('\n').replace('[Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT','$false').replace('[datetimeoffset]::UtcNow',"[datetimeoffset]::Parse('2026-11-18T15:00:00Z')").replace('Invoke-GoriqSourcePrivateAclRepair -CaptureSource','Invoke-SourceRepairFixture -CaptureSource');
  const manifest=[];
+ const clocks={'clock-old-expiry':'2026-11-18T16:58:55.2553670Z','clock-before-expiry':'2026-11-20T05:59:59.9999999Z','clock-at-expiry':'2026-11-20T06:00:00.0000000Z','clock-after-expiry':'2026-11-20T06:00:00.0000001Z','clock-before-notbefore':'2026-11-18T14:33:59.9999999Z'};
  for(const [i,scenario]of scenarios.entries()){
+  const clockBody=body.replace("'2026-11-18T15:00:00Z'",quote(clocks[scenario]??'2026-11-18T15:00:00Z'));
   const ci=['repository-guard','project-checks','independent-verifier-container','windows-runtime-byte-fixtures'].map(name=>({name,run_id:71,head_sha:sha,status:'completed',conclusion:'success'}));
   if(scenario==='ci-incomplete')ci.pop();if(scenario==='ci-wrong-head')ci[0].head_sha='b'.repeat(40);
   const current={name:'source_private_acl',run_id:42,head_sha:sha,status:'in_progress',runner_id:scenario==='runner-id'?22:21,runner_name:scenario==='runner-name'?'Other':'ZBook'};
@@ -49,7 +51,7 @@ function Invoke-SourceRepairFixture {param([string]$CaptureSource,[string]$Repai
 `;
   const env={...context};if(['valid-apply','native-apply-plan'].includes(scenario))env.GORIQ_SOURCE_REPAIR_PHASE='apply';
   for(const[k,s]of [['GITHUB_ACTOR','actor'],['GITHUB_REF','ref'],['GITHUB_EVENT_NAME','event'],['GORIQ_SOURCE_REPAIR_PHASE','phase']])if(scenario===s)env[k]='untrusted';
-  const file=join(root,`${i}.ps1`);writeFileSync(file,program+body);manifest.push({scenario,file,env});
+  const file=join(root,`${i}.ps1`);writeFileSync(file,program+clockBody);manifest.push({scenario,file,env});
  }
  const path=join(root,'manifest.json');writeFileSync(path,JSON.stringify(manifest));for(const row of manifest)writeFileSync(path+'.'+row.scenario+'.json',JSON.stringify(row));
  const wrapper=join(root,'wrapper.ps1');writeFileSync(wrapper,`param([string]$Scenario,[string]$Manifest)
@@ -64,7 +66,7 @@ foreach($key in $initial.Keys){[Environment]::SetEnvironmentVariable([string]$ke
 }
 for(const scenario of scenarios)test('fixed Source repair workflow gate '+scenario,()=>{
  if(!execute)prepare();const record=execute(scenario);assert.equal(record.status,0,record.stderr);assert.equal(record.stderr,'');assert.doesNotMatch(record.stdout,/PRIVATE(?!_ACL)/);const r=JSON.parse(record.stdout);
- if(scenario==='valid-plan'||scenario==='valid-apply'){
-  assert.equal(r.status,0);assert.equal(r.output.length,1);assert.match(r.output[0],/^GORIQ_SOURCE_PRIVATE_ACL_REPAIR /);const value=JSON.parse(r.output[0].split('GORIQ_SOURCE_PRIVATE_ACL_REPAIR ')[1]);assert.equal(value.status,scenario==='valid-plan'?'PLANNED':'APPLIED');assert.equal(value.originalDataPreservationVerified,false);assert.deepEqual(r.flags,[scenario==='valid-apply'?'read=true':'read=false']);
- }else{assert.equal(r.status,1);assert.equal(r.output.length,1);assert.match(r.output[0],/^GORIQ_SOURCE_PRIVATE_ACL_REFUSED [A-Z_]+$/);assert.equal(r.flags.length,0);}
+ if(['valid-plan','valid-apply','clock-old-expiry','clock-before-expiry'].includes(scenario)){
+  assert.equal(r.status,0);assert.equal(r.output.length,1);assert.match(r.output[0],/^GORIQ_SOURCE_PRIVATE_ACL_REPAIR /);const value=JSON.parse(r.output[0].split('GORIQ_SOURCE_PRIVATE_ACL_REPAIR ')[1]);assert.equal(value.status,scenario==='valid-apply'?'APPLIED':'PLANNED');assert.equal(value.originalDataPreservationVerified,false);assert.deepEqual(r.flags,[scenario==='valid-apply'?'read=true':'read=false']);
+ }else{assert.equal(r.status,1);assert.equal(r.output.length,1);assert.match(r.output[0],/^GORIQ_SOURCE_PRIVATE_ACL_REFUSED [A-Z_]+$/);assert.equal(r.flags.length,0);if(scenario.startsWith('clock-'))assert.equal(r.http,0);}
 });

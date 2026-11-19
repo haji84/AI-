@@ -41,7 +41,7 @@ jobs:
                 $env:GITHUB_RUN_ATTEMPT -cnotmatch '^[1-9][0-9]{0,3}\z' -or $env:GORIQ_SOURCE_REPAIR_PHASE -cnotin @('plan','apply')) { throw 'REFUSED' }
             $failure = 'OWNER_SCOPE_UNVERIFIED'
             $now = [datetimeoffset]::UtcNow
-            if ($now -lt [datetimeoffset]::Parse('2026-11-18T14:34:00Z') -or $now -ge [datetimeoffset]::Parse('2026-11-18T16:58:55.255367Z')) { throw 'REFUSED' }
+            if ($now -lt [datetimeoffset]::Parse('2026-11-18T14:34:00Z') -or $now -ge [datetimeoffset]::Parse('2026-11-20T06:00:00Z')) { throw 'REFUSED' }
             function Read-GoriqPublicMetadata {
               param([string]$Path)
               Invoke-RestMethod -Method Get -Uri ('https://api.github.com/repos/haji84/AI-/' + $Path) -TimeoutSec 10 -MaximumRedirection 0 -Headers @{
@@ -77,7 +77,7 @@ jobs:
             $pins = [ordered]@{
               'scripts/goriq-source-private-acl-repair.ps1'='50396f93268ab416b68ce08e5b86391f0a441580c28386a8f25779118f95ecdc'
               'scripts/goriq-zbook-bridge-capture.cs'='c149d00466bd75d35282fb44a5940ff64ef926c17f624b4e5d84d2ac1751b68c'
-              'scripts/goriq-source-private-acl-repair.cs'='1ca44025cc06169656c054f6cdfced4b3527aa5bba49e3740aa1972f5d2ce85d'
+              'scripts/goriq-source-private-acl-repair.cs'='5518ae608d303bdaa232a6f14f25919168aabe6401c3e6d0342710493d730480'
             }
             $sources = @{}
             $utf8 = [Text.UTF8Encoding]::new($false,$true)

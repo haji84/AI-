@@ -5,7 +5,7 @@ public static class GoriqSourcePrivateAclRepair {
  public const string ScopeHash="477f156730cab88b3a27588ef4bee6af52dcb88a2594d7978c4b57aa935b5599";
  internal const string Installer="S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464";
  internal static readonly DateTime NotBefore=new DateTime(2026,11,18,14,38,49,DateTimeKind.Utc).AddTicks(8228920);
- internal static readonly DateTime Expires=new DateTime(2026,11,18,16,58,55,DateTimeKind.Utc);
+ internal static readonly DateTime Expires=new DateTime(2026,11,20,6,0,0,DateTimeKind.Utc);
  internal const int Full=2032127,Reader=1179817,MaximumObjects=16,MaximumDescriptor=65536,MaximumBaseline=2097152;
  internal sealed class Refusal:IOException {internal readonly string Code;internal Refusal(string code):base("SOURCE_PRIVATE_ACL_REFUSED"){Code=code;}}
  internal static void Need(bool value,string code){if(!value)throw new Refusal(code);}
