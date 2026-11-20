@@ -1,0 +1,119 @@
+{
+  "issue": 1219,
+  "goal": "goal-fcc81c97e09153f7",
+  "job": "rotation-recovery-37",
+  "baseMain": "df4fc584986fb832d493cca566f13d6a2597c4a9",
+  "atUTC": "2026-11-20T00:15:00.472138+00:00",
+  "risk": "HIGH Source DACL target amendment explicitly owner-approved; builder/independentVerifier/ownerGate separated",
+  "ownerApproval": {
+    "reply": "追加3ファイルと事前確認1回を承認",
+    "approvalRecordSha256": "df6144996881a49da624d01805f2f08276d4c49804c9f3b8f905a4dae92c2feb",
+    "effectiveScopeSha256": "830e91deef9611ecd0804dfeacd189bb300120ab8fa2effd0bb72bb9b3766c2f",
+    "parentScopeSha256": "477f156730cab88b3a27588ef4bee6af52dcb88a2594d7978c4b57aa935b5599",
+    "permanentClaimScopeIdentity": "477f156730cab88b3a27588ef4bee6af52dcb88a2594d7978c4b57aa935b5599",
+    "expiresUTC": "2026-11-20T06:00:00Z",
+    "reviewedProposalSha256": "088357fd4d4b1b7b8d268ca8593135d958da3d8e9d2e779535f91d713b22d98b",
+    "reviewedPatchSha256": "6ef3d5fe000d8d1da79009f52a0021cde19dbaeea0245111502468f84ff8f0ab"
+  },
+  "actualEvidence": {
+    "priorPlan": 44629314535,
+    "priorPlanResult": "REFUSED UNKNOWN_SOURCE_OBJECT 0changed",
+    "layoutDiagnostic": 44637460600,
+    "actualFiles": [
+      "compass.sqlite",
+      "state.sqlite",
+      "state.sqlite-shm",
+      "state.sqlite-wal"
+    ],
+    "selfDevelopmentCount": 0,
+    "unknownCount": 0,
+    "ownerListMatches": true,
+    "all3BrokerFilesCurrentUserOwnerAndFullControlReported": true,
+    "all3BrokerFilesMaximumAllowedOpen0Reported": true
+  },
+  "change": "Add only state.sqlite/state.sqlite-shm/state.sqlite-wal to exact Source allowlist and native roles; require existing fullcontrol for BrokerDB. New effective scope binds wrapper/report/payload, permanent original477 claim filename remains unchanged. Require owner triggering actor and runattempt1.",
+  "preserved": "Unknown/hardlink/reparse/identity/ACL drift refusal, root-only protected DACL and child protection, user/SYSTEM/Admin/existingTI grants, owner/group/SACL/originalbytes/ancestors/services/credentials and existing MAXIMUM_ALLOWED access behavior unchanged.",
+  "counterAmendment": {
+    "oldPlanMax": 1,
+    "oldPlanConsumed": 1,
+    "additionalPlanAuthorized": 1,
+    "newLifetimePlanMax": 2,
+    "planConsumedAtApproval": 1,
+    "applyLifetimeMax": 1,
+    "applyConsumed": 0,
+    "claimResetAuthorized": false
+  },
+  "privateVerification": {
+    "portableChecksPassed": 123,
+    "csharp5Compiled": true,
+    "workflowNodeTestsPassed": 29,
+    "wrapperInternalChecksExpected": 45,
+    "combinedWorkflowWrapperTestsPassed": 30,
+    "newWindowsBrokerFixtures": "Compiled C#5 only here; live Windows execution required in fresh approved source/main CI before original operation",
+    "existingRollbackReplayExpiryTestsRetained": true
+  },
+  "independentReview": {
+    "critical": 0,
+    "important": 0,
+    "minor": 0,
+    "verified": "Exact3targets/unknownrefusal, cross-scope permanentclaim, all7hashes/scope/patch/implementation pins"
+  },
+  "files": {
+    "scripts/goriq-source-private-acl-repair.cs": {
+      "beforeSha256": "5518ae608d303bdaa232a6f14f25919168aabe6401c3e6d0342710493d730480",
+      "proposedSha256": "d6b947a4d9c60eb6c088ce96c9f4c0d988757e5a843b4c2eabf4b841dcf10de3"
+    },
+    "scripts/goriq-source-private-acl-repair.ps1": {
+      "beforeSha256": "50396f93268ab416b68ce08e5b86391f0a441580c28386a8f25779118f95ecdc",
+      "proposedSha256": "4f60fa5ccdc5c35059d5e4acc06e7c421a354fd6cb720946100f69cb0ab07b5e"
+    },
+    ".github/workflows/goriq-source-private-acl-repair-1219.yml": {
+      "beforeSha256": "f1060abb65992feb81e8be875557a39fd49abd1c329711a1ba6f7461c6add7bb",
+      "proposedSha256": "50961db3bc4bb7b1cef057c8595a9ab8ce4c1101d9eb3c61d3fb8920daf1299b"
+    },
+    "scripts/goriq-owner-probe/test-source-private-acl-repair.ps1": {
+      "beforeSha256": "5b3563d9fc5bb37be176162c715bf459f6d893a7300b00a4173da3b5071dee9b",
+      "proposedSha256": "4b683d57635b649b6e428cb95d00d111ce17f1138398677ad1b86de8fae65f73"
+    },
+    "scripts/goriq-owner-probe/test-source-private-acl-wrapper.ps1": {
+      "beforeSha256": "a240e4ec2da24fa5e12eaeef13d73f596dfe61a8e2983fe7ce7eb4995f3986bc",
+      "proposedSha256": "d80ba6725a4fa72ca75f78a2d498bce128727731892deeaf9ffe094d68dd631c"
+    },
+    "tests/goriq-source-private-acl-workflow.test.mjs": {
+      "beforeSha256": "3c9ec7138440017533f160840fa7c658cf6529022c1938df627a5b588a348857",
+      "proposedSha256": "5906f2f594ca2872c7ff9171205ec97f801039af79072128449bf2419dfb5b70"
+    },
+    "tests/goriq-source-private-acl-wrapper.test.mjs": {
+      "beforeSha256": "5b6f590cca4b0986cadc23610f9394644d71daef069d2f1c2b35a06c44f2ad62",
+      "proposedSha256": "8ced9eeaf3b1e02e09a891e9d89b4528b478e0c9b922125d8f573659750704ed"
+    }
+  },
+  "compositeImplementationSha256": "53a660b7b9f49ea27d77969baed327413f6cebbc882772f7403c218350d3d88e",
+  "newSourceCI": "PENDING exacthead4checks and signed6",
+  "newMainCI": "PENDING protectedmerge4checks and signed6",
+  "actualNewPlan": "NOT_DISPATCHED",
+  "actualApply": "NOT_DISPATCHED",
+  "originalReadSuccess": false,
+  "goalStatus": "NOT_ACHIEVED",
+  "g1": "HOLD",
+  "expectedCounts": {
+    "root": 4445,
+    "hosted": 4446,
+    "existingSkip": 26
+  },
+  "rollback": "Unchanged CurrentUserDPAPI before/intendedAfter journal, same-ID attributable-state conditional parent-first restore; manualRecovery on drift/unknown, no replay or atomic guarantee.",
+  "approvedRootVerification": {
+    "relatedTests": 68,
+    "passed": 68,
+    "failed": 0,
+    "skipped": 0,
+    "typecheck": "PASS",
+    "lint": "PASS",
+    "traceabilityAudit": {
+      "status": "PASS",
+      "surfaces": 626,
+      "requirements": 341
+    },
+    "diffCheck": "PASS"
+  }
+}

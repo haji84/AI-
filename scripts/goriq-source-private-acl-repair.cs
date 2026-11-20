@@ -2,7 +2,8 @@
 // MAXIMUM_ALLOWED handles deliberately avoid SetSecurityInfo child propagation.
 // This is sampled comparison and verification, never an atomic ACL transaction.
 public static class GoriqSourcePrivateAclRepair {
- public const string ScopeHash="477f156730cab88b3a27588ef4bee6af52dcb88a2594d7978c4b57aa935b5599";
+ public const string ScopeHash="830e91deef9611ecd0804dfeacd189bb300120ab8fa2effd0bb72bb9b3766c2f";
+ internal const string ClaimScopeHash="477f156730cab88b3a27588ef4bee6af52dcb88a2594d7978c4b57aa935b5599";
  internal const string Installer="S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464";
  internal static readonly DateTime NotBefore=new DateTime(2026,11,18,14,38,49,DateTimeKind.Utc).AddTicks(8228920);
  internal static readonly DateTime Expires=new DateTime(2026,11,20,6,0,0,DateTimeKind.Utc);
@@ -12,7 +13,7 @@ public static class GoriqSourcePrivateAclRepair {
  internal static string Hash(byte[] bytes){using(var hash=SHA256.Create())return BitConverter.ToString(hash.ComputeHash(bytes)).Replace("-","").ToLowerInvariant();}
  internal static bool Equal(byte[] a,byte[] b){if(a==null||b==null||a.Length!=b.Length)return false;int different=0;for(int n=0;n<a.Length;n++)different|=a[n]^b[n];return different==0;}
  internal static void Approval(string run,string attempt,string scope,DateTime now){
-  Need(scope==ScopeHash,"SCOPE_MISMATCH");Need(run!=null&&attempt!=null&&Regex.IsMatch(run,@"^[1-9][0-9]{0,19}\z")&&Regex.IsMatch(attempt,@"^[1-9][0-9]{0,3}\z"),"RUN_CONTEXT");
+  Need(scope==ScopeHash,"SCOPE_MISMATCH");Need(run!=null&&attempt!=null&&Regex.IsMatch(run,@"^[1-9][0-9]{0,19}\z")&&attempt=="1","RUN_CONTEXT");
   Need(now>=NotBefore,"APPROVAL_NOT_YET_VALID");Need(now<Expires,"APPROVAL_EXPIRED");
  }
  internal static bool Trusted(string sid,string user){return sid==user||sid=="S-1-5-18"||sid=="S-1-5-32-544"||sid==Installer;}
@@ -22,8 +23,17 @@ public static class GoriqSourcePrivateAclRepair {
  }
  internal static bool AllowedLeaf(bool sidecar,string leaf){
   if(sidecar)return leaf=="jobs.json"||leaf=="change-sets.json";
-  return leaf=="compass.sqlite"||leaf=="compass.sqlite-wal"||leaf=="compass.sqlite-shm"||leaf=="compass.sqlite-journal"||leaf=="self-development";
+  return leaf=="compass.sqlite"||leaf=="compass.sqlite-wal"||leaf=="compass.sqlite-shm"||leaf=="compass.sqlite-journal"||leaf=="self-development"||leaf=="state.sqlite"||leaf=="state.sqlite-wal"||leaf=="state.sqlite-shm";
  }
+ internal static string RoleForRelative(string relative){
+  switch(relative){
+   case "self-development":return "SIDECAR";case "compass.sqlite":return "DB";case "compass.sqlite-wal":return "WAL";case "compass.sqlite-shm":return "SHM";case "compass.sqlite-journal":return "JOURNAL";
+   case "state.sqlite":return "BROKER_DB";case "state.sqlite-wal":return "BROKER_WAL";case "state.sqlite-shm":return "BROKER_SHM";
+   case "self-development\\jobs.json":return "JOBS";case "self-development\\change-sets.json":return "CHANGE_SETS";
+   default:throw new Refusal("UNKNOWN_SOURCE_OBJECT");
+  }
+ }
+ internal static bool RequiresCurrentFull(string role){return role=="SOURCE"||role=="DB"||role=="BROKER_DB";}
  internal sealed class Snapshot {internal string Key;internal byte[] Bytes;internal RawSecurityDescriptor Descriptor;internal bool Protected;}
  internal sealed class Item {internal string Role,Path,Identity;internal bool Directory,Root,AllowDaclWrite;internal Snapshot Before,After;internal SafeFileHandle Handle;}
  internal sealed class Plan {
@@ -165,7 +175,7 @@ public static class GoriqSourcePrivateAclRepair {
    Need(!Within(workspace,handoff)&&!Within(handoff,workspace)&&!Within(source,handoff)&&!Within(handoff,source),"PRIVATE_LAYOUT");
    implementation=Environment.GetEnvironmentVariable("GORIQ_SOURCE_ACL_IMPLEMENTATION_SHA256");revision=Environment.GetEnvironmentVariable("GITHUB_SHA");runner=Environment.GetEnvironmentVariable("RUNNER_NAME");
    Need(implementation!=null&&Regex.IsMatch(implementation,@"^[0-9a-f]{64}\z")&&revision!=null&&Regex.IsMatch(revision,@"^[0-9a-f]{40}\z"),"IMPLEMENTATION_BINDING");
-   Need(Environment.GetEnvironmentVariable("GITHUB_REPOSITORY")=="haji84/AI-"&&Environment.GetEnvironmentVariable("GITHUB_ACTIONS")=="true"&&Environment.GetEnvironmentVariable("RUNNER_OS")=="Windows"&&Environment.GetEnvironmentVariable("GITHUB_RUN_ID")==run&&Environment.GetEnvironmentVariable("GITHUB_RUN_ATTEMPT")==attempt&&Environment.GetEnvironmentVariable("GITHUB_ACTOR")=="haji84"&&Environment.GetEnvironmentVariable("GITHUB_REF")=="refs/heads/main"&&runner!=null&&runner.IndexOf("ZBook",StringComparison.OrdinalIgnoreCase)>=0,"RUNNER_CONTEXT");
+   Need(Environment.GetEnvironmentVariable("GITHUB_REPOSITORY")=="haji84/AI-"&&Environment.GetEnvironmentVariable("GITHUB_ACTIONS")=="true"&&Environment.GetEnvironmentVariable("RUNNER_OS")=="Windows"&&Environment.GetEnvironmentVariable("GITHUB_RUN_ID")==run&&Environment.GetEnvironmentVariable("GITHUB_RUN_ATTEMPT")==attempt&&Environment.GetEnvironmentVariable("GITHUB_ACTOR")=="haji84"&&Environment.GetEnvironmentVariable("GITHUB_TRIGGERING_ACTOR")=="haji84"&&Environment.GetEnvironmentVariable("GITHUB_REF")=="refs/heads/main"&&runner!=null&&runner.IndexOf("ZBook",StringComparison.OrdinalIgnoreCase)>=0,"RUNNER_CONTEXT");
   }
   static bool Within(string parent,string path){return String.Equals(parent,path,StringComparison.OrdinalIgnoreCase)||path.StartsWith(parent.TrimEnd('\\')+"\\",StringComparison.OrdinalIgnoreCase);}
   void Budget(){Need(DateTime.UtcNow<deadline,"PREFLIGHT_TIMEOUT");}
@@ -243,10 +253,10 @@ public static class GoriqSourcePrivateAclRepair {
   public Plan Preflight(){
    Budget();var plan=new Plan{Run=run,Attempt=attempt,User=user,ImplementationHash=implementation,Revision=revision,RunnerIdentity=runner,BackupId="1219-source-acl-"+run+"-"+attempt};active=plan;ProfileChain(plan);
    Item root=Track(source,true,true,"SOURCE");root.Root=true;plan.Items.Add(root);string reader=SelectReader(root.Before,user);plan.SelectedReader=reader;plan.ReaderFingerprint=Hash(Encoding.UTF8.GetBytes(reader));
-   Dictionary<string,bool> inventory=Inventory();string[] order={"self-development","compass.sqlite","compass.sqlite-wal","compass.sqlite-shm","compass.sqlite-journal","self-development\\jobs.json","self-development\\change-sets.json"};
-   foreach(string relative in order)if(inventory.ContainsKey(relative)){string role=relative=="self-development"?"SIDECAR":relative=="compass.sqlite"?"DB":relative=="compass.sqlite-wal"?"WAL":relative=="compass.sqlite-shm"?"SHM":relative=="compass.sqlite-journal"?"JOURNAL":relative.EndsWith("\\jobs.json",StringComparison.Ordinal)?"JOBS":"CHANGE_SETS";plan.Items.Add(Track(Path.Combine(source,relative),inventory[relative],true,role));}
+   Dictionary<string,bool> inventory=Inventory();string[] order={"self-development","compass.sqlite","compass.sqlite-wal","compass.sqlite-shm","compass.sqlite-journal","state.sqlite","state.sqlite-wal","state.sqlite-shm","self-development\\jobs.json","self-development\\change-sets.json"};
+   foreach(string relative in order)if(inventory.ContainsKey(relative)){string role=RoleForRelative(relative);plan.Items.Add(Track(Path.Combine(source,relative),inventory[relative],true,role));}
    Need(plan.Items.Count==inventory.Count&&plan.Items.Count<=MaximumObjects,"INVENTORY_DRIFT");
-   foreach(Item item in plan.Items)item.After=BuildAfter(item.Before,user,reader,item.Directory,item.Root,item.Root||item.Role=="DB");
+   foreach(Item item in plan.Items)item.After=BuildAfter(item.Before,user,reader,item.Directory,item.Root,RequiresCurrentFull(item.Role));
    foreach(Item item in plan.Ancestors)if(item.Role=="APPDATA"||item.Role=="LOCAL"||item.Role=="WORKER")Ancestor(item.Before,reader,item.Role=="APPDATA");
    plan.PlanHash=Hash(PlanBytes(plan));Need(Validate(plan,false),"INVENTORY_DRIFT");Budget();return plan;
   }
@@ -283,11 +293,12 @@ public static class GoriqSourcePrivateAclRepair {
    while(offset<actual.Length&&(count=stream.Read(actual,offset,actual.Length-offset))>0)offset+=count;
    Need(offset==actual.Length&&stream.ReadByte()==-1&&Equal(actual,bytes),"BACKUP_READBACK");stream.Position=stream.Length;
   }
+  internal static string ClaimPath(string parent){return Path.Combine(parent,"1219-source-acl-scope-"+ClaimScopeHash+".claim");}
   public void Claim(){
    Budget();Need(active!=null,"PREFLIGHT_REQUIRED");EnsurePrivateParent();
    // CREATE_NEW makes this persistent scope claim exclusive across runs.
    // It is intentionally never removed, including on any later failure.
-   FileStream claim=NewPrivateFile(Path.Combine(handoff,"1219-source-acl-scope-"+ScopeHash+".claim"),true);
+   FileStream claim=NewPrivateFile(ClaimPath(handoff),true);
    byte[] claimBytes=Encoding.UTF8.GetBytes("GORIQ_SOURCE_ACL_SCOPE_V1\n"+ScopeHash+"\n"+run+"\n"+attempt+"\n"+implementation+"\n"+Expires.ToString("o"));WriteReadback(claim,claimBytes);
   }
   public void SaveBaseline(Plan plan){
