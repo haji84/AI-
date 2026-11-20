@@ -1,0 +1,71 @@
+{
+  "issue": 1219,
+  "originalGoal": "goal-fcc81c97e09153f7",
+  "originalJob": "rotation-recovery-37",
+  "state": "SOURCE_CANDIDATE_ACTUAL_READ_PENDING",
+  "ownerRequest": "Search JARVIS registrations; owner cannot remember the endpoint or device.",
+  "newHypothesis": "Unbound or non-target JARVIS requirements receipts and a different current Goal may remain in Compass; prior exact Goal/Job projection did not count all registrations.",
+  "boundedDiscovery": {
+    "githubDeployments": 50,
+    "recordedPreviewOrigins": 16,
+    "deploymentNotFound": 15,
+    "gone": 1,
+    "canonicalOwnerDecisions": 3,
+    "typedPublicationPRMatches": 0,
+    "typedPublicationBranchMatches": 0,
+    "globalAbsenceEstablished": false
+  },
+  "diagnostic": {
+    "mode": "FIXED_JARVIS_REGISTRATION_METADATA",
+    "workflow": ".github/workflows/goriq-jarvis-registration-read-1219.yml",
+    "owner": "haji84",
+    "runnerId": 21,
+    "runnerName": "ZBook",
+    "branch": "main",
+    "attempt": 1,
+    "workflowRunNumber": 1,
+    "ciFreshness": "latest matching exact-main CI; same identity/attempt and current main rechecked after source verification",
+    "permissions": "contents:read",
+    "expiresUTC": "2026-11-20T06:00:00Z",
+    "readOnlyDispatchMax": 1,
+    "readOnlyDispatchConsumedAtAuthoring": 0,
+    "metadataOnlyEgress": true,
+    "originalSql": false,
+    "workingCopySqlite": "readOnly/query_only/transaction",
+    "maxJsonBytes": 1048576,
+    "sharedJsonNodes": 10000,
+    "sharedJsonDepth": 32,
+    "maxReceipts": 500,
+    "maxWorkRuns": 2000,
+    "unknownCounts": null,
+    "combinedLimitsCanRefuseLargeValidHistories": true
+  },
+  "existingAclOperation": {
+    "status": "ALREADY_APPLIED5_VERIFIED",
+    "run": 44647843458,
+    "lifetimePlanConsumed": 2,
+    "lifetimeApplyConsumed": 1,
+    "permanentClaimIdentity": "477f156730cab88b3a27588ef4bee6af52dcb88a2594d7978c4b57aa935b5599",
+    "replay": false,
+    "claimReset": false
+  },
+  "verification": {
+    "baselineOriginalReader": "29 PASS",
+    "newReader": "RED missing implementation, receipt integrity/provenance, complete WorkRun contracts and unfiltered Goal singleton;57 PASS after material fixes",
+    "newAdapter": "RED missing implementation and second run-number refusal; closed parser and staged copy-flow fixture PASS",
+    "newWorkflow": "RED missing implementation, second run-number and6 CI/main freshness cases;37 PASS after material fixes",
+    "fullSuite": "Post-fix4540 total/4514 PASS/0 FAIL/26 existing skips in278.984s; child-only umask022, parent077 unchanged, frozen candidate inputs unchanged. Earlier inherited077 fixture failures and exact-base reproduction retained.",
+    "independentFinalReview": "0Critical/5Important/1Minor; all5 Important findings corrected with RED/GREEN; minor R5 deferred",
+    "sourceAndMainCI": "PENDING",
+    "actualNativeObservation": "PENDING"
+  },
+  "deferredReviewMinor": {
+    "id": "R5",
+    "scope": "Final PS parser scalar type strictness for fixed mode/g1/preservationMode and redundant target WorkRun cap",
+    "rationale": "Pinned producer emits fixed scalar sentinels and unique target counts; no currently reachable malformed data egress. No runtime acceptance or privacy waiver."
+  },
+  "authorityComplete": false,
+  "originalGoalRecovered": false,
+  "globalGoal": "NOT_ACHIEVED/G1HOLD",
+  "compassMCPWriteBackAvailable": false
+}
