@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   source_private_acl:
-    if: github.repository == 'haji84/AI-' && github.ref == 'refs/heads/main' && github.actor == 'haji84' && github.event_name == 'workflow_dispatch' && (inputs.phase == 'plan' || inputs.phase == 'apply')
+    if: github.repository == 'haji84/AI-' && github.ref == 'refs/heads/main' && github.actor == 'haji84' && github.triggering_actor == 'haji84' && github.run_attempt == 1 && github.event_name == 'workflow_dispatch' && (inputs.phase == 'plan' || inputs.phase == 'apply')
     runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 5
     steps:
@@ -35,10 +35,10 @@ jobs:
           try {
             if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT -or
                 $env:OS -cne 'Windows_NT' -or $env:RUNNER_OS -cne 'Windows' -or $env:RUNNER_NAME -cne 'ZBook' -or
-                $env:GITHUB_REPOSITORY -cne 'haji84/AI-' -or $env:GITHUB_ACTOR -cne 'haji84' -or
+                $env:GITHUB_REPOSITORY -cne 'haji84/AI-' -or $env:GITHUB_ACTOR -cne 'haji84' -or $env:GITHUB_TRIGGERING_ACTOR -cne 'haji84' -or
                 $env:GITHUB_REF -cne 'refs/heads/main' -or $env:GITHUB_EVENT_NAME -cne 'workflow_dispatch' -or
                 $env:GITHUB_SHA -cnotmatch '^[a-f0-9]{40}\z' -or $env:GITHUB_RUN_ID -cnotmatch '^[1-9][0-9]{0,19}\z' -or
-                $env:GITHUB_RUN_ATTEMPT -cnotmatch '^[1-9][0-9]{0,3}\z' -or $env:GORIQ_SOURCE_REPAIR_PHASE -cnotin @('plan','apply')) { throw 'REFUSED' }
+                $env:GITHUB_RUN_ATTEMPT -cne '1' -or $env:GORIQ_SOURCE_REPAIR_PHASE -cnotin @('plan','apply')) { throw 'REFUSED' }
             $failure = 'OWNER_SCOPE_UNVERIFIED'
             $now = [datetimeoffset]::UtcNow
             if ($now -lt [datetimeoffset]::Parse('2026-11-18T14:34:00Z') -or $now -ge [datetimeoffset]::Parse('2026-11-20T06:00:00Z')) { throw 'REFUSED' }
@@ -75,9 +75,9 @@ jobs:
                 $own.status -cne 'in_progress' -or $own.runner_id -ne 21 -or $own.runner_name -cne 'ZBook') { throw 'REFUSED' }
             $failure = 'SOURCE_BYTES_UNVERIFIED'
             $pins = [ordered]@{
-              'scripts/goriq-source-private-acl-repair.ps1'='50396f93268ab416b68ce08e5b86391f0a441580c28386a8f25779118f95ecdc'
+              'scripts/goriq-source-private-acl-repair.ps1'='4f60fa5ccdc5c35059d5e4acc06e7c421a354fd6cb720946100f69cb0ab07b5e'
               'scripts/goriq-zbook-bridge-capture.cs'='c149d00466bd75d35282fb44a5940ff64ef926c17f624b4e5d84d2ac1751b68c'
-              'scripts/goriq-source-private-acl-repair.cs'='5518ae608d303bdaa232a6f14f25919168aabe6401c3e6d0342710493d730480'
+              'scripts/goriq-source-private-acl-repair.cs'='d6b947a4d9c60eb6c088ce96c9f4c0d988757e5a843b4c2eabf4b841dcf10de3'
             }
             $sources = @{}
             $utf8 = [Text.UTF8Encoding]::new($false,$true)
@@ -136,9 +136,9 @@ jobs:
           try {
             if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT -or
                 $env:OS -cne 'Windows_NT' -or $env:RUNNER_OS -cne 'Windows' -or $env:RUNNER_NAME -cne 'ZBook' -or
-                $env:GITHUB_REPOSITORY -cne 'haji84/AI-' -or $env:GITHUB_ACTOR -cne 'haji84' -or
+                $env:GITHUB_REPOSITORY -cne 'haji84/AI-' -or $env:GITHUB_ACTOR -cne 'haji84' -or $env:GITHUB_TRIGGERING_ACTOR -cne 'haji84' -or
                 $env:GITHUB_REF -cne 'refs/heads/main' -or $env:GITHUB_EVENT_NAME -cne 'workflow_dispatch' -or
-                $env:GITHUB_SHA -cnotmatch '^[a-f0-9]{40}\z' -or $env:GITHUB_RUN_ID -cnotmatch '^[1-9][0-9]{0,19}\z' -or $env:GITHUB_RUN_ATTEMPT -cnotmatch '^[1-9][0-9]{0,19}\z' -or
+                $env:GITHUB_SHA -cnotmatch '^[a-f0-9]{40}\z' -or $env:GITHUB_RUN_ID -cnotmatch '^[1-9][0-9]{0,19}\z' -or $env:GITHUB_RUN_ATTEMPT -cne '1' -or
                 $env:GORIQ_ZBOOK_BRIDGE_ORIGINAL_ONLY -cne 'true' -or $env:GORIQ_ZBOOK_NATIVE_ONLY -cne 'false' -or $env:GORIQ_ZBOOK_RUNNER_ONLY -cne 'false') { throw 'REFUSED' }
             function Read-GoriqPublicMetadata {
               param([string]$Path)

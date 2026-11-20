@@ -10,15 +10,17 @@ const job=workflow.split('\n  source_private_acl:')[1];
 const root=mkdtempSync(join(tmpdir(),'source-repair-gates-'));after(()=>rmSync(root,{recursive:true,force:true}));
 const files=['scripts/goriq-source-private-acl-repair.ps1','scripts/goriq-zbook-bridge-capture.cs','scripts/goriq-source-private-acl-repair.cs'];
 const sha='a'.repeat(40),quote=s=>"'"+s.replaceAll("'","''")+"'",object=v=>`(ConvertFrom-Json -InputObject ${quote(JSON.stringify(v))})`;
-const context={GITHUB_REPOSITORY:'haji84/AI-',GITHUB_ACTOR:'haji84',GITHUB_REF:'refs/heads/main',GITHUB_EVENT_NAME:'workflow_dispatch',RUNNER_NAME:'ZBook',RUNNER_OS:'Windows',OS:'Windows_NT',GITHUB_SHA:sha,GITHUB_RUN_ID:'42',GITHUB_RUN_ATTEMPT:'1',GORIQ_SOURCE_REPAIR_PHASE:'plan'};
-const scenarios=['valid-plan','valid-apply','clock-old-expiry','clock-before-expiry','clock-at-expiry','clock-after-expiry','clock-before-notbefore','actor','ref','event','phase','main','ci-incomplete','ci-wrong-head','runner-id','runner-name','source-0','source-1','source-2','source-path','source-encoding','native-extra','native-private','native-plan-write','native-apply-plan'];
+const context={GITHUB_REPOSITORY:'haji84/AI-',GITHUB_ACTOR:'haji84',GITHUB_TRIGGERING_ACTOR:'haji84',GITHUB_REF:'refs/heads/main',GITHUB_EVENT_NAME:'workflow_dispatch',RUNNER_NAME:'ZBook',RUNNER_OS:'Windows',OS:'Windows_NT',GITHUB_SHA:sha,GITHUB_RUN_ID:'42',GITHUB_RUN_ATTEMPT:'1',GORIQ_SOURCE_REPAIR_PHASE:'plan'};
+const scenarios=['valid-plan','valid-apply','trigger-actor','attempt-two','attempt-zero','clock-old-expiry','clock-before-expiry','clock-at-expiry','clock-after-expiry','clock-before-notbefore','actor','ref','event','phase','main','ci-incomplete','ci-wrong-head','runner-id','runner-name','source-0','source-1','source-2','source-path','source-encoding','native-extra','native-private','native-plan-write','native-apply-plan'];
 let execute;
 test('approved Source repair has one owner/main-only plan/apply job',()=>{
  const expression=job.match(/^ {4}if: (.*)$/m)[1];
  for(const phase of ['plan','apply','unsafe']){
-  const values={github:{repository:'haji84/AI-',ref:'refs/heads/main',actor:'haji84',event_name:'workflow_dispatch'},inputs:{phase}};
+  const values={github:{repository:'haji84/AI-',ref:'refs/heads/main',actor:'haji84',triggering_actor:'haji84',run_attempt:1,event_name:'workflow_dispatch'},inputs:{phase}};
   assert.equal(runInNewContext(expression,values),phase!=='unsafe');
   values.github.actor='other';assert.equal(runInNewContext(expression,values),false);
+  values.github.actor='haji84';values.github.triggering_actor='other';assert.equal(runInNewContext(expression,values),false);
+  values.github.triggering_actor='haji84';values.github.run_attempt=2;assert.equal(runInNewContext(expression,values),false);
  }
 });
 function prepare(){
@@ -41,7 +43,7 @@ function Invoke-RestMethod { [CmdletBinding()] param($Uri,$Method,$Headers,$Time
 }
 function Add-Content {param($LiteralPath,$Value,$Encoding);$global:repairGateOutputs+=,$Value}
 function Invoke-SourceRepairFixture {param([string]$CaptureSource,[string]$RepairSource,[bool]$Apply)
- $r=[ordered]@{status=$(if($Apply){'APPLIED'}else{'PLANNED'});reason=$(if($Apply){'VERIFIED_SAMPLE'}else{'METADATA_ONLY'});plannedObjects=2;changedObjects=$(if($Apply){2}else{0});restoredObjects=0;scopeSha256='477f156730cab88b3a27588ef4bee6af52dcb88a2594d7978c4b57aa935b5599';planSha256=('b'*64);implementationSha256=$env:GORIQ_SOURCE_ACL_IMPLEMENTATION_SHA256;backupId=$(if($Apply){'1219-source-acl-42-1'}else{''});consistency='LIVE_SAMPLED';manualRecovery=$false;globalRestoreComplete=$false;originalDataPreservationVerified=$false}
+ $r=[ordered]@{status=$(if($Apply){'APPLIED'}else{'PLANNED'});reason=$(if($Apply){'VERIFIED_SAMPLE'}else{'METADATA_ONLY'});plannedObjects=2;changedObjects=$(if($Apply){2}else{0});restoredObjects=0;scopeSha256='830e91deef9611ecd0804dfeacd189bb300120ab8fa2effd0bb72bb9b3766c2f';planSha256=('b'*64);implementationSha256=$env:GORIQ_SOURCE_ACL_IMPLEMENTATION_SHA256;backupId=$(if($Apply){'1219-source-acl-42-1'}else{''});consistency='LIVE_SAMPLED';manualRecovery=$false;globalRestoreComplete=$false;originalDataPreservationVerified=$false}
  ${scenario==='native-extra'?"Write-Output 'PRIVATE'":''}
  ${scenario==='native-private'?"$r.private='PRIVATE'":''}
  ${scenario==='native-plan-write'?"$r.status='APPLIED';$r.reason='VERIFIED_SAMPLE';$r.changedObjects=2;$r.backupId='1219-source-acl-42-1'":''}
@@ -49,7 +51,7 @@ function Invoke-SourceRepairFixture {param([string]$CaptureSource,[string]$Repai
  return ($r|ConvertTo-Json -Compress)
 }
 `;
-  const env={...context};if(['valid-apply','native-apply-plan'].includes(scenario))env.GORIQ_SOURCE_REPAIR_PHASE='apply';
+  const env={...context};if(scenario==='trigger-actor')env.GITHUB_TRIGGERING_ACTOR='other';if(scenario==='attempt-two')env.GITHUB_RUN_ATTEMPT='2';if(scenario==='attempt-zero')env.GITHUB_RUN_ATTEMPT='0';if(['valid-apply','native-apply-plan'].includes(scenario))env.GORIQ_SOURCE_REPAIR_PHASE='apply';
   for(const[k,s]of [['GITHUB_ACTOR','actor'],['GITHUB_REF','ref'],['GITHUB_EVENT_NAME','event'],['GORIQ_SOURCE_REPAIR_PHASE','phase']])if(scenario===s)env[k]='untrusted';
   const file=join(root,`${i}.ps1`);writeFileSync(file,program+clockBody);manifest.push({scenario,file,env});
  }

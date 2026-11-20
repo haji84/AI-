@@ -7,5 +7,5 @@ test('approved Source repair wrapper refuses malformed or overstated native repo
   const result = spawnSync(shell, ['-NoLogo', '-NoProfile', '-NonInteractive', '-File', 'scripts/goriq-owner-probe/test-source-private-acl-wrapper.ps1'], { encoding: 'utf8', timeout: 12000, windowsHide: true });
   assert.equal(result.status, 0, result.stderr + result.stdout);
   assert.equal(result.stderr, '');
-  assert.match(result.stdout, /SOURCE_REPAIR_WRAPPER_PASS=44/);
+  assert.match(result.stdout, /SOURCE_REPAIR_WRAPPER_PASS=45/);
 });

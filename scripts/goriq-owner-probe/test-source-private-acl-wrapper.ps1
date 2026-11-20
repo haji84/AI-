@@ -5,7 +5,7 @@ if(-not (Test-Path -LiteralPath $path)){throw 'SOURCE_REPAIR_WRAPPER_ASSERTION:I
 . $path
 $checks=0
 function Assert-RepairWrapper([string]$Name,[bool]$Value){if(-not $Value){throw ('SOURCE_REPAIR_WRAPPER_ASSERTION:'+$Name)};$script:checks++}
-$scope='477f156730cab88b3a27588ef4bee6af52dcb88a2594d7978c4b57aa935b5599';$implementation='a'*64
+$scope='830e91deef9611ecd0804dfeacd189bb300120ab8fa2effd0bb72bb9b3766c2f';$implementation='a'*64
 function New-FixtureRepair([string]$Status='APPLIED') {
  $r=[ordered]@{status=$Status;reason='VERIFIED_SAMPLE';plannedObjects=2;changedObjects=2;restoredObjects=0;scopeSha256=$scope;planSha256=('b'*64);implementationSha256=$implementation;backupId='1219-source-acl-42-1';consistency='LIVE_SAMPLED';manualRecovery=$false;globalRestoreComplete=$false;originalDataPreservationVerified=$false}
  if($Status -ceq 'PLANNED'){$r.reason='METADATA_ONLY';$r.changedObjects=0;$r.backupId=''}
@@ -62,7 +62,7 @@ try {
  $fixtureCapture='/* capture fixture */'*10;$fixtureRepair='/* repair fixture */'*10
  $h=[Security.Cryptography.SHA256]::Create()
  try{$implementation=[BitConverter]::ToString($h.ComputeHash([Text.Encoding]::UTF8.GetBytes($fixtureCapture+"`n"+$fixtureRepair))).Replace('-','').ToLowerInvariant()}finally{$h.Dispose()}
- $context=@{GITHUB_REPOSITORY='haji84/AI-';GITHUB_ACTOR='haji84';GITHUB_REF='refs/heads/main';GITHUB_EVENT_NAME='workflow_dispatch';RUNNER_NAME='ZBook';RUNNER_OS='Windows';GITHUB_SHA=('a'*40);GITHUB_RUN_ID='42';GITHUB_RUN_ATTEMPT='1';GORIQ_SOURCE_REPAIR_PHASE='plan';GORIQ_SOURCE_ACL_IMPLEMENTATION_SHA256=$implementation}
+ $context=@{GITHUB_REPOSITORY='haji84/AI-';GITHUB_ACTOR='haji84';GITHUB_TRIGGERING_ACTOR='haji84';GITHUB_REF='refs/heads/main';GITHUB_EVENT_NAME='workflow_dispatch';RUNNER_NAME='ZBook';RUNNER_OS='Windows';GITHUB_SHA=('a'*40);GITHUB_RUN_ID='42';GITHUB_RUN_ATTEMPT='1';GORIQ_SOURCE_REPAIR_PHASE='plan';GORIQ_SOURCE_ACL_IMPLEMENTATION_SHA256=$implementation}
  foreach($key in $context.Keys){[Environment]::SetEnvironmentVariable($key,$context[$key])}
  $script:nativeCalls=0;$script:compilerCalls=0;$script:contextGood=$true;$script:emitExtra=$false;$script:throwNative=$false
  function Get-GoriqSourceRepairNativeContext {return $script:contextGood}
@@ -70,7 +70,7 @@ try {
  function Invoke-GoriqSourceRepairNative([bool]$Apply){$script:nativeCalls++;if($script:throwNative){throw 'PRIVATE_NATIVE_ERROR'};if($script:emitExtra){Write-Output 'PRIVATE_EXTRA'};New-FixtureRepair $(if($Apply){'APPLIED'}else{'PLANNED'})|ConvertTo-Json -Compress}
  $r=Invoke-GoriqSourcePrivateAclRepair $fixtureCapture $fixtureRepair $false|ConvertFrom-Json
  Assert-RepairWrapper 'plan_entry_calls_checked_native_once' ($r.status -ceq 'PLANNED' -and $script:nativeCalls -eq 1 -and $script:compilerCalls -eq 1)
- foreach($key in @('GITHUB_ACTOR','GITHUB_REF','GITHUB_EVENT_NAME','RUNNER_NAME','GITHUB_SHA','GITHUB_RUN_ID','GITHUB_RUN_ATTEMPT','GORIQ_SOURCE_REPAIR_PHASE','GORIQ_SOURCE_ACL_IMPLEMENTATION_SHA256')){
+ foreach($key in @('GITHUB_ACTOR','GITHUB_TRIGGERING_ACTOR','GITHUB_REF','GITHUB_EVENT_NAME','RUNNER_NAME','GITHUB_SHA','GITHUB_RUN_ID','GITHUB_RUN_ATTEMPT','GORIQ_SOURCE_REPAIR_PHASE','GORIQ_SOURCE_ACL_IMPLEMENTATION_SHA256')){
   [Environment]::SetEnvironmentVariable($key,'untrusted');$before=$script:nativeCalls
   $r=Invoke-GoriqSourcePrivateAclRepair $fixtureCapture $fixtureRepair $false|ConvertFrom-Json
   Assert-RepairWrapper ('entry_refuses_'+$key) ($r.status -ceq 'REFUSED' -and $r.changedObjects -eq 0 -and $script:nativeCalls -eq $before)
