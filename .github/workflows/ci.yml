@@ -123,6 +123,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           powershell.exe -NoLogo -NoProfile -NonInteractive -File scripts/goriq-owner-probe/test-source-layout-observer.ps1
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          powershell.exe -NoLogo -NoProfile -NonInteractive -File scripts/goriq-owner-probe/test-jarvis-registration-read.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - uses: actions/setup-node@v4
         with:
           node-version: 24.19.0
