@@ -1,7 +1,7 @@
 param([ValidateSet('plan','apply','restore')][string]$Phase='plan',[switch]$OwnerApproved,
  [Parameter(Mandatory=$true)][string]$SourceRevision,
  [Parameter(Mandatory=$true)][string]$ExpectedRepairSha256,[string]$BackupId,[switch]$HostStopApproved)
-# #1787/#1662: owner approval 2026-10-12T14:39:12Z, issue comment6126491312.
+# #1787/#1662: owner renewal 2026-11-22T13:32:40Z; established scope in issue comment6126491312.
 # Exact five existing objects; approved scoped host stop/restart only on sharing block.
 # No recursive propagation or ancestor/dependency ACL writes; stop approval6127583703.
 Set-StrictMode -Version Latest
@@ -333,7 +333,7 @@ function Persist-FixedHostBaseline {
  $script:markerCreated=$true
 }
 function Stop-FixedHost {
- if(-not $HostStopApproved -or [datetimeoffset]::UtcNow -lt [datetimeoffset]::Parse('2026-10-12T15:41:01Z')){throw 'HOST_STOP_APPROVAL_REQUIRED'}
+ if(-not $HostStopApproved -or [datetimeoffset]::UtcNow -lt [datetimeoffset]::Parse('2026-11-22T13:32:40Z')){throw 'HOST_STOP_APPROVAL_REQUIRED'}
  Assert-FixedRuntime;Assert-FixedGuards;Assert-FixedKnownTargets
  $liveTree=@(Get-OwnedTree $oldRoot)
  Assert-FixedTree $tree $liveTree
@@ -456,13 +456,13 @@ function Assert-FixedRuntime {
  }
 }
 function Assert-FixedExpiry {
- if([datetimeoffset]::UtcNow -ge [datetimeoffset]::Parse('2026-10-13T11:12:13.845Z')){throw 'APPROVAL_REJECTED'}
+ if([datetimeoffset]::UtcNow -ge [datetimeoffset]::Parse('2026-11-23T10:05:00Z')){throw 'APPROVAL_REJECTED'}
 }
 try {
  Assert-FixedExpiry
- if([datetimeoffset]::UtcNow -lt [datetimeoffset]::Parse('2026-10-12T14:39:12Z') -or
+ if([datetimeoffset]::UtcNow -lt [datetimeoffset]::Parse('2026-11-22T13:32:40Z') -or
   ($Phase -ne 'plan' -and -not $OwnerApproved) -or
-  ($Phase -ne 'plan' -and $HostStopApproved -and [datetimeoffset]::UtcNow -lt [datetimeoffset]::Parse('2026-10-12T15:41:01Z'))){throw 'APPROVAL_REJECTED'}
+  ($Phase -ne 'plan' -and $HostStopApproved -and [datetimeoffset]::UtcNow -lt [datetimeoffset]::Parse('2026-11-22T13:32:40Z'))){throw 'APPROVAL_REJECTED'}
  if($env:OS -ne 'Windows_NT' -or $SourceRevision -notmatch '^[a-f0-9]{40}$' -or
   $ExpectedRepairSha256 -notmatch '^[a-f0-9]{64}$' -or
   (Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash.ToLowerInvariant() -cne $ExpectedRepairSha256){throw 'ARTIFACT_REJECTED'}
