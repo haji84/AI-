@@ -33,3 +33,41 @@ jobs:
           }
           if ($failed) { exit 1 }
           Write-Host '::notice title=Config ACL::Both exact native suites passed'
+      - name: Test the launcher and local result with fixture output
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = Join-Path $env:RUNNER_TEMP ('GORIQ folder & space ' + [guid]::NewGuid().ToString('N'))
+          [void][IO.Directory]::CreateDirectory($root)
+          foreach ($row in @(
+            @{File='verified.cmd'; ExpectedExit=0; Restored=$true},
+            @{File='held.cmd'; ExpectedExit=2; Restored=$false},
+            @{File='altered.cmd'; ExpectedExit=1; Restored=$null}
+          )) {
+            $directory = Join-Path $root ([IO.Path]::GetFileNameWithoutExtension($row.File))
+            [void][IO.Directory]::CreateDirectory($directory)
+            $launcher = Join-Path $directory 'GORIQ ZBook Restore.cmd'
+            Copy-Item -LiteralPath (Join-Path launcher-fixtures $row.File) -Destination $launcher
+            $ErrorActionPreference = 'Continue'
+            $output = @(& $launcher 2>&1)
+            $code = $LASTEXITCODE
+            $ErrorActionPreference = 'Stop'
+            $output | ForEach-Object { Write-Host $_ }
+            if ($code -ne $row.ExpectedExit) {
+              Write-Host ('::error title=Launcher exit::' + $row.File + ' expected ' + $row.ExpectedExit + ' got ' + $code)
+              exit 1
+            }
+            $receipts = @(Get-ChildItem -LiteralPath $directory -Filter 'GORIQ-restore-result-*.json')
+            if ($row.File -ceq 'altered.cmd') {
+              if ($receipts.Count -ne 0 -or ($output -join ' ') -notmatch 'LAUNCHER_PAYLOAD_HASH_MISMATCH') {
+                throw 'ALTERED_LAUNCHER_REPORTED_AS_EXECUTED'
+              }
+              continue
+            }
+            if ($receipts.Count -ne 1) { throw 'LOCAL_RECEIPT_NOT_CREATED' }
+            $receipt = Get-Content -LiteralPath $receipts[0].FullName -Raw | ConvertFrom-Json
+            if ($receipt.Status -cne 'GORIQ_CONFIG_ROLLBACK' -or $receipt.Restored -ne $row.Restored) {
+              throw 'LOCAL_RECEIPT_MISMATCH'
+            }
+          }
+          Write-Host '::notice title=Launcher proof::Verified and held reports saved. Altered payload rejected.'
