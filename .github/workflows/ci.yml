@@ -53,7 +53,7 @@ jobs:
             $code = $LASTEXITCODE
             $ErrorActionPreference = 'Stop'
             $output | ForEach-Object { Write-Host $_ }
-            if ($code -ne $row.ExpectedExit -or ($output -join ' ') -notmatch 'Press any key') {
+            if ($code -ne $row.ExpectedExit -or ($output -join ' ') -notmatch 'Enter >') {
               Write-Host ('::error title=Launcher exit::' + $row.File + ' expected ' + $row.ExpectedExit + ' got ' + $code)
               exit 1
             }
@@ -86,11 +86,15 @@ jobs:
           try {
             $stdout = $process.StandardOutput.ReadToEndAsync()
             $stderr = $process.StandardError.ReadToEndAsync()
-            if ($process.WaitForExit(1600)) { throw 'DISPLAY_CLOSED_BEFORE_KEY' }
+            if ($process.WaitForExit(1600)) {
+              Write-Host $stdout.Result
+              Write-Host $stderr.Result
+              throw 'DISPLAY_CLOSED_BEFORE_ENTER'
+            }
             $process.StandardInput.WriteLine('x')
             $process.StandardInput.Close()
             if (-not $process.WaitForExit(10000) -or $process.ExitCode -ne 0 -or
-                $stdout.Result -notmatch 'Press any key' -or $stdout.Result -notmatch '"PreviousResult":true' -or $stderr.Result) {
+                $stdout.Result -notmatch 'Enter >' -or $stdout.Result -notmatch '"PreviousResult":true' -or $stderr.Result) {
               throw 'SAVED_RECEIPT_REUSE_FAILED'
             }
             if (@(Get-ChildItem -LiteralPath $directory -Filter 'GORIQ-restore-result-*.json').Count -ne 1 -or
