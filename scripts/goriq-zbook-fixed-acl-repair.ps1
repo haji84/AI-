@@ -459,11 +459,59 @@ function Recover-FixedHost([switch]$DaclOnlyActiveRelease) {
  Remove-Item -LiteralPath $marker -Force;$script:markerCreated=$false
  $script:restored=$true
 }
+function Test-FixedConfigAllow($ace,[string]$sid,[int]$rights,[int]$flags) {
+ return ($ace -is [Security.AccessControl.CommonAce] -and -not $ace.IsCallback -and
+  $ace.AceQualifier -eq [Security.AccessControl.AceQualifier]::AccessAllowed -and
+  $ace.SecurityIdentifier.Value -ceq $sid -and $ace.AccessMask -eq $rights -and [int]$ace.AceFlags -eq $flags)
+}
+function Get-FixedConfigRestoreDescriptor([string]$original,[string]$planned,[string]$owner,[string]$reader) {
+ $before=New-Object Security.AccessControl.RawSecurityDescriptor($original)
+ $after=New-Object Security.AccessControl.RawSecurityDescriptor($planned)
+ if($before.Owner.Value -cne $owner -or $after.Owner.Value -cne $owner -or
+  $before.DiscretionaryAcl.Count -ne 4 -or $after.DiscretionaryAcl.Count -ne 3 -or
+  ([int]$before.ControlFlags -band 0x1400) -ne 0x0400 -or ([int]$after.ControlFlags -band 0x1400) -ne 0x1400){return}
+ $beforeSid=@($owner,$reader,'S-1-5-18',$owner)
+ $beforeRights=@(0x1F01FF,0x1200A9,0x1F01FF,0x1F01FF)
+ $beforeFlags=@(0,16,16,16)
+ for($i=0;$i -lt 4;$i++){
+  if(-not(Test-FixedConfigAllow $before.DiscretionaryAcl[$i] $beforeSid[$i] $beforeRights[$i] $beforeFlags[$i])){return}
+ }
+ $afterSid=@($owner,'S-1-5-18',$owner)
+ for($i=0;$i -lt 3;$i++){
+  if(-not(Test-FixedConfigAllow $after.DiscretionaryAcl[$i] $afterSid[$i] 0x1F01FF 0)){return}
+ }
+ # Windows ACL readback collapses the two identical explicit Owner grants.
+ $after.DiscretionaryAcl.RemoveAce(0)
+ return $after.GetSddlForm([Security.AccessControl.AccessControlSections]::All)
+}
+function Assert-FixedLegacyClaim([string]$revision) {
+ $claim=Join-Path $env:LOCALAPPDATA 'goriq-fixed-acl-1787-20261123-attempt.txt'
+ if(-not(Test-Path -LiteralPath $claim -PathType Leaf)){throw 'LEGACY_CLAIM_REJECTED'}
+ $handle=[GoriqFixedAclNative]::Open($claim,$false,$false)
+ try{
+  if((Get-Item -LiteralPath $claim).Length -gt 128){throw 'LEGACY_CLAIM_REJECTED'}
+  $entry=[IO.File]::ReadAllText($claim)
+  $seen=[datetimeoffset]::MinValue
+  if($entry -cnotmatch '^([a-f0-9]{40}) (\S+)$' -or $Matches[1] -cne $revision -or
+   -not [datetimeoffset]::TryParseExact($Matches[2],'o',[Globalization.CultureInfo]::InvariantCulture,
+    [Globalization.DateTimeStyles]::None,[ref]$seen) -or
+   $seen -lt [datetimeoffset]::Parse('2026-11-23T12:15:59.000Z') -or
+   $seen -ge [datetimeoffset]::Parse('2026-11-26T12:15:00.000Z')){throw 'LEGACY_CLAIM_REJECTED'}
+ }finally{$handle.Dispose()}
+}
 function Invoke-FixedRestore([switch]$DaclOnlyActiveRelease) {
-  if(-not $HostStopApproved -or $BackupId -notmatch '^[a-f0-9]{32}$' -or -not(Test-Path -LiteralPath $marker)){throw 'BACKUP_REJECTED'}
+  if($BackupId -cnotmatch '^[a-f0-9]{32}$' -or -not(Test-Path -LiteralPath $marker)){throw 'BACKUP_REJECTED'}
+  $mutex=New-Object Threading.Mutex($false,('Global\GORIQ-FixedAclRestore-'+$BackupId))
+  $ownsMutex=$false
+  try {
+  try{$ownsMutex=$mutex.WaitOne(0)}catch [Threading.AbandonedMutexException]{$ownsMutex=$true}
+  if(-not $ownsMutex){throw 'RESTORE_ALREADY_RUNNING'}
   $backupPath=Join-Path $env:LOCALAPPDATA ('goriq-fixed-acl-before-'+$BackupId+'.dpapi')
   $transaction=Read-FixedTransaction $backupPath $marker $BackupId
-  if($transaction.version -ne 2 -or $transaction.issue -ne 1787 -or $transaction.sourceRevision -cne $SourceRevision -or
+  $legacyRevision='65aaf78304ce40c39bee7890769f073fd9b3cc33'
+  $legacyRecovery=$transaction.sourceRevision -ceq $legacyRevision -and $SourceRevision -cne $legacyRevision
+  if($transaction.version -ne 2 -or $transaction.issue -ne 1787 -or
+   (-not $legacyRecovery -and ($transaction.sourceRevision -cne $SourceRevision -or -not $HostStopApproved)) -or
    $transaction.hostWasRunning -ne $true -or $transaction.userSid -cne $identity.User.Value -or $transaction.records.Count -ne 5 -or $transaction.wanted.Count -ne 5){throw 'BACKUP_REJECTED'}
   for($i=0;$i -lt 5;$i++){
    if($transaction.records[$i].path -cne $targets[$i].path -or
@@ -473,9 +521,21 @@ function Invoke-FixedRestore([switch]$DaclOnlyActiveRelease) {
   if($transaction.guards.Count -ne $guardRecords.Count){throw 'BASELINE_CHANGED'}
   for($i=0;$i -lt $guardRecords.Count;$i++){Assert-FixedRecord $transaction.guards[$i] $guardRecords[$i]}
   Assert-State-Preserved $transaction.state $stateBefore
-  $script:records=@($transaction.records);$script:wanted=@($transaction.wanted);$script:backupIdResult=$BackupId
+  $expected=@($transaction.wanted | ForEach-Object {$_})
+  if($legacyRecovery){
+   if($hostStopped -or -not $DaclOnlyActiveRelease){throw 'RUNTIME_CHANGED'}
+   Assert-FixedLegacyClaim $legacyRevision
+   $canonical=Get-FixedConfigRestoreDescriptor $transaction.records[3].descriptor $expected[3] $identity.User.Value $candidate.sidValue
+   if($canonical -and $records[3].descriptor -ceq $canonical){$expected[3]=$canonical}
+  }
+  $script:records=@($transaction.records);$script:wanted=$expected;$script:backupIdResult=$BackupId
   $script:stage='restore';Write-Host ('FIXED_ACL_STAGE='+$stage)
- $script:stopRequired=Test-FixedStopRequired $true -DaclOnlyActiveRelease:$DaclOnlyActiveRelease
+  if($legacyRecovery){
+   # Keep these handles through restoration. A sharing violation cannot lead to a stop.
+   $script:stopRequired=$false
+   Open-FixedHandles $true -DaclOnlyActiveRelease
+   Assert-FixedKnownTargets;Assert-FixedRuntime;Assert-FixedGuards
+  }else{$script:stopRequired=Test-FixedStopRequired $true -DaclOnlyActiveRelease:$DaclOnlyActiveRelease}
   try{
   if(-not $hostStopped -and $stopRequired){Stop-FixedHost -KeepAdbRunning:$DaclOnlyActiveRelease}
   if($hostStopped){Recover-FixedHost -DaclOnlyActiveRelease:$DaclOnlyActiveRelease}else{
@@ -490,6 +550,10 @@ function Invoke-FixedRestore([switch]$DaclOnlyActiveRelease) {
    # a failed restart do not trigger an unfenced repeat operation.
   if($hostStopped -and -not $restartAttempted -and -not $recoveryAttempted){try{Assert-StoppedInstallation;Recover-FixedHost -DaclOnlyActiveRelease:$DaclOnlyActiveRelease}catch{}}
    throw $originalFailure
+  }
+  }finally{
+   if($ownsMutex){$mutex.ReleaseMutex()}
+   $mutex.Dispose()
   }
 }
 function Assert-FixedGuards {
@@ -662,7 +726,7 @@ try {
 }catch{
  $known=@('APPROVAL_REJECTED','ARTIFACT_REJECTED','ADMIN_REQUIRED','SOURCE_REJECTED','MAIN_CI_REQUIRED','OWNER_BOUNDARY_REJECTED',
   'ACL_CANDIDATE_REJECTED','DACL_REJECTED','BASELINE_CHANGED','REPARSE_REJECTED','HARDLINK_REJECTED','HANDLE_REJECTED',
-  'HOST_STOP_APPROVAL_REQUIRED','adb-stop-scope','PROCESS_CHANGED','PROCESS_REJECTED','SERVICE_RECOVERY_REQUIRED','WRITE_REJECTED','BACKUP_REJECTED','RESTORE_REJECTED','RUNTIME_CHANGED','RECONCILIATION_REQUIRED',
+  'HOST_STOP_APPROVAL_REQUIRED','adb-stop-scope','PROCESS_CHANGED','PROCESS_REJECTED','SERVICE_RECOVERY_REQUIRED','WRITE_REJECTED','BACKUP_REJECTED','RESTORE_REJECTED','LEGACY_CLAIM_REJECTED','RESTORE_ALREADY_RUNNING','RUNTIME_CHANGED','RECONCILIATION_REQUIRED',
   'APPLY_ATTEMPT_ALREADY_CLAIMED','APPLY_ATTEMPT_CLAIM_FAILED')
  $failure=$_.Exception
  $targetIndex=$null
