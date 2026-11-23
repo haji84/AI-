@@ -104,7 +104,14 @@ function Compare-Descriptor([string]$expectedText, [string]$actualText) {
   }
 }
 
-function Test-DaclOnly([string]$mode, [uint32]$applyInformation, [uint32]$restoreInformation, [bool]$usePathApi = $false) {
+function Test-DaclOnly(
+  [string]$mode,
+  [uint32]$applyInformation,
+  [uint32]$restoreInformation,
+  [bool]$usePathApi = $false,
+  [bool]$requestRollbackInheritance = $false,
+  [bool]$useExistingControl = $false
+) {
   $fixture = Join-Path ([IO.Path]::GetTempPath()) ('goriq-dacl-only-test-' + [guid]::NewGuid().ToString('N'))
   $null = New-Item -ItemType Directory -Path $fixture -ErrorAction Stop
   $nativeCwd = [Environment]::CurrentDirectory
@@ -143,35 +150,57 @@ function Test-DaclOnly([string]$mode, [uint32]$applyInformation, [uint32]$restor
     $fileHash = (Get-FileHash -LiteralPath $file).Hash
     $wanted = New-FixedDescriptor $original $identity.User.Value $reader $true
     $fileId = [GoriqFixedAclNative]::PathIdentity($target)
+    $expected = $wanted
+    if (-not $useExistingControl) {
+      # The previous Windows run found precisely one change to descriptor metadata:
+      # the kernel clears the auto-inherited flag when writing the protected DACL.
+      $raw = New-Object Security.AccessControl.RawSecurityDescriptor($wanted)
+      $raw.SetFlags([Security.AccessControl.ControlFlags]([int]$raw.ControlFlags -band (-bnot 0x0400)))
+      $expected = $raw.GetSddlForm([Security.AccessControl.AccessControlSections]::All)
+    }
+    $restoreText = $original
+    if ($requestRollbackInheritance) {
+      $raw = New-Object Security.AccessControl.RawSecurityDescriptor($original)
+      $raw.SetFlags([Security.AccessControl.ControlFlags]([int]$raw.ControlFlags -bor 0x0100))
+      $restoreText = $raw.GetSddlForm([Security.AccessControl.AccessControlSections]::All)
+    }
 
     $stage = 'native-cwd'
-    [Environment]::CurrentDirectory = $target
-    $blocked = $false
-    try {
-      $max = [GoriqFixedAclNative]::Open($target, $true, $true)
-      $max.Dispose()
-    } catch {
-      $failure = $_.Exception
-      while ($failure.InnerException) { $failure = $failure.InnerException }
-      if ($failure.Message -cne 'HANDLE_REJECTED_32') { throw }
-      $blocked = $true
+    if (-not $useExistingControl) {
+      [Environment]::CurrentDirectory = $target
+      $blocked = $false
+      try {
+        $max = [GoriqFixedAclNative]::Open($target, $true, $true)
+        $max.Dispose()
+      } catch {
+        $failure = $_.Exception
+        while ($failure.InnerException) { $failure = $failure.InnerException }
+        if ($failure.Message -cne 'HANDLE_REJECTED_32') { throw }
+        $blocked = $true
+      }
+      if (-not $blocked) { throw 'EXPECTED_SHARING_32' }
     }
-    if (-not $blocked) { throw 'EXPECTED_SHARING_32' }
 
     $stage = 'dacl-only-open'
     $pin = [GoriqFixedAclNative]::Open($child, $false, $true)
-    $writer = [GoriqDaclOnlyFixture]::OpenDacl($target)
+    $writer = if ($useExistingControl) {
+      [GoriqFixedAclNative]::Open($target, $true, $true)
+    } else {
+      [GoriqDaclOnlyFixture]::OpenDacl($target)
+    }
     if ([GoriqFixedAclNative]::Identity($writer) -cne $fileId) { throw 'OBJECT_IDENTITY_CHANGED' }
 
     $stage = 'forward'
-    [GoriqDaclOnlyFixture]::WriteDacl($writer, $target, $wanted, $applyInformation, $usePathApi)
+    if ($useExistingControl) { [GoriqFixedAclNative]::Apply($writer, $wanted) }
+    else { [GoriqDaclOnlyFixture]::WriteDacl($writer, $target, $wanted, $applyInformation, $usePathApi) }
     $actual = Read-Sddl $target
-    $details = Compare-Descriptor $wanted $actual
+    $details = Compare-Descriptor $expected $actual
     foreach ($path in $fixedObjects) { if ((Read-Sddl $path) -cne $before[$path]) { throw 'FORWARD_PROPAGATED' } }
-    if ($actual -cne $wanted) { throw 'FORWARD_DESCRIPTOR_MISMATCH' }
+    if ($actual -cne $expected) { throw 'FORWARD_DESCRIPTOR_MISMATCH' }
 
     $stage = 'rollback'
-    [GoriqDaclOnlyFixture]::WriteDacl($writer, $target, $original, $restoreInformation, $usePathApi)
+    if ($useExistingControl) { [GoriqFixedAclNative]::Apply($writer, $original) }
+    else { [GoriqDaclOnlyFixture]::WriteDacl($writer, $target, $restoreText, $restoreInformation, $usePathApi) }
     $actual = Read-Sddl $target
     $details = Compare-Descriptor $original $actual
     foreach ($path in $fixedObjects) { if ((Read-Sddl $path) -cne $before[$path]) { throw 'ROLLBACK_PROPAGATED' } }
@@ -194,10 +223,12 @@ function Test-DaclOnly([string]$mode, [uint32]$applyInformation, [uint32]$restor
 }
 
 $results = @(
-  Test-DaclOnly 'descriptor-and-protection-bits' 2147483652 536870916
-  Test-DaclOnly 'descriptor-control-bits' 4 4
-  Test-DaclOnly 'file-security-with-protection-bits' 2147483652 536870916 $true
-  Test-DaclOnly 'file-security-descriptor-bits' 4 4 $true
+  Test-DaclOnly 'narrow-locked-restore' 2147483652 536870916
+  Test-DaclOnly 'narrow-locked-restore-auto-inherit-request' 2147483652 536870916 $false $true
+  Test-DaclOnly 'path-locked-restore-auto-inherit-request' 2147483652 536870916 $true $true
+  Test-DaclOnly 'current-method-unlocked-control' 4 4 $false $false $true
 )
 $results | ForEach-Object { $_ | ConvertTo-Json -Depth 4 -Compress }
-if (-not ($results.Passed -contains $true)) { throw 'NO_NON_PROPAGATING_DACL_ONLY_PATH_PROVEN' }
+if (-not @($results | Where-Object { $_.Mode -cne 'current-method-unlocked-control' -and $_.Passed }).Count) {
+  throw 'NO_NON_PROPAGATING_DACL_ONLY_PATH_PROVEN'
+}
