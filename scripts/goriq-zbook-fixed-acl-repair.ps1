@@ -1,7 +1,7 @@
 param([ValidateSet('plan','apply','restore')][string]$Phase='plan',[switch]$OwnerApproved,
  [Parameter(Mandatory=$true)][string]$SourceRevision,
  [Parameter(Mandatory=$true)][string]$ExpectedRepairSha256,[string]$BackupId,[switch]$HostStopApproved)
-# #1787/#1662: owner renewal 2026-11-22T13:32:40Z; established scope in issue comment6126491312.
+# #1787/#1662: one additional Owner-approved attempt, 2026-11-23 through 2026-11-26.
 # Exact five existing objects; approved scoped host stop/restart only on sharing block.
 # No recursive propagation or ancestor/dependency ACL writes; stop approval6127583703.
 Set-StrictMode -Version Latest
@@ -36,7 +36,7 @@ function Import-FixedFunctions([string]$sourceText,[string[]]$names) {
   Invoke-Expression ($definition.Replace(('function '+$name),('function script:'+$name)))
  }
 }
-function New-FixedDescriptor([string]$descriptor,[string]$user,[string]$reader,[bool]$directory) {
+function New-FixedDescriptor([string]$descriptor,[string]$user,[string]$reader,[bool]$directory,[switch]$WithoutAutoInherited) {
  $raw=New-Object Security.AccessControl.RawSecurityDescriptor($descriptor)
  if($raw.Owner.Value -cne $user -or ([int]$raw.ControlFlags -band 0x1000) -ne 0 -or
   $null -eq $raw.DiscretionaryAcl -or $raw.DiscretionaryAcl.Count -eq 0){throw 'DACL_REJECTED'}
@@ -64,7 +64,9 @@ function New-FixedDescriptor([string]$descriptor,[string]$user,[string]$reader,[
   if($ace -isnot [Security.AccessControl.CommonAce] -or $ace.IsCallback -or
    $ace.AceQualifier -ne [Security.AccessControl.AceQualifier]::SystemAudit){throw 'DACL_REJECTED'}
  }}
- $raw.SetFlags([Security.AccessControl.ControlFlags]([int]$raw.ControlFlags -bor 0x1000))
+ $control=[int]$raw.ControlFlags -bor 0x1000
+ if($WithoutAutoInherited){$control=$control -band (-bnot 0x0400)}
+ $raw.SetFlags([Security.AccessControl.ControlFlags]$control)
  return $raw.GetSddlForm([Security.AccessControl.AccessControlSections]::All)
 }
 function Initialize-FixedNative {
@@ -86,11 +88,19 @@ public static class GoriqFixedAclNative {
  [DllImport("advapi32.dll",SetLastError=true)] static extern bool GetSecurityDescriptorDacl(IntPtr descriptor,out bool present,out IntPtr dacl,out bool defaulted);
  [DllImport("advapi32.dll",SetLastError=true)] static extern bool GetSecurityDescriptorControl(IntPtr descriptor,out ushort control,out uint revision);
  [DllImport("advapi32.dll")] static extern uint SetSecurityInfo(SafeFileHandle handle,uint type,uint information,IntPtr owner,IntPtr group,IntPtr dacl,IntPtr sacl);
+ [DllImport("ntdll.dll",ExactSpelling=true)] static extern int NtSetSecurityObject(SafeFileHandle handle,uint information,IntPtr descriptor);
  [DllImport("kernel32.dll")] static extern IntPtr LocalFree(IntPtr memory);
  public static SafeFileHandle Open(string path,bool writable,bool directory) {
   // MAXIMUM_ALLOWED suppresses SetSecurityInfo child propagation. File handles
   // deny replacement; directory handles retain identity and detect pathname drift.
-  var h=CreateFileW(path,writable?0x02000000u:0x120081u,(writable&&directory)?7u:3u,IntPtr.Zero,3,0x02200000,IntPtr.Zero);
+  return OpenChecked(path,writable?0x02000000u:0x120081u,(writable&&directory)?7u:3u,directory);
+ }
+ public static SafeFileHandle OpenDaclOnlyDirectory(string path) {
+  // READ_CONTROL, WRITE_DAC and FILE_READ_ATTRIBUTES, compatible with a held CWD.
+  return OpenChecked(path,0x00060080u,7u,true);
+ }
+ static SafeFileHandle OpenChecked(string path,uint access,uint share,bool directory) {
+  var h=CreateFileW(path,access,share,IntPtr.Zero,3,0x02200000,IntPtr.Zero);
   try {
    if(h.IsInvalid)throw new Exception("HANDLE_REJECTED_"+Marshal.GetLastWin32Error());
    string id=Identity(h);
@@ -109,6 +119,12 @@ public static class GoriqFixedAclNative {
   using(var h=CreateFileW(path,0x80,7,IntPtr.Zero,3,0x02200000,IntPtr.Zero)){return Identity(h);}
  }
  public static void Apply(SafeFileHandle handle,string text) {
+  ApplyDacl(handle,text,false);
+ }
+ public static void ApplyDaclOnly(SafeFileHandle handle,string text) {
+  ApplyDacl(handle,text,true);
+ }
+ static void ApplyDacl(SafeFileHandle handle,string text,bool daclOnly) {
   Identity(handle);
   IntPtr descriptor=IntPtr.Zero,dacl;uint length,revision;bool present,defaulted;ushort control;
   try {
@@ -117,7 +133,10 @@ public static class GoriqFixedAclNative {
     dacl==IntPtr.Zero || Marshal.ReadInt16(dacl,4)<=0 ||
     !GetSecurityDescriptorControl(descriptor,out control,out revision))throw new Exception("DACL_REJECTED");
    uint flags=4u|((control&0x1000)!=0?0x80000000u:0x20000000u);
-   if(SetSecurityInfo(handle,1,flags,IntPtr.Zero,IntPtr.Zero,dacl,IntPtr.Zero)!=0)throw new Exception("WRITE_REJECTED");
+   // The DACL-only syscall updates the held object without propagating to children.
+   bool ok=daclOnly?NtSetSecurityObject(handle,flags,descriptor)==0:
+    SetSecurityInfo(handle,1,flags,IntPtr.Zero,IntPtr.Zero,dacl,IntPtr.Zero)==0;
+   if(!ok)throw new Exception("WRITE_REJECTED");
   }finally{if(descriptor!=IntPtr.Zero)LocalFree(descriptor);}
  }
 }
@@ -204,14 +223,24 @@ function Assert-FixedRecord($before,$after) {
   if($before.$key -cne $after.$key){throw 'BASELINE_CHANGED'}
  }
 }
-function Invoke-FixedTransition($entry,$handle,$baseline,[string]$descriptor,[switch]$EnforceExpiry) {
+function Invoke-FixedTransition($entry,$handle,$baseline,[string]$descriptor,[switch]$EnforceExpiry,[switch]$DaclOnly) {
  Assert-FixedRecord $baseline (Get-FixedRecord $entry $handle)
+ $requested=$descriptor
+ if($DaclOnly){
+  $raw=New-Object Security.AccessControl.RawSecurityDescriptor($descriptor)
+  if(([int]$raw.ControlFlags -band 0x0400) -ne 0){
+   # Request auto-inheritance on restore so Windows retains the original AI flag.
+   $raw.SetFlags([Security.AccessControl.ControlFlags]([int]$raw.ControlFlags -bor 0x0100))
+   $requested=$raw.GetSddlForm([Security.AccessControl.AccessControlSections]::All)
+  }
+ }
  if($EnforceExpiry){Assert-FixedExpiry}
- [GoriqFixedAclNative]::Apply($handle,$descriptor)
+ if($DaclOnly){[GoriqFixedAclNative]::ApplyDaclOnly($handle,$requested)}
+ else{[GoriqFixedAclNative]::Apply($handle,$descriptor)}
  $expected=$baseline.PSObject.Copy();$expected.descriptor=$descriptor
  Assert-FixedRecord $expected (Get-FixedRecord $entry $handle)
 }
-function Restore-FixedRecords([object[]]$targets,[object[]]$handles,[object[]]$baseline,[string[]]$wanted,[switch]$EnforceExpiry) {
+function Restore-FixedRecords([object[]]$targets,[object[]]$handles,[object[]]$baseline,[string[]]$wanted,[switch]$EnforceExpiry,[switch]$DaclOnlyActiveRelease) {
  if($targets.Count -ne 5 -or $handles.Count -ne 5 -or $baseline.Count -ne 5 -or $wanted.Count -ne 5){throw 'RESTORE_REJECTED'}
  # Preflight ALL objects before restoration; unknown effects never trigger blind writes.
  for($i=0;$i -lt 5;$i++){
@@ -225,7 +254,9 @@ function Restore-FixedRecords([object[]]$targets,[object[]]$handles,[object[]]$b
   if($live.descriptor -cne $baseline[$i].descriptor -and $live.descriptor -cne $wanted[$i]){throw 'RECONCILIATION_REQUIRED'}
   $expected=$baseline[$i].PSObject.Copy();$expected.descriptor=$live.descriptor
   Assert-FixedRecord $expected $live
-  if($live.descriptor -cne $baseline[$i].descriptor){Invoke-FixedTransition $targets[$i] $handles[$i] $live $baseline[$i].descriptor -EnforceExpiry:$EnforceExpiry}
+  if($live.descriptor -cne $baseline[$i].descriptor){
+   Invoke-FixedTransition $targets[$i] $handles[$i] $live $baseline[$i].descriptor -EnforceExpiry:$EnforceExpiry -DaclOnly:($DaclOnlyActiveRelease -and $i -eq 2)
+  }
  }
  for($i=0;$i -lt 5;$i++){Assert-FixedRecord $baseline[$i] (Get-FixedRecord $targets[$i] $handles[$i])}
 }
@@ -294,11 +325,23 @@ function Invoke-FixedHostTransaction([scriptblock]$Persist,[scriptblock]$Stop,[s
 function Close-FixedHandles {
  foreach($handle in $script:handles){$handle.Dispose()};$script:handles=@()
 }
-function Open-FixedHandles([bool]$writable) {
+function Open-FixedHandles([bool]$writable,[switch]$DaclOnlyActiveRelease) {
  Close-FixedHandles
  try{
-  foreach($entry in $targets){$script:handles+=,[GoriqFixedAclNative]::Open($entry.path,$writable,$entry.directory)}
- }catch{Close-FixedHandles;throw}
+  for($i=0;$i -lt $targets.Count;$i++){
+   $entry=$targets[$i]
+   $handle=if($writable -and $DaclOnlyActiveRelease -and $i -eq 2){
+    [GoriqFixedAclNative]::OpenDaclOnlyDirectory($entry.path)
+   }else{
+    [GoriqFixedAclNative]::Open($entry.path,$writable,$entry.directory)
+   }
+   $script:handles+=,$handle
+  }
+ }catch{
+  $_.Exception.Data['FixedAclTargetIndex']=$i
+  Close-FixedHandles
+  throw
+ }
 }
 function Assert-FixedKnownTargets {
  for($i=0;$i -lt 5;$i++){
@@ -308,9 +351,9 @@ function Assert-FixedKnownTargets {
   Assert-FixedRecord $expected $live
  }
 }
-function Test-FixedStopRequired([bool]$allowWanted=$false) {
+function Test-FixedStopRequired([bool]$allowWanted=$false,[switch]$DaclOnlyActiveRelease) {
  $required=$false
- try{Open-FixedHandles $true}catch{
+ try{Open-FixedHandles $true -DaclOnlyActiveRelease:$DaclOnlyActiveRelease}catch{
   $failure=$_.Exception
   while($null -ne $failure.InnerException){$failure=$failure.InnerException}
   if($failure.Message -cne 'HANDLE_REJECTED_32'){throw}
@@ -332,11 +375,15 @@ function Persist-FixedHostBaseline {
  Write-FixedTransaction $backupPath $marker $transaction $backupIdResult
  $script:markerCreated=$true
 }
-function Stop-FixedHost {
- if(-not $HostStopApproved -or [datetimeoffset]::UtcNow -lt [datetimeoffset]::Parse('2026-11-22T13:32:40Z')){throw 'HOST_STOP_APPROVAL_REQUIRED'}
+function Assert-FixedAdbOutsideStopTree([object[]]$tree) {
+ if(@($tree | Where-Object {$_.Name -ieq 'adb.exe'}).Count){throw 'ADB_ACTIVE_IN_HOST_TREE'}
+}
+function Stop-FixedHost([switch]$KeepAdbRunning) {
+ if(-not $HostStopApproved -or [datetimeoffset]::UtcNow -lt [datetimeoffset]::Parse('2026-11-23T12:15:59.000Z')){throw 'HOST_STOP_APPROVAL_REQUIRED'}
  Assert-FixedRuntime;Assert-FixedGuards;Assert-FixedKnownTargets
  $liveTree=@(Get-OwnedTree $oldRoot)
  Assert-FixedTree $tree $liveTree
+ if($KeepAdbRunning){Assert-FixedAdbOutsideStopTree $liveTree}
  Bind-FixedProcessTree $liveTree
  Assert-FixedExpiry
  $script:hostStopAttempted=$true
@@ -344,13 +391,13 @@ function Stop-FixedHost {
  $script:hostStopped=$true
  Assert-FixedRuntime
 }
-function Write-FixedTargets {
+function Write-FixedTargets([switch]$DaclOnlyActiveRelease) {
  Assert-FixedRuntime;Assert-FixedGuards
- Open-FixedHandles $true
+ Open-FixedHandles $true -DaclOnlyActiveRelease:$DaclOnlyActiveRelease
  for($i=0;$i -lt 5;$i++){
   Assert-FixedRuntime;Assert-FixedGuards
   $script:changed=$true
-  Invoke-FixedTransition $targets[$i] $handles[$i] $records[$i] $wanted[$i] -EnforceExpiry
+  Invoke-FixedTransition $targets[$i] $handles[$i] $records[$i] $wanted[$i] -EnforceExpiry -DaclOnly:($DaclOnlyActiveRelease -and $i -eq 2)
  }
  Assert-FixedGuards;Assert-FixedRuntime
 }
@@ -375,10 +422,19 @@ function Verify-FixedHost {
  }
  Remove-Item -LiteralPath $marker -Force;$script:markerCreated=$false
 }
-function Recover-FixedHost {
+function Recover-FixedHost([switch]$DaclOnlyActiveRelease) {
  $script:recoveryAttempted=$true
  $script:serviceRecoveryVerified=$false
  Assert-FixedExpiry;Assert-FixedGuards
+ if($DaclOnlyActiveRelease -and -not $hostStopAttempted -and -not $hostStopped -and -not $changed){
+  # A stop refused by the ADB fence can leave a verified intent without a write.
+  Open-FixedHandles $false
+  for($i=0;$i -lt 5;$i++){Assert-FixedRecord $records[$i] (Get-FixedRecord $targets[$i] $handles[$i])}
+  Assert-FixedRuntime
+  Remove-Item -LiteralPath $marker -Force
+  $script:markerCreated=$false;$script:restored=$true;$script:serviceRecoveryVerified=$true
+  return
+ }
  # Never terminate an unknown partial-stop residual. If restart was attempted,
  # fresh exact installation ownership/state evidence is required before stopping.
  if($restartAttempted){
@@ -386,6 +442,7 @@ function Recover-FixedHost {
   $liveTree=@(Get-OwnedTree $oldRoot $false)
   if($liveTree.Count){
    Assert-FixedTree $liveTree @(Get-OwnedTree $oldRoot $false)
+   if($DaclOnlyActiveRelease){Assert-FixedAdbOutsideStopTree $liveTree}
    Bind-FixedProcessTree $liveTree
    Assert-FixedExpiry;Stop-OwnedTree $liveTree
   }
@@ -396,8 +453,8 @@ function Recover-FixedHost {
  for($i=0;$i -lt 5;$i++){if((Get-FixedRecord $targets[$i] $handles[$i]).descriptor -cne $records[$i].descriptor){$needsRestore=$true}}
  if($needsRestore){
   $script:changed=$true
-  Open-FixedHandles $true
-  Restore-FixedRecords $targets $handles $records $wanted -EnforceExpiry
+  Open-FixedHandles $true -DaclOnlyActiveRelease:$DaclOnlyActiveRelease
+  Restore-FixedRecords $targets $handles $records $wanted -EnforceExpiry -DaclOnlyActiveRelease:$DaclOnlyActiveRelease
  }
  Open-FixedHandles $false
  for($i=0;$i -lt 5;$i++){Assert-FixedRecord $records[$i] (Get-FixedRecord $targets[$i] $handles[$i])}
@@ -407,7 +464,7 @@ function Recover-FixedHost {
  Remove-Item -LiteralPath $marker -Force;$script:markerCreated=$false
  $script:restored=$true
 }
-function Invoke-FixedRestore {
+function Invoke-FixedRestore([switch]$DaclOnlyActiveRelease) {
   if(-not $HostStopApproved -or $BackupId -notmatch '^[a-f0-9]{32}$' -or -not(Test-Path -LiteralPath $marker)){throw 'BACKUP_REJECTED'}
   $backupPath=Join-Path $env:LOCALAPPDATA ('goriq-fixed-acl-before-'+$BackupId+'.dpapi')
   $transaction=Read-FixedTransaction $backupPath $marker $BackupId
@@ -415,7 +472,7 @@ function Invoke-FixedRestore {
    $transaction.hostWasRunning -ne $true -or $transaction.userSid -cne $identity.User.Value -or $transaction.records.Count -ne 5 -or $transaction.wanted.Count -ne 5){throw 'BACKUP_REJECTED'}
   for($i=0;$i -lt 5;$i++){
    if($transaction.records[$i].path -cne $targets[$i].path -or
-    (New-FixedDescriptor $transaction.records[$i].descriptor $identity.User.Value $candidate.sidValue $targets[$i].directory) -cne $transaction.wanted[$i]){throw 'BACKUP_REJECTED'}
+    (New-FixedDescriptor $transaction.records[$i].descriptor $identity.User.Value $candidate.sidValue $targets[$i].directory -WithoutAutoInherited:($DaclOnlyActiveRelease -and $i -eq 2)) -cne $transaction.wanted[$i]){throw 'BACKUP_REJECTED'}
   }
   if($transaction.taskXml -cne $taskXml -or $transaction.configHash -cne $configHash -or $transaction.launcherHash -cne $launcherHash){throw 'RUNTIME_CHANGED'}
   if($transaction.guards.Count -ne $guardRecords.Count){throw 'BASELINE_CHANGED'}
@@ -423,12 +480,12 @@ function Invoke-FixedRestore {
   Assert-State-Preserved $transaction.state $stateBefore
   $script:records=@($transaction.records);$script:wanted=@($transaction.wanted);$script:backupIdResult=$BackupId
   $script:stage='restore';Write-Host ('FIXED_ACL_STAGE='+$stage)
-  $script:stopRequired=Test-FixedStopRequired $true
+ $script:stopRequired=Test-FixedStopRequired $true -DaclOnlyActiveRelease:$DaclOnlyActiveRelease
   try{
-   if(-not $hostStopped -and $stopRequired){Stop-FixedHost}
-   if($hostStopped){Recover-FixedHost}else{
+  if(-not $hostStopped -and $stopRequired){Stop-FixedHost -KeepAdbRunning:$DaclOnlyActiveRelease}
+  if($hostStopped){Recover-FixedHost -DaclOnlyActiveRelease:$DaclOnlyActiveRelease}else{
     # Compatible running host: no operational stop beyond the proven sharing gate.
-    $script:changed=$true;Restore-FixedRecords $targets $handles $records $wanted -EnforceExpiry
+   $script:changed=$true;Restore-FixedRecords $targets $handles $records $wanted -EnforceExpiry -DaclOnlyActiveRelease:$DaclOnlyActiveRelease
     Open-FixedHandles $false;Assert-FixedRuntime;Assert-FixedGuards
     Remove-Item -LiteralPath $marker -Force;$script:markerCreated=$false;$script:restored=$true
    }
@@ -436,7 +493,7 @@ function Invoke-FixedRestore {
    $originalFailure=$_
    # A positively stopped host gets one recovery attempt. Unknown residuals or
    # a failed restart do not trigger an unfenced repeat operation.
-   if($hostStopped -and -not $restartAttempted -and -not $recoveryAttempted){try{Assert-StoppedInstallation;Recover-FixedHost}catch{}}
+  if($hostStopped -and -not $restartAttempted -and -not $recoveryAttempted){try{Assert-StoppedInstallation;Recover-FixedHost -DaclOnlyActiveRelease:$DaclOnlyActiveRelease}catch{}}
    throw $originalFailure
   }
 }
@@ -456,13 +513,13 @@ function Assert-FixedRuntime {
  }
 }
 function Assert-FixedExpiry {
- if([datetimeoffset]::UtcNow -ge [datetimeoffset]::Parse('2026-11-23T10:05:00Z')){throw 'APPROVAL_REJECTED'}
+ if([datetimeoffset]::UtcNow -ge [datetimeoffset]::Parse('2026-11-26T12:15:00.000Z')){throw 'APPROVAL_REJECTED'}
 }
 try {
  Assert-FixedExpiry
- if([datetimeoffset]::UtcNow -lt [datetimeoffset]::Parse('2026-11-22T13:32:40Z') -or
+ if([datetimeoffset]::UtcNow -lt [datetimeoffset]::Parse('2026-11-23T12:15:59.000Z') -or
   ($Phase -ne 'plan' -and -not $OwnerApproved) -or
-  ($Phase -ne 'plan' -and $HostStopApproved -and [datetimeoffset]::UtcNow -lt [datetimeoffset]::Parse('2026-11-22T13:32:40Z'))){throw 'APPROVAL_REJECTED'}
+  ($Phase -ne 'plan' -and $HostStopApproved -and [datetimeoffset]::UtcNow -lt [datetimeoffset]::Parse('2026-11-23T12:15:59.000Z'))){throw 'APPROVAL_REJECTED'}
  if($env:OS -ne 'Windows_NT' -or $SourceRevision -notmatch '^[a-f0-9]{40}$' -or
   $ExpectedRepairSha256 -notmatch '^[a-f0-9]{64}$' -or
   (Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash.ToLowerInvariant() -cne $ExpectedRepairSha256){throw 'ARTIFACT_REJECTED'}
@@ -561,22 +618,25 @@ try {
  $marker=Join-Path $env:LOCALAPPDATA 'goriq-fixed-acl-active.json'
  if($Phase -ne 'restore' -and (Test-Path -LiteralPath $marker)){throw 'RECONCILIATION_REQUIRED'}
  if($Phase -eq 'restore'){
-  Invoke-FixedRestore
+  Invoke-FixedRestore -DaclOnlyActiveRelease
  }else{
   $stage='plan';Write-Host ('FIXED_ACL_STAGE='+$stage)
-  for($i=0;$i -lt 5;$i++){$wanted+=,(New-FixedDescriptor $records[$i].descriptor $identity.User.Value $candidate.sidValue $targets[$i].directory)}
-  $stopRequired=Test-FixedStopRequired
+  for($i=0;$i -lt 5;$i++){
+   $wanted+=,(New-FixedDescriptor $records[$i].descriptor $identity.User.Value $candidate.sidValue $targets[$i].directory -WithoutAutoInherited:($i -eq 2))
+  }
+  $stopRequired=Test-FixedStopRequired -DaclOnlyActiveRelease
+  if($stopRequired){Assert-FixedAdbOutsideStopTree $tree}
   if($Phase -eq 'apply'){
    if(-not $HostStopApproved){throw 'HOST_STOP_APPROVAL_REQUIRED'}
    $stage='host-transaction';Write-Host ('FIXED_ACL_STAGE='+$stage)
    if($stopRequired){
-    $result=Invoke-FixedHostTransaction -Persist {Persist-FixedHostBaseline} -Stop {Stop-FixedHost} -Write {Write-FixedTargets} -Start {Start-FixedHost} -Verify {Verify-FixedHost} -Recover {Recover-FixedHost}
+    $result=Invoke-FixedHostTransaction -Persist {Persist-FixedHostBaseline} -Stop {Stop-FixedHost -KeepAdbRunning} -Write {Write-FixedTargets -DaclOnlyActiveRelease} -Start {Start-FixedHost} -Verify {Verify-FixedHost} -Recover {Recover-FixedHost -DaclOnlyActiveRelease}
     if(-not $result.verified){$restored=$result.restored;throw $result.failure}
    }else{
     Persist-FixedHostBaseline
-    try{Write-FixedTargets;Open-FixedHandles $false;Verify-FixedHost;$serviceRecoveryVerified=$true}catch{
+    try{Write-FixedTargets -DaclOnlyActiveRelease;Open-FixedHandles $false;Verify-FixedHost;$serviceRecoveryVerified=$true}catch{
      $originalFailure=$_
-     try{Open-FixedHandles $true;Restore-FixedRecords $targets $handles $records $wanted -EnforceExpiry;Open-FixedHandles $false;Assert-FixedRuntime;Assert-FixedGuards
+     try{Open-FixedHandles $true -DaclOnlyActiveRelease;Restore-FixedRecords $targets $handles $records $wanted -EnforceExpiry -DaclOnlyActiveRelease;Open-FixedHandles $false;Assert-FixedRuntime;Assert-FixedGuards
       Remove-Item -LiteralPath $marker -Force;$markerCreated=$false;$restored=$true
      }catch{$restored=$false}
      throw $originalFailure
@@ -586,20 +646,28 @@ try {
  }
  @{version=1;issue=1662;repairIssue=1787;nodeId='zbook';phase=$Phase;sourceRevision=$SourceRevision;
   readOnly=($Phase -eq 'plan');verified=$true;permissionChanged=$changed;targetCount=5;backupId=$backupIdResult;
-  restored=$restored;hostStopAttempted=$hostStopAttempted;serviceRecoveryVerified=$serviceRecoveryVerified;plannedHostStop=$stopRequired;runtimeUnchanged=$true;ancestorUnchanged=$true;recursiveWrite=$false;
+  restored=$restored;hostStopAttempted=$hostStopAttempted;serviceRecoveryVerified=$serviceRecoveryVerified;plannedHostStop=$stopRequired;runtimeUnchanged=$true;ancestorUnchanged=$true;recursiveWrite=$false;daclOnlyActiveRelease=$true;
   observedAt=[datetimeoffset]::UtcNow.ToString('o')} | ConvertTo-Json -Compress
 }catch{
  $known=@('APPROVAL_REJECTED','ARTIFACT_REJECTED','ADMIN_REQUIRED','SOURCE_REJECTED','MAIN_CI_REQUIRED','OWNER_BOUNDARY_REJECTED',
   'ACL_CANDIDATE_REJECTED','DACL_REJECTED','BASELINE_CHANGED','REPARSE_REJECTED','HARDLINK_REJECTED','HANDLE_REJECTED',
-  'HOST_STOP_APPROVAL_REQUIRED','PROCESS_CHANGED','PROCESS_REJECTED','SERVICE_RECOVERY_REQUIRED','WRITE_REJECTED','BACKUP_REJECTED','RESTORE_REJECTED','RUNTIME_CHANGED','RECONCILIATION_REQUIRED')
+  'HOST_STOP_APPROVAL_REQUIRED','ADB_ACTIVE_IN_HOST_TREE','PROCESS_CHANGED','PROCESS_REJECTED','SERVICE_RECOVERY_REQUIRED','WRITE_REJECTED','BACKUP_REJECTED','RESTORE_REJECTED','RUNTIME_CHANGED','RECONCILIATION_REQUIRED')
  $failure=$_.Exception
- while($null -ne $failure.InnerException){$failure=$failure.InnerException}
+ $targetIndex=$null
+ while($null -ne $failure){
+  if($null -ne $failure.Data['FixedAclTargetIndex']){$targetIndex=$failure.Data['FixedAclTargetIndex']}
+  if($null -eq $failure.InnerException){break}
+  $failure=$failure.InnerException
+ }
+ $targetName=if($targetIndex -is [int] -and $targetIndex -ge 0 -and $targetIndex -lt 5){
+  @('Production','Releases','ActiveRelease','Config','Launcher')[$targetIndex]
+ }else{$null}
  $nativeErrorCode=$null
  if($failure.Message -match '^HANDLE_REJECTED_([0-9]+)$'){$nativeErrorCode=[int]$Matches[1];$failure=New-Object Exception('HANDLE_REJECTED')}
  $reason=if($failure.Message -in $known){$failure.Message}else{'FIXED_REPAIR_FAILED'}
  @{version=1;issue=1662;repairIssue=1787;nodeId='zbook';phase=$Phase;failedStage=$stage;failureReason=$reason;
   permissionChanged=$changed;restored=$restored;backupId=$backupIdResult;hostStopAttempted=$hostStopAttempted;serviceRecoveryVerified=$serviceRecoveryVerified;
-  nativeErrorCode=$nativeErrorCode;intentPending=($null -ne $marker -and (Test-Path -LiteralPath $marker));
+  nativeErrorCode=$nativeErrorCode;failedTarget=$targetName;intentPending=($null -ne $marker -and (Test-Path -LiteralPath $marker));
   reconciliationRequired=(Test-FixedReconciliation $marker ($changed -or $hostStopAttempted) $restored $reason);
   observedAt=[datetimeoffset]::UtcNow.ToString('o')} | ConvertTo-Json -Compress
  exit 1

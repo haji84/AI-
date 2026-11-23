@@ -34,7 +34,7 @@ if(-not $rejected){throw 'host-replaced-pid-accepted'}
 # Drive the actual restore try/catch: a failure before Start cannot retry recovery.
 $restoreTry=$ast.Find({param($n) $n -is [Management.Automation.Language.TryStatementAst] -and $n.Body.Extent.Text -match '^\{\s*if\(-not \$hostStopped'},$true)
 $savedRecover=(Get-Item Function:Recover-FixedHost).ScriptBlock
-$script:recoveryCount=0;$script:hostStopped=$true;$script:restartAttempted=$false;$script:recoveryAttempted=$false;$stopRequired=$false
+$script:recoveryCount=0;$script:hostStopped=$true;$script:restartAttempted=$false;$script:recoveryAttempted=$false;$stopRequired=$false;$DaclOnlyActiveRelease=$false
 function Assert-StoppedInstallation {}
 Set-Item Function:Recover-FixedHost -Value {$script:recoveryCount++;$script:recoveryAttempted=$true;throw 'failed-before-start'}
 try{try{& ([scriptblock]::Create($restoreTry.Extent.Text))}catch{}}finally{Set-Item Function:Recover-FixedHost -Value $savedRecover}

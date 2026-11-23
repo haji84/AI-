@@ -13,9 +13,11 @@ export interface PcRuntimeRefreshApproval {
 export function validatePcRuntimeRefreshApproval(value: unknown, now = new Date()): PcRuntimeRefreshApproval {
   const approval = value as PcRuntimeRefreshApproval;
   const start = Date.parse(approval?.approvedAt), end = Date.parse(approval?.expiresAt);
+  // The owner's longer approval covers only this renewal of the existing ZBook refresh.
+  const ownerRenewal = approval?.approvedAt === "2026-11-23T12:15:59.000Z" && approval.expiresAt === "2026-11-26T12:15:00.000Z";
   if (approval?.version !== 1 || approval.issue !== 1662 || approval.goalIssue !== 1219 ||
     approval.operation !== "zbook-runtime-refresh" || !Number.isFinite(start) || !Number.isFinite(end) ||
-    start > now.getTime() || end <= now.getTime() || end <= start || end - start > 86_400_000 ||
+    start > now.getTime() || end <= now.getTime() || end <= start || (end - start > 86_400_000 && !ownerRenewal) ||
     !Array.isArray(approval.targets) || approval.targets.length !== 1 ||
     approval.targets[0]?.nodeId !== "zbook" || approval.targets[0]?.platform !== "windows" ||
     Object.keys(approval).some(key => !["version", "issue", "goalIssue", "operation", "approvedAt", "expiresAt", "targets"].includes(key))) {
