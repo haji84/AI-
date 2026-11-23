@@ -138,3 +138,12 @@ try{
  if($null -ne $lock){$lock.Dispose()};if($null -ne $writer){$writer.Dispose()}
  [IO.File]::Delete($fixturePath)
 }
+
+# Use a fresh Windows PowerShell process because this fixture declares mocked native types.
+if($env:OS -eq 'Windows_NT'){
+ $nativePowerShell=Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
+ foreach($fixture in @('goriq-pc-runtime-approval.test.ps1','goriq-zbook-live-release-acl.test.ps1')){
+  & $nativePowerShell -NoProfile -NonInteractive -File (Join-Path $PSScriptRoot $fixture)
+  if($LASTEXITCODE -ne 0){throw ('windows-native-fixture-failed: '+$fixture)}
+ }
+}

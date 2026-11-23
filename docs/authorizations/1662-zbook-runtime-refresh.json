@@ -3,8 +3,8 @@
   "issue": 1662,
   "goalIssue": 1219,
   "operation": "zbook-runtime-refresh",
-  "approvedAt": "2026-11-22T10:05:56.000Z",
-  "expiresAt": "2026-11-23T10:05:56.000Z",
+  "approvedAt": "2026-11-23T12:15:59.000Z",
+  "expiresAt": "2026-11-26T12:15:00.000Z",
   "targets": [
     {
       "nodeId": "zbook",
