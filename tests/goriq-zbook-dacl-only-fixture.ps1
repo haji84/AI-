@@ -24,6 +24,10 @@ public static class GoriqDaclOnlyFixture {
     [DllImport("ntdll.dll", ExactSpelling = true)]
     static extern int NtSetSecurityObject(SafeFileHandle file, uint information, IntPtr descriptor);
 
+    [DllImport("advapi32.dll", EntryPoint = "SetFileSecurityW", CharSet = CharSet.Unicode,
+        ExactSpelling = true, SetLastError = true)]
+    static extern bool SetFileSecurity(string path, uint information, IntPtr descriptor);
+
     [DllImport("kernel32.dll", ExactSpelling = true)]
     static extern IntPtr LocalFree(IntPtr pointer);
 
@@ -37,7 +41,7 @@ public static class GoriqDaclOnlyFixture {
         return handle;
     }
 
-    public static void WriteDacl(SafeFileHandle handle, string text, uint securityInformation) {
+    public static void WriteDacl(SafeFileHandle handle, string path, string text, uint securityInformation, bool usePathApi) {
         IntPtr descriptor = IntPtr.Zero;
         uint length;
         try {
@@ -47,8 +51,13 @@ public static class GoriqDaclOnlyFixture {
             if (!GetSecurityDescriptorDacl(descriptor, out present, out dacl, out defaulted)
                 || !present || dacl == IntPtr.Zero || Marshal.ReadInt16(dacl, 4) <= 0)
                 throw new InvalidOperationException("DACL_MISSING");
-            int status = NtSetSecurityObject(handle, securityInformation, descriptor);
-            if (status != 0) throw new InvalidOperationException("SET_" + unchecked((uint)status).ToString("X8"));
+            if (usePathApi) {
+                if (!SetFileSecurity(path, securityInformation, descriptor))
+                    throw new InvalidOperationException("SET_PATH_" + Marshal.GetLastWin32Error());
+            } else {
+                int status = NtSetSecurityObject(handle, securityInformation, descriptor);
+                if (status != 0) throw new InvalidOperationException("SET_" + unchecked((uint)status).ToString("X8"));
+            }
         } finally {
             if (descriptor != IntPtr.Zero) LocalFree(descriptor);
         }
@@ -76,12 +85,33 @@ function Read-Sddl([string]$path) {
   (Get-Acl -LiteralPath $path -Audit).GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]::All)
 }
 
-function Test-DaclOnly([string]$mode, [uint32]$applyInformation, [uint32]$restoreInformation) {
+function Get-DaclBytes($descriptor) {
+  $acl = $descriptor.DiscretionaryAcl
+  $bytes = New-Object byte[] $acl.BinaryLength
+  $acl.GetBinaryForm($bytes, 0)
+  [Convert]::ToBase64String($bytes)
+}
+
+function Compare-Descriptor([string]$expectedText, [string]$actualText) {
+  $expected = New-Object Security.AccessControl.RawSecurityDescriptor($expectedText)
+  $actual = New-Object Security.AccessControl.RawSecurityDescriptor($actualText)
+  [ordered]@{
+    ExpectedFlags = [int]$expected.ControlFlags
+    ActualFlags = [int]$actual.ControlFlags
+    DaclEqual = (Get-DaclBytes $expected) -ceq (Get-DaclBytes $actual)
+    OwnerAndGroupEqual = $expected.Owner.Equals($actual.Owner) -and $expected.Group.Equals($actual.Group)
+    AuditEqual = $expected.GetSddlForm('Audit') -ceq $actual.GetSddlForm('Audit')
+  }
+}
+
+function Test-DaclOnly([string]$mode, [uint32]$applyInformation, [uint32]$restoreInformation, [bool]$usePathApi = $false) {
   $fixture = Join-Path ([IO.Path]::GetTempPath()) ('goriq-dacl-only-test-' + [guid]::NewGuid().ToString('N'))
   $null = New-Item -ItemType Directory -Path $fixture -ErrorAction Stop
   $nativeCwd = [Environment]::CurrentDirectory
   $writer = $null
+  $pin = $null
   $stage = 'baseline'
+  $details = $null
   try {
     $acl = New-Object Security.AccessControl.DirectorySecurity
     $acl.SetOwner($identity.User)
@@ -129,29 +159,35 @@ function Test-DaclOnly([string]$mode, [uint32]$applyInformation, [uint32]$restor
     if (-not $blocked) { throw 'EXPECTED_SHARING_32' }
 
     $stage = 'dacl-only-open'
+    $pin = [GoriqFixedAclNative]::Open($child, $false, $true)
     $writer = [GoriqDaclOnlyFixture]::OpenDacl($target)
     if ([GoriqFixedAclNative]::Identity($writer) -cne $fileId) { throw 'OBJECT_IDENTITY_CHANGED' }
 
     $stage = 'forward'
-    [GoriqDaclOnlyFixture]::WriteDacl($writer, $wanted, $applyInformation)
-    if ((Read-Sddl $target) -cne $wanted) { throw 'FORWARD_DESCRIPTOR_MISMATCH' }
+    [GoriqDaclOnlyFixture]::WriteDacl($writer, $target, $wanted, $applyInformation, $usePathApi)
+    $actual = Read-Sddl $target
+    $details = Compare-Descriptor $wanted $actual
     foreach ($path in $fixedObjects) { if ((Read-Sddl $path) -cne $before[$path]) { throw 'FORWARD_PROPAGATED' } }
+    if ($actual -cne $wanted) { throw 'FORWARD_DESCRIPTOR_MISMATCH' }
 
     $stage = 'rollback'
-    [GoriqDaclOnlyFixture]::WriteDacl($writer, $original, $restoreInformation)
-    if ((Read-Sddl $target) -cne $original) { throw 'ROLLBACK_DESCRIPTOR_MISMATCH' }
+    [GoriqDaclOnlyFixture]::WriteDacl($writer, $target, $original, $restoreInformation, $usePathApi)
+    $actual = Read-Sddl $target
+    $details = Compare-Descriptor $original $actual
     foreach ($path in $fixedObjects) { if ((Read-Sddl $path) -cne $before[$path]) { throw 'ROLLBACK_PROPAGATED' } }
+    if ($actual -cne $original) { throw 'ROLLBACK_DESCRIPTOR_MISMATCH' }
     if ([GoriqFixedAclNative]::PathIdentity($target) -cne $fileId -or (Get-FileHash -LiteralPath $file).Hash -cne $fileHash) {
       throw 'IDENTITY_OR_BYTES_CHANGED'
     }
-    [pscustomobject]@{ Mode = $mode; Passed = $true; Stage = 'exact-rollback'; Reason = $null }
+    [pscustomobject]@{ Mode = $mode; Passed = $true; Stage = 'exact-rollback'; Reason = $null; Details = $details }
   } catch {
     $failure = $_.Exception
     while ($failure.InnerException) { $failure = $failure.InnerException }
     $reason = if ($failure.Message -cmatch '^[A-Z0-9_]{1,55}$') { $failure.Message } else { 'FIXTURE_ERROR' }
-    [pscustomobject]@{ Mode = $mode; Passed = $false; Stage = $stage; Reason = $reason }
+    [pscustomobject]@{ Mode = $mode; Passed = $false; Stage = $stage; Reason = $reason; Details = $details }
   } finally {
     if ($null -ne $writer) { $writer.Dispose() }
+    if ($null -ne $pin) { $pin.Dispose() }
     [Environment]::CurrentDirectory = $nativeCwd
     Remove-Item -LiteralPath $fixture -Recurse -Force
   }
@@ -160,6 +196,8 @@ function Test-DaclOnly([string]$mode, [uint32]$applyInformation, [uint32]$restor
 $results = @(
   Test-DaclOnly 'descriptor-and-protection-bits' 2147483652 536870916
   Test-DaclOnly 'descriptor-control-bits' 4 4
+  Test-DaclOnly 'file-security-with-protection-bits' 2147483652 536870916 $true
+  Test-DaclOnly 'file-security-descriptor-bits' 4 4 $true
 )
-$results | ForEach-Object { $_ | ConvertTo-Json -Compress }
+$results | ForEach-Object { $_ | ConvertTo-Json -Depth 4 -Compress }
 if (-not ($results.Passed -contains $true)) { throw 'NO_NON_PROPAGATING_DACL_ONLY_PATH_PROVEN' }
