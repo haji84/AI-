@@ -138,3 +138,9 @@ try{
  if($null -ne $lock){$lock.Dispose()};if($null -ne $writer){$writer.Dispose()}
  [IO.File]::Delete($fixturePath)
 }
+
+# The real native class must run in a fresh process, outside the mocked type above.
+if($env:OS -eq 'Windows_NT'){
+ & (Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe') -NoProfile -NonInteractive -File (Join-Path $PSScriptRoot 'goriq-zbook-dacl-only-fixture.ps1')
+ if($LASTEXITCODE -ne 0){throw 'windows-dacl-only-fixture-failed'}
+}
