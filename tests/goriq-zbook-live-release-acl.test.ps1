@@ -174,7 +174,6 @@ try {
     Import-RepairFunction 'Import-FixedFunctions'
     Import-FixedFunctions (Get-Content -LiteralPath (Join-Path $PSScriptRoot '..\scripts\goriq-zbook-acl-boundary-repair.ps1') -Raw) @('Write-BoundaryBackup')
     $SourceRevision = 'a' * 40
-    $script:Phase = 'restore'
     $BackupId = [guid]::NewGuid().ToString('N')
     $HostStopApproved = $false
     $configHash = $original[3].hash
@@ -219,6 +218,23 @@ try {
     catch { $stoppedRejected = ($_.Exception.Message -ceq 'RUNTIME_CHANGED') }
     if (-not $stoppedRejected -or -not (Test-Path -LiteralPath $marker)) { throw 'CONFIG_STOPPED_HOST_NOT_HELD' }
     $hostStopped = $false
+    # A different mask is an unknown change, even on the same principals.
+    Open-FixedHandles $true -DaclOnlyActiveRelease
+    $changedAcl = New-Object Security.AccessControl.RawSecurityDescriptor($installed.descriptor)
+    $changedAcl.DiscretionaryAcl[0].AccessMask = 0x1200A9
+    [GoriqFixedAclNative]::Apply($handles[3], $changedAcl.GetSddlForm('All'))
+    $unexpected = @(for ($i = 0; $i -lt 5; $i++) { Get-FixedRecord $targets[$i] $handles[$i] })
+    $records = @($unexpected)
+    $unknownRejected = $false
+    try { Invoke-FixedRestore -DaclOnlyActiveRelease }
+    catch { $unknownRejected = ($_.Exception.Message -ceq 'RECONCILIATION_REQUIRED') }
+    if (-not $unknownRejected -or -not (Test-Path -LiteralPath $marker)) { throw 'CONFIG_UNEXPECTED_ACL_NOT_HELD' }
+    for ($i = 0; $i -lt 5; $i++) {
+      Assert-FixedRecord $unexpected[$i] (Get-FixedRecord $targets[$i] $handles[$i])
+    }
+    [GoriqFixedAclNative]::Apply($handles[3], $planned[3])
+    Open-FixedHandles $false
+    $records = @(for ($i = 0; $i -lt 5; $i++) { Get-FixedRecord $targets[$i] $handles[$i] })
     Invoke-FixedRestore -DaclOnlyActiveRelease
     if (-not $restored -or -not $serviceRecoveryVerified -or (Test-Path -LiteralPath $marker) -or
         (Get-FixedHash $backup) -cne $backupHash -or (Get-FixedHash $claim) -cne $claimHash) {

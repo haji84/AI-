@@ -501,7 +501,6 @@ function Assert-FixedLegacyClaim([string]$revision) {
 }
 function Invoke-FixedRestore([switch]$DaclOnlyActiveRelease) {
   if($BackupId -cnotmatch '^[a-f0-9]{32}$' -or -not(Test-Path -LiteralPath $marker)){throw 'BACKUP_REJECTED'}
-  if($script:Phase -ne 'restore'){throw 'BACKUP_REJECTED'}
   $mutex=New-Object Threading.Mutex($false,('Global\GORIQ-FixedAclRestore-'+$BackupId))
   $ownsMutex=$false
   try {
@@ -535,7 +534,7 @@ function Invoke-FixedRestore([switch]$DaclOnlyActiveRelease) {
    # Keep these handles through restoration. A sharing violation cannot lead to a stop.
    $script:stopRequired=$false
    Open-FixedHandles $true -DaclOnlyActiveRelease
-   Assert-FixedRuntime;Assert-FixedGuards
+   Assert-FixedKnownTargets;Assert-FixedRuntime;Assert-FixedGuards
   }else{$script:stopRequired=Test-FixedStopRequired $true -DaclOnlyActiveRelease:$DaclOnlyActiveRelease}
   try{
   if(-not $hostStopped -and $stopRequired){Stop-FixedHost -KeepAdbRunning:$DaclOnlyActiveRelease}
