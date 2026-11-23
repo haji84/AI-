@@ -49,11 +49,11 @@ jobs:
             $launcher = Join-Path $directory 'GORIQ ZBook Restore.cmd'
             Copy-Item -LiteralPath (Join-Path launcher-fixtures $row.File) -Destination $launcher
             $ErrorActionPreference = 'Continue'
-            $output = @(& $launcher 2>&1)
+            $output = @('x' | & $launcher 2>&1)
             $code = $LASTEXITCODE
             $ErrorActionPreference = 'Stop'
             $output | ForEach-Object { Write-Host $_ }
-            if ($code -ne $row.ExpectedExit) {
+            if ($code -ne $row.ExpectedExit -or ($output -join ' ') -notmatch 'Press any key') {
               Write-Host ('::error title=Launcher exit::' + $row.File + ' expected ' + $row.ExpectedExit + ' got ' + $code)
               exit 1
             }
@@ -70,5 +70,36 @@ jobs:
               throw 'LOCAL_RECEIPT_MISMATCH'
             }
           }
-          Write-Host '::notice title=Launcher proof::Verified and held reports saved. Altered payload rejected.'
+          $directory = Join-Path $root 'verified'
+          $launcher = Join-Path $directory 'GORIQ ZBook Restore.cmd'
+          $prior = @(Get-ChildItem -LiteralPath $directory -Filter 'GORIQ-restore-result-*.json')[0]
+          $priorHash = (Get-FileHash -LiteralPath $prior.FullName).Hash
+          $info = New-Object Diagnostics.ProcessStartInfo
+          $info.FileName = $env:ComSpec
+          $info.Arguments = '/d /c ""' + $launcher + '""'
+          $info.UseShellExecute = $false
+          $info.CreateNoWindow = $true
+          $info.RedirectStandardInput = $true
+          $info.RedirectStandardOutput = $true
+          $info.RedirectStandardError = $true
+          $process = [Diagnostics.Process]::Start($info)
+          try {
+            $stdout = $process.StandardOutput.ReadToEndAsync()
+            $stderr = $process.StandardError.ReadToEndAsync()
+            if ($process.WaitForExit(1600)) { throw 'DISPLAY_CLOSED_BEFORE_KEY' }
+            $process.StandardInput.WriteLine('x')
+            $process.StandardInput.Close()
+            if (-not $process.WaitForExit(10000) -or $process.ExitCode -ne 0 -or
+                $stdout.Result -notmatch 'Press any key' -or $stdout.Result -notmatch '"PreviousResult":true' -or $stderr.Result) {
+              throw 'SAVED_RECEIPT_REUSE_FAILED'
+            }
+            if (@(Get-ChildItem -LiteralPath $directory -Filter 'GORIQ-restore-result-*.json').Count -ne 1 -or
+                (Get-FileHash -LiteralPath $prior.FullName).Hash -cne $priorHash) {
+              throw 'SAVED_RECEIPT_RERAN'
+            }
+          } finally {
+            if (-not $process.HasExited) { $process.Kill() }
+            $process.Dispose()
+          }
+          Write-Host '::notice title=Launcher proof::Reports saved and reused. Changed payload refused. Display waited for user input.'
           exit 0
