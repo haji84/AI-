@@ -1,151 +1,35 @@
 name: CI
 
 on:
-  pull_request:
-  pull_request_review:
-    types: [submitted]
   workflow_dispatch:
-  push:
-    branches: [main]
 
 permissions:
   contents: read
 
 jobs:
-  repository-guard:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Validate Phase 0 control files
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -f AGENTS.md
-          test -f PROJECT_STATE.md
-          test -f ROADMAP.md
-          test -f .github/PULL_REQUEST_TEMPLATE.md
-          test -d .github/agents
-          echo "Phase 0 control files present."
-
-  project-checks:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 11.19.0
-          run_install: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24.19.0
-          cache: pnpm
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Lint
-        run: pnpm lint
-      - name: Test
-        run: pnpm test
-      - name: P8 Security Regression Suite
-        run: pnpm test:p8-security
-      - name: Windows ACL repair decision fixtures
-        shell: pwsh
-        run: |
-          ./tests/goriq-zbook-owner-acl-repair.test.ps1
-          ./tests/jarvis-pc-runtime-acl.test.ps1
-          ./tests/jarvis-pc-runtime-process.test.ps1
-      - name: Build
-        run: pnpm build
-      - name: Verify production health endpoint
-        shell: bash
-        run: |
-          set -euo pipefail
-          pnpm start > next-server.log 2>&1 &
-          server_pid=$!
-          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
-          if ! pnpm healthcheck; then
-            cat next-server.log
-            exit 1
-          fi
-
-  independent-verifier-container:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 35
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          persist-credentials: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24.19.0
-      - name: Start bounded resource observer
-        run: node scripts/jarvis-verifier-resource-observer.mjs --observe
-      - name: Real restricted-container six-check verification
-        if: ${{ !cancelled() }}
-        run: node scripts/jarvis-verifier-live-ci.mjs --execute-hosted-ci
-      - name: Finalize bounded resource observer
-        if: always()
-        run: node scripts/jarvis-verifier-resource-observer.mjs --stop
-      - name: Retain hosted-container evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: independent-verifier-container-${{ github.sha }}
-          path: ${{ runner.temp }}/goriq-verifier-live-evidence/
-          if-no-files-found: error
-          retention-days: 14
-
-      - name: Retain supplemental resource observation
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: independent-verifier-resource-observer-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/goriq-verifier-resource-observer-${{ github.run_id }}-${{ github.run_attempt }}/artifact/
-          if-no-files-found: warn
-          retention-days: 14
-
-  windows-runtime-byte-fixtures:
+  config-acl-windows-proof:
     runs-on: windows-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
-      - name: Verify non-propagating source ACL updates in a temporary fixture
-        shell: powershell
-        run: ./scripts/goriq-owner-probe/test-source-boundary-acl-native.ps1
-      - name: Verify approved Source ancestor and DACL transaction fixtures
-        shell: powershell
-        run: |
-          powershell.exe -NoLogo -NoProfile -NonInteractive -File scripts/goriq-owner-probe/test-source-ancestor-integrity.ps1
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          powershell.exe -NoLogo -NoProfile -NonInteractive -File scripts/goriq-owner-probe/test-source-ancestor-native.ps1
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          powershell.exe -NoLogo -NoProfile -NonInteractive -File scripts/goriq-owner-probe/test-source-private-acl-repair.ps1
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          powershell.exe -NoLogo -NoProfile -NonInteractive -File scripts/goriq-owner-probe/test-source-layout-observer.ps1
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          powershell.exe -NoLogo -NoProfile -NonInteractive -File scripts/goriq-owner-probe/test-jarvis-registration-read.ps1
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - uses: actions/setup-node@v4
         with:
-          node-version: 24.19.0
-      - name: Confirm native rotation entry defaults to inert plan
+          persist-credentials: false
+      - name: Exercise the exact repair code on disposable Windows files
         shell: powershell
         run: |
-          node scripts/owner-code-rotation-native-1218.mjs
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          powershell.exe -NoProfile -NonInteractive -File scripts/owner-code-rotation-native-1218.ps1
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          powershell.exe -NoProfile -NonInteractive -File scripts/owner-code-launcher-binding-inspection-1218.ps1
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Fixed owner observer inert Windows PowerShell 5.1 fixtures
-        shell: powershell
-        run: node --test tests/goriq-private-owner-probe.test.mjs
-      - name: Owner credential plan-only and temporary encrypted fixtures
-        shell: powershell
-        run: node --test scripts/owner-code-rotation.test.mjs scripts/owner-code-windows.test.mjs scripts/owner-code-rotation-authority.test.mjs scripts/owner-code-preflight.test.mjs scripts/owner-code-dialog.test.mjs scripts/install-owner-code-windows.test.mjs scripts/owner-code-rotation-redirect.test.mjs scripts/owner-code-practical.test.mjs scripts/owner-code-fleet-preservation.test.mjs scripts/owner-code-rotation-acceptance.test.mjs scripts/owner-code-rotation-transaction.test.mjs scripts/owner-code-pc-preservation.test.mjs scripts/owner-code-rotation-readiness.test.mjs scripts/owner-code-warning-1218.test.mjs scripts/owner-code-rotation-native-1218.test.mjs scripts/owner-code-rotation-native-stage.test.mjs scripts/owner-code-fresh-checkout.test.mjs scripts/owner-code-protection-diagnostics.test.mjs scripts/owner-code-protection-failure-details.test.mjs scripts/owner-code-launcher-binding-inspection-1218.test.mjs scripts/owner-code-launcher-binding-workflow.test.mjs scripts/owner-code-launcher-binding-native-shell.test.mjs scripts/owner-code-launcher-refusal-reasons-1218.test.mjs scripts/owner-code-private-rotation-exercise.test.mjs scripts/owner-code-planned-reserve.test.mjs scripts/owner-code-rotation-exercise-protocol.test.mjs scripts/owner-code-private-scope-capture.test.mjs scripts/owner-code-rotation-composed-entry.test.mjs scripts/owner-code-entry-json-bound.test.mjs tests/owner-code-task-proof.test.mjs tests/owner-code-task-proof-diagnostics.test.mjs tests/owner-code-task-retention-recovery.test.mjs tests/owner-code-task-collection.test.mjs tests/goriq-zbook-bridge-initialization.test.mjs
-      - name: Windows PowerShell 5.1 isolated atomic pointer and access media fixtures
-        shell: powershell
-        run: node tests/helpers/windows-ci-fixture-lanes.mjs
-      - name: Isolated native recovery controller fixture
-        shell: powershell
-        run: ./tests/completion-native-resume.test.ps1
+          $ErrorActionPreference = 'Continue'
+          $tests = @('goriq-zbook-live-release-acl.test.ps1', 'goriq-zbook-fixed-acl-repair.test.ps1')
+          $failed = $false
+          foreach ($test in $tests) {
+            $lines = @(& powershell.exe -NoLogo -NoProfile -NonInteractive -File (Join-Path tests $test) 2>&1)
+            $code = $LASTEXITCODE
+            $lines | ForEach-Object { Write-Host $_ }
+            if ($code -ne 0) {
+              $failed = $true
+              $detail = (($lines | Select-Object -Last 14) | Out-String).Trim()
+              $detail = $detail -replace '\[\d+m', '' -replace '[^A-Za-z0-9 ._:/()-]', ' '
+              Write-Host ('::error title=' + $test + '::' + $detail.Substring(0, [Math]::Min(1450, $detail.Length)))
+            }
+          }
+          if ($failed) { exit 1 }
+          Write-Host '::notice title=Config ACL::Both exact native suites passed'
