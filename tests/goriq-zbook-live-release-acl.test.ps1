@@ -13,7 +13,7 @@ function Import-RepairFunction([string]$name) {
 }
 foreach ($name in @('Get-FixedTargets', 'Initialize-FixedNative', 'New-FixedDescriptor', 'Get-FixedHash',
     'Get-FixedRecord', 'Assert-FixedRecord', 'Open-FixedHandles', 'Close-FixedHandles',
-    'Invoke-FixedTransition', 'Restore-FixedRecords', 'Assert-FixedAdbOutsideStopTree')) {
+    'Invoke-FixedTransition', 'Restore-FixedRecords', 'Claim-FixedApplyAttempt')) {
   Import-RepairFunction $name
 }
 Initialize-FixedNative
@@ -21,15 +21,31 @@ $nativeType = [GoriqFixedAclNative]
 if (-not $nativeType.GetMethod('OpenDaclOnlyDirectory') -or -not $nativeType.GetMethod('ApplyDaclOnly')) {
   throw 'FIXED_HELPER_DACL_ONLY_INTERFACE_MISSING'
 }
-$rejectedAdb = $false
-try { Assert-FixedAdbOutsideStopTree @([pscustomobject]@{ Name = 'ADB.EXE' }) }
-catch {
-  if ($_.Exception.Message -cne 'ADB_ACTIVE_IN_HOST_TREE') { throw }
-  $rejectedAdb = $true
+foreach ($name in @('Stop-FixedHost', 'Recover-FixedHost')) {
+  $definition = $ast.Find({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -ceq $name }, $true)
+  $commands = @($definition.FindAll({
+    param($node) $node -is [Management.Automation.Language.CommandAst] -and $node.GetCommandName() -ceq 'Get-OwnedTree'
+  }, $true))
+  if (-not $commands.Count -or @($commands | Where-Object { $_.Extent.Text -notmatch '\s-preserveAdb\s' }).Count) {
+    throw 'FIXED_HELPER_ADB_STOP_NOT_GUARDED'
+  }
 }
-if (-not $rejectedAdb) { throw 'FIXED_HELPER_ADB_STOP_NOT_GUARDED' }
-Assert-FixedAdbOutsideStopTree @([pscustomobject]@{ Name = 'node.exe' })
-Write-Output 'Fixed repair scoped native interface and ADB stop refusal PASS'
+function Assert-FixedExpiry {}
+$claim = Join-Path ([IO.Path]::GetTempPath()) ('goriq-live-release-claim-test-' + [guid]::NewGuid().ToString('N'))
+$script:repairAttemptClaimed = $false
+try {
+  Claim-FixedApplyAttempt $claim ('a' * 40)
+  $originalClaim = [IO.File]::ReadAllText($claim)
+  if (-not $repairAttemptClaimed -or $originalClaim -notmatch '^a{40} ') { throw 'FIXTURE_CLAIM_MISSING' }
+  $duplicateRefused = $false
+  try { Claim-FixedApplyAttempt $claim ('b' * 40) }
+  catch {
+    if ($_.Exception.Message -cne 'APPLY_ATTEMPT_ALREADY_CLAIMED') { throw }
+    $duplicateRefused = $true
+  }
+  if (-not $duplicateRefused -or [IO.File]::ReadAllText($claim) -cne $originalClaim) { throw 'FIXTURE_CLAIM_REUSED' }
+} finally { [IO.File]::Delete($claim) }
+Write-Output 'Fixed repair scoped native interface, stop guard wiring and one-shot claim PASS'
 if ($env:OS -ne 'Windows_NT') { return }
 
 function Read-Sddl([string]$path) {

@@ -177,6 +177,42 @@ function Assert-StoppedRollback {
     -not (Same-Bytes $launcherBytes ([IO.File]::ReadAllBytes($launcherPath)))){throw 'baseline-changed'}
   Assert-State-Preserved $before (Inspect-State 'inspect')
 }
+function Assert-AdbOutsideJobs($process) {
+  try {
+    if($null -eq $process -or [string]::IsNullOrWhiteSpace($process.Name) -or
+      [string]::IsNullOrWhiteSpace($process.CommandLine) -or $process.ProcessId -le 0 -or
+      $process.CreationDate -isnot [datetime]){throw 'adb-stop-scope'}
+    if(-not ('GoriqRuntimeAdbJobNative' -as [type])){
+      Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
+public static class GoriqRuntimeAdbJobNative {
+ [DllImport("kernel32.dll",SetLastError=true)] static extern SafeWaitHandle OpenProcess(uint access,bool inherit,uint pid);
+ [DllImport("kernel32.dll",SetLastError=true)] static extern bool GetProcessTimes(SafeWaitHandle handle,out long created,out long exited,out long kernel,out long user);
+ [DllImport("kernel32.dll",SetLastError=true)] static extern bool IsProcessInJob(SafeWaitHandle handle,IntPtr job,out int inJob);
+ [DllImport("kernel32.dll",SetLastError=true)] static extern bool GetExitCodeProcess(SafeWaitHandle handle,out uint code);
+ public static bool? Query(uint pid,long expectedUtcTicks) {
+  const uint ProcessQueryLimitedInformation=0x1000;
+  const uint StillActive=259;
+  using(var handle=OpenProcess(ProcessQueryLimitedInformation,false,pid)) {
+   long created,exited,kernel,user;
+   int inJob;
+   uint exitCode;
+   // CIM creation timestamps have microsecond precision.
+   if(handle==null || handle.IsInvalid || !GetProcessTimes(handle,out created,out exited,out kernel,out user) ||
+    DateTime.FromFileTimeUtc(created).Ticks/10!=expectedUtcTicks/10 ||
+    !IsProcessInJob(handle,IntPtr.Zero,out inJob) || !GetExitCodeProcess(handle,out exitCode) || exitCode!=StillActive) return null;
+   return inJob!=0;
+  }
+ }
+}
+'@
+    }
+    $inJob=[GoriqRuntimeAdbJobNative]::Query([uint32]$process.ProcessId,$process.CreationDate.ToUniversalTime().Ticks)
+    if($inJob -isnot [bool] -or $inJob){throw 'adb-stop-scope'}
+  }catch{throw 'adb-stop-scope'}
+}
 function Get-OwnedTree([string]$root,[bool]$requireHealthy=$true,[int[]]$requiredPorts=$ports,[bool]$preserveAdb=$false) {
   try{$all=@(Get-CimInstance Win32_Process -OperationTimeoutSec 15 -ErrorAction Stop)}catch{throw 'process-query'}
   $hosts=@($all | Where-Object {$_.Name -eq 'node.exe' -and $_.CommandLine -and
@@ -229,6 +265,8 @@ function Get-OwnedTree([string]$root,[bool]$requireHealthy=$true,[int[]]$require
         if([int]$p.ParentProcessId -le 0){break}
         $p=$byId[[int]$p.ParentProcessId]
       }
+      # A detached process can retain a Scheduler job after its parent exits.
+      Assert-AdbOutsideJobs $adb
     }
   }
   foreach($p in $all){

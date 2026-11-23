@@ -11,6 +11,24 @@ Invoke-Expression $gate.Extent.Text
 $ownedTree=$ast.Find({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Get-OwnedTree'},$true)
 if($null -eq $ownedTree){throw 'runtime-owned-tree-missing'}
 Invoke-Expression $ownedTree.Extent.Text
+$jobGate=$ast.Find({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Assert-AdbOutsideJobs'},$true)
+if($null -eq $jobGate){throw 'runtime-adb-job-check-missing'}
+$nativeType=$jobGate.Find({param($node) $node -is [Management.Automation.Language.StringConstantExpressionAst] -and
+  $node.Value.Contains('public static class GoriqRuntimeAdbJobNative')},$true)
+if($null -eq $nativeType){throw 'runtime-adb-native-adapter-missing'}
+if(-not ('GoriqRuntimeAdbJobNative' -as [type])){Add-Type -TypeDefinition $nativeType.Value}
+if(-not ('GoriqRuntimeAdbJobFixture' -as [type])){
+  Add-Type -TypeDefinition @'
+public static class GoriqRuntimeAdbJobFixture {
+ public static bool? InJob;
+ public static uint LastPid;
+ public static long LastTicks;
+ public static bool? Query(uint pid, long ticks) { LastPid=pid;LastTicks=ticks;return InJob; }
+}
+'@
+}
+# Use the exact assertion logic and substitute only the native query in fixtures.
+Invoke-Expression ($jobGate.Extent.Text.Replace('GoriqRuntimeAdbJobNative','GoriqRuntimeAdbJobFixture'))
 
 function Assert-Refused([datetimeoffset]$now) {
   try{Assert-Approval $now}catch{if($_.Exception.Message -ceq 'approval'){return};throw}
@@ -62,7 +80,8 @@ $compat='C:\Users\fixture\AppData\Local\JARVIS\production\launch-current.ps1'
 $current='{"environment":{"JARVIS_ADB_PATH":"C:/platform-tools/renamed-adb.exe"}}' | ConvertFrom-Json
 $identity=@{User=@{Value='fixture-owner'}}
 $ports=@(3000,8787,8790,8792)
-$adb=[pscustomobject]@{Name='adb.exe';ProcessId=21;ParentProcessId=0;CommandLine='adb fork-server server'}
+$creation=[datetimeoffset]::Parse('2026-11-23T12:30:00Z').UtcDateTime
+$adb=[pscustomobject]@{Name='adb.exe';ProcessId=21;ParentProcessId=0;CommandLine='adb fork-server server';CreationDate=$creation}
 $fixtureProcesses=@(
   [pscustomobject]@{Name='powershell.exe';ProcessId=11;ParentProcessId=0;CommandLine=$compat},
   [pscustomobject]@{Name='powershell.exe';ProcessId=12;ParentProcessId=11;CommandLine=$launcherPath},
@@ -80,7 +99,17 @@ function Assert-AdbRefused([string]$label) {
   throw ('adb-stop-scope-expected-refusal-'+$label)
 }
 
+[GoriqRuntimeAdbJobFixture]::InJob=$false
 if(@(Get-OwnedTree $fixtureRelease $true $ports $true).Count -ne 1){throw 'independent-adb-rejected'}
+if([GoriqRuntimeAdbJobFixture]::LastPid -ne 21 -or [GoriqRuntimeAdbJobFixture]::LastTicks -ne $creation.Ticks){throw 'adb-query-identity-not-bound'}
+foreach($job in @($true,$null)){
+  [GoriqRuntimeAdbJobFixture]::InJob=$job
+  Assert-AdbRefused 'detached-job-member-or-unknown'
+}
+[GoriqRuntimeAdbJobFixture]::InJob=$false
+$adb.CommandLine=$null;Assert-AdbRefused 'unknown-role';$adb.CommandLine='adb fork-server server'
+$adb.ProcessId=0;Assert-AdbRefused 'unknown-pid';$adb.ProcessId=21
+$adb.CreationDate=$null;Assert-AdbRefused 'unknown-creation';$adb.CreationDate=$creation
 foreach($parent in @(13,11,31)) {
   $adb.ParentProcessId=$parent
   Assert-AdbRefused ('parent-'+$parent)

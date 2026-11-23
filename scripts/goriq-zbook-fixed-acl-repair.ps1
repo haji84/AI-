@@ -7,7 +7,7 @@ param([ValidateSet('plan','apply','restore')][string]$Phase='plan',[switch]$Owne
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $env:PSModulePath=Join-Path $PSHOME 'Modules'
-$stage='approval';$changed=$false;$restored=$false;$records=@();$wanted=@();$handles=@();$guards=@()
+$stage='approval';$changed=$false;$restored=$false;$records=@();$wanted=@();$handles=@();$guards=@();$repairAttemptClaimed=$false
 $backupIdResult=$null;$markerCreated=$false;$transaction=$null;$sourceStreams=@();$sourceTexts=@{};$marker=$null;$hostStopped=$false;$hostStopAttempted=$false;$restartAttempted=$false;$recoveryAttempted=$false;$serviceRecoveryVerified=$false;$stateBefore=$null;$stopRequired=$false;$initialLocation=Get-Location
 $sections=[Security.AccessControl.AccessControlSections]::All
 function Get-FixedTargets([string]$root) {
@@ -375,15 +375,11 @@ function Persist-FixedHostBaseline {
  Write-FixedTransaction $backupPath $marker $transaction $backupIdResult
  $script:markerCreated=$true
 }
-function Assert-FixedAdbOutsideStopTree([object[]]$tree) {
- if(@($tree | Where-Object {$_.Name -ieq 'adb.exe'}).Count){throw 'ADB_ACTIVE_IN_HOST_TREE'}
-}
 function Stop-FixedHost([switch]$KeepAdbRunning) {
  if(-not $HostStopApproved -or [datetimeoffset]::UtcNow -lt [datetimeoffset]::Parse('2026-11-23T12:15:59.000Z')){throw 'HOST_STOP_APPROVAL_REQUIRED'}
  Assert-FixedRuntime;Assert-FixedGuards;Assert-FixedKnownTargets
- $liveTree=@(Get-OwnedTree $oldRoot)
+ $liveTree=@(Get-OwnedTree $oldRoot -preserveAdb ([bool]$KeepAdbRunning))
  Assert-FixedTree $tree $liveTree
- if($KeepAdbRunning){Assert-FixedAdbOutsideStopTree $liveTree}
  Bind-FixedProcessTree $liveTree
  Assert-FixedExpiry
  $script:hostStopAttempted=$true
@@ -439,10 +435,9 @@ function Recover-FixedHost([switch]$DaclOnlyActiveRelease) {
  # fresh exact installation ownership/state evidence is required before stopping.
  if($restartAttempted){
   $state=Inspect-State 'inspect';Assert-State-Preserved $stateBefore $state
-  $liveTree=@(Get-OwnedTree $oldRoot $false)
+  $liveTree=@(Get-OwnedTree $oldRoot $false -preserveAdb ([bool]$DaclOnlyActiveRelease))
   if($liveTree.Count){
-   Assert-FixedTree $liveTree @(Get-OwnedTree $oldRoot $false)
-   if($DaclOnlyActiveRelease){Assert-FixedAdbOutsideStopTree $liveTree}
+   Assert-FixedTree $liveTree @(Get-OwnedTree $oldRoot $false -preserveAdb ([bool]$DaclOnlyActiveRelease))
    Bind-FixedProcessTree $liveTree
    Assert-FixedExpiry;Stop-OwnedTree $liveTree
   }
@@ -487,7 +482,7 @@ function Invoke-FixedRestore([switch]$DaclOnlyActiveRelease) {
     # Compatible running host: no operational stop beyond the proven sharing gate.
    $script:changed=$true;Restore-FixedRecords $targets $handles $records $wanted -EnforceExpiry -DaclOnlyActiveRelease:$DaclOnlyActiveRelease
     Open-FixedHandles $false;Assert-FixedRuntime;Assert-FixedGuards
-    Remove-Item -LiteralPath $marker -Force;$script:markerCreated=$false;$script:restored=$true
+    Remove-Item -LiteralPath $marker -Force;$script:markerCreated=$false;$script:restored=$true;$script:serviceRecoveryVerified=$true
    }
   }catch{
    $originalFailure=$_
@@ -514,6 +509,20 @@ function Assert-FixedRuntime {
 }
 function Assert-FixedExpiry {
  if([datetimeoffset]::UtcNow -ge [datetimeoffset]::Parse('2026-11-26T12:15:00.000Z')){throw 'APPROVAL_REJECTED'}
+}
+function Claim-FixedApplyAttempt([string]$claim,[string]$revision) {
+ Assert-FixedExpiry
+ try{
+  $reservation=[IO.File]::Open($claim,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
+ }catch{
+  if(Test-Path -LiteralPath $claim){throw 'APPLY_ATTEMPT_ALREADY_CLAIMED'}
+  throw 'APPLY_ATTEMPT_CLAIM_FAILED'
+ }
+ $script:repairAttemptClaimed=$true
+ try{
+  $bytes=[Text.Encoding]::UTF8.GetBytes($revision+' '+[datetimeoffset]::UtcNow.ToString('o'))
+  $reservation.Write($bytes,0,$bytes.Length);$reservation.Flush($true)
+ }finally{$reservation.Dispose()}
 }
 try {
  Assert-FixedExpiry
@@ -548,7 +557,7 @@ try {
   $_.status -eq 'completed' -and $_.conclusion -eq 'success'}).Count){throw 'MAIN_CI_REQUIRED'}
  Import-FixedFunctions $sourceTexts['scripts/goriq-zbook-acl-boundary-repair.ps1'] @('Assert-ProfileOwner','Assert-NativeProfile','Write-BoundaryBackup')
  Import-FixedFunctions $sourceTexts['scripts/goriq-zbook-owner-acl-repair.ps1'] @('Test-KnownReadOnlyRights','Get-RuleFacts','Assert-OwnedNative','Select-RepairCandidate')
- Import-FixedFunctions $sourceTexts['scripts/goriq-pc-runtime-refresh-windows.ps1'] @('Inspect-State','Get-LiveListeners','Assert-StoppedInstallation','Assert-State-Preserved','Get-OwnedTree','Stop-OwnedTree','Wait-Health')
+ Import-FixedFunctions $sourceTexts['scripts/goriq-pc-runtime-refresh-windows.ps1'] @('Inspect-State','Get-LiveListeners','Assert-StoppedInstallation','Assert-State-Preserved','Assert-AdbOutsideJobs','Get-OwnedTree','Stop-OwnedTree','Wait-Health')
  $script:inspectStateImplementation=(Get-Item Function:Inspect-State).ScriptBlock
  Set-Item Function:script:Inspect-State -Value (Get-Item Function:Get-FixedState).ScriptBlock
  # State inspector's transitive tracked inputs must also match this exact commit.
@@ -625,9 +634,11 @@ try {
    $wanted+=,(New-FixedDescriptor $records[$i].descriptor $identity.User.Value $candidate.sidValue $targets[$i].directory -WithoutAutoInherited:($i -eq 2))
   }
   $stopRequired=Test-FixedStopRequired -DaclOnlyActiveRelease
-  if($stopRequired){Assert-FixedAdbOutsideStopTree $tree}
+  if($stopRequired){Assert-FixedTree $tree @(Get-OwnedTree $oldRoot -preserveAdb $true)}
   if($Phase -eq 'apply'){
    if(-not $HostStopApproved){throw 'HOST_STOP_APPROVAL_REQUIRED'}
+   $stage='claim';Write-Host ('FIXED_ACL_STAGE='+$stage)
+   Claim-FixedApplyAttempt (Join-Path $env:LOCALAPPDATA 'goriq-fixed-acl-1787-20261123-attempt.txt') $SourceRevision
    $stage='host-transaction';Write-Host ('FIXED_ACL_STAGE='+$stage)
    if($stopRequired){
     $result=Invoke-FixedHostTransaction -Persist {Persist-FixedHostBaseline} -Stop {Stop-FixedHost -KeepAdbRunning} -Write {Write-FixedTargets -DaclOnlyActiveRelease} -Start {Start-FixedHost} -Verify {Verify-FixedHost} -Recover {Recover-FixedHost -DaclOnlyActiveRelease}
@@ -637,7 +648,7 @@ try {
     try{Write-FixedTargets -DaclOnlyActiveRelease;Open-FixedHandles $false;Verify-FixedHost;$serviceRecoveryVerified=$true}catch{
      $originalFailure=$_
      try{Open-FixedHandles $true -DaclOnlyActiveRelease;Restore-FixedRecords $targets $handles $records $wanted -EnforceExpiry -DaclOnlyActiveRelease;Open-FixedHandles $false;Assert-FixedRuntime;Assert-FixedGuards
-      Remove-Item -LiteralPath $marker -Force;$markerCreated=$false;$restored=$true
+      Remove-Item -LiteralPath $marker -Force;$markerCreated=$false;$restored=$true;$serviceRecoveryVerified=$true
      }catch{$restored=$false}
      throw $originalFailure
     }
@@ -645,13 +656,14 @@ try {
   }
  }
  @{version=1;issue=1662;repairIssue=1787;nodeId='zbook';phase=$Phase;sourceRevision=$SourceRevision;
-  readOnly=($Phase -eq 'plan');verified=$true;permissionChanged=$changed;targetCount=5;backupId=$backupIdResult;
+  readOnly=($Phase -eq 'plan');verified=$true;permissionChanged=$changed;targetCount=5;backupId=$backupIdResult;repairAttemptClaimed=$repairAttemptClaimed;
   restored=$restored;hostStopAttempted=$hostStopAttempted;serviceRecoveryVerified=$serviceRecoveryVerified;plannedHostStop=$stopRequired;runtimeUnchanged=$true;ancestorUnchanged=$true;recursiveWrite=$false;daclOnlyActiveRelease=$true;
   observedAt=[datetimeoffset]::UtcNow.ToString('o')} | ConvertTo-Json -Compress
 }catch{
  $known=@('APPROVAL_REJECTED','ARTIFACT_REJECTED','ADMIN_REQUIRED','SOURCE_REJECTED','MAIN_CI_REQUIRED','OWNER_BOUNDARY_REJECTED',
   'ACL_CANDIDATE_REJECTED','DACL_REJECTED','BASELINE_CHANGED','REPARSE_REJECTED','HARDLINK_REJECTED','HANDLE_REJECTED',
-  'HOST_STOP_APPROVAL_REQUIRED','ADB_ACTIVE_IN_HOST_TREE','PROCESS_CHANGED','PROCESS_REJECTED','SERVICE_RECOVERY_REQUIRED','WRITE_REJECTED','BACKUP_REJECTED','RESTORE_REJECTED','RUNTIME_CHANGED','RECONCILIATION_REQUIRED')
+  'HOST_STOP_APPROVAL_REQUIRED','adb-stop-scope','PROCESS_CHANGED','PROCESS_REJECTED','SERVICE_RECOVERY_REQUIRED','WRITE_REJECTED','BACKUP_REJECTED','RESTORE_REJECTED','RUNTIME_CHANGED','RECONCILIATION_REQUIRED',
+  'APPLY_ATTEMPT_ALREADY_CLAIMED','APPLY_ATTEMPT_CLAIM_FAILED')
  $failure=$_.Exception
  $targetIndex=$null
  while($null -ne $failure){
@@ -666,7 +678,7 @@ try {
  if($failure.Message -match '^HANDLE_REJECTED_([0-9]+)$'){$nativeErrorCode=[int]$Matches[1];$failure=New-Object Exception('HANDLE_REJECTED')}
  $reason=if($failure.Message -in $known){$failure.Message}else{'FIXED_REPAIR_FAILED'}
  @{version=1;issue=1662;repairIssue=1787;nodeId='zbook';phase=$Phase;failedStage=$stage;failureReason=$reason;
-  permissionChanged=$changed;restored=$restored;backupId=$backupIdResult;hostStopAttempted=$hostStopAttempted;serviceRecoveryVerified=$serviceRecoveryVerified;
+  permissionChanged=$changed;restored=$restored;backupId=$backupIdResult;hostStopAttempted=$hostStopAttempted;serviceRecoveryVerified=$serviceRecoveryVerified;repairAttemptClaimed=$repairAttemptClaimed;
   nativeErrorCode=$nativeErrorCode;failedTarget=$targetName;intentPending=($null -ne $marker -and (Test-Path -LiteralPath $marker));
   reconciliationRequired=(Test-FixedReconciliation $marker ($changed -or $hostStopAttempted) $restored $reason);
   observedAt=[datetimeoffset]::UtcNow.ToString('o')} | ConvertTo-Json -Compress
