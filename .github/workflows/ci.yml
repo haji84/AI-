@@ -71,3 +71,4 @@ jobs:
             }
           }
           Write-Host '::notice title=Launcher proof::Verified and held reports saved. Altered payload rejected.'
+          exit 0
