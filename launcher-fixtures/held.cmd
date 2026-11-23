@@ -4,7 +4,7 @@ set "GORIQ_RESTORE_LAUNCHER=%~f0"
 "%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -NonInteractive -Command "$ErrorActionPreference='Stop'; $text=[IO.File]::ReadAllText($env:GORIQ_RESTORE_LAUNCHER); $lf=[string][char]10; $text=$text.Replace(([string][char]13+$lf),$lf); $marker=$lf+'# GORIQ-RESTORE-POWERSHELL'+$lf; $position=$text.IndexOf($marker,[StringComparison]::Ordinal); if($position -lt 0){throw 'LAUNCHER_PAYLOAD_MISSING'}; $payload=$text.Substring($position+$marker.Length); $sha=[Security.Cryptography.SHA256]::Create(); try{$hash=[BitConverter]::ToString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($payload))).Replace('-','')}finally{$sha.Dispose()}; if($hash -ne 'd33dd20d667104c6240435f6f6375f45b52caefb54ad9641b1442794bbfc39d0'){throw 'LAUNCHER_PAYLOAD_HASH_MISMATCH'}; & ([scriptblock]::Create($payload))"
 set "GORIQ_RESTORE_EXIT=%ERRORLEVEL%"
 echo(
-set /p "GORIQ_RESTORE_CLOSE=Enter > "
+"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -NonInteractive -Command "[Console]::Write('Enter > '); [void][Console]::ReadLine()"
 exit /b %GORIQ_RESTORE_EXIT%
 # GORIQ-RESTORE-POWERSHELL
 
