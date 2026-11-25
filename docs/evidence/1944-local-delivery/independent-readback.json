@@ -1,0 +1,11 @@
+{
+  "spreadsheetCells": 42,
+  "status": "PASS",
+  "semanticMarketVerification": "NOT_RUN",
+  "documentSha256": "15b9f3beb5d962e17bb3b5831b88115e636d7b4052ba7e721ac7345986d26eb5",
+  "spreadsheetSha256": "9febf6af49ab0cf2ebea98ea92cbe0041a1826cdb5a61b9a76efcbecc5693df1",
+  "documentTextNodes": 15,
+  "visualRendering": "NOT_RUN",
+  "verifiedAt": "2026-11-25T18:07:47.3780493Z",
+  "verifier": "Separate PowerShell .NET ZipArchive + XML DOM, without GORIQ codecs"
+}

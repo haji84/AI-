@@ -1,5 +1,11 @@
 # GORIQ 完全継承・再構築マスター引継ぎ（#1944、候補）
 
+## 2026-11-26 継続結果
+
+G0の旧HEAD717c268d CI45667164611は独立Verifierを含め4/4 SUCCESS。ローカルの既存validator341/reverse626/継承341・17・20・35/guard12件もPASS。本体は既存Core・材料受付・文書/表計算・WorkState・Verifier・永続復元を再利用し、CLIの有限予算接続とWindows261文字のSQLite lease-path不具合を修正した候補。実際の隔離GoalからExcel/Wordを生成し、別プロセスの.NET ZIP/XMLで全42セル/15テキストとハッシュを検証。失敗した同じ隔離DBも修正後に完遂。新HEADの正式CIはIssue/PRの最新結果を参照。
+
+[実装・成果物・失敗と復旧・未完・次の作業](../../evidence/1944-local-delivery/README.md)。入力はCodexが供給した未検証の事業仮説で、GORIQが自律市場調査を完遂した証拠ではない。常用有効化/本番/権限/schema/旧Goalは未変更。以下の「未実行/CI前」は初期保存時の履歴であり、最新結果は上記とIssue/PRに従う。
+
 2026-11-26 JST / owner request: 「今度こそ、何を作るかを忘れない仕組みを作ってから、GORIQ本体の開発を進めよう。」
 
 ## 1. Goal と正本

@@ -1,0 +1,76 @@
+{
+  "status": "PASS",
+  "verifiedAt": "2026-11-25T18:10:04.639Z",
+  "goalId": "goal-5e582a119c80c254",
+  "samePreviouslyFailedDatabase": true,
+  "previousFailure": {
+    "stage": "CognitiveStateStore initialization / native SQLite lease arbiter open",
+    "error": "ERR_SQLITE_ERROR: unable to open database file",
+    "beforeActions": true,
+    "preserved": true
+  },
+  "rootCause": {
+    "windowsArbiterPathCharacters": 261,
+    "probe": [
+      {
+        "characters": 240,
+        "nodeFs": "PASS",
+        "sqlite": "PASS"
+      },
+      {
+        "characters": 260,
+        "nodeFs": "PASS",
+        "sqlite": "ERR_SQLITE_ERROR"
+      },
+      {
+        "characters": 280,
+        "nodeFs": "PASS",
+        "sqlite": "ERR_SQLITE_ERROR"
+      }
+    ],
+    "namespaced280": "PASS",
+    "fix": "node:path.toNamespacedPath, same underlying arbiter and native exclusive transaction"
+  },
+  "report": {
+    "stopReason": "goal_complete",
+    "cycles": 5,
+    "goalEvaluation": {
+      "achieved": true,
+      "verifiedRequired": [
+        "criterion-1",
+        "criterion-2"
+      ],
+      "failedRequired": [],
+      "unverifiedRequired": [],
+      "blockers": [],
+      "remainingGaps": []
+    }
+  },
+  "attempts": 4,
+  "artifacts": [
+    {
+      "id": "output-1",
+      "sha256": "9febf6af49ab0cf2ebea98ea92cbe0041a1826cdb5a61b9a76efcbecc5693df1",
+      "matchesIndependentReadback": true
+    },
+    {
+      "id": "output-2",
+      "sha256": "15b9f3beb5d962e17bb3b5831b88115e636d7b4052ba7e721ac7345986d26eb5",
+      "matchesIndependentReadback": true
+    }
+  ],
+  "sourceFiles": [
+    {
+      "path": "src/gai/cognitive-service.ts",
+      "sha256": "a00885305a91729d5c0c4806852da9d2fd78a87e6002a38fea5c645e4b27a21f"
+    },
+    {
+      "path": "scripts/goriq-cognitive-run.ts",
+      "sha256": "2429093c26fe3b24b4b8e2cd1dbcc2d5577a8828ffcf3eb1660b876d374e0f1e"
+    },
+    {
+      "path": "src/gai/cognitive-lease.ts",
+      "sha256": "13bd6301ed4529a561665276c89b11af10e04a056f2509a97c1b3f4a274753b3"
+    }
+  ]
+}

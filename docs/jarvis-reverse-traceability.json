@@ -3075,7 +3075,7 @@
     },
     {
       "path": "src/gai/cognitive-lease.ts",
-      "sha256": "13a492588a56d00e9eaf35307b7d0ffed39c902a416ee01459877f54a69a22fa",
+      "sha256": "13bd6301ed4529a561665276c89b11af10e04a056f2509a97c1b3f4a274753b3",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OWN-001"
@@ -3129,7 +3129,7 @@
     },
     {
       "path": "src/gai/cognitive-service.ts",
-      "sha256": "58462443ad65daf7f261423ce0eaea99981b675c1526c4bdc55b1e34e518f96a",
+      "sha256": "a00885305a91729d5c0c4806852da9d2fd78a87e6002a38fea5c645e4b27a21f",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OWN-001"
