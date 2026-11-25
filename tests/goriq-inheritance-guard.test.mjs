@@ -5,7 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { checkInheritance, loadInputs } from '../scripts/goriq-inheritance-guard.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
-const fresh = () => structuredClone(loadInputs(root));
+// loadInputs reads fresh JSON and Markdown on each call.
+const fresh = () => loadInputs(root);
 const run = (x) => checkInheritance(x.baseline,x.current);
 function expectError(change, pattern) {
   const x = fresh();
@@ -65,6 +66,6 @@ test('legitimate progress bookkeeping does not freeze the project',()=>{
 });
 test('additional rows are not rejected by the historical floor; existing canonical validator still applies',()=>{
   const x=fresh();
-  for(const key of ['requirements','mirror']) x.current[key].push({...structuredClone(x.current[key][0]),id:'TEST-NEW'});
+  for(const key of ['requirements','mirror']) x.current[key].push({...x.current[key][0],id:'TEST-NEW'});
   assert.deepEqual(run(x),[]);
 });
