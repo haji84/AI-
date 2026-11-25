@@ -1,0 +1,2876 @@
+{
+  "schema_version": 1,
+  "observed_on": "2026-11-26 JST",
+  "reference_main": "ea02180eac6fe46522b62eae6916f26f3844719d",
+  "scope": "Accessible GitHub metadata only. Not an atomic snapshot, backup or code/physical review; never delete branches based on this list.",
+  "open_prs": {
+    "page_sizes": [
+      100,
+      11
+    ],
+    "terminated_by_short_page": true,
+    "error": null,
+    "rows": [
+      {
+        "number": 1935,
+        "title": "test(1216): AI社員の失敗分類・完成見本・証拠付き前後比較",
+        "head": "test/1216-ai-employee-quality-20261119",
+        "head_sha": "337543a346ea7c5ceb6868ee8d11614187ce66ab",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "c6d0e22a512ee1e5779aa9dff779cb836b1e1695",
+        "draft": true,
+        "updated_at": "2026-11-19T08:52:16Z",
+        "url": "https://github.com/haji84/AI-/pull/1935",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1906,
+        "title": "ci(1845): failure-only retry triage without new runners or workflow changes",
+        "head": "codex/1845-ci-selective-rerun-20261108",
+        "head_sha": "55337f67db40415a728d9cee2b2521448ea5b632",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "6737e15033eced135461076d72f792516e83c9b3",
+        "draft": true,
+        "updated_at": "2026-11-08T08:34:21Z",
+        "url": "https://github.com/haji84/AI-/pull/1906",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1905,
+        "title": "feat(owner): prepare guarded cutover recovery and verification",
+        "head": "fix/1218-production-cutover-40",
+        "head_sha": "1fb9a31e4c05f1f8433f84610f2ecc56e81b69e7",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "6737e15033eced135461076d72f792516e83c9b3",
+        "draft": true,
+        "updated_at": "2026-11-10T16:02:17Z",
+        "url": "https://github.com/haji84/AI-/pull/1905",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1872,
+        "title": "docs(1871): v0.6 acceptance and common adapter design for independent review",
+        "head": "codex/1871-common-v06-design",
+        "head_sha": "87487f505cc9f70bc33c0d028dbef96ddc3c0d7f",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "99d4e1568fa15c7cab48fc343cd5521c0f8c9512",
+        "draft": true,
+        "updated_at": "2026-10-28T17:20:02Z",
+        "url": "https://github.com/haji84/AI-/pull/1872",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1870,
+        "title": "feat(1869): data-only baseline recovery proposal tooling",
+        "head": "codex/1869-baseline-recovery-proposal",
+        "head_sha": "d2eb28f49fcc8ee733307ab05a727ed2e1068859",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "99d4e1568fa15c7cab48fc343cd5521c0f8c9512",
+        "draft": true,
+        "updated_at": "2026-10-25T17:18:04Z",
+        "url": "https://github.com/haji84/AI-/pull/1870",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1868,
+        "title": "fix(1867): preserve AI09 findings and valid hunk additions",
+        "head": "codex/1867-ai09-hunk-prefix-fix",
+        "head_sha": "ba0d9ea6c73736b0681768b99ca17b222ec27d40",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "99d4e1568fa15c7cab48fc343cd5521c0f8c9512",
+        "draft": true,
+        "updated_at": "2026-10-27T09:21:51Z",
+        "url": "https://github.com/haji84/AI-/pull/1868",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1866,
+        "title": "feat(1865): read-only PR reuse and risk/AI09 intake advisory",
+        "head": "codex/1865-pr-reuse-advisory",
+        "head_sha": "3e19a145207ab35f71d74f4232bb368ebdc3e5bf",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "99d4e1568fa15c7cab48fc343cd5521c0f8c9512",
+        "draft": true,
+        "updated_at": "2026-10-29T01:46:53Z",
+        "url": "https://github.com/haji84/AI-/pull/1866",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1832,
+        "title": "feat(remote-lite): 手動遠隔操作専用の独立セッション・接続契約 (#1831)",
+        "head": "feat/1831-remote-lite-manual-boundary",
+        "head_sha": "ee2238cdbe0be218d7a2d47bad234c5f0836bf20",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "99d4e1568fa15c7cab48fc343cd5521c0f8c9512",
+        "draft": true,
+        "updated_at": "2026-10-24T05:54:42Z",
+        "url": "https://github.com/haji84/AI-/pull/1832",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1822,
+        "title": "feat: fail-closed Cloudflare release budget primitive (no deployment)",
+        "head": "feat/1821-cloud-publish-budget-gate",
+        "head_sha": "09e8c4459fb28acd45332c9ab09b96984bf5cb8b",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "cb6b0fa06492b3d610ecb527645244b9a46ba8eb",
+        "draft": true,
+        "updated_at": "2026-10-17T04:57:27Z",
+        "url": "https://github.com/haji84/AI-/pull/1822",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1819,
+        "title": "fix(goal-bridge): route owner-scoped plan Codex through isolated loopback Builder (#1219)",
+        "head": "fix/1219-plan-included-codex-loopback-route",
+        "head_sha": "a63273495091f4c4f57e1fb1ed3576dc6dee0c9d",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "cb6b0fa06492b3d610ecb527645244b9a46ba8eb",
+        "draft": true,
+        "updated_at": "2026-10-17T04:44:34Z",
+        "url": "https://github.com/haji84/AI-/pull/1819",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1818,
+        "title": "docs(goriq): align completion-first delivery with current governance (#1817)",
+        "head": "goriq/1817-completion-first-delivery",
+        "head_sha": "496f37745793f32106597882ff192fca952bff2b",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "6737e15033eced135461076d72f792516e83c9b3",
+        "draft": true,
+        "updated_at": "2026-11-07T17:30:36Z",
+        "url": "https://github.com/haji84/AI-/pull/1818",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1806,
+        "title": "feat(ai09): authenticated triage gate before any repair handoff",
+        "head": "feat/1805-ai09-independent-triage-gate",
+        "head_sha": "89211fe0175d2f6972a5e69f364c2a1b066a22fa",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "dbb433773d86c250bcb341566f7903e4fecbf89a",
+        "draft": true,
+        "updated_at": "2026-10-16T17:19:20Z",
+        "url": "https://github.com/haji84/AI-/pull/1806",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1800,
+        "title": "AI-09: verify seed bootstrap and collect guest diagnostics safely",
+        "head": "feat/1798-ai09-bootstrap-script",
+        "head_sha": "43069992f1c3414ec1801095dd1f4d3cbfc8074a",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "83b1cc9cda738f00bae4f4d2dbe05c46fe6d1b81",
+        "draft": true,
+        "updated_at": "2026-10-16T08:59:40Z",
+        "url": "https://github.com/haji84/AI-/pull/1800",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1795,
+        "title": "fix(zbook): accept verified 3-port network-waiting runtime without weakening listener ownership",
+        "head": "fix/1787-zbook-conditional-private-listener",
+        "head_sha": "5e2173c4670b86d830f2bbb943239d3a8a53b121",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "43f20fa5c4f41d949728680bd70c90bb67aecdc4",
+        "draft": false,
+        "updated_at": "2026-10-13T00:24:49Z",
+        "url": "https://github.com/haji84/AI-/pull/1795",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1770,
+        "title": "fix(autonomy): reject overlapping local runner invocations",
+        "head": "fix/1763-single-host-run-lock",
+        "head_sha": "d9993374c72dab2d7f4055fae17f1b728d6729fb",
+        "head_repo": "haji84/AI-",
+        "base": "fix/1763-bounded-autonomy-continuation",
+        "base_sha": "8017d5d8aceec184fbfa8d4042f2323a0ddf7817",
+        "draft": true,
+        "updated_at": "2026-10-11T06:12:58Z",
+        "url": "https://github.com/haji84/AI-/pull/1770",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1764,
+        "title": "fix(autonomy): resume verified Goal progress safely across bounded runs",
+        "head": "fix/1763-bounded-autonomy-continuation",
+        "head_sha": "eb7eeb93271715763f8b6c0c44163e0e9597f36d",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "cb6b0fa06492b3d610ecb527645244b9a46ba8eb",
+        "draft": true,
+        "updated_at": "2026-10-16T18:59:06Z",
+        "url": "https://github.com/haji84/AI-/pull/1764",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1759,
+        "title": "feat(goriq): shared coordinator/task authority transaction contract",
+        "head": "feat/1756-shared-authority-contract",
+        "head_sha": "4f7ffa6450747fed204beadb6b3d33c92c711971",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "82018fc5de04d122cb99a778613ca5d7b8959e3f",
+        "draft": true,
+        "updated_at": "2026-10-11T00:59:14Z",
+        "url": "https://github.com/haji84/AI-/pull/1759",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1558,
+        "title": "fix: derive Mac runner loss target from active job process tree",
+        "head": "fix/stage-b-mac-process-tree-1552",
+        "head_sha": "acc6df7dd1a037e61ff80e0fe2c09057042c6446",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "6d4548c92f5325f9d269bbbb1a83d950e20345df",
+        "draft": false,
+        "updated_at": "2026-09-29T21:56:41Z",
+        "url": "https://github.com/haji84/AI-/pull/1558",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1515,
+        "title": "fix: correlate Chat phases by assistant Copy action identity",
+        "head": "issue-1514-phase-action-identity",
+        "head_sha": "e4687ad2ea7fd71130a9f237155991570f7a6a4f",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "b2bc2e8e80ec9a2f30f42a6af54f80483f6a0835",
+        "draft": false,
+        "updated_at": "2026-09-29T11:24:43Z",
+        "url": "https://github.com/haji84/AI-/pull/1515",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1510,
+        "title": "fix: diagnose Chat completion false negatives",
+        "head": "issue-1508-completion-diagnostics",
+        "head_sha": "5c70d44057a48cf538a9174ad9e50be5812110b4",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "3a9bb246ffe75497fa0fde9b37f587821362f7a3",
+        "draft": false,
+        "updated_at": "2026-09-29T10:46:51Z",
+        "url": "https://github.com/haji84/AI-/pull/1510",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1457,
+        "title": "test: disposable autonomous repair routing probe",
+        "head": "probe-1456-autonomous-router",
+        "head_sha": "173bd824ad197e33dbc7618e4ef2966e01c755f0",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "87fb738ee163705559dde4028e0d2c0c1af0b07e",
+        "draft": false,
+        "updated_at": "2026-09-29T02:25:18Z",
+        "url": "https://github.com/haji84/AI-/pull/1457",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1426,
+        "title": "fix(recovery): support Groq web secret setup without gh",
+        "head": "fix/groq-web-secret-fallback-main",
+        "head_sha": "dd175a0b4e476e59035606819154584cd31309e3",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "740b31086f91a961da5a11e4eb20b8d2d63bf339",
+        "draft": false,
+        "updated_at": "2026-09-28T23:36:24Z",
+        "url": "https://github.com/haji84/AI-/pull/1426",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1377,
+        "title": "test(e2e): autonomous CI repair on existing implementation",
+        "head": "test/goriq-ci-recovery-e2e-v2",
+        "head_sha": "a1598b149e8017fe10444d8d0194e05d9ad8294e",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "c7baa799b10864d51f96ce073a1e5b95a94a1de0",
+        "draft": true,
+        "updated_at": "2026-09-28T09:00:01Z",
+        "url": "https://github.com/haji84/AI-/pull/1377",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1370,
+        "title": "feat(broker): fence Production Worker task ownership",
+        "head": "feat/broker-execution-fencing-1369",
+        "head_sha": "00975bb3033fd12da26987795d9d0e6e0a05cd1a",
+        "head_repo": "haji84/AI-",
+        "base": "feat/broker-resource-placement-1362",
+        "base_sha": "a2ddab82f641daa23b6a707f5769ed80776d4af8",
+        "draft": false,
+        "updated_at": "2026-09-28T08:13:42Z",
+        "url": "https://github.com/haji84/AI-/pull/1370",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1365,
+        "title": "runtime: migration class handling",
+        "head": "feat/migration-class-recovery-1364",
+        "head_sha": "b787754e961829b89cd74f1fc9a896b7fd627504",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "bc6eb9c8e29b55e63b8cff96cd8589a9ed8005b4",
+        "draft": false,
+        "updated_at": "2026-09-28T05:57:55Z",
+        "url": "https://github.com/haji84/AI-/pull/1365",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1281,
+        "title": "ci(ios): approved one-time physical install of current main",
+        "head": "goriq/native-ios-daily-driver",
+        "head_sha": "137ddb35540dd3273ffea36c3d7204a7589bb4d2",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "755e8a07ee469473fed9184458447cf5f222ea5e",
+        "draft": true,
+        "updated_at": "2026-09-27T00:11:46Z",
+        "url": "https://github.com/haji84/AI-/pull/1281",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1210,
+        "title": "feat(jarvis): add bounded canonical reconciliation PR path",
+        "head": "issue-1209-bounded-canonical-reconcile",
+        "head_sha": "91892b13f391b51cd64e9768f31676b1a7303357",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "1ba440a4daf1bc2e1ffb20088d42b07fc62d21fa",
+        "draft": false,
+        "updated_at": "2026-09-22T22:08:55Z",
+        "url": "https://github.com/haji84/AI-/pull/1210",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1208,
+        "title": "feat(jarvis): add bounded native Windows verification worker",
+        "head": "jarvis/1207-windows-native-worker",
+        "head_sha": "b052fe972867e51c96892a5887c4dd2b6f5d9d27",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "a7bfcbe52e8108aa567c0ef4c6b90b16c2156c00",
+        "draft": true,
+        "updated_at": "2026-10-08T09:03:44Z",
+        "url": "https://github.com/haji84/AI-/pull/1208",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1204,
+        "title": "spec: add Reset & Recovery Lifecycle",
+        "head": "spec/reset-recovery-lifecycle-1203",
+        "head_sha": "ea64e901294a3577ad2c60c6ddca2918cb9d6a01",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "ab792ecaac73c961a12141d437971134102f6515",
+        "draft": false,
+        "updated_at": "2026-09-22T19:32:24Z",
+        "url": "https://github.com/haji84/AI-/pull/1204",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1202,
+        "title": "docs(jarvis): canonicalize Fact Check and Local/Online execution",
+        "head": "docs/jarvis-fact-local-online-spec",
+        "head_sha": "f71e2c56f1a7f8eb1b72d29abeecdfeb7455d0c1",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "ab792ecaac73c961a12141d437971134102f6515",
+        "draft": false,
+        "updated_at": "2026-09-22T18:41:32Z",
+        "url": "https://github.com/haji84/AI-/pull/1202",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1201,
+        "title": "docs(jarvis): canonicalize UI/UX after full audit",
+        "head": "docs/jarvis-ui-full-audit",
+        "head_sha": "c81f9997f335cd16dce4e477606c8eea4ea53427",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "f974cc39dc25697e6cf999764e9d695ee753e14d",
+        "draft": false,
+        "updated_at": "2026-09-22T18:33:36Z",
+        "url": "https://github.com/haji84/AI-/pull/1201",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1199,
+        "title": "docs(jarvis): synchronize full canonical architecture specification",
+        "head": "docs/jarvis-spec-full-sync-2",
+        "head_sha": "4a7758d14158a8c228f79ea3b2250bea74e03408",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "f974cc39dc25697e6cf999764e9d695ee753e14d",
+        "draft": false,
+        "updated_at": "2026-09-22T18:28:47Z",
+        "url": "https://github.com/haji84/AI-/pull/1199",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1198,
+        "title": "docs(jarvis): full canonical PRODUCT_SPEC synchronization",
+        "head": "docs/jarvis-spec-full-sync",
+        "head_sha": "752b6cc34c466f1df0df22171758d2e3b0bdf0c4",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "f974cc39dc25697e6cf999764e9d695ee753e14d",
+        "draft": false,
+        "updated_at": "2026-09-22T18:27:54Z",
+        "url": "https://github.com/haji84/AI-/pull/1198",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1197,
+        "title": "docs(jarvis): reconcile canonical main subsystems before further Codex work",
+        "head": "docs/jarvis-spec-audit-sync",
+        "head_sha": "67a6e7bf1d10b7becac966fec3bf9b1fe4772075",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "f974cc39dc25697e6cf999764e9d695ee753e14d",
+        "draft": false,
+        "updated_at": "2026-09-22T18:24:56Z",
+        "url": "https://github.com/haji84/AI-/pull/1197",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1196,
+        "title": "docs(jarvis): make Capability Fabric and Owner Fleet canonical",
+        "head": "docs/jarvis-spec-sync-capability-fabric",
+        "head_sha": "fc3f23985411ca22e92d1167547e0a06dcc75534",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "f974cc39dc25697e6cf999764e9d695ee753e14d",
+        "draft": false,
+        "updated_at": "2026-09-22T18:21:48Z",
+        "url": "https://github.com/haji84/AI-/pull/1196",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1195,
+        "title": "JARVIS: integrate corrected demonstrations with durable verified Skills",
+        "head": "codex/1192-demonstration-skill-integration",
+        "head_sha": "cb4697504b724c324a5f6bfafd9f21366c6d7157",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "f974cc39dc25697e6cf999764e9d695ee753e14d",
+        "draft": false,
+        "updated_at": "2026-09-22T18:27:14Z",
+        "url": "https://github.com/haji84/AI-/pull/1195",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1182,
+        "title": "feat(jarvis): wire bounded Windows verification into Broker",
+        "head": "feat/1128-broker-windows-dispatch",
+        "head_sha": "807fc68367ea2ed78b3159962df0ba82c5fef990",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "6eaf6e845e47b89842d399744189830100bd29a1",
+        "draft": false,
+        "updated_at": "2026-09-22T15:53:58Z",
+        "url": "https://github.com/haji84/AI-/pull/1182",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1181,
+        "title": "feat(jarvis): add bounded Windows/ZBook verification dispatch",
+        "head": "feat/1128-windows-dispatch",
+        "head_sha": "9546b50eafdc490d89c39814ab6182305360dd23",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "6eaf6e845e47b89842d399744189830100bd29a1",
+        "draft": false,
+        "updated_at": "2026-09-22T15:47:17Z",
+        "url": "https://github.com/haji84/AI-/pull/1181",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1166,
+        "title": "feat(jarvis): add ZBook/Windows real-machine verification adapter",
+        "head": "feat/1128-zbook-real-machine-verifier",
+        "head_sha": "4dd5ab6684d09d562557e44100d7dff0dc2d0bc9",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "baaa6ff77b8923b58ed8bfced6c6437d4a049e63",
+        "draft": false,
+        "updated_at": "2026-09-22T15:30:26Z",
+        "url": "https://github.com/haji84/AI-/pull/1166",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1164,
+        "title": "test(jarvis): Capability Fabric E2E on latest main",
+        "head": "test/1128-fabric-e2e-current",
+        "head_sha": "6708ce3edd3ac64a20e28cf00592d478044fe8c6",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "baaa6ff77b8923b58ed8bfced6c6437d4a049e63",
+        "draft": false,
+        "updated_at": "2026-09-22T10:22:48Z",
+        "url": "https://github.com/haji84/AI-/pull/1164",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1162,
+        "title": "test(jarvis): Capability Fabric orchestration E2E",
+        "head": "test/1128-fabric-e2e",
+        "head_sha": "5d5db357630d83095011b76f865a168fe7ca3b33",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "a54bc40dfeb78b8a881e77a95bacf417d7eca22f",
+        "draft": false,
+        "updated_at": "2026-09-22T10:13:12Z",
+        "url": "https://github.com/haji84/AI-/pull/1162",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1161,
+        "title": "test(net004): pin reconnect without re-enrollment contract",
+        "head": "test/1159-net004-reconnect-contract",
+        "head_sha": "8b5631287f5ffd3427d09ca7e4ee6991478eb67d",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "a54bc40dfeb78b8a881e77a95bacf417d7eca22f",
+        "draft": false,
+        "updated_at": "2026-09-22T10:12:45Z",
+        "url": "https://github.com/haji84/AI-/pull/1161",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1156,
+        "title": "feat(jarvis): Production Research Browser + Safe Autonomy current main",
+        "head": "feat/1128-production-current",
+        "head_sha": "b6ac9c5b2663494ab9d25a5a641a63851d1eba6a",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "4f7d6b0a215116fe91c29c76afd2d3d3e6c54989",
+        "draft": false,
+        "updated_at": "2026-09-22T09:54:22Z",
+        "url": "https://github.com/haji84/AI-/pull/1156",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1154,
+        "title": "feat(jarvis): add Production Browser evidence contract",
+        "head": "feat/1128-production-browser-contract",
+        "head_sha": "33675edcacad9ea4323812ea41e5a337c27121d5",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "9bb05d8b9f7c91a88c80e835c0d14538aa8f03a0",
+        "draft": false,
+        "updated_at": "2026-09-22T09:49:45Z",
+        "url": "https://github.com/haji84/AI-/pull/1154",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1153,
+        "title": "test(jarvis): Safe Autonomy acceptance on current main",
+        "head": "test/1128-safe-autonomy-current",
+        "head_sha": "3e56d8ebb925b30efbf0d0c9b633279dbb6aa092",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "9bb05d8b9f7c91a88c80e835c0d14538aa8f03a0",
+        "draft": false,
+        "updated_at": "2026-09-22T09:40:11Z",
+        "url": "https://github.com/haji84/AI-/pull/1153",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1152,
+        "title": "feat(jarvis): add evidence-backed Production Research core",
+        "head": "feat/1128-production-research",
+        "head_sha": "e432b7ad2fe193c3b28f58a6ff45502bd709702e",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "9bb05d8b9f7c91a88c80e835c0d14538aa8f03a0",
+        "draft": false,
+        "updated_at": "2026-09-22T09:38:29Z",
+        "url": "https://github.com/haji84/AI-/pull/1152",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1151,
+        "title": "test(jarvis): pin Safe Autonomy Human Gate boundaries",
+        "head": "test/1128-safe-autonomy",
+        "head_sha": "445d3d057f61a556262d8cb1422f101f4e150a63",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "ca51cdf857f3d7ac711e65b60ee9a70ea048f3a1",
+        "draft": false,
+        "updated_at": "2026-09-22T09:35:49Z",
+        "url": "https://github.com/haji84/AI-/pull/1151",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1149,
+        "title": "feat(jarvis): add role-separated Parallel Research merge",
+        "head": "feat/1128-parallel-research",
+        "head_sha": "3ac2a151646a10297715742e791f9780f92dfdfa",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "a2075243a25d691e0b63f3c393b070d623aebeb2",
+        "draft": false,
+        "updated_at": "2026-09-22T09:29:19Z",
+        "url": "https://github.com/haji84/AI-/pull/1149",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1147,
+        "title": "feat(jarvis): add model-independent hot-swappable Brain contract",
+        "head": "feat/1128-model-provider",
+        "head_sha": "c4bc57c5d9d6e229d3ca040d57758490baba1836",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "6760b7b26ddf775c76f59bf7ae3409273c137149",
+        "draft": false,
+        "updated_at": "2026-09-22T09:24:08Z",
+        "url": "https://github.com/haji84/AI-/pull/1147",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1145,
+        "title": "feat(jarvis): Demonstration Learning on current main",
+        "head": "feat/1128-demonstration-current",
+        "head_sha": "0633e05076ffd942a3adb8032d12780141ef9561",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "6760b7b26ddf775c76f59bf7ae3409273c137149",
+        "draft": false,
+        "updated_at": "2026-09-22T09:22:48Z",
+        "url": "https://github.com/haji84/AI-/pull/1145",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1144,
+        "title": "feat(jarvis): add correction-aware Demonstration Learning",
+        "head": "feat/1128-demonstration-learning",
+        "head_sha": "9dbe53ef29e558bdcf8a4d153dade59dd4032d65",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "a1c1853f00494fa84d2d1e1fe0ff213c9d65117b",
+        "draft": false,
+        "updated_at": "2026-09-22T09:16:54Z",
+        "url": "https://github.com/haji84/AI-/pull/1144",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1142,
+        "title": "feat(jarvis): add evidence-driven Self-Development loop",
+        "head": "feat/1128-self-development",
+        "head_sha": "aa520b93ada1876f494dd62933cc489fe2ada298",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "c7332f887c48ac7a5dbbd7acf3b0bbb7744f3187",
+        "draft": false,
+        "updated_at": "2026-09-22T09:13:07Z",
+        "url": "https://github.com/haji84/AI-/pull/1142",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1135,
+        "title": "test(jarvis): accept verified Skill Synthesis and learn-from-work",
+        "head": "test/1128-skill-learning-acceptance",
+        "head_sha": "725d1cb9930312fe9f3cf086301fba36af3fcb9e",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "71253b6166028b02f84955ad3e335123d172e86b",
+        "draft": false,
+        "updated_at": "2026-09-22T08:47:24Z",
+        "url": "https://github.com/haji84/AI-/pull/1135",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1126,
+        "title": "feat(jarvis): verify Research claims from acquired source evidence",
+        "head": "feat/1124-research-capability",
+        "head_sha": "558ca34b872558a54310b21254cccbb49b210370",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "7169aefa4c2dce6419006ec4a5026dbbb34be18f",
+        "draft": false,
+        "updated_at": "2026-09-22T15:26:52Z",
+        "url": "https://github.com/haji84/AI-/pull/1126",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1115,
+        "title": "feat(jarvis): bounded real XLSX adapter on latest main",
+        "head": "feat/1104-xlsx-latest-main",
+        "head_sha": "9232fa7377db1da28778da44b6187ba84033ca8e",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "79dcc1f682cca197c337fb63e22e69727898eaa5",
+        "draft": false,
+        "updated_at": "2026-09-22T06:00:14Z",
+        "url": "https://github.com/haji84/AI-/pull/1115",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1112,
+        "title": "feat(jarvis): bounded real XLSX adapter on current main",
+        "head": "feat/1104-xlsx-current-main",
+        "head_sha": "b7922024296a8747e7221740b851894515c5d11f",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "fad728849a9a9f89ef5a6cabf7e615a1c1ccf624",
+        "draft": false,
+        "updated_at": "2026-09-22T03:59:59Z",
+        "url": "https://github.com/haji84/AI-/pull/1112",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1107,
+        "title": "feat(jarvis): add bounded real XLSX production adapter",
+        "head": "feat/1104-spreadsheet-adapter",
+        "head_sha": "b6a3102c91fb25199f173e7b8454b9c9faf1cff5",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "2d3baa137dfc4158d21e0aba0d2910ed39ba11c4",
+        "draft": false,
+        "updated_at": "2026-09-22T02:08:35Z",
+        "url": "https://github.com/haji84/AI-/pull/1107",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1101,
+        "title": "feat(jarvis): drive launch core from real Work Run progress",
+        "head": "feat/1091-ui-real-progress",
+        "head_sha": "8b1d2108487f58eedf48d0bf37317761ad6d7edc",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "dcacb2ad4cb3194ba1502df4703310ff24778e9a",
+        "draft": false,
+        "updated_at": "2026-09-22T00:42:50Z",
+        "url": "https://github.com/haji84/AI-/pull/1101",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1098,
+        "title": "feat(jarvis): persist Work Run progress in Compass",
+        "head": "feat/1091-run-store",
+        "head_sha": "18a8cf2f24821888c378d34864bbd6535112e8a0",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "a02d2d3a30510f88d9ea8f289509c0cb0519ee05",
+        "draft": false,
+        "updated_at": "2026-09-22T00:33:40Z",
+        "url": "https://github.com/haji84/AI-/pull/1098",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1096,
+        "title": "feat(jarvis): drive Work Run VERIFYING and RECOVERING from real results",
+        "head": "feat/1091-dispatch-verify-recover",
+        "head_sha": "e52d8022fee4c54bb7bf22db882beee8a1acc487",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "8027ff26158e84d4d00eeb6233aa0475c87a137a",
+        "draft": false,
+        "updated_at": "2026-09-22T00:27:31Z",
+        "url": "https://github.com/haji84/AI-/pull/1096",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1085,
+        "title": "feat(jarvis): promote intuitive Work Shell to primary UI",
+        "head": "feat/1071-ui-main-integration",
+        "head_sha": "2319c0c8be0333d76217e5d29dcd7836f4e827d5",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "4cce49f96a148141f5939ef402e558aacc1d86d6",
+        "draft": false,
+        "updated_at": "2026-09-21T23:19:47Z",
+        "url": "https://github.com/haji84/AI-/pull/1085",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1083,
+        "title": "test(jarvis): prove mixed-domain Work OS recovery E2E",
+        "head": "feat/1068-mixed-work-e2e",
+        "head_sha": "45a96b306abe7700231d0c90462951386c05000f",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "1395dfbf02ece773a8cd971bf3df1bf4af73aff9",
+        "draft": false,
+        "updated_at": "2026-09-21T22:56:20Z",
+        "url": "https://github.com/haji84/AI-/pull/1083",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1082,
+        "title": "feat(jarvis): add device observed-state recovery sandbox",
+        "head": "feat/1068-device-sandbox",
+        "head_sha": "5c9ebcf2660b82844fb5d0a02b1b65ad95d2b10b",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "5355cb09ce9347deb3344c6aac983acad339d2ae",
+        "draft": false,
+        "updated_at": "2026-09-21T22:55:38Z",
+        "url": "https://github.com/haji84/AI-/pull/1082",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1080,
+        "title": "feat(jarvis): add grounded research verifier sandbox",
+        "head": "feat/1068-research-sandbox",
+        "head_sha": "b797ccbdf8dd0ee36abcdbf0f411bbdbc726a201",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "5355cb09ce9347deb3344c6aac983acad339d2ae",
+        "draft": false,
+        "updated_at": "2026-09-21T22:54:34Z",
+        "url": "https://github.com/haji84/AI-/pull/1080",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1076,
+        "title": "feat(jarvis): add mandatory cross-domain Fact Verification gate",
+        "head": "feat/1068-browser-research-fact",
+        "head_sha": "1765eae11ef5141b962af85a8d943dc7f6e74eb6",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "1cbeaee719f39d9276dcdaca205c251c16438c24",
+        "draft": false,
+        "updated_at": "2026-09-21T22:46:57Z",
+        "url": "https://github.com/haji84/AI-/pull/1076",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1074,
+        "title": "feat(jarvis): add document verifier recovery sandbox",
+        "head": "feat/1068-document-sandbox",
+        "head_sha": "c36eb73e87ebb53bf1979176aaa38b70b4008d1e",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "71d2895b9f7cb603d14e670a7e9e99a04b8a17b3",
+        "draft": false,
+        "updated_at": "2026-09-21T22:45:09Z",
+        "url": "https://github.com/haji84/AI-/pull/1074",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1070,
+        "title": "feat(jarvis): prove spreadsheet verifier recovery in sandbox",
+        "head": "feat/1068-spreadsheet-sandbox-recovery",
+        "head_sha": "1c174c2c5ad37cfdb8923077891a70b265628c4d",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "a0b0313c680b08ced85f4a75fbde3916e75c9959",
+        "draft": false,
+        "updated_at": "2026-09-21T22:38:42Z",
+        "url": "https://github.com/haji84/AI-/pull/1070",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1066,
+        "title": "chore(jarvis): remove confirmed zombie Commander v2/v3",
+        "head": "chore/remove-zombie-commander-v2-v3",
+        "head_sha": "966f4f5da3e5b50c7366c0cafce89e05a60e0e5c",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "139a988b2d3820b66a1881d8b72d3a71047a8f00",
+        "draft": false,
+        "updated_at": "2026-09-21T22:01:58Z",
+        "url": "https://github.com/haji84/AI-/pull/1066",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1062,
+        "title": "fix(jarvis): feed post-failure verifier evidence into recovery",
+        "head": "fix/1043-recovery-objective-from-evidence",
+        "head_sha": "74529550e172b5a8fa0b01f1df8b63ada921eb0a",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "6d478c46312e62d76f832d97b4621e03ac784720",
+        "draft": false,
+        "updated_at": "2026-09-21T21:36:23Z",
+        "url": "https://github.com/haji84/AI-/pull/1062",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1051,
+        "title": "feat(jarvis): gate Broker success on host verifier",
+        "head": "feature/1050-acc002-verifier-gate",
+        "head_sha": "fdcedfe821aa3a9a508a7f212bebf121820bfc7c",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "210d4611ab3ce692f5cc61d289242ea157dc8251",
+        "draft": false,
+        "updated_at": "2026-09-21T16:33:54Z",
+        "url": "https://github.com/haji84/AI-/pull/1051",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1031,
+        "title": "Separate trusted verifier oracle from normal Builder context",
+        "head": "fix/1030-independent-verification-oracle",
+        "head_sha": "8aa37e85fb147263d34c2dcf1894c0877fee327a",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "767cbefee8f95b69f88d5ca5bc27961f43d4d53c",
+        "draft": false,
+        "updated_at": "2026-09-21T14:17:10Z",
+        "url": "https://github.com/haji84/AI-/pull/1031",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1022,
+        "title": "Add fail-closed deterministic verification to normal development runtime",
+        "head": "feat/921-independent-runtime-verifier",
+        "head_sha": "41a38d863554534c5c360d6b7b80407ab2d0cdd2",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "3db6d4fb009ccac03fc1e329ffae1c1ca8fc7eda",
+        "draft": false,
+        "updated_at": "2026-09-21T13:50:24Z",
+        "url": "https://github.com/haji84/AI-/pull/1022",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1019,
+        "title": "Promote real Builder changes into bounded PR flow",
+        "head": "feat/921-runtime-builder-pr-promotion",
+        "head_sha": "b32a0d3279e1a3f65f21a3884c04b35fab40a87c",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "deb42f16ab1b159a38c96ba8978c5f09ee32fb4f",
+        "draft": false,
+        "updated_at": "2026-09-21T13:43:50Z",
+        "url": "https://github.com/haji84/AI-/pull/1019",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 1018,
+        "title": "feat: add OPS-012 first-run setup wizard",
+        "head": "codex/ops-012-first-run-setup",
+        "head_sha": "f6c4e9fbfd6345f1af0bcac9657c36b6a2cbc0df",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "deb42f16ab1b159a38c96ba8978c5f09ee32fb4f",
+        "draft": false,
+        "updated_at": "2026-09-21T13:32:54Z",
+        "url": "https://github.com/haji84/AI-/pull/1018",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 980,
+        "title": "Add safe ZBook Codex sandbox policy diagnostics",
+        "head": "diag/921-codex-sandbox-policy",
+        "head_sha": "2138cf87478dc51888668939cf33852315e10d7e",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "032eb15ed9dd2fa09447d7e488cff918c89dd825",
+        "draft": false,
+        "updated_at": "2026-09-21T07:54:16Z",
+        "url": "https://github.com/haji84/AI-/pull/980",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 970,
+        "title": "test(jarvis): harden SEC-016 remote assist audit boundary",
+        "head": "feature/969-sec016-remote-assist-audit",
+        "head_sha": "a5ac2715411f0733a960173d425e6c9d3b1e8bda",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "484788afd42e4a01cdf86856d054136ffcd9fb04",
+        "draft": false,
+        "updated_at": "2026-09-21T05:37:31Z",
+        "url": "https://github.com/haji84/AI-/pull/970",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 916,
+        "title": "Connect JARVIS control plane and prove failure-to-recovery E2E",
+        "head": "feat/910-control-plane-recovery-e2e",
+        "head_sha": "aa5b31e42724efe69c1e9953d005929a1cef095b",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "0180ec159be8ca8eabb3a33142efd2f16bacfeb5",
+        "draft": false,
+        "updated_at": "2026-09-20T22:40:41Z",
+        "url": "https://github.com/haji84/AI-/pull/916",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 905,
+        "title": "feat(jarvis): persist owner-facing fact audits and conservative evidence (#904)",
+        "head": "codex/904-fact-audit",
+        "head_sha": "6af365ceb1b52b9111f98760da8d352449632871",
+        "head_repo": "haji84/AI-",
+        "base": "codex/902-input-intake",
+        "base_sha": "ab27557af63d3e096a55f9cf27e60cf19f9920ea",
+        "draft": false,
+        "updated_at": "2026-09-20T20:39:15Z",
+        "url": "https://github.com/haji84/AI-/pull/905",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 903,
+        "title": "feat(jarvis): preserve input uncertainty at command intake (#902)",
+        "head": "codex/902-input-intake",
+        "head_sha": "ab27557af63d3e096a55f9cf27e60cf19f9920ea",
+        "head_repo": "haji84/AI-",
+        "base": "feature/893-model-router-integration",
+        "base_sha": "9bc8c5f527a1c163b94aa1933e6e3e8b612e866c",
+        "draft": false,
+        "updated_at": "2026-09-20T20:13:21Z",
+        "url": "https://github.com/haji84/AI-/pull/903",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 898,
+        "title": "chore(jarvis): reconcile fleet capacity ledger evidence (#725)",
+        "head": "feature/725-fleet-ledger-reconcile",
+        "head_sha": "c2f200bb8bf7dd47851ba8812678d1d0010eb0e5",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "6a2be422b1a5de793a6b0e522b35e678aa5aba53",
+        "draft": true,
+        "updated_at": "2026-09-20T17:13:16Z",
+        "url": "https://github.com/haji84/AI-/pull/898",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 897,
+        "title": "docs(jarvis): reconcile FLEET-010-011 capacity evidence",
+        "head": "autonomy/run-35523751968",
+        "head_sha": "6060ff90d79d9b37baf0cdf65c918d8b7f6d5df0",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "6a2be422b1a5de793a6b0e522b35e678aa5aba53",
+        "draft": false,
+        "updated_at": "2026-09-20T16:47:39Z",
+        "url": "https://github.com/haji84/AI-/pull/897",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 895,
+        "title": "feat(jarvis): integrate resource-aware governed execution (#893)",
+        "head": "feature/893-model-router-integration",
+        "head_sha": "9bc8c5f527a1c163b94aa1933e6e3e8b612e866c",
+        "head_repo": "haji84/AI-",
+        "base": "feature/892-teaching-skills",
+        "base_sha": "8c8a78fe75e05d22bc9ea44a006e0fa754d21462",
+        "draft": false,
+        "updated_at": "2026-09-20T15:09:58Z",
+        "url": "https://github.com/haji84/AI-/pull/895",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 894,
+        "title": "feat(jarvis): persist corrections and revalidate reusable teaching Skills (#892)",
+        "head": "feature/892-teaching-skills",
+        "head_sha": "8c8a78fe75e05d22bc9ea44a006e0fa754d21462",
+        "head_repo": "haji84/AI-",
+        "base": "feature/888-teaching-candidates",
+        "base_sha": "5c42f57e310bb7bf489391befadcbad4831c7e9e",
+        "draft": false,
+        "updated_at": "2026-09-20T14:59:36Z",
+        "url": "https://github.com/haji84/AI-/pull/894",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 890,
+        "title": "feat(jarvis): connect teaching history to learning candidates (#888)",
+        "head": "feature/888-teaching-candidates",
+        "head_sha": "5c42f57e310bb7bf489391befadcbad4831c7e9e",
+        "head_repo": "haji84/AI-",
+        "base": "feature/887-completion-readiness",
+        "base_sha": "1fb7727d149876e051274db29060a37ecbad362a",
+        "draft": false,
+        "updated_at": "2026-09-20T14:10:13Z",
+        "url": "https://github.com/haji84/AI-/pull/890",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 889,
+        "title": "fix(jarvis): distinguish component availability from integrated readiness (#887)",
+        "head": "feature/887-completion-readiness",
+        "head_sha": "1fb7727d149876e051274db29060a37ecbad362a",
+        "head_repo": "haji84/AI-",
+        "base": "feature/882-completion-engines",
+        "base_sha": "e97903f7835177ef8283ff5b0837229849c58f48",
+        "draft": false,
+        "updated_at": "2026-09-20T14:03:24Z",
+        "url": "https://github.com/haji84/AI-/pull/889",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 884,
+        "title": "feat(jarvis): implement remaining non-physical completion engines",
+        "head": "feature/882-completion-engines",
+        "head_sha": "e97903f7835177ef8283ff5b0837229849c58f48",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "fb01f129d2ba1c9387b78fe4512beb9d680c958c",
+        "draft": false,
+        "updated_at": "2026-09-20T13:39:17Z",
+        "url": "https://github.com/haji84/AI-/pull/884",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 883,
+        "title": "feat(jarvis): add verified email owner recovery",
+        "head": "feature/881-owner-recovery",
+        "head_sha": "a112e6023f5de1d317417dc596e7369d3edea14e",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "655c313201bd3ebe8b833dbf284b10dcfde55fe0",
+        "draft": false,
+        "updated_at": "2026-09-20T22:41:51Z",
+        "url": "https://github.com/haji84/AI-/pull/883",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 870,
+        "title": "feat: silent ZBook Codex recovery and explicit Work restart",
+        "head": "fix/869-codex-desktop-recovery",
+        "head_sha": "645ace818b4a9f41dec3a8c2f10fca470f87b5cc",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+        "draft": true,
+        "updated_at": "2026-09-18T12:18:14Z",
+        "url": "https://github.com/haji84/AI-/pull/870",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 868,
+        "title": "JARVIS: diagnose offsite fleet route and prepare private Mac login (#867)",
+        "head": "codex/867-private-recovery",
+        "head_sha": "0d747edfe207e358c822a840d1e0b388f40b04c2",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+        "draft": true,
+        "updated_at": "2026-09-17T13:28:48Z",
+        "url": "https://github.com/haji84/AI-/pull/868",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 866,
+        "title": "docs(jarvis): reconcile full product scope and evidence boundaries (#865)",
+        "head": "codex/865-spec-resync",
+        "head_sha": "b986ea11ef48e99122a674dc727f449001ede1e1",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+        "draft": true,
+        "updated_at": "2026-09-17T12:16:02Z",
+        "url": "https://github.com/haji84/AI-/pull/866",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 864,
+        "title": "JARVIS: audit Home Coordinator compatibility and freeze migration requirements",
+        "head": "codex/863-coordinator-audit",
+        "head_sha": "ab136a48600af1bfea38716fc610b386d13e0fb9",
+        "head_repo": "haji84/AI-",
+        "base": "codex/861-auto-wake",
+        "base_sha": "6de0087665ff5c5ecbdd6660d12383517a2e50b0",
+        "draft": true,
+        "updated_at": "2026-09-17T09:37:07Z",
+        "url": "https://github.com/haji84/AI-/pull/864",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 862,
+        "title": "Wake Android before remote operations with lock and expiry checks (#861)",
+        "head": "codex/861-auto-wake",
+        "head_sha": "5b870e6b120b837e780b9fd94f8414e237edab9a",
+        "head_repo": "haji84/AI-",
+        "base": "codex/859-android8",
+        "base_sha": "3ccac0d31bf239ca8b4137269bda7cf32b45603b",
+        "draft": true,
+        "updated_at": "2026-09-18T00:09:53Z",
+        "url": "https://github.com/haji84/AI-/pull/862",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 860,
+        "title": "Android 8 screen sharing and enrollment-safe update staging (#859)",
+        "head": "codex/859-android8",
+        "head_sha": "61538ede1523d0a13bca0434edc14f4396b4d44a",
+        "head_repo": "haji84/AI-",
+        "base": "codex/857-worker-updates",
+        "base_sha": "51651f5b969bae219f1ad737b02ac5b0b001d8f4",
+        "draft": true,
+        "updated_at": "2026-09-17T21:13:24Z",
+        "url": "https://github.com/haji84/AI-/pull/860",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 858,
+        "title": "fix(jarvis): reliable Worker update delivery and per-device version status (#857)",
+        "head": "codex/857-worker-updates",
+        "head_sha": "51651f5b969bae219f1ad737b02ac5b0b001d8f4",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "14f0651a51ba79a53bff36f15175351d44f0f2fb",
+        "draft": false,
+        "updated_at": "2026-09-16T21:39:03Z",
+        "url": "https://github.com/haji84/AI-/pull/858",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 784,
+        "title": "docs: expand JARVIS integrated specification with fact-checked control gaps",
+        "head": "feature/jarvis-integrated-spec-expansion",
+        "head_sha": "917be00f8d96c336de95df9fb9158c13c732b561",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "9dff5c1e1e93769394605fd0f28d69ceabaaf293",
+        "draft": false,
+        "updated_at": "2026-09-16T08:40:58Z",
+        "url": "https://github.com/haji84/AI-/pull/784",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 595,
+        "title": "feat: add governed reusable skill runtime",
+        "head": "feat/gai-phase12-governed-skills",
+        "head_sha": "5dfe3358d6a85138f76471540e5ab6f1eaffc9a3",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "354117d59f6c7d5fc2e86a9af004821cfb548b04",
+        "draft": false,
+        "updated_at": "2026-09-15T01:07:08Z",
+        "url": "https://github.com/haji84/AI-/pull/595",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 542,
+        "title": "feat: unify Commander autonomy execution path",
+        "head": "feat/pai-unified-autonomy-path",
+        "head_sha": "4574c0962e1a59d706cb615e94e2153ea9bb9072",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "651d717fbf5bc960eb9407af75713a30088140d9",
+        "draft": true,
+        "updated_at": "2026-09-14T21:01:52Z",
+        "url": "https://github.com/haji84/AI-/pull/542",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 541,
+        "title": "fix: remove no-think from real tool-use planner",
+        "head": "fix/tool-use-planner-output",
+        "head_sha": "75e3f86b34418991987a79a13237657193043196",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "651d717fbf5bc960eb9407af75713a30088140d9",
+        "draft": false,
+        "updated_at": "2026-09-14T16:10:54Z",
+        "url": "https://github.com/haji84/AI-/pull/541",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 535,
+        "title": "perf: cut R6 timeout and format failures with concise output",
+        "head": "perf/r6-optimized-runner",
+        "head_sha": "d67ab098664168a30e04a365e8ccaaecddabfbd6",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "eb1f0eb034f9f2da2d4f53dd8b0d839010a4d248",
+        "draft": false,
+        "updated_at": "2026-09-14T15:48:38Z",
+        "url": "https://github.com/haji84/AI-/pull/535",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 505,
+        "title": "feat: navigate to configured sheet cells before tapping",
+        "head": "feat/sheet-cell-navigation",
+        "head_sha": "af62871e60b8b2299a9e49488d314e4ca1af8c02",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "4996d1c2d7ab5748df7da86736268ddd3eff5ef4",
+        "draft": false,
+        "updated_at": "2026-09-13T17:37:19Z",
+        "url": "https://github.com/haji84/AI-/pull/505",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 493,
+        "title": "feat: add per-device spreadsheet assignments",
+        "head": "feat/jarvis-device-sheet-assignments",
+        "head_sha": "b9265d1d2297fa987006b7494d53bef44ea39f82",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "df57b7557e51648196be1b38f6fede8504673322",
+        "draft": false,
+        "updated_at": "2026-09-13T14:17:34Z",
+        "url": "https://github.com/haji84/AI-/pull/493",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 481,
+        "title": "fix: launch direct JARVIS Commander with Node",
+        "head": "fix/jarvis-direct-commander-launch",
+        "head_sha": "b2150e931b50550386da62689e9f5d22c3c2f15b",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "2fd01f2212f20a427a06da8063cb0d17a0528239",
+        "draft": false,
+        "updated_at": "2026-09-13T12:11:55Z",
+        "url": "https://github.com/haji84/AI-/pull/481",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 463,
+        "title": "feat: run fresh R2 v3 with explicit Qwen3 think control",
+        "head": "feat/r2-v3-fresh-nothink",
+        "head_sha": "8f4af4b8a45cf5c8a6911c0550a2302e6a5b817a",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "4dcaf5a1a7f878094ce9679dfaf25f19a6a7607a",
+        "draft": false,
+        "updated_at": "2026-09-13T11:30:51Z",
+        "url": "https://github.com/haji84/AI-/pull/463",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 450,
+        "title": "feat: accelerate and resume R2 local-model research runs",
+        "head": "feat/r2-performance-runtime",
+        "head_sha": "9b264a34de0ba3d845f002203ef6bf4150dba6db",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "d556599593fecbb6250359758aa56aee0229a094",
+        "draft": false,
+        "updated_at": "2026-09-13T06:28:13Z",
+        "url": "https://github.com/haji84/AI-/pull/450",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 284,
+        "title": "chore: PROJECT_STATEを現行autonomy状態へ同期",
+        "head": "chore/283-sync-project-state",
+        "head_sha": "92d6c498b6e85138823ce6ec22441eeaaee88443",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "e27e5a081f0b0ceca96ba89c7c5b059de4e8577a",
+        "draft": false,
+        "updated_at": "2026-09-10T03:29:54Z",
+        "url": "https://github.com/haji84/AI-/pull/284",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 266,
+        "title": "fix: dashboard quick controlのcommand sourceを統一する",
+        "head": "fix/265-dashboard-command-source",
+        "head_sha": "c424bfc4274b1e02102a4748b897b9fae8fdd1e6",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "3091dfaaf328bdc18c4db875f8c1e891861bf54a",
+        "draft": false,
+        "updated_at": "2026-09-08T19:52:23Z",
+        "url": "https://github.com/haji84/AI-/pull/266",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 264,
+        "title": "test: reasoning handoffから安全な実作業へ継続できることをE2E検証",
+        "head": "test/258-reasoning-handoff-e2e",
+        "head_sha": "083bec3d30c69926d0258059dcffaa0c7ce7cafd",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "3091dfaaf328bdc18c4db875f8c1e891861bf54a",
+        "draft": false,
+        "updated_at": "2026-09-08T17:11:19Z",
+        "url": "https://github.com/haji84/AI-/pull/264",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 259,
+        "title": "chore: reasoning handoff E2Eを次の自律タスクへ切り替える",
+        "head": "chore/258-reasoning-handoff-state",
+        "head_sha": "33eb07cc58c30f11bb059f04c6e13dd8b6c4535c",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "44d29b979385f4744046252356097b9668b3fc14",
+        "draft": false,
+        "updated_at": "2026-09-08T16:57:09Z",
+        "url": "https://github.com/haji84/AI-/pull/259",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 172,
+        "title": "test: verify one-cycle bounded command completion",
+        "head": "autonomy/run-33814562609",
+        "head_sha": "9cc3ab390619ffd3d1093a3f5d7a9671480baa8b",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "2dfec9bca9cd38ad01eade002e4ec1090f9f5b8c",
+        "draft": false,
+        "updated_at": "2026-09-03T22:46:22Z",
+        "url": "https://github.com/haji84/AI-/pull/172",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 132,
+        "title": "feat: 日本語のスマホ向けAI会社ダッシュボードを追加",
+        "head": "feat/124-mobile-dashboard",
+        "head_sha": "43c27d2584cc3c48e635e93b693bcc24756ba692",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "cf399eed7e79b2e583a56a0600f57fe5904bccdc",
+        "draft": false,
+        "updated_at": "2026-09-03T03:12:57Z",
+        "url": "https://github.com/haji84/AI-/pull/132",
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "number": 110,
+        "title": "feat: use Work cloud as the default orchestration path",
+        "head": "feat/109-work-cloud-orchestration",
+        "head_sha": "801e25b6eca47e4c7d006da4ebf508ffa434fef6",
+        "head_repo": "haji84/AI-",
+        "base": "main",
+        "base_sha": "6a72fe110107c2e2f67282c7b8ff2637783d3adc",
+        "draft": false,
+        "updated_at": "2026-09-03T00:04:51Z",
+        "url": "https://github.com/haji84/AI-/pull/110",
+        "disposition": "PENDING_REVIEW"
+      }
+    ]
+  },
+  "branches": {
+    "page_sizes": [
+      100,
+      100,
+      32
+    ],
+    "terminated_by_short_page": true,
+    "error": null,
+    "rows": [
+      {
+        "name": "agent/phase-0-ai-company-foundation",
+        "sha": "0b6d866e32dbd367ae3e8f2b7c1c943c5a9b213d",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "autonomy/run-35523751968",
+        "sha": "6060ff90d79d9b37baf0cdf65c918d8b7f6d5df0",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "autonomy/run-33809898020",
+        "sha": "9cc296a491f95dee0c2a84682b44316630f9e75f",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "autonomy/run-33814562609",
+        "sha": "9cc3ab390619ffd3d1093a3f5d7a9671480baa8b",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "chore/advance-gai-phase10",
+        "sha": "a712dbeaaefc997c6f6b4dd047ae53a368b8d7c0",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "chore/remove-zombie-commander-v2-v3",
+        "sha": "966f4f5da3e5b50c7366c0cafce89e05a60e0e5c",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "chore/risk-based-human-gate",
+        "sha": "f94cbe2df838c2cf6afa4d81885d727712815654",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "chore/risk-based-human-gate-1",
+        "sha": "fae036d95beef2be60ccb22adf2e967d8e5519ea",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "chore/258-reasoning-handoff-state",
+        "sha": "33eb07cc58c30f11bb059f04c6e13dd8b6c4535c",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "chore/283-sync-project-state",
+        "sha": "92d6c498b6e85138823ce6ec22441eeaaee88443",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "codex/issue-2-phase-0-dry-run",
+        "sha": "89922f6d607a4369251da907c4000175629ae1a7",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "codex/issue-9-phase-1-foundation",
+        "sha": "7663e9ad906c1b9f263f7f2c9f19346a4c211476",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "codex/issue-12-project-model",
+        "sha": "25f107328958b90e202b87ab79487c687d449774",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "codex/issue-15-project-storage",
+        "sha": "05c331a88194e1f153b44a58beba551a6834ba2b",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "codex/issue-18-job-model",
+        "sha": "f8838908ffcdceb481ea4f7eb38b21c74fe33f02",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "codex/mark-phase-0-complete",
+        "sha": "c3d5ff189ab82d3c324c4975a29061dd6181b0b3",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "codex/ops-012-first-run-setup",
+        "sha": "f6c4e9fbfd6345f1af0bcac9657c36b6a2cbc0df",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "codex/phase-1-activation",
+        "sha": "1522b0945da7c858c24c205d82d30f7148a2ed68",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "codex/phase-1-foundation-state-update",
+        "sha": "6c2c514c43acf54883215a651ed9458f32f6cb6d",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "codex/project-model-state-update",
+        "sha": "1683a1c709360466edfde0714578600b868b4c81",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "codex/update-phase-0-project-state",
+        "sha": "dc5b5ff54252fd0da7813ace59d05d6fa5239ee2",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "codex/update-state-after-project-storage",
+        "sha": "48601b1ddbacbb707794321f97a6c0a8682e5078",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "codex/701-fixed-enrollment-window",
+        "sha": "f937a16bd6adaf230eb7ff66665e346c5fdcaa72",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "codex/779-launch-enrollment",
+        "sha": "4b4fed64fe993d18b714949cbc4fe00304c6d1be",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "codex/857-worker-updates",
+        "sha": "51651f5b969bae219f1ad737b02ac5b0b001d8f4",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "codex/859-android8",
+        "sha": "61538ede1523d0a13bca0434edc14f4396b4d44a",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "codex/861-auto-wake",
+        "sha": "5b870e6b120b837e780b9fd94f8414e237edab9a",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "codex/863-coordinator-audit",
+        "sha": "ab136a48600af1bfea38716fc610b386d13e0fb9",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "codex/865-spec-resync",
+        "sha": "b986ea11ef48e99122a674dc727f449001ede1e1",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "codex/867-private-recovery",
+        "sha": "0d747edfe207e358c822a840d1e0b388f40b04c2",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "codex/902-input-intake",
+        "sha": "ab27557af63d3e096a55f9cf27e60cf19f9920ea",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "codex/904-fact-audit",
+        "sha": "6af365ceb1b52b9111f98760da8d352449632871",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "codex/1192-demonstration-skill-integration",
+        "sha": "cb4697504b724c324a5f6bfafd9f21366c6d7157",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "codex/1214-personal-ui",
+        "sha": "9c3bb7a2e18389fca36aaeb414ac3ef7a96d7ad7",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "codex/1845-ci-selective-rerun-20261108",
+        "sha": "55337f67db40415a728d9cee2b2521448ea5b632",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "codex/1865-pr-reuse-advisory",
+        "sha": "3e19a145207ab35f71d74f4232bb368ebdc3e5bf",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "codex/1867-ai09-hunk-prefix-fix",
+        "sha": "ba0d9ea6c73736b0681768b99ca17b222ec27d40",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "codex/1869-baseline-recovery-proposal",
+        "sha": "d2eb28f49fcc8ee733307ab05a727ed2e1068859",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "codex/1871-common-v06-design",
+        "sha": "87487f505cc9f70bc33c0d028dbef96ddc3c0d7f",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "demo/car-mate-ai",
+        "sha": "d49ff67c9f3fa453069824aaeea4fad26525e817",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "diag/921-codex-sandbox-policy",
+        "sha": "2138cf87478dc51888668939cf33852315e10d7e",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "docs/jarvis-fact-local-online-spec",
+        "sha": "f71e2c56f1a7f8eb1b72d29abeecdfeb7455d0c1",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "docs/jarvis-spec-audit-sync",
+        "sha": "67a6e7bf1d10b7becac966fec3bf9b1fe4772075",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "docs/jarvis-spec-full-sync",
+        "sha": "752b6cc34c466f1df0df22171758d2e3b0bdf0c4",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "docs/jarvis-spec-full-sync-2",
+        "sha": "4a7758d14158a8c228f79ea3b2250bea74e03408",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "docs/jarvis-spec-sync-capability-fabric",
+        "sha": "fc3f23985411ca22e92d1167547e0a06dcc75534",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "docs/jarvis-ui-full-audit",
+        "sha": "c81f9997f335cd16dce4e477606c8eea4ea53427",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "e2e/ci-recovery-safe-probe",
+        "sha": "7525132d72ee01e3b5861875c594002ee6134b36",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "evidence/ai09-1819-owner-review-20261017",
+        "sha": "45dbdadf03c59f22296b56b7834f0cade3247832",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/automation-project-repair-channel",
+        "sha": "93cade9eb9909f65f5ff853fc48c9ec5ef5df2d6",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/autonomous-ci-recovery-1367",
+        "sha": "6b9a0a508698472d7df17a992faaa237a66efd5b",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/broker-execution-fencing-1369",
+        "sha": "00975bb3033fd12da26987795d9d0e6e0a05cd1a",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/broker-resource-placement-1362",
+        "sha": "a2ddab82f641daa23b6a707f5769ed80776d4af8",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/distributed-claim-heartbeat-1354",
+        "sha": "c4d62a7bf918814a9e48087ec56c764bec67380b",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/distributed-execution-fencing-1352",
+        "sha": "15ac8724751a5f695affb4fb576d614049620518",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/gai-bootstrap-ollama",
+        "sha": "a82255bca30e7b556e26fbda5c66d22958855bfa",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/gai-g5-model-execution",
+        "sha": "ccb1604cd8216852c4768834cf34f030b93a9b64",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/gai-phase12-governed-skills",
+        "sha": "5dfe3358d6a85138f76471540e5ab6f1eaffc9a3",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/jarvis-commander-lan-fallback",
+        "sha": "20132121c76fe37713a5146cb15db4ec7e68df75",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/jarvis-device-sheet-assignments",
+        "sha": "b9265d1d2297fa987006b7494d53bef44ea39f82",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/jarvis-simple-dashboard",
+        "sha": "febf76d482e2e145cd8fb4dc0e4fdac85241c5cf",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/jarvis-simple-url-enrollment",
+        "sha": "cb08e23508b55e7be29e74a6b9c1608f5ab92ef2",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/jarvis-wireless-adb-pairing",
+        "sha": "432d1beb6d888b2cbee8e61a463826c1e94db96a",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/migration-class-recovery-1364",
+        "sha": "b787754e961829b89cd74f1fc9a896b7fd627504",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/pai-unified-autonomy-path",
+        "sha": "4574c0962e1a59d706cb615e94e2153ea9bb9072",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/r2-hypothesis-campaign",
+        "sha": "68351048cb065cafe5e9f1f0c62fbb8945145c9d",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/r2-measured-improvement-campaign",
+        "sha": "09457a820ccc32f089751971348dd61865da6e65",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/r2-performance-runtime",
+        "sha": "9b264a34de0ba3d845f002203ef6bf4150dba6db",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/r2-v3-fresh-nothink",
+        "sha": "8f4af4b8a45cf5c8a6911c0550a2302e6a5b817a",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/r6-benchmark-v11",
+        "sha": "6114330c1ea155853c22c8b498fadbd65d6c6cd9",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/r17-governed-self-modification",
+        "sha": "0b9adc26d71227b6a75bf1a9696ffb2702578060",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/research-campaign-orchestrator",
+        "sha": "05aeee17f020a1cbf42dce545b1baeb2624e5acb",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/research-control-plane-no-zbook-spof",
+        "sha": "56aaeb1882dc6502cf2bdc8483fa1c834db3d1b3",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/research-stage-evidence-builders",
+        "sha": "d5e447911674c12e37efe3bd91d791b396c242b2",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/resource-aware-placement-1366",
+        "sha": "7550091325911f4bb48b2fee623a0021742e2bb4",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/resource-aware-worker-placement-1360",
+        "sha": "26e8e1261e5fe9f24e36df8aa14cf90d34153c93",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/self-development-test-contract-evolution",
+        "sha": "28914b2a8c391e7acb500af60b09b6ddcc5922e7",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/sheet-cell-navigation",
+        "sha": "af62871e60b8b2299a9e49488d314e4ca1af8c02",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/109-work-cloud-orchestration",
+        "sha": "801e25b6eca47e4c7d006da4ebf508ffa434fef6",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/124-mobile-dashboard",
+        "sha": "43c27d2584cc3c48e635e93b693bcc24756ba692",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/178-dashboard-actions",
+        "sha": "43c27d2584cc3c48e635e93b693bcc24756ba692",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/276-chat-attachments",
+        "sha": "a0e8029c930858db7998e87df4ca01497ba4f611",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/312-g6-research-loop",
+        "sha": "fbe9b2e6582bde52f07a4f0f873b51abd669ea34",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/320-research-ops-r0-boundary",
+        "sha": "2a97be6bf11156bd811699c661ec2087141bd502",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/320-research-ops-r0",
+        "sha": "c2c74a7e27d53b44626496ba1f88b109d2d6d433",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/709-recording-playback",
+        "sha": "d14debf5dac8981fe8212b286b87c85431a0ae2d",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/801-p5-accessibility-keyboard",
+        "sha": "c7baad224bb7207da463560cba68082479fa2f32",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/813-p6-local-voice-output",
+        "sha": "27307c001b85b2c270280f2a0747de54e635a98d",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/826-p7-compass-decisions-deliverables",
+        "sha": "63e31e59e48dccadbeb1c0426746ad2851be5c14",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/910-control-plane-recovery-e2e",
+        "sha": "aa5b31e42724efe69c1e9953d005929a1cef095b",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/921-codex-propose-jarvis-apply",
+        "sha": "8ee332b044dbc993c9c497ac06e7c319158d912c",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/921-independent-runtime-verifier",
+        "sha": "41a38d863554534c5c360d6b7b80407ab2d0cdd2",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/921-real-builder-recovery-e2e",
+        "sha": "fe96d5793a5922825f9a25f5b2ff1ab77342cd9b",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/921-runtime-builder-pr-promotion",
+        "sha": "b32a0d3279e1a3f65f21a3884c04b35fab40a87c",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/1039-autonomous-goal-continuation",
+        "sha": "4f2b7494b62bbb844000f37b3b46e4a7b2b365b8",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/1068-browser-research-fact",
+        "sha": "1765eae11ef5141b962af85a8d943dc7f6e74eb6",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/1068-device-sandbox",
+        "sha": "5c9ebcf2660b82844fb5d0a02b1b65ad95d2b10b",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/1068-document-sandbox",
+        "sha": "c36eb73e87ebb53bf1979176aaa38b70b4008d1e",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/1068-mixed-work-e2e",
+        "sha": "45a96b306abe7700231d0c90462951386c05000f",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/1068-research-sandbox",
+        "sha": "b797ccbdf8dd0ee36abcdbf0f411bbdbc726a201",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/1068-spreadsheet-sandbox-recovery",
+        "sha": "1c174c2c5ad37cfdb8923077891a70b265628c4d",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/1071-ui-main-integration",
+        "sha": "2319c0c8be0333d76217e5d29dcd7836f4e827d5",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/1091-dispatch-verify-recover",
+        "sha": "e52d8022fee4c54bb7bf22db882beee8a1acc487",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/1091-run-status-api",
+        "sha": "c3baad62d7987bcda3c789218e8d0b93d49c1200",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/1091-run-store",
+        "sha": "18a8cf2f24821888c378d34864bbd6535112e8a0",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/1091-ui-real-progress",
+        "sha": "8b1d2108487f58eedf48d0bf37317761ad6d7edc",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/1104-file-current-main",
+        "sha": "fad728849a9a9f89ef5a6cabf7e615a1c1ccf624",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/1104-spreadsheet-adapter",
+        "sha": "b6a3102c91fb25199f173e7b8454b9c9faf1cff5",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/1104-xlsx-current-main",
+        "sha": "b7922024296a8747e7221740b851894515c5d11f",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/1104-xlsx-latest-main",
+        "sha": "9232fa7377db1da28778da44b6187ba84033ca8e",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/1124-research-capability",
+        "sha": "558ca34b872558a54310b21254cccbb49b210370",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/1128-broker-windows-dispatch",
+        "sha": "807fc68367ea2ed78b3159962df0ba82c5fef990",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/1128-capability-racing",
+        "sha": "707064fc1571c1d053cfda4ec032b8dc63136dce",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/1128-demonstration-current",
+        "sha": "0633e05076ffd942a3adb8032d12780141ef9561",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/1128-demonstration-learning",
+        "sha": "9dbe53ef29e558bdcf8a4d153dade59dd4032d65",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/1128-model-provider",
+        "sha": "c4bc57c5d9d6e229d3ca040d57758490baba1836",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/1128-parallel-research",
+        "sha": "3ac2a151646a10297715742e791f9780f92dfdfa",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/1128-production-browser-contract",
+        "sha": "33675edcacad9ea4323812ea41e5a337c27121d5",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/1128-production-current",
+        "sha": "b6ac9c5b2663494ab9d25a5a641a63851d1eba6a",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/1128-production-research",
+        "sha": "e432b7ad2fe193c3b28f58a6ff45502bd709702e",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/1128-self-development",
+        "sha": "aa520b93ada1876f494dd62933cc489fe2ada298",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/1128-windows-dispatch",
+        "sha": "9546b50eafdc490d89c39814ab6182305360dd23",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/1128-zbook-real-machine-verifier",
+        "sha": "4dd5ab6684d09d562557e44100d7dff0dc2d0bc9",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/1282-durable-owner-session",
+        "sha": "20c18092a9bd13a0caa5d98b696c21214ab7255e",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/1282-owner-idle-session-semantics",
+        "sha": "5e714d7261ddd924ef853531a6fd21ff7fd1dc7c",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/1282-protected-operation-rollback",
+        "sha": "561d1024e8897b34631b43b605319f86700924ff",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/1292-traceability-auto-reconcile",
+        "sha": "e68a18374cba44bee6a237c69ce48e7ef9a29531",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/1723-goriq-usability",
+        "sha": "6537b520458a2188bfb9a808421dece431b14f4d",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/1756-shared-authority-contract",
+        "sha": "4f7ffa6450747fed204beadb6b3d33c92c711971",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/1798-ai09-bootstrap-script",
+        "sha": "43069992f1c3414ec1801095dd1f4d3cbfc8074a",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/1805-ai09-independent-triage-gate",
+        "sha": "89211fe0175d2f6972a5e69f364c2a1b066a22fa",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/1821-cloud-publish-budget-gate",
+        "sha": "09e8c4459fb28acd45332c9ab09b96984bf5cb8b",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feat/1831-remote-lite-manual-boundary",
+        "sha": "ee2238cdbe0be218d7a2d47bad234c5f0836bf20",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feature/jarvis-integrated-spec-expansion",
+        "sha": "917be00f8d96c336de95df9fb9158c13c732b561",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feature/725-fleet-ledger-reconcile",
+        "sha": "c2f200bb8bf7dd47851ba8812678d1d0010eb0e5",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feature/881-owner-recovery",
+        "sha": "a112e6023f5de1d317417dc596e7369d3edea14e",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feature/882-completion-engines",
+        "sha": "e97903f7835177ef8283ff5b0837229849c58f48",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feature/885-ledger-final",
+        "sha": "655c313201bd3ebe8b833dbf284b10dcfde55fe0",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feature/885-ledger-reconcile",
+        "sha": "fdfc6ffa32f4d581bf6b8f1de235b19b3a842173",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feature/887-completion-readiness",
+        "sha": "1fb7727d149876e051274db29060a37ecbad362a",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feature/888-teaching-candidates",
+        "sha": "5c42f57e310bb7bf489391befadcbad4831c7e9e",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feature/892-teaching-skills",
+        "sha": "8c8a78fe75e05d22bc9ea44a006e0fa754d21462",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feature/893-model-router-integration",
+        "sha": "9bc8c5f527a1c163b94aa1933e6e3e8b612e866c",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feature/899-sec001-ledger-apply",
+        "sha": "c8fc7dadf88c08a72d5e1946e17e6991f60316c7",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feature/899-sec001-ledger-current",
+        "sha": "710c5162a8f03656f41681e0468f26afb79baa09",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feature/910-compass-intake-adapters",
+        "sha": "f40270ac3fcca06feb1f20c3daa529b5db76c6ed",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feature/910-persistent-unified-intake",
+        "sha": "f880294dc1ee02456a3a7f1f9ac01d7e19ad7c05",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feature/969-sec016-remote-assist-audit",
+        "sha": "a5ac2715411f0733a960173d425e6c9d3b1e8bda",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feature/1028-ops014-rollback-readiness",
+        "sha": "e1ae8c98cd071caf561b691e8db0be200fc3fd1a",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feature/1050-acc002-verifier-gate",
+        "sha": "fdcedfe821aa3a9a508a7f212bebf121820bfc7c",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "feature/1944-goriq-inheritance-guard",
+        "sha": "c4345a75f849d52ce8a3c0b824d4dd1521b0ef77",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/ai09-builder-health-diagnostic",
+        "sha": "d22811f1c98c593c360967e66c75270498686423",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/chat-send-fallback",
+        "sha": "888587e9a56d27ca503ef3f681701040f12e38b8",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/chat-send-fallback-final",
+        "sha": "888587e9a56d27ca503ef3f681701040f12e38b8",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/chat-send-fallback-v2",
+        "sha": "888587e9a56d27ca503ef3f681701040f12e38b8",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/chat-work-patch-final-newline",
+        "sha": "fb716e8f0b279060bc58ac7f77a877112099a5b6",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/chat-work-repair-repository-dispatch",
+        "sha": "ffa8a51cbc764c1136d3050ac4503f9cd8a7c238",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/chatgpt-action-anchor-response-extraction",
+        "sha": "fe803d9bdd452501371ca43d434d28d89929731d",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/chatgpt-repair-submit-detection",
+        "sha": "c8d6f0da86afd4733fb9ccbffaee15ea26f46558",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/chatgpt-response-action-container",
+        "sha": "1b624aa0b280a84218ace34e2e936c33d241ab7b",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/ci-recovery-porcelain-generated-noise",
+        "sha": "5ca2e93044432326ba8aafa110f6b09dd63a18ed",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/ci-recovery-strategy-main-1368",
+        "sha": "b1aa02d6724cf39e084f5c87c2a15b8365eeab3c",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/commander-range-single-device",
+        "sha": "53d677a0eb5715fa1285baae8d79e37cdbc3e298",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/groq-web-secret-fallback",
+        "sha": "740b31086f91a961da5a11e4eb20b8d2d63bf339",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/groq-web-secret-fallback-main",
+        "sha": "dd175a0b4e476e59035606819154584cd31309e3",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/ios-owner-session-reuse",
+        "sha": "ba87fce4853bd8d8caf459b5b1a2af503120d868",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/iphone-cross-language-signing",
+        "sha": "c23f06aca96f4c805fc786f273db848d88c02107",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/iphone-fractional-expiry",
+        "sha": "c23f06aca96f4c805fc786f273db848d88c02107",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/jarvis-direct-commander-launch",
+        "sha": "b2150e931b50550386da62689e9f5d22c3c2f15b",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/jarvis-production-sync-v2",
+        "sha": "e0f9bd8f8e4751ccbf3053cabbdc566fb8bf97e2",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/mac-runner-process-detection-1552",
+        "sha": "3fe2f1f4c5950b086f49dc45d73684a2d9af9af5",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/production-sync-sete-recovery",
+        "sha": "e75a09ef56902527740a9d3527b1d005eb267faf",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/reopen-repairable-development-goal",
+        "sha": "da2bdf969fdc66f823ac993a4e919b6898340665",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/repair-runtime-activation",
+        "sha": "e297784ee2c7eb98e6216238bd2e551823b2a47b",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/research-self-hosted-node24",
+        "sha": "e05977f3803881765d8f0270a248081588b2a152",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/runtime-env-preserve-capabilities",
+        "sha": "cb27a1d13b0eca222f4aa2a637bd1f7160f7a60f",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/runtime-env-preserve-capabilities-main",
+        "sha": "5225ef02e81c796f8d225e7bacfe59ff7bedaa91",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/stable-worker-apk-link",
+        "sha": "eb1f0eb034f9f2da2d4f53dd8b0d839010a4d248",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/stage-b-mac-process-tree-1552",
+        "sha": "acc6df7dd1a037e61ff80e0fe2c09057042c6446",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/stage-b-mac-shell-pid-1552",
+        "sha": "8496d5eded4aa74326a9904936d0647d0e0c6e3f",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/tool-use-planner-output",
+        "sha": "75e3f86b34418991987a79a13237657193043196",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/tunnel-recovery-diagnostics",
+        "sha": "2013af9f3a0e3fa6402139272290eced834819de",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/265-dashboard-command-source",
+        "sha": "c424bfc4274b1e02102a4748b897b9fae8fdd1e6",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/383-chat-send-pat-independent",
+        "sha": "888587e9a56d27ca503ef3f681701040f12e38b8",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/707-recording-cancellation",
+        "sha": "1fec8f79b73e57cb7c83280df51994f9b86becc1",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/721-remote-screen-freshness",
+        "sha": "d72b3b9bede549ad3f10c4c85d61df3a75330683",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/869-codex-desktop-recovery",
+        "sha": "645ace818b4a9f41dec3a8c2f10fca470f87b5cc",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/1030-independent-verification-oracle",
+        "sha": "8aa37e85fb147263d34c2dcf1894c0877fee327a",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/1034-independent-verifier-current-main",
+        "sha": "ebd7ca7cad10d8dab9a235efcf52b991b9b018d0",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/1043-recovery-objective-from-evidence",
+        "sha": "74529550e172b5a8fa0b01f1df8b63ada921eb0a",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/1218-broker-cognitive-startup-38",
+        "sha": "f89e26befa48f4496c22bca71dccb24bcc2d9563",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/1218-production-cutover-40",
+        "sha": "1fb9a31e4c05f1f8433f84610f2ecc56e81b69e7",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/1219-plan-included-codex-loopback-route",
+        "sha": "a63273495091f4c4f57e1fb1ed3576dc6dee0c9d",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/1763-bounded-autonomy-continuation",
+        "sha": "eb7eeb93271715763f8b6c0c44163e0e9597f36d",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/1763-single-host-run-lock",
+        "sha": "d9993374c72dab2d7f4055fae17f1b728d6729fb",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "fix/1787-zbook-conditional-private-listener",
+        "sha": "5e2173c4670b86d830f2bbb943239d3a8a53b121",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "goriq/native-ios-daily-driver",
+        "sha": "137ddb35540dd3273ffea36c3d7204a7589bb4d2",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "goriq/zbook-mobile-mode",
+        "sha": "0bd2638f426ddb71eb1db4788ba755d57f9c2080",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "goriq/1218-iphone-owner",
+        "sha": "94ab462584ddd3a713a693558708fde757da34a5",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "goriq/1817-completion-first-delivery",
+        "sha": "496f37745793f32106597882ff192fca952bff2b",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "issue-1209-bounded-canonical-reconcile",
+        "sha": "91892b13f391b51cd64e9768f31676b1a7303357",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "issue-1490-copy-ready-retry",
+        "sha": "406d2de3672919fade88b12d1b2808a7d820eb54",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "issue-1494-decouple-chat-smoke",
+        "sha": "fb232b3247d167091ed645183d155b308013db26",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "issue-1496-chat-phase-recovery",
+        "sha": "469cb97643ecd7971f17a5730c214d10adec9059",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "issue-1508-completion-diagnostics",
+        "sha": "5c70d44057a48cf538a9174ad9e50be5812110b4",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "issue-1508-completion-diagnostics-sync",
+        "sha": "7e2067ea0c3e37a2e673ca3e5cdb75db3c382b01",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "issue-1514-phase-action-identity",
+        "sha": "e4687ad2ea7fd71130a9f237155991570f7a6a4f",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "jarvis/1207-windows-native-worker",
+        "sha": "b052fe972867e51c96892a5887c4dd2b6f5d9d27",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "main",
+        "sha": "ea02180eac6fe46522b62eae6916f26f3844719d",
+        "protected": true,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "noop",
+        "sha": "bd72695dd5a5285d628367600ccb93a8153f1a08",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "noop2",
+        "sha": "bd72695dd5a5285d628367600ccb93a8153f1a08",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "p8-owner-session-847",
+        "sha": "4ee5ec77700d5c6d2acea650ba3e25df302f9ff8",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "perf/r6-optimized-runner",
+        "sha": "d67ab098664168a30e04a365e8ccaaecddabfbd6",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "perf/r6-pdca-output-control",
+        "sha": "eb1f0eb034f9f2da2d4f53dd8b0d839010a4d248",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "probe-1456-autonomous-router",
+        "sha": "173bd824ad197e33dbc7618e4ef2966e01c755f0",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "refresh/r6-benchmark-v11",
+        "sha": "f961c31acca11d4e8de66a6b23978bcc84abac0b",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "spec/reset-recovery-lifecycle-1203",
+        "sha": "ea64e901294a3577ad2c60c6ddca2918cb9d6a01",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "test/ai09-native-e2e-a88c8166",
+        "sha": "96e9b742ff3bbfb48c7f0e84b8f4d20d81b10e44",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "test/goriq-ci-recovery-e2e",
+        "sha": "8ef51e399d0a87440a1957aed59c37043c4054b4",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "test/goriq-ci-recovery-e2e-v2",
+        "sha": "a1598b149e8017fe10444d8d0194e05d9ad8294e",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "test/258-reasoning-handoff-e2e",
+        "sha": "083bec3d30c69926d0258059dcffaa0c7ce7cafd",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "test/752-device-owner-provisioning",
+        "sha": "db8ccb17912908829a2c0a4b489236008c37f8f8",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "test/1128-fabric-e2e",
+        "sha": "5d5db357630d83095011b76f865a168fe7ca3b33",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "test/1128-fabric-e2e-current",
+        "sha": "6708ce3edd3ac64a20e28cf00592d478044fe8c6",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "test/1128-safe-autonomy",
+        "sha": "445d3d057f61a556262d8cb1422f101f4e150a63",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "test/1128-safe-autonomy-current",
+        "sha": "3e56d8ebb925b30efbf0d0c9b633279dbb6aa092",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "test/1128-skill-learning-acceptance",
+        "sha": "725d1cb9930312fe9f3cf086301fba36af3fcb9e",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "test/1159-net004-reconnect-contract",
+        "sha": "8b5631287f5ffd3427d09ca7e4ee6991478eb67d",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "test/1216-ai-employee-quality-20261119",
+        "sha": "337543a346ea7c5ceb6868ee8d11614187ce66ab",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "test/1787-config-acl-windows-proof",
+        "sha": "0e2ba604660daf83b6857665d8ae854c555b51e9",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "test/1787-zbook-narrow-handle-proof-20261123",
+        "sha": "34f0f2277838c50c8529a5551bd3478fff3c2e9e",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      },
+      {
+        "name": "verify/1219-jarvis-1ef4f20-20261120",
+        "sha": "1ef4f206b855ca7dae41dcc2b8701775f6806e0b",
+        "protected": false,
+        "disposition": "PENDING_REVIEW"
+      }
+    ]
+  },
+  "unreviewed_sources": [
+    "closed/staged history not yet reconciled",
+    "uncommitted local worktrees",
+    "Compass/Job original and backups",
+    "registered devices and private identity records",
+    "memory, skill, learning data and execution artifacts",
+    "unrecorded historical owner decisions"
+  ],
+  "priority_prs": [
+    1832,
+    1935,
+    1764,
+    1759
+  ]
+}
