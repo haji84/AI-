@@ -2,6 +2,7 @@ import { isAbsolute } from "node:path";
 import { GoalVerifierReceiptWake } from "./goal-verifier-receipt-wake.ts";
 import { readResidentExecutionManifest } from "./resident-execution-manifest.ts";
 import { readTrackedRepairManifest } from "./tracked-repair-resident-runtime.ts";
+import { readTrackedRepairSequence } from "./tracked-repair-sequence.ts";
 
 /** Trusted host cadence only: it never enables a profile or grants authority.
  * Keep the existing production default; at most one poll per second. */
@@ -16,6 +17,11 @@ export function residentReceiptPollIntervalMs(env: Record<string, string | undef
 
 /** File changes only wake existing accepted work. The executor verifies all authority. */
 export function createResidentReceiptWakes(env: Record<string, string | undefined>, runtimeRoot: string): GoalVerifierReceiptWake[] {
+  if (env.GORIQ_TRACKED_REPAIR_SEQUENCE_FILE || env.GORIQ_TRACKED_REPAIR_SEQUENCE_SHA256) {
+    const sequence = readTrackedRepairSequence(env);
+    if (!sequence) throw Error("TRACKED_SEQUENCE_MANIFEST_REQUIRED");
+    return sequence.receipts.map(file => new GoalVerifierReceiptWake(file));
+  }
   if (env.GORIQ_TRACKED_REPAIR_MANIFEST_FILE || env.GORIQ_TRACKED_REPAIR_MANIFEST_SHA256) {
     if (env.GORIQ_SELF_DEVELOPMENT_SEQUENCE_FILE || env.GORIQ_SELF_DEVELOPMENT_SEQUENCE_SHA256) throw Error("TRACKED_REPAIR_MULTIPLE_RUNTIME_PROFILES");
     const loaded = readTrackedRepairManifest(env);

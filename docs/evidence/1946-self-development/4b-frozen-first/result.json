@@ -1,0 +1,168 @@
+{
+  "scope": "ISOLATED ACTUAL LOCAL MODEL + REAL SCOPED CHECKS; published fixture signer, NOT production trust",
+  "root": "C:\\Users\\qq113\\AppData\\Local\\Temp\\goriq-selfdev1946-qBQsO8",
+  "base": "6b16c31212e8b54c28ef2ca1c81ad34b916fc40d",
+  "goalId": "goal-69f8328a0e32360c",
+  "model": {
+    "id": "qwen3:4b",
+    "digest": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7"
+  },
+  "startedAt": "2026-11-25T19:28:35.187Z",
+  "checks": [],
+  "restarts": [],
+  "artifacts": [],
+  "intake": {
+    "accepted": true,
+    "executionScheduled": true,
+    "requirement": null,
+    "conversation": {
+      "resolution": "ordinary",
+      "input": null,
+      "message": "通常の依頼として処理します。",
+      "referenceIds": [],
+      "confidence": 0,
+      "needsClarification": false
+    },
+    "goalId": "goal-69f8328a0e32360c",
+    "action": "CONTINUE_GOAL",
+    "resolution": "NEW_GOAL",
+    "nextAction": null,
+    "remainingCriteria": [
+      "criterion-1",
+      "criterion-2"
+    ]
+  },
+  "status": "FAIL",
+  "error": "Error: Timeout source Job 0 attempt 0 [goriq-goal] goal-69f8328a0e32360c executor_exit=1 signal=none [goriq-goal-executor] goal-69f8328a0e32360c TRACKED_REPAIR_NO_TARGET_CHANGE\n",
+  "diagnostics": "[goriq-goal] goal-69f8328a0e32360c executor_exit=1 signal=none [goriq-goal-executor] goal-69f8328a0e32360c TRACKED_REPAIR_NO_TARGET_CHANGE\n",
+  "jobs": [
+    {
+      "version": 1,
+      "jobId": "development-0e71412a10837233964f40c9385c5b9e9043179de5c0d60fcdd6ad380de62560",
+      "goalId": "goal-69f8328a0e32360c",
+      "requirementIds": [
+        "CORE-014"
+      ],
+      "acceptanceCriteria": [
+        "明示nullの処理予算を実行前に拒否する"
+      ],
+      "definitionOfDone": [
+        {
+          "id": "criterion-1",
+          "description": "明示nullの処理予算を実行前に拒否する",
+          "required": true
+        }
+      ],
+      "baseRevision": "6b16c31212e8b54c28ef2ca1c81ad34b916fc40d",
+      "approvalScope": {
+        "taskScopeId": "issue:1946",
+        "maxRisk": "low",
+        "expiresAt": "2026-11-25T20:58:28.920Z"
+      },
+      "workItems": [
+        {
+          "id": "development-0e71412a10837233964f40c9385c5b9e9043179de5c0d60fcdd6ad380de62560:test",
+          "objective": "Write a failing acceptance test for: Repair the actual CognitiveService budget bug: explicit maxCycles null is invalid, not the same as absent/undefined. Reject it through the existing integer check before any DB access; preserve the default for undefined. Change only the selected declaration.",
+          "dependsOn": [],
+          "requiredCapabilities": [
+            "code-builder",
+            "filesystem"
+          ]
+        },
+        {
+          "id": "development-0e71412a10837233964f40c9385c5b9e9043179de5c0d60fcdd6ad380de62560:implement",
+          "objective": "Implement the smallest change that passes the new test: Repair the actual CognitiveService budget bug: explicit maxCycles null is invalid, not the same as absent/undefined. Reject it through the existing integer check before any DB access; preserve the default for undefined. Change only the selected declaration.",
+          "dependsOn": [
+            "development-0e71412a10837233964f40c9385c5b9e9043179de5c0d60fcdd6ad380de62560:test"
+          ],
+          "requiredCapabilities": [
+            "code-builder",
+            "filesystem"
+          ]
+        },
+        {
+          "id": "development-0e71412a10837233964f40c9385c5b9e9043179de5c0d60fcdd6ad380de62560:verify",
+          "objective": "Independently verify the implementation and affected regressions: Repair the actual CognitiveService budget bug: explicit maxCycles null is invalid, not the same as absent/undefined. Reject it through the existing integer check before any DB access; preserve the default for undefined. Change only the selected declaration.",
+          "dependsOn": [
+            "development-0e71412a10837233964f40c9385c5b9e9043179de5c0d60fcdd6ad380de62560:implement"
+          ],
+          "requiredCapabilities": [
+            "filesystem"
+          ]
+        }
+      ],
+      "phase": "IMPLEMENTING",
+      "evidence": [
+        {
+          "id": "development-0e71412a10837233964f40c9385c5b9e9043179de5c0d60fcdd6ad380de62560:sequence",
+          "criterionId": "repository-plan",
+          "kind": "resident-development-sequence:v1",
+          "issuer": "resident-development-host",
+          "verified": false,
+          "artifactDigest": "993353dd50617342a2add13e161e13e9668aca0e10a30482efa76324ecbf95ff",
+          "sourceRevision": "79129ff523955baa9e9a877700ca7a221900f4652e074719fb40f1d2fffb2c55",
+          "environment": "self-repair-0",
+          "recordedAt": "2026-11-25T19:28:36.601Z"
+        },
+        {
+          "id": "development-0e71412a10837233964f40c9385c5b9e9043179de5c0d60fcdd6ad380de62560:tdd-red",
+          "criterionId": "repository-tdd",
+          "kind": "development-tdd-red",
+          "issuer": "trusted-baseline-probe",
+          "verified": true,
+          "sourceRevision": "3ecd5e7a8df34caee350dec54cf2a346d89c7cb47b272e9969685bdf96f9f94e",
+          "artifactDigest": "ff6b93eff8b842b8145aebbc411679e5eb2534d9baeee7e7bf8124d83bc7f40e",
+          "recordedAt": "2026-11-25T19:28:40.725Z"
+        }
+      ],
+      "attempts": [],
+      "failureSignatures": [],
+      "rejectedStrategyIds": [],
+      "blockers": [],
+      "createdAt": "2026-11-25T19:28:36.601Z",
+      "updatedAt": "2026-11-25T19:28:40.728Z",
+      "history": [
+        {
+          "transitionId": "create:development-0e71412a10837233964f40c9385c5b9e9043179de5c0d60fcdd6ad380de62560",
+          "from": null,
+          "to": "QUEUED",
+          "actor": "state-controller",
+          "reason": "development job created",
+          "at": "2026-11-25T19:28:36.601Z",
+          "evidenceIds": []
+        },
+        {
+          "transitionId": "development-0e71412a10837233964f40c9385c5b9e9043179de5c0d60fcdd6ad380de62560:sequence",
+          "from": "QUEUED",
+          "to": "PLANNING",
+          "actor": "state-controller",
+          "reason": "host-approved development sequence bound before execution",
+          "at": "2026-11-25T19:28:36.602Z",
+          "evidenceIds": [
+            "development-0e71412a10837233964f40c9385c5b9e9043179de5c0d60fcdd6ad380de62560:sequence"
+          ]
+        },
+        {
+          "transitionId": "development-0e71412a10837233964f40c9385c5b9e9043179de5c0d60fcdd6ad380de62560:implementing",
+          "from": "PLANNING",
+          "to": "IMPLEMENTING",
+          "actor": "state-controller",
+          "reason": "resident Builder selected",
+          "at": "2026-11-25T19:28:36.610Z",
+          "evidenceIds": []
+        },
+        {
+          "transitionId": "development-0e71412a10837233964f40c9385c5b9e9043179de5c0d60fcdd6ad380de62560:tdd-red",
+          "from": "IMPLEMENTING",
+          "to": "IMPLEMENTING",
+          "actor": "state-controller",
+          "reason": "failing test Work Item persisted before implementation",
+          "at": "2026-11-25T19:28:40.728Z",
+          "evidenceIds": [
+            "development-0e71412a10837233964f40c9385c5b9e9043179de5c0d60fcdd6ad380de62560:tdd-red"
+          ]
+        }
+      ]
+    }
+  ]
+}

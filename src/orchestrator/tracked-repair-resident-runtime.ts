@@ -18,6 +18,7 @@ import { validateResidentDevelopmentSequence, type ResidentDevelopmentSequence }
 import { assertExternalRuntimePath, readBoundedRuntimeFile } from "./resident-runtime-files.ts";
 import { validateSignedLocalVerifierReceipt } from "./signed-local-verifier-receipt.ts";
 import { withDevelopmentResourceAdmission } from "../gai/development-resource-admission.ts";
+import { isDeepStrictEqual } from "node:util";
 
 const hash=(bytes:string|Buffer)=>createHash("sha256").update(bytes).digest("hex");
 const digest=(v:unknown):v is string=>typeof v==="string"&&/^[a-f0-9]{64}$/.test(v);
@@ -62,6 +63,10 @@ async function modelBody(reply:Response):Promise<string>{
 /** Pins are host configuration, never owner prose/model output. This profile
  * only produces a LOW isolated artifact; it cannot publish or rotate secrets. */
 export function assertTrackedRepairProfileExclusive(env:Record<string,string|undefined>):void {
+  if((env.GORIQ_TRACKED_REPAIR_SEQUENCE_FILE||env.GORIQ_TRACKED_REPAIR_SEQUENCE_SHA256)
+    &&(env.GORIQ_TRACKED_REPAIR_MANIFEST_FILE||env.GORIQ_TRACKED_REPAIR_MANIFEST_SHA256
+      ||env.GORIQ_COMPLETION_HANDOFF_PATH||env.GORIQ_COMPLETION_HANDOFF_SHA256||env.GORIQ_COMPLETION_DATA_ROOT
+      ||env.GORIQ_SELF_DEVELOPMENT_SEQUENCE_FILE||env.GORIQ_SELF_DEVELOPMENT_SEQUENCE_SHA256))throw Error("TRACKED_REPAIR_MULTIPLE_RUNTIME_PROFILES");
   if((env.GORIQ_TRACKED_REPAIR_MANIFEST_FILE||env.GORIQ_TRACKED_REPAIR_MANIFEST_SHA256)
     &&(env.GORIQ_COMPLETION_HANDOFF_PATH||env.GORIQ_COMPLETION_HANDOFF_SHA256||env.GORIQ_COMPLETION_DATA_ROOT
       ||env.GORIQ_SELF_DEVELOPMENT_SEQUENCE_FILE||env.GORIQ_SELF_DEVELOPMENT_SEQUENCE_SHA256))throw Error("TRACKED_REPAIR_MULTIPLE_RUNTIME_PROFILES");
@@ -127,14 +132,25 @@ export function readTrackedRepairManifest(env:Record<string,string|undefined>,go
   return {manifest:m,pin};
 }
 
-export function createTrackedRepairResidentRuntime(input:{env:Record<string,string|undefined>;runtimeRoot:string;compassPath:string;goal:Goal;
-  fetchImpl?:typeof fetch;resourceAdmission?:typeof withDevelopmentResourceAdmission;admission?:ResidentDevelopmentAdmission;persistence?:ResidentPersistence}):ResidentDevelopmentGoalHost|null {
-  const loaded=readTrackedRepairManifest(input.env,input.goal); if(!loaded)return null;
+export interface TrackedRepairRuntimeInput {env:Record<string,string|undefined>;runtimeRoot:string;compassPath:string;goal:Goal;
+  fetchImpl?:typeof fetch;resourceAdmission?:typeof withDevelopmentResourceAdmission;admission?:ResidentDevelopmentAdmission;persistence?:ResidentPersistence;}
+export function createTrackedRepairResidentRuntime(input:TrackedRepairRuntimeInput):ResidentDevelopmentGoalHost|null {
+  const options=createTrackedRepairRuntimeOptions(input);return options?new ResidentDevelopmentGoalHost(options):null;
+}
+/** Trusted host composition only. The complete sequence and selected leaf must retain identical scope/Goal bindings. */
+export function createTrackedRepairRuntimeOptions(input:TrackedRepairRuntimeInput,
+  composition?:{sequence:ResidentDevelopmentSequence;key:string;executionContractDigest:string}):ConstructorParameters<typeof ResidentDevelopmentGoalHost>[0]|null {
+  const loaded=readTrackedRepairManifest(input.env,composition?undefined:input.goal); if(!loaded)return null;
   const {manifest:m,pin}=loaded;
+  if(composition){
+    validateResidentDevelopmentSequence(composition.sequence,input.goal,{taskScopeId:m.sequence.taskScopeId,maxRisk:"low"});
+    const definition=composition.sequence.jobs.find(job=>job.key===composition.key);
+    if(!definition||!digest(composition.executionContractDigest)||!isDeepStrictEqual(m.sequence,{...composition.sequence,jobs:[definition]}))throw Error("TRACKED_SEQUENCE_LEAF_BINDING_INVALID");
+  }
   const layouts=[{workspace:m.workspace,receiptFile:m.verifier.receiptFile},...(m.recoveryAttempts??[])];
   const workspaces=[...layouts.map(a=>a.workspace),m.baselineWorkspace];
   if(workspaces.some(workspace=>contains(workspace,input.runtimeRoot)||contains(input.runtimeRoot,workspace)))throw Error("TRACKED_REPAIR_RUNTIME_OVERLAP");
-  const sequence={...m.sequence,executionContractDigest:pin},base=m.sequence.jobs[0]!.baseRevision;
+  const sequence={...(composition?.sequence??m.sequence),executionContractDigest:composition?.executionContractDigest??pin},base=m.sequence.jobs[0]!.baseRevision;
   const stateRoot=join(dirname(input.compassPath),"self-development"),privateRoot=join(stateRoot,"tracked-repair");
   assertExternalRuntimePath(privateRoot,workspaces); mkdirSync(privateRoot,{recursive:true,mode:0o700});
   const changes=input.persistence?.changeSets??new JsonFileDevelopmentChangeSetStore(join(stateRoot,"change-sets.json"));
@@ -246,9 +262,9 @@ export function createTrackedRepairResidentRuntime(input:{env:Record<string,stri
         receiptSha256:hash(bytes),signature:failure.signature,strategyId:failure.strategyId,hypothesis:failure.hypothesis});
       previousFiles=old.prepared.files.filter(f=>f.path!==bookkeepingPath);
     }
-    return {digest:hash(JSON.stringify(history)),prompt:history.length?"\nPreviously independently rejected attempts (check names and saved diagnosis; raw check output is not supplied):\n"+
-      JSON.stringify(history)+"\nPrevious rejected candidate:\n"+previousFiles.map(f=>"SOURCE "+f.path+"\n"+f.content).join("\n")+
-      "\nUse the frozen regression and diagnosis to produce a different repair. Do not repeat rejected source bytes.\nFrozen regression:\n"+probe.toString("utf8"):""};
+    return {digest:hash(JSON.stringify(history)),previousFiles,prompt:history.length?"\nPreviously independently rejected attempts (check names and saved diagnosis; raw check output is not supplied):\n"+
+      JSON.stringify(history)+"\nThe SOURCE context is the previous rejected candidate. Edits still replace the original baseline SLOT text shown above. "+
+      "\nUse the frozen regression and diagnosis to produce a different repair. Do not repeat rejected source bytes.\n":""};
   };
   const assertPreparedWorkspace=(workspace:string,prepared:ReturnType<typeof loadPrepared>)=>{
     const currentEdits=[];
@@ -259,10 +275,10 @@ export function createTrackedRepairResidentRuntime(input:{env:Record<string,stri
     }
     attest(workspace,currentEdits.length?{version:2,files:currentEdits}:undefined,m.probe.targetPath);
   };
-  return new ResidentDevelopmentGoalHost({jobs:input.persistence?.jobs??new JsonFileDevelopmentJobStore(join(stateRoot,"jobs.json")),
+  return {jobs:input.persistence?.jobs??new JsonFileDevelopmentJobStore(join(stateRoot,"jobs.json")),
     admission:input.admission,
     changeSets:changes,
-    planning:{requirementIds:["CORE-014"],baseRevision:base,taskScopeId:sequence.taskScopeId,maxRisk:"low",targetFiles:sequence.jobs[0]!.targetFiles,contextDigest:sequence.goalDigest,sequence},
+    planning:{requirementIds:["CORE-014"],baseRevision:base,taskScopeId:sequence.taskScopeId,maxRisk:"low",targetFiles:m.sequence.jobs[0]!.targetFiles,contextDigest:sequence.goalDigest,sequence},
     stages:{builderId,deferMissingVerification:true,
       async build({job,workItemId,beforeWrite}){
         await beforeWrite?.();
@@ -286,12 +302,15 @@ export function createTrackedRepairResidentRuntime(input:{env:Record<string,stri
           });
           const item=job.workItems.find(item=>item.id===workItemId);
           if(!item)throw Error("TRACKED_REPAIR_WORK_ITEM_UNKNOWN");
-          const prompt=files.map(f=>"SOURCE "+f.path+"\n"+f.content).join("\n")+"\n"+
+          // Reuse unchanged context once, even when a real source file nearly fills the prompt budget.
+          const prompt=files.map(f=>"SOURCE "+f.path+"\n"+(recovery.previousFiles.find(previous=>previous.path===f.path)?.content??f.content)).join("\n")+"\n"+
             m.slots.map(slot=>"SLOT "+slot.id+" in "+slot.path+"; exact selected before text:\n"+slot.before).join("\n")+
             "\nThe trusted frozen regression failed on the original baseline. Objective: "+item.objective+"\n"+
             recovery.prompt+
+            "\nFrozen regression (read-only):\n"+probe.toString("utf8")+"\n"+
             "Return ONLY JSON {\"edits\":[{\"slot\":1,\"after\":\"replacement text\"}]}. "+
-            "Slots identify exact before strings; use each selected slot once. No paths/commands/permissions/tests may be added. Preserve unselected source.";
+            "Slots identify exact before strings; use each selected slot once. Each after value must be the complete replacement of its selected before text, including declarations and syntax. "+
+            "No paths/commands/permissions/tests may be added. Preserve unselected source.";
           if(Buffer.byteLength(prompt)>30000)throw Error("TRACKED_REPAIR_PROMPT_TOO_LARGE");
           const admit=input.resourceAdmission??withDevelopmentResourceAdmission;
           const observations:ModelObservation[]=[],ollama=m.model.provider==="ollama";
@@ -423,5 +442,5 @@ export function createTrackedRepairResidentRuntime(input:{env:Record<string,stri
       },
       async releaseState(){return {connected:false,taskScopeId:sequence.taskScopeId,protectedConditions:[],classifications:{destructiveChangeAbsent:true,privilegedChangeAbsent:true},
         pullRequest:null,mainCi:null,deployment:null,postDeploymentEvidence:null};},
-    }});
+    }};
 }

@@ -26,6 +26,7 @@ import { createTaskCompletionAuthorization, normalizeTaskCompletionAuthorization
 import { buildRepositoryDevelopmentContext } from "../src/orchestrator/repository-development-context.ts";
 import { createSequencedResidentRuntime } from "../src/orchestrator/sequenced-resident-runtime.ts";
 import { assertTrackedRepairProfileExclusive, createTrackedRepairResidentRuntime, readTrackedRepairManifest } from "../src/orchestrator/tracked-repair-resident-runtime.ts";
+import { createTrackedRepairSequenceRuntime, readTrackedRepairSequence } from "../src/orchestrator/tracked-repair-sequence.ts";
 import { readResidentExecutionManifest } from "../src/orchestrator/resident-execution-manifest.ts";
 import { createRuntimeResidentAdmission } from "../src/orchestrator/runtime-resident-admission.ts";
 import { acquireResidentExecutionWriter, ResidentExecutionBusyError, type ResidentExecutionWriter } from "../src/orchestrator/resident-development-admission.ts";
@@ -97,7 +98,10 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[], p
   if (routingRequested && !persistedGoal) throw Error("HOSTED_PERSISTED_GOAL_REQUIRED");
   let executionContractDigest: string | undefined;
   let candidateWorkspaces: string[] = [];
-  if (routingRequested && (process.env.GORIQ_TRACKED_REPAIR_MANIFEST_FILE || process.env.GORIQ_TRACKED_REPAIR_MANIFEST_SHA256)) {
+  if (routingRequested && (process.env.GORIQ_TRACKED_REPAIR_SEQUENCE_FILE || process.env.GORIQ_TRACKED_REPAIR_SEQUENCE_SHA256)) {
+    const tracked = readTrackedRepairSequence(process.env, persistedGoal);
+    if (tracked) { executionContractDigest = tracked.pin; candidateWorkspaces = tracked.workspaces; }
+  } else if (routingRequested && (process.env.GORIQ_TRACKED_REPAIR_MANIFEST_FILE || process.env.GORIQ_TRACKED_REPAIR_MANIFEST_SHA256)) {
     const tracked = readTrackedRepairManifest(process.env, persistedGoal);
     if (tracked) { executionContractDigest = tracked.pin; candidateWorkspaces = [tracked.manifest.workspace, tracked.manifest.baselineWorkspace,
       ...(tracked.manifest.recoveryAttempts ?? []).map(attempt => attempt.workspace)]; }
@@ -107,6 +111,12 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[], p
   }
   const admission = persistedGoal ? createRuntimeResidentAdmission({ env: process.env, runtimeRoot: process.cwd(), compassPath, goal: persistedGoal,
     executionContractDigest, workspaces: candidateWorkspaces }) : undefined;
+  if (process.env.GORIQ_TRACKED_REPAIR_SEQUENCE_FILE || process.env.GORIQ_TRACKED_REPAIR_SEQUENCE_SHA256) {
+    if (!persistedGoal) throw Error("TRACKED_SEQUENCE_PERSISTED_GOAL_REQUIRED");
+    const runtime = createTrackedRepairSequenceRuntime({ env: process.env, runtimeRoot: process.cwd(), compassPath, goal: persistedGoal, admission, persistence });
+    if (!runtime) throw Error("TRACKED_SEQUENCE_MANIFEST_REQUIRED");
+    return { runtime };
+  }
   if (process.env.GORIQ_TRACKED_REPAIR_MANIFEST_FILE || process.env.GORIQ_TRACKED_REPAIR_MANIFEST_SHA256) {
     if (!persistedGoal) throw Error("TRACKED_REPAIR_PERSISTED_GOAL_REQUIRED");
     if (process.env.GORIQ_SELF_DEVELOPMENT_SEQUENCE_FILE || process.env.GORIQ_SELF_DEVELOPMENT_SEQUENCE_SHA256) throw Error("TRACKED_REPAIR_MULTIPLE_RUNTIME_PROFILES");

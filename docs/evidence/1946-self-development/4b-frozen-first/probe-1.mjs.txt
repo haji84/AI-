@@ -1,0 +1,22 @@
+import assert from 'node:assert/strict';
+import {mkdtempSync,mkdirSync,readFileSync,writeFileSync,readdirSync,rmSync,existsSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {pathToFileURL} from 'node:url';
+const cwd=process.cwd();
+const {CognitiveService}=await import(pathToFileURL(join(cwd,'src/gai/cognitive-service.ts')).href);
+const root=mkdtempSync(join(tmpdir(),'goriq-owned-probe-'));
+try {
+const {CompassStore}=await import(pathToFileURL(join(cwd,'src/compass/store.ts')).href);
+const {compassGoalToLoopGoal}=await import(pathToFileURL(join(cwd,'src/orchestrator/compass-state-store.ts')).href);
+const {goalWorkStateId}=await import(pathToFileURL(join(cwd,'src/orchestrator/work-state-integration.ts')).href);
+const dbPath=join(root,'compass.db'),dataRoot=join(root,'data');mkdirSync(dataRoot);
+const db=new CompassStore(dbPath);const record=db.setGoal({title:'Faithful retained text',successCriteria:['Saved text matches supplied material']});db.close();
+const goalId=goalWorkStateId(compassGoalToLoopGoal(record)),service=new CognitiveService(dbPath,{materialIntake:{dataRoot}});
+const status=await service.status();await service.prepareMaterials({goalId,goalDigest:status.goalDigest,mappingAcknowledged:true,materials:[{format:'text',content:'retained output',criteria:['criterion-1']}]});
+assert.equal((await service.continue(goalId)).goalEvaluation.achieved,true);
+assert.equal((await service.status()).goalComplete,true);
+const dir=join(root,'cognitive','material-intake'),receipt=JSON.parse(readFileSync(join(dir,readdirSync(dir)[0]),'utf8'));
+writeFileSync(join(dataRoot,receipt.manifest.outcomes[0].path),'tampered output');
+assert.equal((await service.status()).goalComplete,false);
+}finally{rmSync(root,{recursive:true,force:true});}

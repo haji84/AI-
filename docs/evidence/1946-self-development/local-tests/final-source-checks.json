@@ -1,0 +1,107 @@
+[
+  {
+    "name": "lint",
+    "status": "PASS",
+    "command": "C:\\Program Files\\nodejs\\node.exe",
+    "args": [
+      "C:\\Users\\qq113\\.codex\\tmp\\goriq-1946-deps\\node_modules\\eslint\\bin\\eslint.js",
+      "--config",
+      "C:\\Users\\qq113\\.codex\\tmp\\goriq-1946-deps\\eslint.config.mjs",
+      "scripts/jarvis-goal-executor.ts",
+      "src/orchestrator/approved-next-work.ts",
+      "src/orchestrator/resident-receipt-wakes.ts",
+      "src/orchestrator/tracked-repair-resident-runtime.ts",
+      "src/orchestrator/tracked-repair-sequence.ts",
+      "src/gai/cognitive-service.ts",
+      "tests/approved-next-work.test.ts",
+      "tests/autonomous-tracked-repair-runtime.test.ts",
+      "tests/goriq-cognitive-self-repair-regressions.test.ts"
+    ],
+    "startedAt": "2026-11-25T19:36:21.958Z",
+    "outputDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "name": "typecheck",
+    "status": "PASS",
+    "command": "C:\\Program Files\\nodejs\\node.exe",
+    "args": [
+      "C:\\Users\\qq113\\.codex\\tmp\\goriq-1946-deps\\node_modules\\typescript\\bin\\tsc",
+      "--ignoreConfig",
+      "--noEmit",
+      "--module",
+      "nodenext",
+      "--target",
+      "esnext",
+      "--allowImportingTsExtensions",
+      "--skipLibCheck",
+      "--types",
+      "node",
+      "--typeRoots",
+      "C:\\Users\\qq113\\.codex\\tmp\\goriq-1946-deps\\node_modules\\@types",
+      "scripts/jarvis-goal-executor.ts",
+      "src/orchestrator/approved-next-work.ts",
+      "src/orchestrator/resident-receipt-wakes.ts",
+      "src/orchestrator/tracked-repair-resident-runtime.ts",
+      "src/orchestrator/tracked-repair-sequence.ts",
+      "src/gai/cognitive-service.ts",
+      "tests/approved-next-work.test.ts",
+      "tests/autonomous-tracked-repair-runtime.test.ts",
+      "tests/goriq-cognitive-self-repair-regressions.test.ts"
+    ],
+    "startedAt": "2026-11-25T19:36:21.970Z",
+    "outputDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "name": "inheritance",
+    "status": "PASS",
+    "command": "C:\\Program Files\\nodejs\\node.exe",
+    "args": [
+      "scripts/goriq-inheritance-guard.mjs",
+      "--check"
+    ],
+    "startedAt": "2026-11-25T19:36:21.976Z",
+    "outputDigest": "5636ff9054faf8d34900cd18eb62fccb16f9c6b9722f0e269460a4cc08e30c3f"
+  },
+  {
+    "name": "requirements",
+    "status": "PASS",
+    "command": "C:\\Program Files\\nodejs\\node.exe",
+    "args": [
+      "scripts/validate-jarvis-requirements.mjs"
+    ],
+    "startedAt": "2026-11-25T19:36:21.982Z",
+    "outputDigest": "8b891e3348fddcf25566e8ccf459e6678416dc9c7e767e002b816fed54d50ab5"
+  },
+  {
+    "name": "traceability",
+    "status": "PASS",
+    "command": "C:\\Program Files\\nodejs\\node.exe",
+    "args": [
+      "scripts/jarvis-requirement-audit.mjs",
+      "--check"
+    ],
+    "startedAt": "2026-11-25T19:36:21.990Z",
+    "outputDigest": "9cb596540b5a110663ab0a3f68f67149a41ac690b0ff86fa528ff96c2de4a9df"
+  },
+  {
+    "name": "secret-audit",
+    "status": "PASS",
+    "command": "C:\\Program Files\\nodejs\\node.exe",
+    "args": [
+      "scripts/jarvis-secret-audit.mjs"
+    ],
+    "startedAt": "2026-11-25T19:36:21.998Z",
+    "outputDigest": "35bc10fcd910bf95281d24a36623b8c9ff0426dd9536cb50b21fdbfeff2a7445"
+  },
+  {
+    "name": "diff-check",
+    "status": "PASS",
+    "command": "git",
+    "args": [
+      "diff",
+      "--check"
+    ],
+    "startedAt": "2026-11-25T19:36:22.006Z",
+    "outputDigest": "02036099aeb67af09e781509c3b5584481525d8b7e5be66d2230201d2baa65b8"
+  }
+]

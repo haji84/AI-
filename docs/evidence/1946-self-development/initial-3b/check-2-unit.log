@@ -1,0 +1,99 @@
+✖ host allocation records actual spreadsheet and document oracle measurements as heldout (48.784ms)
+✖ desired artifacts generate steps, verify material lineage and resume through the real Core without a prewritten plan (94.8945ms)
+✔ material changed after observation cannot earn output criteria or silently replace the expected source (231.154ms)
+✖ an occupied output is preserved and the actual Goal remains incomplete (46.0216ms)
+✔ legacy steps and outcome contracts cannot simultaneously select different authority (33.3547ms)
+✖ a completed Goal cannot lend its PASS to a changed output contract or data root (32.0678ms)
+✖ first contract binding cannot inherit WorkState evidence from a different execution path (32.7769ms)
+✖ one criterion shared by two deliverables still requires both independently verified outputs (278.4333ms)
+✖ actual Compass factory completes local artifact through Core, persistence, verifier and learning without external AI (97.7846ms)
+✔ host catalog rejects escaping paths, secrets, invalid Goal criteria and model-defined tools (2.2692ms)
+✖ shared execution lease fails visibly and never overwrites a foreign result (36.6071ms)
+✔ learning outage commits WorkState then replays the exact outbox without repeating the file action (261.6631ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 4
+ℹ fail 8
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1056.4006
+
+✖ failing tests:
+
+test at tests\goriq-cognitive-outcome-runtime.test.ts:41:1
+✖ host allocation records actual spreadsheet and document oracle measurements as heldout (48.784ms)
+  ReferenceError: maxCycles is not defined
+      at CognitiveService.continue (file:///C:/Users/qq113/AppData/Local/Temp/goriq-selfdev1946-DIiTqe/candidate-0/src/gai/cognitive-service.ts:77:15)
+      at TestContext.<anonymous> (file:///C:/Users/qq113/AppData/Local/Temp/goriq-selfdev1946-DIiTqe/candidate-0/tests/goriq-cognitive-outcome-runtime.test.ts:46:27)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+
+test at tests\goriq-cognitive-outcome-runtime.test.ts:58:1
+✖ desired artifacts generate steps, verify material lineage and resume through the real Core without a prewritten plan (94.8945ms)
+  ReferenceError: maxCycles is not defined
+      at CognitiveService.continue (file:///C:/Users/qq113/AppData/Local/Temp/goriq-selfdev1946-DIiTqe/candidate-0/src/gai/cognitive-service.ts:77:15)
+      at TestContext.<anonymous> (file:///C:/Users/qq113/AppData/Local/Temp/goriq-selfdev1946-DIiTqe/candidate-0/tests/goriq-cognitive-outcome-runtime.test.ts:63:41)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at tests\goriq-cognitive-outcome-runtime.test.ts:93:1
+✖ an occupied output is preserved and the actual Goal remains incomplete (46.0216ms)
+  ReferenceError: maxCycles is not defined
+      at CognitiveService.continue (file:///C:/Users/qq113/AppData/Local/Temp/goriq-selfdev1946-DIiTqe/candidate-0/src/gai/cognitive-service.ts:77:15)
+      at TestContext.<anonymous> (file:///C:/Users/qq113/AppData/Local/Temp/goriq-selfdev1946-DIiTqe/candidate-0/tests/goriq-cognitive-outcome-runtime.test.ts:98:72)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at tests\goriq-cognitive-outcome-runtime.test.ts:113:1
+✖ a completed Goal cannot lend its PASS to a changed output contract or data root (32.0678ms)
+  ReferenceError: maxCycles is not defined
+      at CognitiveService.continue (file:///C:/Users/qq113/AppData/Local/Temp/goriq-selfdev1946-DIiTqe/candidate-0/src/gai/cognitive-service.ts:77:15)
+      at TestContext.<anonymous> (file:///C:/Users/qq113/AppData/Local/Temp/goriq-selfdev1946-DIiTqe/candidate-0/tests/goriq-cognitive-outcome-runtime.test.ts:117:27)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at tests\goriq-cognitive-outcome-runtime.test.ts:132:1
+✖ first contract binding cannot inherit WorkState evidence from a different execution path (32.7769ms)
+  ReferenceError: maxCycles is not defined
+      at CognitiveService.continue (file:///C:/Users/qq113/AppData/Local/Temp/goriq-selfdev1946-DIiTqe/candidate-0/src/gai/cognitive-service.ts:77:15)
+      at TestContext.<anonymous> (file:///C:/Users/qq113/AppData/Local/Temp/goriq-selfdev1946-DIiTqe/candidate-0/tests/goriq-cognitive-outcome-runtime.test.ts:135:50)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at tests\goriq-cognitive-outcome-runtime.test.ts:148:1
+✖ one criterion shared by two deliverables still requires both independently verified outputs (278.4333ms)
+  ReferenceError: maxCycles is not defined
+      at CognitiveService.continue (file:///C:/Users/qq113/AppData/Local/Temp/goriq-selfdev1946-DIiTqe/candidate-0/src/gai/cognitive-service.ts:77:15)
+      at TestContext.<anonymous> (file:///C:/Users/qq113/AppData/Local/Temp/goriq-selfdev1946-DIiTqe/candidate-0/tests/goriq-cognitive-outcome-runtime.test.ts:159:42)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at tests\goriq-cognitive-runtime.test.ts:13:1
+✖ actual Compass factory completes local artifact through Core, persistence, verifier and learning without external AI (97.7846ms)
+  ReferenceError: maxCycles is not defined
+      at CognitiveService.continue (file:///C:/Users/qq113/AppData/Local/Temp/goriq-selfdev1946-DIiTqe/candidate-0/src/gai/cognitive-service.ts:77:15)
+      at TestContext.<anonymous> (file:///C:/Users/qq113/AppData/Local/Temp/goriq-selfdev1946-DIiTqe/candidate-0/tests/goriq-cognitive-runtime.test.ts:25:42)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+
+test at tests\goriq-cognitive-runtime.test.ts:47:1
+✖ shared execution lease fails visibly and never overwrites a foreign result (36.6071ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /EEXIST/. Input:
+  
+  'ReferenceError: maxCycles is not defined'
+  
+      at async TestContext.<anonymous> (file:///C:/Users/qq113/AppData/Local/Temp/goriq-selfdev1946-DIiTqe/candidate-0/tests/goriq-cognitive-runtime.test.ts:56:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: ReferenceError: maxCycles is not defined
+        at CognitiveService.continue (file:///C:/Users/qq113/AppData/Local/Temp/goriq-selfdev1946-DIiTqe/candidate-0/src/gai/cognitive-service.ts:77:15)
+        at TestContext.<anonymous> (file:///C:/Users/qq113/AppData/Local/Temp/goriq-selfdev1946-DIiTqe/candidate-0/tests/goriq-cognitive-runtime.test.ts:56:42)
+        at async Test.run (node:internal/test_runner/test:1389:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:960:7),
+    expected: /EEXIST/,
+    operator: 'rejects',
+    diff: 'simple'
+  }

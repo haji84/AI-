@@ -1,0 +1,34 @@
+{
+  "at": "2026-11-25T19:32:35.900Z",
+  "goal": {
+    "id": 1,
+    "title": "GORIQ自身の処理予算と成果物状態の小さな不具合を隔離環境で修正して（入力重複を修正した隔離7B検証）",
+    "description": "GORIQ自身の処理予算と成果物状態の小さな不具合を隔離環境で修正して（入力重複を修正した隔離7B検証）",
+    "successCriteria": [
+      "明示nullの処理予算を実行前に拒否する",
+      "壊れた生成物を完了として表示しない"
+    ],
+    "constraints": [
+      "許可された隔離ソースのみ",
+      "本番反映や外部公開はしない"
+    ],
+    "createdAt": "2026-11-25T19:22:28.084Z",
+    "updatedAt": "2026-11-25T19:22:28.084Z"
+  },
+  "workRun": {
+    "runId": "run-goal-e8f8df76d80ef5de",
+    "goalId": "goal-e8f8df76d80ef5de",
+    "phase": "BLOCKED",
+    "currentWork": null,
+    "completedJobs": 0,
+    "totalJobs": null,
+    "recoveryCount": 0,
+    "blockers": [
+      "blocked"
+    ],
+    "nextAction": "blocked",
+    "evidenceRefs": [],
+    "createdAt": "2026-11-25T19:22:28.090Z",
+    "updatedAt": "2026-11-25T19:27:12.050Z"
+  }
+}

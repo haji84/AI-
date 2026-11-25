@@ -1,0 +1,8 @@
+src/gai/cognitive-service.ts(77,5): error TS2304: Cannot find name 'maxCycles'.
+src/gai/cognitive-service.ts(77,63): error TS2304: Cannot find name 'maxCycles'.
+src/gai/cognitive-service.ts(77,77): error TS2304: Cannot find name 'maxCycles'.
+src/gai/cognitive-service.ts(77,94): error TS2304: Cannot find name 'maxCycles'.
+src/gai/cognitive-service.ts(78,27): error TS2304: Cannot find name 'maxCycles'.
+src/gai/cognitive-service.ts(78,41): error TS2304: Cannot find name 'maxCycles'.
+src/gai/cognitive-service.ts(78,58): error TS2304: Cannot find name 'maxCycles'.
+src/gai/cognitive-service.ts(84,152): error TS18004: No value exists in scope for the shorthand property 'maxCycles'. Either declare one or provide an initializer.

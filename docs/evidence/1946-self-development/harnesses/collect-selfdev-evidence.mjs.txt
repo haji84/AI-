@@ -1,0 +1,39 @@
+import {readFile,writeFile,mkdir,readdir} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+import {join,resolve} from 'node:path';
+import {execFile} from 'node:child_process';
+import {promisify} from 'node:util';
+import {CompassStore} from '../src/compass/store.ts';
+import {CompassWorkRunStore} from '../src/orchestrator/compass-work-run-store.ts';
+const exec=promisify(execFile),target=resolve('docs/evidence/1946-self-development'),sha=b=>createHash('sha256').update(b).digest('hex');
+await mkdir(target,{recursive:true});
+const cases=[['initial-3b','C:/Users/qq113/AppData/Local/Temp/goriq-selfdev1946-DIiTqe'],['3b-recovery-budget','C:/Users/qq113/AppData/Local/Temp/goriq-selfdev1946-lPZqG1'],['7b-repeat-stop','C:/Users/qq113/AppData/Local/Temp/goriq-selfdev1946-vwvTQk']];
+if(process.argv[2])cases.push(['4b-frozen-first',process.argv[2]]);
+const copied=[];
+async function retain(path,bytes){
+ const destination=join(target,path);await mkdir(resolve(destination,'..'),{recursive:true});
+ try{await writeFile(destination,bytes,{flag:'wx'});}catch(e){if(e.code!=='EEXIST'||sha(await readFile(destination))!==sha(bytes))throw e;}
+ copied.push({path,sha256:sha(bytes),bytes:bytes.length});
+}
+for(const [name,root] of cases){
+ const names=await readdir(root);
+ for(const file of names.filter(f=>/^(result|resume-result|failure-consumed|sequence|manifest-\d|receipt-.*)\.json$/.test(f)||/^(check-|resume-check-).*\.log$/.test(f)||/^probe-\d\.mjs$/.test(f)||f==='fixture-public.pem')){
+  const saved=file.endsWith('.mjs')?file+'.txt':file;await retain(name+'/'+saved,await readFile(join(root,file)));
+ }
+ const privateRoot=join(root,'self-development/tracked-repair');
+ for(const file of await readdir(privateRoot))await retain(name+'/journals/'+file,await readFile(join(privateRoot,file)));
+ const result=JSON.parse(await readFile(join(root,'result.json'),'utf8'));
+ const db=new CompassStore(join(root,'compass.sqlite'));
+ try{await retain(name+'/authority-snapshot.json',Buffer.from(JSON.stringify({at:new Date().toISOString(),goal:db.getGoal(),workRun:await new CompassWorkRunStore(db).getByGoal(result.goalId)},null,2)+'\n'));}finally{db.close();}
+ for(const directory of names.filter(n=>/^candidate-/.test(n))){
+  const patch=(await exec('git',['-c','core.quotePath=false','diff','--','src/gai/cognitive-service.ts','docs/jarvis-reverse-traceability.json'],{cwd:join(root,directory),windowsHide:true,maxBuffer:2000000})).stdout;
+  await retain(name+'/'+directory+'.patch',Buffer.from(patch));
+ }
+}
+const logs=['selfdev-prompt-and-sequence','selfdev-recovery-size-red','selfdev-recovery-size-green','selfdev-review-red','selfdev-review-green','selfdev-frozen-prompt-red','selfdev-frozen-prompt-green','selfdev-source-regressions-red'];
+for(const name of logs)await retain('local-tests/'+name+'.log',await readFile('.jarvis/'+name+'.log'));
+for(const name of ['self-development-real','self-development-real-v3','self-development-real-v4','collect-selfdev-evidence']){
+ try{await retain('harnesses/'+name+'.mjs.txt',await readFile('.jarvis/'+name+'.mjs'));}catch(e){if(e.code!=='ENOENT')throw e;}
+}
+await writeFile(join(target,'index.json'),JSON.stringify({scope:'ISOLATED actual local model and real scoped checks; published RFC8032 fixture signer, NOT production trust',files:copied},null,2)+'\n');
+console.log(JSON.stringify({files:copied.length,bytes:copied.reduce((n,f)=>n+f.bytes,0)}));

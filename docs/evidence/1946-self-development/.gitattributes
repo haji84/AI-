@@ -1,0 +1,2 @@
+# Preserve captured bytes and their SHA256 across Windows/Linux checkouts.
+* -text -whitespace

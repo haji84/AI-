@@ -1,0 +1,11 @@
+✔ tracked recovery supplies rejected source once so a real-size source stays within the prompt bound (23290.9469ms)
+✔ Ollama signed FAIL recovery keeps both model observations and the original rejected source (23157.8558ms)
+✔ tracked recovery consumes a signed failure with optional evidence, creates a distinct candidate after restart and preserves rejected evidence (23501.0833ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 70158.5105

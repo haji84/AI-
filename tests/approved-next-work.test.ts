@@ -11,6 +11,13 @@ import { goalWorkStateId } from "../src/orchestrator/work-state-integration.ts";
 import { createQueuedWorkRun } from "../src/orchestrator/work-run-state.ts";
 import type { WorkState } from "../src/orchestrator/work-state.ts";
 
+test("a tracked source sequence remains bound to its current Goal across approved-next-work handoff",async()=>{
+ const {approvedNextRuntimeReady}=await import("../src/orchestrator/approved-next-work.ts");
+ assert.equal(approvedNextRuntimeReady({}),true);
+ assert.equal(approvedNextRuntimeReady({GORIQ_TRACKED_REPAIR_SEQUENCE_FILE:"/host/sequence.json"}),false);
+ assert.equal(approvedNextRuntimeReady({GORIQ_TRACKED_REPAIR_SEQUENCE_SHA256:"a".repeat(64)}),false);
+});
+
 async function fixture(path=":memory:") {
  const { CompassApprovedNextWork }=await import("../src/orchestrator/approved-next-work.ts");
  const compass=new CompassStore(path),states=new CompassWorkStateStoreAdapter(compass),runs=new CompassWorkRunStore(compass);
