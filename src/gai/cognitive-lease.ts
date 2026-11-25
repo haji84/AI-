@@ -3,6 +3,7 @@ import { hostname } from "node:os";
 import { open, unlink, link } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
+import { toNamespacedPath } from "node:path";
 
 interface Owner { version: 1; host: string; pid: number; nonce: string }
 const localHost = hostname();
@@ -47,7 +48,8 @@ export async function acquireCognitiveLease(path: string, waitMs = 0): Promise<(
   const value: Owner = { version: 1, host: localHost, pid: process.pid, nonce: randomUUID() };
   const encoded = JSON.stringify(value);
   for (;;) {
-    const arbiter = new DatabaseSync(path + ".arbiter.sqlite");
+    // Node fs supports long Windows paths; SQLite also needs their native namespace.
+    const arbiter = new DatabaseSync(toNamespacedPath(path + ".arbiter.sqlite"));
     let acquired = false;
     let temporary: string | undefined;
     try {
