@@ -1,0 +1,501 @@
+{
+  "scope": "ISOLATED ACTUAL LOCAL MODEL + REAL SCOPED CHECKS; published fixture signer, NOT production trust",
+  "root": "C:\\Users\\qq113\\AppData\\Local\\Temp\\goriq-selfdev1946-vwvTQk",
+  "base": "6b16c31212e8b54c28ef2ca1c81ad34b916fc40d",
+  "goalId": "goal-e8f8df76d80ef5de",
+  "model": {
+    "id": "qwen2.5-coder:7b",
+    "digest": "dae161e27b0e90dd1856c8bb3209201fd6736d8eb66298e75ed87571486f4364"
+  },
+  "startedAt": "2026-11-25T19:22:27.062Z",
+  "checks": [
+    {
+      "check": "lint",
+      "status": "passed",
+      "outputDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "recordedAt": "2026-11-25T19:24:15.493Z",
+      "args": [
+        "C:\\Users\\qq113\\.codex\\tmp\\goriq-1946-deps\\node_modules\\eslint\\bin\\eslint.js",
+        "--config",
+        "C:\\Users\\qq113\\.codex\\tmp\\goriq-1946-deps\\eslint.config.mjs",
+        "src/gai/cognitive-service.ts"
+      ],
+      "log": "C:\\Users\\qq113\\AppData\\Local\\Temp\\goriq-selfdev1946-vwvTQk\\check-0-lint.log"
+    },
+    {
+      "check": "typecheck",
+      "status": "passed",
+      "outputDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "recordedAt": "2026-11-25T19:24:17.249Z",
+      "args": [
+        "C:\\Users\\qq113\\.codex\\tmp\\goriq-1946-deps\\node_modules\\typescript\\bin\\tsc",
+        "--ignoreConfig",
+        "--module",
+        "nodenext",
+        "--target",
+        "esnext",
+        "--skipLibCheck",
+        "--types",
+        "node",
+        "--typeRoots",
+        "C:\\Users\\qq113\\.codex\\tmp\\goriq-1946-deps\\node_modules\\@types",
+        "--noEmit",
+        "--allowImportingTsExtensions",
+        "src/gai/cognitive-service.ts"
+      ],
+      "log": "C:\\Users\\qq113\\AppData\\Local\\Temp\\goriq-selfdev1946-vwvTQk\\check-1-typecheck.log"
+    },
+    {
+      "check": "unit",
+      "status": "passed",
+      "outputDigest": "de6e4802fd10ce8505af8b1ea2c61d8e55fffe6911f8ed6a3c6f70573d93bff6",
+      "recordedAt": "2026-11-25T19:24:19.178Z",
+      "args": [
+        "--test",
+        "--test-concurrency=2",
+        "tests/goriq-cognitive-runtime.test.ts",
+        "tests/goriq-cognitive-outcome-runtime.test.ts"
+      ],
+      "log": "C:\\Users\\qq113\\AppData\\Local\\Temp\\goriq-selfdev1946-vwvTQk\\check-2-unit.log"
+    },
+    {
+      "check": "integration",
+      "status": "failed",
+      "outputDigest": "921c893143aa775895691e82fd32d38fe18a29a7a34e317593de5690dd6f7e11",
+      "recordedAt": "2026-11-25T19:24:22.516Z",
+      "args": [
+        "--test",
+        "tests/self-development-1946-0.test.mjs",
+        "tests/goriq-material-intake.test.ts"
+      ],
+      "log": "C:\\Users\\qq113\\AppData\\Local\\Temp\\goriq-selfdev1946-vwvTQk\\check-3-integration.log"
+    },
+    {
+      "check": "security",
+      "status": "passed",
+      "outputDigest": "74b4eedbecd13c60f1261b4f6b728926de26d0306d44e47dabd98c8cb9e87163",
+      "recordedAt": "2026-11-25T19:24:23.448Z",
+      "args": [
+        "--test",
+        "--test-concurrency=2",
+        "tests/owner-auth.test.ts",
+        "tests/jarvis-sec001-owner-auth-integration.test.ts",
+        "tests/jarvis-sec002-session-control.test.ts",
+        "tests/jarvis-sec003-signed-worker-request.test.ts",
+        "tests/jarvis-sec004-signed-result.test.ts",
+        "tests/jarvis-sec005-nonce-protection.test.ts",
+        "tests/jarvis-sec006-replay-protection.test.ts",
+        "tests/jarvis-sec007-clock-stale-request.test.ts",
+        "tests/jarvis-sec008-device-allowlist.test.ts",
+        "tests/jarvis-sec009-capability-authorization.test.ts",
+        "tests/jarvis-sec010-private-ingress.test.mjs",
+        "tests/jarvis-sec011-no-secrets-repo.test.mjs",
+        "tests/jarvis-sec012-no-secrets-logs.test.mjs",
+        "tests/jarvis-sec013-no-silent-paid-api.test.ts",
+        "tests/jarvis-sec014-human-gate-invariants.test.ts",
+        "tests/jarvis-sec015-human-takeover-audit.test.ts",
+        "tests/jarvis-sec016-remote-assist-audit.test.ts",
+        "tests/jarvis-sec017-privacy-blackout.test.ts",
+        "tests/jarvis-ops003-verification-history.test.ts",
+        "tests/jarvis-ops004-failure-history.test.ts",
+        "tests/jarvis-ops005-recovery-history.test.ts",
+        "tests/jarvis-ops006-connectivity-status.test.mjs",
+        "tests/jarvis-ops007-power-status.test.ts",
+        "tests/jarvis-ops008-self-diagnostics.test.ts",
+        "tests/jarvis-ops009-recovery-dashboard.test.ts",
+        "tests/jarvis-ops011-stable-owner-url.test.mjs",
+        "tests/jarvis-ops012-first-run-setup.test.ts",
+        "tests/jarvis-ops013-update-readiness.test.ts",
+        "tests/jarvis-ops014-rollback-readiness.test.ts",
+        "tests/jarvis-ops015-backup.test.ts",
+        "tests/jarvis-ops016-restore.test.ts",
+        "tests/jarvis-ops017-operator-guide.test.ts",
+        "tests/jarvis-ops018-terminal-free-routine.test.ts",
+        "tests/jarvis-acc001-private-cellular-entry.test.mjs",
+        "tests/jarvis-acc002-android-signed-path.test.mjs",
+        "tests/jarvis-acc003-interruption-reconnect.test.ts",
+        "tests/jarvis-acc004-windows-host-reboot.test.mjs",
+        "tests/jarvis-acc006-android-reboot.test.ts",
+        "tests/jarvis-acc007-human-takeover-resume.test.ts",
+        "tests/jarvis-acc008-offline-reconnect.test.ts",
+        "tests/jarvis-acc009-multi-device-goal.test.ts",
+        "tests/jarvis-net004-reconnect-no-reenrollment.test.ts",
+        "tests/jarvis-fleet001-central-management.test.ts",
+        "tests/jarvis-fleet002-one-link-enrollment.test.ts",
+        "tests/jarvis-fleet007-device-record.test.ts",
+        "tests/jarvis-teach001-common-memory.test.ts",
+        "tests/jarvis-teach004-verified-batch-replay.test.ts",
+        "tests/jarvis-mem008-verified-work-learning.test.ts",
+        "tests/jarvis-teach-correction-learning.test.ts",
+        "tests/jarvis-p8-dev-tooling-capability.test.ts",
+        "tests/jarvis-devpc006-mac-worker-goal.test.ts",
+        "tests/jarvis-p8-negative-security.test.ts",
+        "tests/jarvis-p8-threat-model.test.mjs",
+        "tests/jarvis-private-worker-ingress.test.ts",
+        "tests/jarvis-secret-audit.test.mjs",
+        "tests/jarvis-worker-auth-ecdsa.test.ts",
+        "tests/jarvis-worker-identity-store.test.ts",
+        "tests/jarvis-enrollment-security.test.ts",
+        "tests/human-gate-shortcuts.test.ts",
+        "tests/secret-op-approval.test.ts",
+        "tests/task-authorization.test.ts",
+        "tests/no-paid-ai-runtime.test.ts",
+        "tests/jarvis-remote-assist-audit.test.ts",
+        "tests/jarvis-remote-assist-session.test.ts",
+        "tests/jarvis-display-modes.test.ts",
+        "tests/jarvis-p8-security-suite-contract.test.mjs",
+        "tests/production-research-security.test.ts",
+        "tests/research-delegation-integration.test.ts",
+        "tests/owner-requirement-intake.test.ts",
+        "tests/owner-requirement-ingress.test.ts",
+        "tests/owner-requirement-gate.test.ts",
+        "tests/owner-specification-sync.test.mjs",
+        "tests/jarvis-spec-publisher.test.mjs",
+        "tests/requirements-proxy.test.ts",
+        "tests/owner-conversation.test.ts",
+        "tests/owner-requirement-additions.test.mjs",
+        "tests/owner-requirement-workflow.test.mjs"
+      ],
+      "log": "C:\\Users\\qq113\\AppData\\Local\\Temp\\goriq-selfdev1946-vwvTQk\\check-4-security.log"
+    },
+    {
+      "check": "build",
+      "status": "passed",
+      "outputDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "recordedAt": "2026-11-25T19:24:38.744Z",
+      "args": [
+        "C:\\Users\\qq113\\.codex\\tmp\\goriq-1946-deps\\node_modules\\typescript\\bin\\tsc",
+        "--ignoreConfig",
+        "--module",
+        "nodenext",
+        "--target",
+        "esnext",
+        "--skipLibCheck",
+        "--types",
+        "node",
+        "--typeRoots",
+        "C:\\Users\\qq113\\.codex\\tmp\\goriq-1946-deps\\node_modules\\@types",
+        "--rewriteRelativeImportExtensions",
+        "--outDir",
+        "C:\\Users\\qq113\\AppData\\Local\\Temp\\goriq-selfdev1946-vwvTQk\\build-0-0",
+        "src/gai/cognitive-service.ts"
+      ],
+      "log": "C:\\Users\\qq113\\AppData\\Local\\Temp\\goriq-selfdev1946-vwvTQk\\check-5-build.log"
+    }
+  ],
+  "restarts": [
+    {
+      "jobId": "development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267",
+      "oldPid": 20780,
+      "newPid": 9312,
+      "responseJournals": 1
+    }
+  ],
+  "artifacts": [
+    {
+      "jobId": "development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267",
+      "changeSetId": "development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:tracked-candidate",
+      "sourceRevision": "9448eaf1035efe2c63909cf214ee69cff1605781aa089f7e00c2d674e28075e6",
+      "artifactDigest": "d1c6fcb025e1c4316d9f375a8619be71e80fb323276097e7a035c43b9991dadb",
+      "workspace": "C:\\Users\\qq113\\AppData\\Local\\Temp\\goriq-selfdev1946-vwvTQk\\candidate-0",
+      "patch": "diff --git a/docs/jarvis-reverse-traceability.json b/docs/jarvis-reverse-traceability.json\nindex dc165b19..6a52e6a5 100644\n--- a/docs/jarvis-reverse-traceability.json\n+++ b/docs/jarvis-reverse-traceability.json\n@@ -3129,7 +3129,7 @@\n     },\n     {\n       \"path\": \"src/gai/cognitive-service.ts\",\n-      \"sha256\": \"a00885305a91729d5c0c4806852da9d2fd78a87e6002a38fea5c645e4b27a21f\",\n+      \"sha256\": \"d1c6fcb025e1c4316d9f375a8619be71e80fb323276097e7a035c43b9991dadb\",\n       \"classification\": \"COVERED_BY_REQUIREMENT\",\n       \"requirement_ids\": [\n         \"OWN-001\"\ndiff --git a/src/gai/cognitive-service.ts b/src/gai/cognitive-service.ts\nindex 5fda8e92..0f8b3621 100644\n--- a/src/gai/cognitive-service.ts\n+++ b/src/gai/cognitive-service.ts\n@@ -74,7 +74,7 @@ export class CognitiveService {\n   }\n   /** Local callers may allocate the existing bounded runner's budget; HTTP keeps the default. */\n   async continue(goalId: string, options: { maxCycles?: number } = {}) {\n-    const maxCycles = options.maxCycles ?? 3;\n+    const maxCycles = options.maxCycles == null ? 3 : options.maxCycles ?? 3;\n     if (!Number.isInteger(maxCycles) || maxCycles < 1 || maxCycles > 100) throw Error(\"maxCycles must be an integer from 1 to 100\");\n     await this.validateStateRoot();\n     if (this.busy) throw Error(\"Cognitive cycle already running\");\n"
+    }
+  ],
+  "intake": {
+    "accepted": true,
+    "executionScheduled": true,
+    "requirement": null,
+    "conversation": {
+      "resolution": "ordinary",
+      "input": null,
+      "message": "通常の依頼として処理します。",
+      "referenceIds": [],
+      "confidence": 0,
+      "needsClarification": false
+    },
+    "goalId": "goal-e8f8df76d80ef5de",
+    "action": "CONTINUE_GOAL",
+    "resolution": "NEW_GOAL",
+    "nextAction": null,
+    "remainingCriteria": [
+      "criterion-1",
+      "criterion-2"
+    ]
+  },
+  "status": "FAIL",
+  "error": "Error: Real Job stopped {\"phase\":\"BLOCKED\",\"blockers\":[\"equivalent_failed_candidate\"],\"history\":[{\"transitionId\":\"development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:resource-probe:1\",\"from\":\"WAITING_FOR_RESOURCE\",\"to\":\"RECOVERING\",\"actor\":\"state-controller\",\"reason\":\"resource wait due; recheck before execution\",\"at\":\"2026-11-25T19:25:18.758Z\",\"evidenceIds\":[]},{\"transitionId\":\"development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:candidate-equivalent:development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:tracked-candidate:2\",\"from\":\"RECOVERING\",\"to\":\"BLOCKED\",\"actor\":\"state-controller\",\"reason\":\"Builder repeated a previously rejected implementation\",\"at\":\"2026-11-25T19:27:12.028Z\",\"evidenceIds\":[]}]}",
+  "diagnostics": "",
+  "jobs": [
+    {
+      "version": 1,
+      "jobId": "development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267",
+      "goalId": "goal-e8f8df76d80ef5de",
+      "requirementIds": [
+        "CORE-014"
+      ],
+      "acceptanceCriteria": [
+        "明示nullの処理予算を実行前に拒否する"
+      ],
+      "definitionOfDone": [
+        {
+          "id": "criterion-1",
+          "description": "明示nullの処理予算を実行前に拒否する",
+          "required": true
+        }
+      ],
+      "baseRevision": "6b16c31212e8b54c28ef2ca1c81ad34b916fc40d",
+      "approvalScope": {
+        "taskScopeId": "issue:1946",
+        "maxRisk": "low",
+        "expiresAt": "2026-11-25T20:52:20.777Z"
+      },
+      "workItems": [
+        {
+          "id": "development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:test",
+          "objective": "Write a failing acceptance test for: Repair the actual CognitiveService budget bug: explicit maxCycles null is invalid, not the same as absent/undefined. Reject it through the existing integer check before any DB access; preserve the default for undefined. Change only the selected declaration.",
+          "dependsOn": [],
+          "requiredCapabilities": [
+            "code-builder",
+            "filesystem"
+          ]
+        },
+        {
+          "id": "development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:implement",
+          "objective": "Implement the smallest change that passes the new test: Repair the actual CognitiveService budget bug: explicit maxCycles null is invalid, not the same as absent/undefined. Reject it through the existing integer check before any DB access; preserve the default for undefined. Change only the selected declaration.",
+          "dependsOn": [
+            "development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:test"
+          ],
+          "requiredCapabilities": [
+            "code-builder",
+            "filesystem"
+          ]
+        },
+        {
+          "id": "development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:verify",
+          "objective": "Independently verify the implementation and affected regressions: Repair the actual CognitiveService budget bug: explicit maxCycles null is invalid, not the same as absent/undefined. Reject it through the existing integer check before any DB access; preserve the default for undefined. Change only the selected declaration.",
+          "dependsOn": [
+            "development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:implement"
+          ],
+          "requiredCapabilities": [
+            "filesystem"
+          ]
+        }
+      ],
+      "phase": "BLOCKED",
+      "evidence": [
+        {
+          "id": "development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:sequence",
+          "criterionId": "repository-plan",
+          "kind": "resident-development-sequence:v1",
+          "issuer": "resident-development-host",
+          "verified": false,
+          "artifactDigest": "6ba6fd3be1a07d492f20e66723738d7ac04d8f54de3717579f9583a06d3ae1fd",
+          "sourceRevision": "09db993bcbf6b8abfe0d4379ea3a4204063e4d4feda0b8d1eb4e8897d4aec408",
+          "environment": "self-repair-0",
+          "recordedAt": "2026-11-25T19:22:28.469Z"
+        },
+        {
+          "id": "development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:tdd-red",
+          "criterionId": "repository-tdd",
+          "kind": "development-tdd-red",
+          "issuer": "trusted-baseline-probe",
+          "verified": true,
+          "sourceRevision": "3ecd5e7a8df34caee350dec54cf2a346d89c7cb47b272e9969685bdf96f9f94e",
+          "artifactDigest": "2b36b6fc12e3f08ab12d49b75da6c264a219b9d27fda792c73dffb6b2260a4f0",
+          "recordedAt": "2026-11-25T19:22:33.342Z"
+        },
+        {
+          "id": "development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:failed-check:development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:tracked-candidate:lint:892b16c49d115330d73a016de9489d6c3152408ff1f8311f79b29a4be1eb0360",
+          "criterionId": "repository-verification",
+          "kind": "development-check:lint",
+          "issuer": "isolated-real-checks-fixture-signer",
+          "verified": false,
+          "sourceRevision": "9448eaf1035efe2c63909cf214ee69cff1605781aa089f7e00c2d674e28075e6",
+          "artifactDigest": "d1c6fcb025e1c4316d9f375a8619be71e80fb323276097e7a035c43b9991dadb",
+          "recordedAt": "2026-11-25T19:24:15.493Z"
+        },
+        {
+          "id": "development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:failed-check:development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:tracked-candidate:typecheck:892b16c49d115330d73a016de9489d6c3152408ff1f8311f79b29a4be1eb0360",
+          "criterionId": "repository-verification",
+          "kind": "development-check:typecheck",
+          "issuer": "isolated-real-checks-fixture-signer",
+          "verified": false,
+          "sourceRevision": "9448eaf1035efe2c63909cf214ee69cff1605781aa089f7e00c2d674e28075e6",
+          "artifactDigest": "d1c6fcb025e1c4316d9f375a8619be71e80fb323276097e7a035c43b9991dadb",
+          "recordedAt": "2026-11-25T19:24:17.249Z"
+        },
+        {
+          "id": "development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:failed-check:development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:tracked-candidate:unit:892b16c49d115330d73a016de9489d6c3152408ff1f8311f79b29a4be1eb0360",
+          "criterionId": "repository-verification",
+          "kind": "development-check:unit",
+          "issuer": "isolated-real-checks-fixture-signer",
+          "verified": false,
+          "sourceRevision": "9448eaf1035efe2c63909cf214ee69cff1605781aa089f7e00c2d674e28075e6",
+          "artifactDigest": "d1c6fcb025e1c4316d9f375a8619be71e80fb323276097e7a035c43b9991dadb",
+          "recordedAt": "2026-11-25T19:24:19.178Z"
+        },
+        {
+          "id": "development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:failed-check:development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:tracked-candidate:integration:892b16c49d115330d73a016de9489d6c3152408ff1f8311f79b29a4be1eb0360",
+          "criterionId": "repository-verification",
+          "kind": "development-check:integration",
+          "issuer": "isolated-real-checks-fixture-signer",
+          "verified": false,
+          "sourceRevision": "9448eaf1035efe2c63909cf214ee69cff1605781aa089f7e00c2d674e28075e6",
+          "artifactDigest": "d1c6fcb025e1c4316d9f375a8619be71e80fb323276097e7a035c43b9991dadb",
+          "recordedAt": "2026-11-25T19:24:22.516Z"
+        },
+        {
+          "id": "development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:failed-check:development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:tracked-candidate:security:892b16c49d115330d73a016de9489d6c3152408ff1f8311f79b29a4be1eb0360",
+          "criterionId": "repository-verification",
+          "kind": "development-check:security",
+          "issuer": "isolated-real-checks-fixture-signer",
+          "verified": false,
+          "sourceRevision": "9448eaf1035efe2c63909cf214ee69cff1605781aa089f7e00c2d674e28075e6",
+          "artifactDigest": "d1c6fcb025e1c4316d9f375a8619be71e80fb323276097e7a035c43b9991dadb",
+          "recordedAt": "2026-11-25T19:24:23.448Z"
+        },
+        {
+          "id": "development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:failed-check:development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:tracked-candidate:build:892b16c49d115330d73a016de9489d6c3152408ff1f8311f79b29a4be1eb0360",
+          "criterionId": "repository-verification",
+          "kind": "development-check:build",
+          "issuer": "isolated-real-checks-fixture-signer",
+          "verified": false,
+          "sourceRevision": "9448eaf1035efe2c63909cf214ee69cff1605781aa089f7e00c2d674e28075e6",
+          "artifactDigest": "d1c6fcb025e1c4316d9f375a8619be71e80fb323276097e7a035c43b9991dadb",
+          "recordedAt": "2026-11-25T19:24:38.744Z"
+        }
+      ],
+      "attempts": [
+        {
+          "signature": "892b16c49d115330d73a016de9489d6c3152408ff1f8311f79b29a4be1eb0360",
+          "strategyId": "verify-recovery-1",
+          "hypothesis": "check_not_passed:integration; Failure can be repaired within the current strategy (1/3)",
+          "recordedAt": "2026-11-25T19:24:43.261Z"
+        }
+      ],
+      "failureSignatures": [
+        "892b16c49d115330d73a016de9489d6c3152408ff1f8311f79b29a4be1eb0360"
+      ],
+      "rejectedStrategyIds": [
+        "verify-recovery-1"
+      ],
+      "blockers": [
+        "equivalent_failed_candidate"
+      ],
+      "createdAt": "2026-11-25T19:22:28.468Z",
+      "updatedAt": "2026-11-25T19:27:12.028Z",
+      "history": [
+        {
+          "transitionId": "create:development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267",
+          "from": null,
+          "to": "QUEUED",
+          "actor": "state-controller",
+          "reason": "development job created",
+          "at": "2026-11-25T19:22:28.468Z",
+          "evidenceIds": []
+        },
+        {
+          "transitionId": "development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:sequence",
+          "from": "QUEUED",
+          "to": "PLANNING",
+          "actor": "state-controller",
+          "reason": "host-approved development sequence bound before execution",
+          "at": "2026-11-25T19:22:28.469Z",
+          "evidenceIds": [
+            "development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:sequence"
+          ]
+        },
+        {
+          "transitionId": "development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:implementing",
+          "from": "PLANNING",
+          "to": "IMPLEMENTING",
+          "actor": "state-controller",
+          "reason": "resident Builder selected",
+          "at": "2026-11-25T19:22:28.477Z",
+          "evidenceIds": []
+        },
+        {
+          "transitionId": "development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:tdd-red",
+          "from": "IMPLEMENTING",
+          "to": "IMPLEMENTING",
+          "actor": "state-controller",
+          "reason": "failing test Work Item persisted before implementation",
+          "at": "2026-11-25T19:22:33.345Z",
+          "evidenceIds": [
+            "development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:tdd-red"
+          ]
+        },
+        {
+          "transitionId": "development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:verify:development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:tracked-candidate",
+          "from": "IMPLEMENTING",
+          "to": "VERIFYING",
+          "actor": "state-controller",
+          "reason": "isolated Change Set persisted",
+          "at": "2026-11-25T19:24:14.144Z",
+          "evidenceIds": []
+        },
+        {
+          "transitionId": "development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:verification-failed:development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:tracked-candidate:892b16c49d115330d73a016de9489d6c3152408ff1f8311f79b29a4be1eb0360",
+          "from": "VERIFYING",
+          "to": "RECOVERING",
+          "actor": "state-controller",
+          "reason": "Failure can be repaired within the current strategy (1/3)",
+          "at": "2026-11-25T19:24:43.261Z",
+          "evidenceIds": [
+            "development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:failed-check:development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:tracked-candidate:lint:892b16c49d115330d73a016de9489d6c3152408ff1f8311f79b29a4be1eb0360",
+            "development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:failed-check:development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:tracked-candidate:typecheck:892b16c49d115330d73a016de9489d6c3152408ff1f8311f79b29a4be1eb0360",
+            "development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:failed-check:development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:tracked-candidate:unit:892b16c49d115330d73a016de9489d6c3152408ff1f8311f79b29a4be1eb0360",
+            "development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:failed-check:development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:tracked-candidate:integration:892b16c49d115330d73a016de9489d6c3152408ff1f8311f79b29a4be1eb0360",
+            "development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:failed-check:development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:tracked-candidate:security:892b16c49d115330d73a016de9489d6c3152408ff1f8311f79b29a4be1eb0360",
+            "development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:failed-check:development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:tracked-candidate:build:892b16c49d115330d73a016de9489d6c3152408ff1f8311f79b29a4be1eb0360"
+          ],
+          "failureSignature": "892b16c49d115330d73a016de9489d6c3152408ff1f8311f79b29a4be1eb0360",
+          "strategyId": "verify-recovery-1"
+        },
+        {
+          "transitionId": "development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:reimplementing:1",
+          "from": "RECOVERING",
+          "to": "IMPLEMENTING",
+          "actor": "state-controller",
+          "reason": "resume persisted diagnosis with a different candidate",
+          "at": "2026-11-25T19:24:43.294Z",
+          "evidenceIds": []
+        },
+        {
+          "transitionId": "development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:resource-wait:1",
+          "from": "IMPLEMENTING",
+          "to": "WAITING_FOR_RESOURCE",
+          "actor": "state-controller",
+          "reason": "resource_wait:commit requirement unavailable or exceeded",
+          "at": "2026-11-25T19:24:48.380Z",
+          "evidenceIds": []
+        },
+        {
+          "transitionId": "development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:resource-probe:1",
+          "from": "WAITING_FOR_RESOURCE",
+          "to": "RECOVERING",
+          "actor": "state-controller",
+          "reason": "resource wait due; recheck before execution",
+          "at": "2026-11-25T19:25:18.758Z",
+          "evidenceIds": []
+        },
+        {
+          "transitionId": "development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:candidate-equivalent:development-b6f4460609fb6778f36aaf0a088f2db4b85e01984ea645c203783b41753b1267:tracked-candidate:2",
+          "from": "RECOVERING",
+          "to": "BLOCKED",
+          "actor": "state-controller",
+          "reason": "Builder repeated a previously rejected implementation",
+          "at": "2026-11-25T19:27:12.028Z",
+          "evidenceIds": []
+        }
+      ],
+      "resourceWait": {
+        "firstObservedAt": "2026-11-25T19:24:48.380Z",
+        "deadline": "2026-11-25T19:54:48.380Z",
+        "retryAt": "2026-11-25T19:25:18.380Z",
+        "checks": 1,
+        "reason": "commit requirement unavailable or exceeded"
+      }
+    }
+  ]
+}

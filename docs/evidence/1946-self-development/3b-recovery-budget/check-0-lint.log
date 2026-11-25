@@ -1,0 +1,7 @@
+
+C:\Users\qq113\AppData\Local\Temp\goriq-selfdev1946-lPZqG1\candidate-0\src\gai\cognitive-service.ts
+  77:9  error  'maxCycles' is never reassigned. Use 'const' instead  prefer-const
+
+✖ 1 problem (1 error, 0 warnings)
+  1 error and 0 warnings potentially fixable with the `--fix` option.
+

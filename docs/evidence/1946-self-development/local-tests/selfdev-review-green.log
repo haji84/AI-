@@ -1,0 +1,10 @@
+✔ tracked sequence rejects Windows namespace aliases of another Job's workspace or receipt (1709.0841ms)
+✔ tracked sequence shares default persistence through successive failures of its second Job (52655.9597ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 54567.5458

@@ -1,0 +1,32 @@
+✖ tracked sequence reuses one Goal authority and starts a real source successor only after verified predecessor (13970.8353ms)
+✔ tracked sequence refuses changed pins, reused workspaces, receipts and mismatched criteria before inference (4317.7477ms)
+✔ tracked sequence rejects competing profiles instead of silently selecting another controller (781.068ms)
+✔ tracked sequence rejects Windows namespace aliases of another Job's workspace or receipt (1658.676ms)
+✔ tracked sequence shares default persistence through successive failures of its second Job (52949.4754ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 4
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 73884.4005
+
+✖ failing tests:
+
+test at tests\autonomous-tracked-repair-runtime.test.ts:126:1
+✖ tracked sequence reuses one Goal authority and starts a real source successor only after verified predecessor (13970.8353ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(paused.goalEvaluation?.blockers.includes("project_paused"))
+  
+      at TestContext.<anonymous> (file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/tests/autonomous-tracked-repair-runtime.test.ts:136:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

@@ -4,7 +4,7 @@ import { createResidentReceiptWakes } from "../src/orchestrator/resident-receipt
 import { createHash, createPrivateKey, createPublicKey, sign } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, toNamespacedPath } from "node:path";
 import { tmpdir } from "node:os";
 import { createTrackedRepairResidentRuntime, type TrackedRepairManifest } from "../src/orchestrator/tracked-repair-resident-runtime.ts";
 import { residentDevelopmentGoalDigest } from "../src/orchestrator/resident-development-sequence.ts";
@@ -13,6 +13,7 @@ import { JsonFileDevelopmentJobStore } from "../src/orchestrator/development-job
 import { JsonFileDevelopmentChangeSetStore } from "../src/orchestrator/development-change-set-store.ts";
 import { canonicalLocalVerifierPayload, type SignedLocalVerifierPayload } from "../src/orchestrator/signed-local-verifier-receipt.ts";
 import { ResourceWaitError } from "../src/gai/development-resource-admission.ts";
+import { ResidentExecutionStop } from "../src/orchestrator/resident-development-admission.ts";
 import { createServer } from "node:http";
 import { once } from "node:events";
 import { spawn, type ChildProcess } from "node:child_process";
@@ -28,11 +29,11 @@ const hash=(s:string|Buffer)=>createHash("sha256").update(s).digest("hex");
 const fixtureKey=createPrivateKey({key:Buffer.from("302e020100300506032b657004220420"+"9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60","hex"),format:"der",type:"pkcs8"});
 const publicKey=createPublicKey(fixtureKey).export({format:"pem",type:"spki"}).toString();
 const admit=async<T>(work:()=>Promise<T>)=>work();
-function fixture(t:TestContext,bookkeeping=false,rows="valid"){
-  const root=mkdtempSync(join(tmpdir(),"tracked-runtime-"));t.after(()=>rmSync(root,{recursive:true,force:true}));
+function fixture(t:TestContext,bookkeeping=false,rows="valid",cleanup=true,padding=""){
+  const root=mkdtempSync(join(tmpdir(),"tracked-runtime-"));if(cleanup)t.after(()=>rmSync(root,{recursive:true,force:true}));
   const repo=join(root,"repo"),workspace=join(root,"candidate"),baselineWorkspace=join(root,"baseline"),runtimeRoot=join(root,"runtime");
   mkdirSync(repo);mkdirSync(runtimeRoot);mkdirSync(join(repo,"scripts"));mkdirSync(join(repo,"tests"));
-  writeFileSync(join(repo,"tests/.keep"),"keep\n");const before="export const answer = 0;\n";
+  writeFileSync(join(repo,"tests/.keep"),"keep\n");const before="export const answer = 0;\n"+padding;
   writeFileSync(join(repo,"scripts/logic.mjs"),before);
   const mapPath="docs/jarvis-reverse-traceability.json",map=JSON.stringify({schema_version:1,scope:"unchanged",padding:"x".repeat(276713),surfaces:[{path:"scripts/logic.mjs",sha256:hash(before),classification:"INTERNAL_IMPLEMENTATION_DETAIL",requirement_ids:["CORE-014"],reason:"unchanged"}]},null,2)+"\n";
   if(bookkeeping){mkdirSync(join(repo,"docs"));const doc=JSON.parse(map);if(rows==="missing")doc.surfaces=[];if(rows==="duplicate")doc.surfaces.push(structuredClone(doc.surfaces[0]));writeFileSync(join(repo,mapPath),JSON.stringify(doc,null,2)+"\n");}
@@ -58,6 +59,8 @@ function fixture(t:TestContext,bookkeeping=false,rows="valid"){
       assert.ok(prompt.includes("SOURCE scripts/logic.mjs\nexport const answer = 0;\n"));
       assert.ok(prompt.indexOf("SOURCE ")<prompt.indexOf("Objective: "));
       assert.ok(prompt.includes("Repair answer to pass the frozen regression"));
+      assert.ok(prompt.includes("complete replacement"),"a slot response must preserve the complete selected source syntax");
+      assert.ok(prompt.includes(probe),"the Builder must receive the frozen regression before its first repair");
       assert.equal(prompt.includes("Objective: undefined"),false);
       return new Response(JSON.stringify({prompt:"<|im_start|>user\n"+prompt+"<|im_end|>\n<|im_start|>assistant\n"}));
     }
@@ -72,8 +75,8 @@ function fixture(t:TestContext,bookkeeping=false,rows="valid"){
 }
 
 type RuntimeFixture = ReturnType<typeof fixture>;
-function recoveryFixture(t:TestContext,bookkeeping=false){
-  const f=fixture(t,bookkeeping),workspace=join(f.root,"repair-attempt-2"),receiptFile=join(f.root,"receipt-attempt-2.json");
+function recoveryFixture(t:TestContext,bookkeeping=false,padding=""){
+  const f=fixture(t,bookkeeping,"valid",true,padding),workspace=join(f.root,"repair-attempt-2"),receiptFile=join(f.root,"receipt-attempt-2.json");
   execFileSync("git",["worktree","add","--detach",workspace,f.manifest.sequence.jobs[0]!.baseRevision],{cwd:f.baselineWorkspace,stdio:"pipe"});
   Object.assign(f.manifest,{recoveryAttempts:[{workspace,receiptFile}]});f.repin();
   const prompts:string[]=[];let calls=0;
@@ -88,8 +91,8 @@ function recoveryFixture(t:TestContext,bookkeeping=false){
   };
   return {...f,recoveryWorkspace:workspace,recoveryReceipt:receiptFile,repairFetch:fetchImpl,prompts,repairCalls:()=>calls};
 }
-async function fixtureReceipt(f:RuntimeFixture,file:string,failed=false,amend?:(payload:SignedLocalVerifierPayload)=>void){
-  const job=(await f.jobs().getByGoal(f.goalId))[0]!,change=(await f.changes().list()).find(c=>c.workItemId.endsWith(":implement")&&c.status!=="REJECTED")!;
+async function fixtureReceipt(f:RuntimeFixture,file:string,failed=false,amend?:(payload:SignedLocalVerifierPayload)=>void,jobId?:string){
+  const job=(await f.jobs().getByGoal(f.goalId)).find(j=>!jobId||j.jobId===jobId)!,change=(await f.changes().list()).find(c=>c.jobId===job.jobId&&c.workItemId.endsWith(":implement")&&c.status!=="REJECTED")!;
   const at=new Date().toISOString(),payload:SignedLocalVerifierPayload={version:1,verifierId:"fixture-not-independent",goalId:f.goalId,
     jobId:job.jobId,changeSetId:change.changeSetId,builderId:change.deviceId,baseRevision:change.baseRevision,
     sourceRevision:change.candidateRevision,artifactDigest:change.artifactDigest,issuedAt:at,expiresAt:new Date(Date.now()+600000).toISOString(),
@@ -99,6 +102,115 @@ async function fixtureReceipt(f:RuntimeFixture,file:string,failed=false,amend?:(
   const bytes=JSON.stringify({payload,signatureBase64:sign(null,Buffer.from(canonicalLocalVerifierPayload(payload)),fixtureKey).toString("base64")});
   writeFileSync(file,bytes,{flag:"wx"});return {bytes,job,change};
 }
+
+function trackedSequenceFixture(t:TestContext,cleanup=true){
+  const leaves=[fixture(t,false,"valid",cleanup),fixture(t,false,"valid",cleanup)];
+  const goal={title:"Repair two scoped sources under one Goal",description:"Repair two scoped sources under one Goal",successCriteria:["First source independently verified","Second source independently verified"],constraints:["local only"]};
+  const jobs=leaves.map((f,i)=>({...f.manifest.sequence.jobs[0]!,key:"repair"+(i+1),criterionIds:["criterion-"+(i+1)]}));
+  const sequence={...leaves[0]!.manifest.sequence,goalDigest:residentDevelopmentGoalDigest(goal),jobs};
+  for(const [i,f] of leaves.entries()){
+    Object.assign(f.goal,goal);f.manifest.sequence={...sequence,jobs:[jobs[i]!]};f.repin();
+  }
+  const file=join(leaves[0]!.root,"tracked-sequence.json");
+  const manifest={version:1,profile:"tracked-source-sequence-v1",sequence,repairs:leaves.map((f,i)=>({key:jobs[i]!.key,manifestFile:f.env.GORIQ_TRACKED_REPAIR_MANIFEST_FILE,manifestSha256:f.env.GORIQ_TRACKED_REPAIR_MANIFEST_SHA256}))};
+  const env={GORIQ_TRACKED_REPAIR_SEQUENCE_FILE:file,GORIQ_TRACKED_REPAIR_SEQUENCE_SHA256:""};
+  const repin=()=>{const bytes=JSON.stringify(manifest);writeFileSync(file,bytes);env.GORIQ_TRACKED_REPAIR_SEQUENCE_SHA256=hash(bytes);};repin();
+  const f=leaves[0]!;
+  const create=async(overrides:Partial<Parameters<typeof createTrackedRepairResidentRuntime>[0]>={})=>{
+    const {createTrackedRepairSequenceRuntime}=await import("../src/orchestrator/tracked-repair-sequence.ts");
+    return createTrackedRepairSequenceRuntime({env,runtimeRoot:join(f.root,"runtime"),compassPath:f.compassPath,goal,fetchImpl:f.fetchImpl,resourceAdmission:admit,...overrides})!;
+  };
+  return {leaves,goal,goalId:goalWorkStateId(goal),manifest,env,repin,create,f};
+}
+
+test("tracked sequence reuses one Goal authority and starts a real source successor only after verified predecessor",async t=>{
+  const f=trackedSequenceFixture(t),input={goalId:f.goalId,goal:f.goal,context:[]};
+  assert.equal(createResidentReceiptWakes(f.env,join(f.f.root,"runtime")).length,2,"both declared receipts must wake the existing runtime");
+  await (await f.create()).run(input);assert.equal(f.f.counts().calls,1);
+  assert.equal((await f.f.jobs().getByGoal(f.goalId)).length,1);
+  await (await f.create()).run(input);assert.equal(f.f.counts().calls,1,"restart cannot repeat a prepared inference");
+  await fixtureReceipt({...f.f,goalId:f.goalId},f.leaves[0]!.manifest.verifier.receiptFile);
+  await (await f.create()).run(input);
+  assert.equal((await f.f.jobs().getByGoal(f.goalId))[0]!.phase,"COMPLETED");
+  const paused=await (await f.create()).run({...input,assertExecutionAuthority:async()=>{throw new ResidentExecutionStop("paused","project_paused");}});
+  assert.equal(paused.stopReason,"paused");
+  const refused=await (await f.create({admission:{async assertAuthority(){throw new ResidentExecutionStop("blocked","invalid_authority");},async check(){assert.fail("invalid authority cannot route");}}})).run(input);
+  assert.ok(refused.goalEvaluation?.blockers.includes("invalid_authority"));
+  assert.equal((await f.f.jobs().getByGoal(f.goalId)).length,1);assert.equal(f.f.counts().calls,1,"a paused/refused successor must not plan or infer");
+  await (await f.create()).run(input);assert.equal(f.f.counts().calls,2);
+  const jobs=await f.f.jobs().getByGoal(f.goalId);assert.equal(jobs.length,2);assert.ok(jobs.every(j=>j.goalId===f.goalId));
+  const second=jobs.find(j=>j.phase!=="COMPLETED")!;
+  await fixtureReceipt({...f.f,goalId:f.goalId},f.leaves[1]!.manifest.verifier.receiptFile,false,undefined,second.jobId);
+  assert.equal((await (await f.create()).run(input)).goalEvaluation?.achieved,true);
+  assert.equal((await f.f.jobs().getByGoal(f.goalId)).filter(j=>j.phase==="COMPLETED").length,2);
+  await (await f.create()).run(input);assert.equal(f.f.counts().calls,2);
+});
+
+test("tracked sequence refuses changed pins, reused workspaces, receipts and mismatched criteria before inference",async t=>{
+  for(const kind of ["outer-pin","leaf-pin","workspace","receipt","criteria"]){
+    const f=trackedSequenceFixture(t);
+    if(kind==="outer-pin")f.env.GORIQ_TRACKED_REPAIR_SEQUENCE_SHA256="0".repeat(64);
+    else if(kind==="leaf-pin"){f.manifest.repairs[1]!.manifestSha256="0".repeat(64);f.repin();}
+    else if(kind==="workspace"){
+      f.leaves[1]!.manifest.workspace=f.leaves[0]!.manifest.workspace;f.leaves[1]!.repin();
+      f.manifest.repairs[1]!.manifestSha256=f.leaves[1]!.env.GORIQ_TRACKED_REPAIR_MANIFEST_SHA256;f.repin();
+    }else if(kind==="receipt"){
+      f.leaves[1]!.manifest.verifier.receiptFile=f.leaves[0]!.manifest.verifier.receiptFile;f.leaves[1]!.repin();
+      f.manifest.repairs[1]!.manifestSha256=f.leaves[1]!.env.GORIQ_TRACKED_REPAIR_MANIFEST_SHA256;f.repin();
+    }else{f.manifest.sequence.jobs[1]!.criterionIds=["criterion-1"];f.repin();}
+    await assert.rejects(f.create(),kind==="workspace"||kind==="receipt"?/OVERLAP/:kind==="criteria"?/CRITERIA|BINDING/:/PIN/);assert.equal(f.f.counts().calls,0);
+  }
+});
+
+test("tracked sequence rejects competing profiles instead of silently selecting another controller",t=>{
+  const f=trackedSequenceFixture(t);
+  assert.throws(()=>createResidentReceiptWakes({...f.env,...f.leaves[0]!.env},join(f.f.root,"runtime")),/MULTIPLE_RUNTIME_PROFILES/);
+});
+
+test("tracked sequence rejects Windows namespace aliases of another Job's workspace or receipt",{skip:process.platform!=="win32"},async t=>{
+  for(const kind of ["workspace","receipt"]){
+    const f=trackedSequenceFixture(t),first=f.leaves[0]!,second=f.leaves[1]!;
+    if(kind==="workspace")second.manifest.workspace=toNamespacedPath(first.manifest.workspace);
+    else second.manifest.verifier.receiptFile=toNamespacedPath(first.manifest.verifier.receiptFile);
+    second.repin();f.manifest.repairs[1]!.manifestSha256=second.env.GORIQ_TRACKED_REPAIR_MANIFEST_SHA256;f.repin();
+    await assert.rejects(f.create(),/OVERLAP/);assert.equal(first.counts().calls,0);
+  }
+});
+
+test("tracked sequence shares default persistence through successive failures of its second Job",async t=>{
+  const f=trackedSequenceFixture(t),second=f.leaves[1]!,attempts=[2,3].map(n=>({workspace:join(second.root,"attempt-"+n),receiptFile:join(second.root,"receipt-"+n+".json")}));
+  for(const attempt of attempts)execFileSync("git",["worktree","add","--detach",attempt.workspace,second.manifest.sequence.jobs[0]!.baseRevision],{cwd:second.baselineWorkspace,stdio:"pipe"});
+  second.manifest.recoveryAttempts=attempts;second.repin();f.manifest.repairs[1]!.manifestSha256=second.env.GORIQ_TRACKED_REPAIR_MANIFEST_SHA256;f.repin();
+  let calls=0;
+  const fetchImpl:typeof fetch=async url=>String(url).endsWith("/apply-template")?new Response(JSON.stringify({prompt:"<|im_start|>assistant\n"})):
+    new Response(JSON.stringify({model:"fixture-model",stop:true,truncated:false,stop_type:"eos",content:JSON.stringify({edits:[{slot:1,after:String([42,41,40,42][calls++])}]})}));
+  const runtime=await f.create({fetchImpl}),input={goalId:f.goalId,goal:f.goal,context:[]};
+  await runtime.run(input);await fixtureReceipt({...f.f,goalId:f.goalId},f.leaves[0]!.manifest.verifier.receiptFile);await runtime.run(input);await runtime.run(input);
+  const secondJob=(await f.f.jobs().getByGoal(f.goalId)).find(j=>j.phase!=="COMPLETED")!;
+  const receipts=[second.manifest.verifier.receiptFile,...attempts.map(a=>a.receiptFile)];
+  for(let i=0;i<2;i++){
+    await fixtureReceipt({...f.f,goalId:f.goalId},receipts[i]!,false,p=>{p.checks.find(c=>c.check===(i===0?"unit":"typecheck"))!.status="failed";},secondJob.jobId);
+    await runtime.run(input);await runtime.run(input);
+  }
+  assert.equal(calls,4,"both rejected candidates must be read from the host's shared store");
+  await fixtureReceipt({...f.f,goalId:f.goalId},receipts[2]!,false,undefined,secondJob.jobId);
+  assert.equal((await runtime.run(input)).goalEvaluation?.achieved,true);
+});
+
+test("tracked recovery supplies rejected source once so a real-size source stays within the prompt bound",async t=>{
+  const padding="/*"+"context".repeat(2600)+"*/\n",f=recoveryFixture(t,false,padding),input={goalId:f.goalId,goal:f.goal,context:[]};
+  await f.create({fetchImpl:f.repairFetch}).run(input);
+  await fixtureReceipt(f,f.manifest.verifier.receiptFile,true);
+  await f.create({fetchImpl:f.repairFetch}).run(input);
+  await f.create({fetchImpl:f.repairFetch}).run(input);
+  assert.equal(f.repairCalls(),2);
+  assert.equal(f.prompts[1]!.split(padding).length,2,"unchanged source context must not consume the budget twice");
+  assert.match(f.prompts[1]!,/export const answer = 41/);
+  assert.match(f.prompts[1]!,/original baseline SLOT/);
+  assert.ok(Buffer.byteLength(f.prompts[1]!)<=30000);
+  await fixtureReceipt(f,f.recoveryReceipt);
+  assert.equal((await f.create({fetchImpl:f.repairFetch}).run(input)).goalEvaluation?.achieved,true);
+});
 
 test("tracked repair recovery reads injected rejected history across reconstructed factories",async t=>{
   const f=recoveryFixture(t),persistence={jobs:new JsonFileDevelopmentJobStore(join(f.root,"shared/jobs.json")),
@@ -540,8 +652,9 @@ test("standalone executor refuses a valid legacy handoff when tracked profile is
   const reopened=new CompassStore(f.compassPath);try{assert.equal((await new CompassWorkRunStore(reopened).getByGoal(goalId))?.phase,"BLOCKED");}finally{reopened.close();}
 });
 
-test("authenticated Broker selects tracked profile and restarts the same waiting Job without another model call",{timeout:45000},async t=>{
-  const f=fixture(t),repositoryRoot=fileURLToPath(new URL("../",import.meta.url));let child:ChildProcess|undefined,diagnostics="",calls=0;
+for(const sequenced of [false,true])test(`authenticated Broker selects tracked ${sequenced?"sequence":"profile"} and restarts the same waiting Job without another model call`,{timeout:45000},async t=>{
+  const sequence=sequenced?trackedSequenceFixture(t,false):null;
+  const f=sequence?{...sequence.f,goal:sequence.goal,goalId:sequence.goalId}:fixture(t,false,"valid",false),repositoryRoot=fileURLToPath(new URL("../",import.meta.url));let child:ChildProcess|undefined,diagnostics="",calls=0;
   let acceptedGoalId=f.goalId;
   const model=createServer((request,response)=>{
     const chunks:Buffer[]=[];request.on("data",c=>chunks.push(Buffer.from(c)));request.once("end",()=>{
@@ -550,18 +663,19 @@ test("authenticated Broker selects tracked profile and restarts the same waiting
       calls++;response.end(JSON.stringify({model:"fixture-model",stop:true,truncated:false,stop_type:"eos",content:JSON.stringify({edits:[{slot:1,after:"42"}]})}));
     });
   });
-  model.listen(0,"127.0.0.1");await once(model,"listening");t.after(()=>new Promise<void>(r=>model.close(()=>r())));
-  f.manifest.model.endpoint=`http://127.0.0.1:${(model.address() as {port:number}).port}/completion`;f.repin();
+  model.listen(0,"127.0.0.1");await once(model,"listening");
+  t.after(async()=>{await stop();model.closeAllConnections();await new Promise<void>(r=>model.close(()=>r()));for(const leaf of sequence?.leaves??[f])rmSync(leaf.root,{recursive:true,force:true});});
+  for(const leaf of sequence?.leaves??[f]){leaf.manifest.model.endpoint=`http://127.0.0.1:${(model.address() as {port:number}).port}/completion`;leaf.repin();}
+  if(sequence){for(const [i,leaf] of sequence.leaves.entries())sequence.manifest.repairs[i]!.manifestSha256=leaf.env.GORIQ_TRACKED_REPAIR_MANIFEST_SHA256;sequence.repin();}
   const socket=createServer();socket.listen(0,"127.0.0.1");await once(socket,"listening");const port=(socket.address() as {port:number}).port;await new Promise<void>(r=>socket.close(()=>r()));
   const owner="tracked-profile-test-owner",headers={Authorization:`Bearer ${owner}`,"content-type":"application/json"},url=`http://127.0.0.1:${port}/api/jarvis/admin`;
   const resource=join(f.root,"resource");mkdirSync(resource);
-  const env={...process.env,...f.env,GITHUB_TOKEN:"",GH_TOKEN:"",CODE_BUILDER_LOCAL_TOKEN:"",CODE_BUILDER_LOCAL_URL:"",
+  const env={...process.env,...(sequence?.env??f.env),GORIQ_VERIFIER_RECEIPT_POLL_MS:sequenced?"1000":"15000",GITHUB_TOKEN:"",GH_TOKEN:"",CODE_BUILDER_LOCAL_TOKEN:"",CODE_BUILDER_LOCAL_URL:"",
     GORIQ_SELF_DEVELOPMENT_SEQUENCE_FILE:"",GORIQ_SELF_DEVELOPMENT_SEQUENCE_SHA256:"",GORIQ_COMPLETION_HANDOFF_PATH:"",GORIQ_COMPLETION_HANDOFF_SHA256:"",
     JARVIS_BROKER_HOST:"127.0.0.1",JARVIS_BROKER_PORT:String(port),JARVIS_OWNER_TOKEN:owner,JARVIS_DB_PATH:join(f.root,"broker.sqlite"),JARVIS_COMPASS_DB_PATH:f.compassPath,
     JARVIS_PUBLIC_BROKER_URL:"",JARVIS_WORKER_INSTALL_URL:"",JARVIS_WORKER_APK_PATH:"",XDG_STATE_HOME:resource,
     NODE_OPTIONS:`${process.env.NODE_OPTIONS??""} --import=${pathToFileURL(join(repositoryRoot,"tests/helpers/resource-telemetry-preload.mjs")).href}`.trim()};
-  const stop=async()=>{if(child&&child.exitCode===null&&child.signalCode===null){const done=once(child,"exit");child.kill();await done;}child=undefined;};
-  t.after(stop);
+  async function stop(){if(child&&child.exitCode===null&&child.signalCode===null){const done=once(child,"exit");child.kill();await done;}child=undefined;}
   const start=()=>{child=spawn(process.execPath,[join(repositoryRoot,"scripts/jarvis-broker.ts")],{cwd:repositoryRoot,env,stdio:["ignore","ignore","pipe"]});
     child.stderr?.on("data",c=>{diagnostics=(diagnostics+String(c)).slice(-12000);});};
   const failureSnapshot=async()=>{
@@ -584,6 +698,17 @@ test("authenticated Broker selects tracked profile and restarts the same waiting
   await stop();start();await ready();assert.notEqual(child!.pid,pid);
   await wait("same waiting Job",async()=>{const response=await fetch(url+"/work/"+accepted.goalId,{headers});const state=await response.json() as {run?:{nextAction?:string}};return state.run?.nextAction==="verification_wait";});
   assert.equal(calls,1);assert.equal((await f.jobs().getByGoal(accepted.goalId))[0]!.jobId,before.jobId);
+  if(sequence){
+    await fixtureReceipt({...f,goalId:accepted.goalId},sequence.leaves[0]!.manifest.verifier.receiptFile,false,undefined,before.jobId);
+    await wait("automatic next source Job",async()=>{const jobs=await f.jobs().getByGoal(accepted.goalId);return jobs.length===2&&jobs.some(j=>j.phase==="VERIFYING");});
+    const second=(await f.jobs().getByGoal(accepted.goalId)).find(j=>j.phase==="VERIFYING")!;assert.equal(calls,2);
+    await stop();start();await ready();
+    await wait("same successor after restart",async()=>{const state=await(await fetch(url+"/work/"+accepted.goalId,{headers})).json() as {run?:{nextAction?:string}};return state.run?.nextAction==="verification_wait";});
+    assert.equal(calls,2);
+    await fixtureReceipt({...f,goalId:accepted.goalId},sequence.leaves[1]!.manifest.verifier.receiptFile,false,undefined,second.jobId);
+    await wait("verified same Goal complete",async()=>{const db=new CompassStore(f.compassPath);try{return(await new CompassWorkRunStore(db).getByGoal(accepted.goalId))?.phase==="COMPLETED";}finally{db.close();}});
+    assert.equal(calls,2);assert.equal((await f.jobs().getByGoal(accepted.goalId)).filter(j=>j.phase==="COMPLETED").length,2);
+  }
 });
 
 

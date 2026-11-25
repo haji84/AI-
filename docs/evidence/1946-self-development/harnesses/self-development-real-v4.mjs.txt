@@ -1,0 +1,115 @@
+import assert from 'node:assert/strict';
+import { createHash, createPrivateKey, createPublicKey, sign } from 'node:crypto';
+import { execFile, spawn } from 'node:child_process';
+import { promisify } from 'node:util';
+import { once } from 'node:events';
+import { createServer } from 'node:http';
+import { mkdtemp, mkdir, readFile, writeFile, readdir, symlink } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
+import { JsonFileDevelopmentJobStore } from '../src/orchestrator/development-job-store.ts';
+import { JsonFileDevelopmentChangeSetStore } from '../src/orchestrator/development-change-set-store.ts';
+import { CompassStore } from '../src/compass/store.ts';
+import { CompassWorkRunStore } from '../src/orchestrator/compass-work-run-store.ts';
+import { residentDevelopmentGoalDigest } from '../src/orchestrator/resident-development-sequence.ts';
+import { canonicalLocalVerifierPayload } from '../src/orchestrator/signed-local-verifier-receipt.ts';
+import { goalWorkStateId } from '../src/orchestrator/work-state-integration.ts';
+const exec=promisify(execFile),runtimeRoot=resolve('.'),deps='C:/Users/qq113/.codex/tmp/goriq-1946-deps';
+const sha=b=>createHash('sha256').update(b).digest('hex');
+const root=await mkdtemp(join(tmpdir(),'goriq-selfdev1946-'));
+console.log(JSON.stringify({root,stage:'prepare'}));
+const base=(await exec('git',['rev-parse','origin/main'],{cwd:runtimeRoot,windowsHide:true})).stdout.trim();
+const source='src/gai/cognitive-service.ts',map='docs/jarvis-reverse-traceability.json';
+const text='GORIQ自身の処理予算と成果物状態の小さな不具合を隔離環境で修正して（固定回帰を初回から提示した隔離4B検証）';
+const goal={title:text,description:text,successCriteria:['明示nullの処理予算を実行前に拒否する','壊れた生成物を完了として表示しない'],constraints:['許可された隔離ソースのみ','本番反映や外部公開はしない']};
+const goalId=goalWorkStateId(goal),expiresAt=new Date(Date.now()+5400000).toISOString();
+const model='qwen3:4b';
+const tags=await(await fetch('http://127.0.0.1:11434/api/tags')).json();
+const installed=tags.models.find(m=>m.name===model);assert.ok(installed);
+// Published RFC8032 test vector, NOT an operator key or production trust root.
+const fixtureKey=createPrivateKey({key:Buffer.from('302e020100300506032b657004220420'+'9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60','hex'),format:'der',type:'pkcs8'});
+const publicKey=createPublicKey(fixtureKey).export({format:'pem',type:'spki'}).toString();
+const publicKeyFile=join(root,'fixture-public.pem');await writeFile(publicKeyFile,publicKey,{flag:'wx'});
+const common=`import assert from 'node:assert/strict';\nimport {mkdtempSync,mkdirSync,readFileSync,writeFileSync,readdirSync,rmSync,existsSync} from 'node:fs';\nimport {tmpdir} from 'node:os';\nimport {join} from 'node:path';\nimport {pathToFileURL} from 'node:url';\nconst cwd=process.cwd();\nconst {CognitiveService}=await import(pathToFileURL(join(cwd,'src/gai/cognitive-service.ts')).href);\nconst root=mkdtempSync(join(tmpdir(),'goriq-owned-probe-'));\ntry {\n`;
+const probes=[common+`const path=join(root,'missing.db');\nawait assert.rejects(new CognitiveService(path).continue('goal-0000000000000000',{maxCycles:null}),/maxCycles/);\nassert.equal(existsSync(path),false);\n}finally{rmSync(root,{recursive:true,force:true});}\n`,
+common+`const {CompassStore}=await import(pathToFileURL(join(cwd,'src/compass/store.ts')).href);\nconst {compassGoalToLoopGoal}=await import(pathToFileURL(join(cwd,'src/orchestrator/compass-state-store.ts')).href);\nconst {goalWorkStateId}=await import(pathToFileURL(join(cwd,'src/orchestrator/work-state-integration.ts')).href);\nconst dbPath=join(root,'compass.db'),dataRoot=join(root,'data');mkdirSync(dataRoot);\nconst db=new CompassStore(dbPath);const record=db.setGoal({title:'Faithful retained text',successCriteria:['Saved text matches supplied material']});db.close();\nconst goalId=goalWorkStateId(compassGoalToLoopGoal(record)),service=new CognitiveService(dbPath,{materialIntake:{dataRoot}});\nconst status=await service.status();await service.prepareMaterials({goalId,goalDigest:status.goalDigest,mappingAcknowledged:true,materials:[{format:'text',content:'retained output',criteria:['criterion-1']}]});\nassert.equal((await service.continue(goalId)).goalEvaluation.achieved,true);\nassert.equal((await service.status()).goalComplete,true);\nconst dir=join(root,'cognitive','material-intake'),receipt=JSON.parse(readFileSync(join(dir,readdirSync(dir)[0]),'utf8'));\nwriteFileSync(join(dataRoot,receipt.manifest.outcomes[0].path),'tampered output');\nassert.equal((await service.status()).goalComplete,false);\n}finally{rmSync(root,{recursive:true,force:true});}\n`];
+const objectives=[
+ 'Repair the actual CognitiveService budget bug: explicit maxCycles null is invalid, not the same as absent/undefined. Reject it through the existing integer check before any DB access; preserve the default for undefined. Change only the selected declaration.',
+ 'Repair actual completed-material status after output tampering: when a bound material Goal is complete, independently read back every saved output using the existing materialStore.output and verified action IDs from state. Keep status read-only, retain existing Goal and criteria, and use the current catch/configuration blocker to fail visibly. Change only the selected material-loading try statement.'
+];
+const definitions=[],bindings=[],leaves=[];
+for(let i=0;i<2;i++){
+ const workspace=join(root,'candidate-'+i),baselineWorkspace=join(root,'baseline-'+i);
+ const recoveryAttempts=[{workspace:join(root,'candidate-'+i+'-recovery'),receiptFile:join(root,'receipt-'+i+'-recovery.json')}];
+ for(const p of [workspace,baselineWorkspace,...recoveryAttempts.map(a=>a.workspace)]){
+  await exec('git',['-c','core.autocrlf=false','worktree','add','--detach',p,base],{cwd:runtimeRoot,windowsHide:true,maxBuffer:1048576});
+  await symlink(join(deps,'node_modules'),join(p,'node_modules'),'junction');
+ }
+ const before=await readFile(join(workspace,source),'utf8');
+ const slot=i===0?'const maxCycles = options.maxCycles ?? 3;':before.split('\n').find(l=>l.includes('const saved = await this.materialStore().load(goalId, goal); if (saved) materials ='));
+ assert.ok(slot&&before.split(slot).length===2);
+ const probeFile=join(root,'probe-'+i+'.mjs'),targetPath='tests/self-development-1946-'+i+'.test.mjs';await writeFile(probeFile,probes[i],{flag:'wx'});
+ definitions.push({key:'self-repair-'+i,objective:objectives[i],criterionIds:['criterion-'+(i+1)],targetFiles:[source,map,targetPath],baseRevision:base});
+ leaves.push({workspace,baselineWorkspace,targetPath:source,trackedFiles:[{path:source,beforeSha256:sha(Buffer.from(before))}],slots:[{id:1,path:source,before:slot}],bookkeeping:{path:map,beforeSha256:sha(await readFile(join(workspace,map)))},
+  probe:{file:probeFile,sha256:sha(Buffer.from(probes[i])),targetPath,expectedRedText:i===0?'Compass goal is not set':'true !== false'},
+  model:{provider:'ollama',endpoint:'http://127.0.0.1:11434/api/generate',id:model,sha256:installed.digest,nPredict:768,timeoutMs:120000},
+  verifier:{publicKeyFile,publicKeySha256:sha(Buffer.from(publicKey)),receiptFile:join(root,'receipt-'+i+'.json')},recoveryAttempts});
+}
+const sequence={version:1,goalDigest:residentDevelopmentGoalDigest(goal),taskScopeId:'issue:1946',maxRisk:'low',completionMode:'verified-local-artifact',expiresAt,jobs:definitions};
+for(let i=0;i<leaves.length;i++){
+ const m={version:1,profile:'tracked-source-repair-v1',sequence:{...sequence,jobs:[definitions[i]]},...leaves[i]};
+ const path=join(root,'manifest-'+i+'.json'),bytes=JSON.stringify(m);await writeFile(path,bytes,{flag:'wx'});bindings.push({key:definitions[i].key,manifestFile:path,manifestSha256:sha(Buffer.from(bytes))});
+}
+const manifestFile=join(root,'sequence.json'),manifest=JSON.stringify({version:1,profile:'tracked-source-sequence-v1',sequence,repairs:bindings});await writeFile(manifestFile,manifest,{flag:'wx'});
+const probeServer=createServer();probeServer.listen(0,'127.0.0.1');await once(probeServer,'listening');const port=probeServer.address().port;await new Promise(r=>probeServer.close(r));
+const compassPath=join(root,'compass.sqlite'),jobs=new JsonFileDevelopmentJobStore(join(root,'self-development/jobs.json')),changes=new JsonFileDevelopmentChangeSetStore(join(root,'self-development/change-sets.json'));
+const env={...process.env,GH_TOKEN:'',GITHUB_TOKEN:'',CODE_BUILDER_LOCAL_TOKEN:'',CODE_BUILDER_LOCAL_URL:'',GAI_LOCAL_MODEL_NAME:'',
+ GORIQ_TRACKED_REPAIR_MANIFEST_FILE:'',GORIQ_TRACKED_REPAIR_MANIFEST_SHA256:'',GORIQ_SELF_DEVELOPMENT_SEQUENCE_FILE:'',GORIQ_SELF_DEVELOPMENT_SEQUENCE_SHA256:'',GORIQ_COMPLETION_HANDOFF_PATH:'',GORIQ_COMPLETION_HANDOFF_SHA256:'',
+ GORIQ_TRACKED_REPAIR_SEQUENCE_FILE:manifestFile,GORIQ_TRACKED_REPAIR_SEQUENCE_SHA256:sha(Buffer.from(manifest)),GORIQ_VERIFIER_RECEIPT_POLL_MS:'1000',
+ JARVIS_BROKER_HOST:'127.0.0.1',JARVIS_BROKER_PORT:String(port),JARVIS_OWNER_TOKEN:'isolated-self-development-test-owner',JARVIS_DB_PATH:join(root,'broker.sqlite'),JARVIS_COMPASS_DB_PATH:compassPath,JARVIS_PUBLIC_BROKER_URL:'',JARVIS_WORKER_INSTALL_URL:'',JARVIS_WORKER_APK_PATH:''};
+const headers={Authorization:'Bearer '+env.JARVIS_OWNER_TOKEN,'content-type':'application/json'},url=`http://127.0.0.1:${port}/api/jarvis/admin`;
+let child,diagnostics='';
+const start=()=>{child=spawn(process.execPath,[join(runtimeRoot,'scripts/jarvis-broker.ts')],{cwd:runtimeRoot,env,windowsHide:true,stdio:['ignore','ignore','pipe']});child.stderr.on('data',b=>{diagnostics=(diagnostics+String(b)).slice(-12000);});};
+const stop=async()=>{if(child&&child.exitCode===null){const done=once(child,'exit');child.kill();await done;}child=undefined;};
+const wait=async(label,check,timeout=180000)=>{const end=Date.now()+timeout;while(Date.now()<end){if(child?.exitCode!==null&&child?.exitCode!==undefined)throw Error('Broker exited: '+diagnostics);if(await check())return;await new Promise(r=>setTimeout(r,1000));}throw Error('Timeout '+label+' '+diagnostics);};
+const ready=()=>wait('ready',async()=>{try{return(await fetch(url+'/bridge/events',{headers,signal:AbortSignal.timeout(800)})).ok;}catch{return false;}},20000);
+const evidence={scope:'ISOLATED ACTUAL LOCAL MODEL + REAL SCOPED CHECKS; published fixture signer, NOT production trust',root,base,goalId,model:{id:model,digest:installed.digest},startedAt:new Date().toISOString(),checks:[],restarts:[],artifacts:[]};
+const runCheck=async(name,args,cwd,extra={})=>{
+ const at=new Date().toISOString();let stdout='',stderr='',ok=false;
+ try{const result=await exec(process.execPath,args,{cwd,env:{...process.env,GAI_LOCAL_MODEL_NAME:'',...extra},windowsHide:true,timeout:180000,maxBuffer:8000000});stdout=result.stdout;stderr=result.stderr;ok=true;}catch(e){stdout=e.stdout??'';stderr=e.stderr??String(e);}
+ const log=join(root,'check-'+evidence.checks.length+'-'+name+'.log');await writeFile(log,stdout+stderr,{flag:'wx'});
+ const check={check:name,status:ok?'passed':'failed',outputDigest:sha(Buffer.from(stdout+stderr)),recordedAt:at};evidence.checks.push({...check,args,log});console.log(JSON.stringify({stage:'check',...check}));return check;
+};
+try{
+ start();await ready();
+ const accepted=await fetch(url+'/work',{method:'POST',headers,body:JSON.stringify({text,goalContract:{successCriteria:goal.successCriteria,constraints:goal.constraints},idempotencyKey:'self-development-1946-real-v4'})});assert.equal(accepted.status,202);const acceptance=await accepted.json();assert.equal(acceptance.goalId,goalId);evidence.intake=acceptance;
+ for(let i=0;i<2;i++){
+  for(let attempt=0;attempt<2;attempt++){
+  await wait('source Job '+i+' attempt '+attempt,async()=>{const all=await jobs.getByGoal(goalId);const blocked=all.find(j=>j.phase==='BLOCKED');if(blocked)throw Error('Real Job stopped '+JSON.stringify({phase:blocked.phase,blockers:blocked.blockers,history:blocked.history.slice(-2)}));return all.length===i+1&&all.some(j=>j.phase==='VERIFYING'&&j.attempts.length===attempt);});
+  const all=await jobs.getByGoal(goalId),job=all.find(j=>j.phase==='VERIFYING'),change=(await changes.list()).find(c=>c.jobId===job.jobId&&c.workItemId.endsWith(':implement')&&c.status!=='REJECTED');assert.ok(change);
+  const preparedDir=join(root,'self-development/tracked-repair'),callsBefore=(await readdir(preparedDir)).filter(n=>n.endsWith('.response.json')).length;
+  const pid=child.pid;await stop();start();await ready();await wait('same waiting Job',async()=>{const j=(await jobs.getByGoal(goalId)).find(j=>j.jobId===job.jobId);return j?.phase==='VERIFYING';},15000);
+  assert.equal((await readdir(preparedDir)).filter(n=>n.endsWith('.response.json')).length,callsBefore);evidence.restarts.push({jobId:job.jobId,oldPid:pid,newPid:child.pid,responseJournals:callsBefore});
+  const layout=attempt===0?{workspace:leaves[i].workspace,receiptFile:leaves[i].verifier.receiptFile}:leaves[i].recoveryAttempts[attempt-1];
+  const workspace=layout.workspace,ts=join(deps,'node_modules/typescript/bin/tsc'),eslint=join(deps,'node_modules/eslint/bin/eslint.js');
+  const compiler=['--ignoreConfig','--module','nodenext','--target','esnext','--skipLibCheck','--types','node','--typeRoots',join(deps,'node_modules/@types')];
+  const checks=[];
+  checks.push(await runCheck('lint',[eslint,'--config',join(deps,'eslint.config.mjs'),source],workspace));
+  checks.push(await runCheck('typecheck',[ts,...compiler,'--noEmit','--allowImportingTsExtensions',source],workspace));
+  checks.push(await runCheck('unit',['--test','--test-concurrency=2','tests/goriq-cognitive-runtime.test.ts','tests/goriq-cognitive-outcome-runtime.test.ts'],workspace));
+  checks.push(await runCheck('integration',['--test',leaves[i].probe.targetPath,'tests/goriq-material-intake.test.ts'],workspace));
+  const pkg=JSON.parse(await readFile(join(workspace,'package.json'),'utf8')),security=pkg.scripts['test:p8-security'].split(' ').slice(2);
+  checks.push(await runCheck('security',['--test','--test-concurrency=2',...security],workspace));
+  checks.push(await runCheck('build',[ts,...compiler,'--rewriteRelativeImportExtensions','--outDir',join(root,'build-'+i+'-'+attempt),source],workspace));
+  const payload={version:1,verifierId:'isolated-real-checks-fixture-signer',goalId,jobId:job.jobId,changeSetId:change.changeSetId,builderId:change.deviceId,baseRevision:change.baseRevision,sourceRevision:change.candidateRevision,artifactDigest:change.artifactDigest,issuedAt:new Date().toISOString(),expiresAt:new Date(Date.now()+600000).toISOString(),checks};
+  await writeFile(layout.receiptFile,JSON.stringify({payload,signatureBase64:sign(null,Buffer.from(canonicalLocalVerifierPayload(payload)),fixtureKey).toString('base64')}),{flag:'wx'});
+  evidence.artifacts.push({jobId:job.jobId,changeSetId:change.changeSetId,sourceRevision:change.candidateRevision,artifactDigest:change.artifactDigest,workspace,patch:(await exec('git',['diff','--',source,map],{cwd:workspace,windowsHide:true,maxBuffer:2000000})).stdout});
+  console.log(JSON.stringify({stage:'receipt-published',jobId:job.jobId,attempt,passed:checks.every(c=>c.status==='passed')}));
+  if(checks.every(c=>c.status==='passed'))break;
+  if(attempt===1){await wait('recovery rejection consumed',async()=>{const j=(await jobs.getByGoal(goalId)).find(j=>j.jobId===job.jobId);return j.attempts.length===2;},20000);throw Error('Real scoped verification failed after bounded recovery; no PASS fabricated');}
+  }
+ }
+ await wait('Goal complete',async()=>{const db=new CompassStore(compassPath);try{return(await new CompassWorkRunStore(db).getByGoal(goalId))?.phase==='COMPLETED';}finally{db.close();}},30000);
+ evidence.status='PASS';evidence.jobs=await jobs.getByGoal(goalId);evidence.finishedAt=new Date().toISOString();
+}catch(error){evidence.status='FAIL';evidence.error=String(error);evidence.diagnostics=diagnostics;evidence.jobs=await jobs.getByGoal(goalId);console.error(String(error));process.exitCode=1;}
+finally{await stop();await writeFile(join(root,'result.json'),JSON.stringify(evidence,null,2)+'\n',{flag:'wx'});console.log(JSON.stringify({root,status:evidence.status}));}

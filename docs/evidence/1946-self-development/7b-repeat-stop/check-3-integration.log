@@ -1,0 +1,40 @@
+✔ owner material intake executes and downloads verified text without a step manifest or external AI (464.2935ms)
+✔ material intake rejects stale Goal, scope injection, missing acknowledgement and conflicting retries (147.3359ms)
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: The input did not match the regular expression /maxCycles/. Input:
+
+'Error: Compass goal is not set'
+
+    at async file:///C:/Users/qq113/AppData/Local/Temp/goriq-selfdev1946-vwvTQk/candidate-0/tests/self-development-1946-0.test.mjs:11:1 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: Error: Compass goal is not set
+      at CompassGoalExecutionAdapter.run (file:///C:/Users/qq113/AppData/Local/Temp/goriq-selfdev1946-vwvTQk/candidate-0/src/orchestrator/compass-goal-execution-adapter.ts:255:26)
+      at async CognitiveService.continue (file:///C:/Users/qq113/AppData/Local/Temp/goriq-selfdev1946-vwvTQk/candidate-0/src/gai/cognitive-service.ts:84:22)
+      at async waitForActual (node:assert:646:5)
+      at async strict.rejects (node:assert:769:25)
+      at async file:///C:/Users/qq113/AppData/Local/Temp/goriq-selfdev1946-vwvTQk/candidate-0/tests/self-development-1946-0.test.mjs:11:1,
+  expected: /maxCycles/,
+  operator: 'rejects',
+  diff: 'simple'
+}
+
+Node.js v24.19.0
+✖ tests\self-development-1946-0.test.mjs (275.392ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 2
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 866.0368
+
+✖ failing tests:
+
+test at tests\self-development-1946-0.test.mjs:1:1
+✖ tests\self-development-1946-0.test.mjs (275.392ms)
+  'test failed'

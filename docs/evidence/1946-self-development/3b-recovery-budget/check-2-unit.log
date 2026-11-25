@@ -1,0 +1,115 @@
+✖ host allocation records actual spreadsheet and document oracle measurements as heldout (328.2328ms)
+✖ desired artifacts generate steps, verify material lineage and resume through the real Core without a prewritten plan (282.2926ms)
+✔ material changed after observation cannot earn output criteria or silently replace the expected source (244.9726ms)
+✔ an occupied output is preserved and the actual Goal remains incomplete (246.9106ms)
+✔ legacy steps and outcome contracts cannot simultaneously select different authority (29.8264ms)
+✖ a completed Goal cannot lend its PASS to a changed output contract or data root (383.3135ms)
+✔ first contract binding cannot inherit WorkState evidence from a different execution path (151.3537ms)
+✖ one criterion shared by two deliverables still requires both independently verified outputs (335.2664ms)
+✖ actual Compass factory completes local artifact through Core, persistence, verifier and learning without external AI (225.9362ms)
+✔ host catalog rejects escaping paths, secrets, invalid Goal criteria and model-defined tools (1.1876ms)
+✔ shared execution lease fails visibly and never overwrites a foreign result (61.4331ms)
+✔ learning outage commits WorkState then replays the exact outbox without repeating the file action (221.456ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 7
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2274.4925
+
+✖ failing tests:
+
+test at tests\goriq-cognitive-outcome-runtime.test.ts:41:1
+✖ host allocation records actual spreadsheet and document oracle measurements as heldout (328.2328ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///C:/Users/qq113/AppData/Local/Temp/goriq-selfdev1946-lPZqG1/candidate-0/tests/goriq-cognitive-outcome-runtime.test.ts:47:12)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\goriq-cognitive-outcome-runtime.test.ts:58:1
+✖ desired artifacts generate steps, verify material lineage and resume through the real Core without a prewritten plan (282.2926ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'cycle_budget_exhausted'
+  - 'goal_complete'
+  
+      at TestContext.<anonymous> (file:///C:/Users/qq113/AppData/Local/Temp/goriq-selfdev1946-lPZqG1/candidate-0/tests/goriq-cognitive-outcome-runtime.test.ts:67:12)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'cycle_budget_exhausted',
+    expected: 'goal_complete',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\goriq-cognitive-outcome-runtime.test.ts:113:1
+✖ a completed Goal cannot lend its PASS to a changed output contract or data root (383.3135ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'cycle_budget_exhausted'
+  - 'goal_complete'
+  
+      at TestContext.<anonymous> (file:///C:/Users/qq113/AppData/Local/Temp/goriq-selfdev1946-lPZqG1/candidate-0/tests/goriq-cognitive-outcome-runtime.test.ts:128:12)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'cycle_budget_exhausted',
+    expected: 'goal_complete',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\goriq-cognitive-outcome-runtime.test.ts:148:1
+✖ one criterion shared by two deliverables still requires both independently verified outputs (335.2664ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'cycle_budget_exhausted'
+  - 'goal_complete'
+  
+      at TestContext.<anonymous> (file:///C:/Users/qq113/AppData/Local/Temp/goriq-selfdev1946-lPZqG1/candidate-0/tests/goriq-cognitive-outcome-runtime.test.ts:160:12)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'cycle_budget_exhausted',
+    expected: 'goal_complete',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\goriq-cognitive-runtime.test.ts:13:1
+✖ actual Compass factory completes local artifact through Core, persistence, verifier and learning without external AI (225.9362ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'cycle_budget_exhausted'
+  - 'goal_complete'
+  
+      at TestContext.<anonymous> (file:///C:/Users/qq113/AppData/Local/Temp/goriq-selfdev1946-lPZqG1/candidate-0/tests/goriq-cognitive-runtime.test.ts:27:12)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'cycle_budget_exhausted',
+    expected: 'goal_complete',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

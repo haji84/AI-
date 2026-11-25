@@ -1075,7 +1075,7 @@
     },
     {
       "path": "scripts/jarvis-goal-executor.ts",
-      "sha256": "04d7f26e0d93394693dce8662c2d71ccc1dc843f07bb9ac9df94ae6c6b27e703",
+      "sha256": "92cc50c67498e1f8446c78f61f8c0645d0436333df3a604f1762f25bded0ee13",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "AUTO-001",
@@ -3129,7 +3129,7 @@
     },
     {
       "path": "src/gai/cognitive-service.ts",
-      "sha256": "a00885305a91729d5c0c4806852da9d2fd78a87e6002a38fea5c645e4b27a21f",
+      "sha256": "d84d84df52d578db5dbf765652ddfb2991e50def14d31c8469ab131b70040b2b",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OWN-001"
@@ -6602,7 +6602,7 @@
     },
     {
       "path": "src/orchestrator/resident-receipt-wakes.ts",
-      "sha256": "57d9cf81191154e3ac14a3e0d06211d54cb84c87a292d155e92d62d7549fdae5",
+      "sha256": "43a3e538dedacfe1533a56d79796b343b0df6a578aa02fce68475b8f25735eb0",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -6695,7 +6695,7 @@
     },
     {
       "path": "src/orchestrator/tracked-repair-resident-runtime.ts",
-      "sha256": "519e41799e26ca5409b0a4f09ab724fcf992deaf29ad45a0ea3a0a3a434407c3",
+      "sha256": "693a1478f7ef0cadc74bb4a171c0179475a255096c16d32b8e5bdd812b82e0ba",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -6719,7 +6719,7 @@
     },
     {
       "path": "src/orchestrator/approved-next-work.ts",
-      "sha256": "51f45e0c87d817dd96a6da2b2d71d856301fcde45b76e4e424606b6621c2fc56",
+      "sha256": "f6d36e8d9ca8ca031e021ba6c947001ca3954ca810be039413fd25867401c5f0",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
@@ -6807,6 +6807,18 @@
         "OWN-001"
       ],
       "reason": "Issue #1219: inject one existing Resident execution authority with canonical stops, bounded continuation, authenticated progress and fenced persistence. Source fixtures do not establish recovered original state, production activation or actual Actions/model acceptance."
+    },
+    {
+      "path": "src/orchestrator/tracked-repair-sequence.ts",
+      "sha256": "3a51e1c6f2c2f073a1fed242c92dab4a563b617859fba20dc68b4c529cd78275",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-001",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "Host-pinned composition reuses the existing real source repair stages, signed verification and same-Goal Job sequence; scoped implementation binding only, not full autonomous completion."
     }
   ],
   "hash_policy": "utf8-crlf-to-lf-v1;binary-raw"
