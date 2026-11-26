@@ -15,6 +15,8 @@ After installation, use normal Codex **Review hooks / Allow selected** or CLI `/
 
 Hook behavior is opt-in: a recognized development request binds its current session to existing canonical state or a source-hashed read-only projection. Ordinary questions, pause/cancel, approval/resource stops and interrupts allow stopping. No raw prompt, assistant text or transcript is audited. Source/task/evidence hashes, event timestamps and reason codes are local metadata. See `state-contract.md`. This does not prove semantic correctness or enforce total token spending: native account limits, project gates and actual verifier evidence remain required.
 
+Hook JSON input is bounded to one MiB of UTF-8. Malformed, incomplete or over-budget input stops that native request instead of proceeding with unconfirmed owner control. An ordinary user prompt also stops if its disarm signal cannot be persisted. Successfully persisted controls remain effective under lock contention; Interrupt cannot prevent native interruption. Unparseable input has no trustworthy session identity, so it does not invent or modify a binding. The next valid ordinary prompt disarms any earlier binding.
+
 The install command prints a private backup path. Review differences locally, without uploading that backup or credentials. Exact restoration:
 
 ```text

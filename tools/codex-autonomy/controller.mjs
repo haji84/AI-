@@ -8,11 +8,13 @@ const EVENTS = new Set(['SessionStart', 'UserPromptSubmit', 'SubagentStart', 'Su
 const STATUSES = new Set(['active', 'paused', 'cancelled', 'awaiting_approval', 'resource_limited', 'blocked', 'complete']);
 const TASK_STATUSES = new Set(['pending', 'running', 'verified', 'failed', 'blocked']);
 const HASH = /^[a-f0-9]{64}$/i, TOKEN = /^[a-f0-9-]{36}$/;
+const INPUT_LIMIT_BYTES = 1024 * 1024; // One MiB of UTF-8 hook JSON; larger or incomplete requests must stop safely.
 const hash = value => createHash('sha256').update(value).digest('hex');
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const text = (value, max = 200) => typeof value === 'string' && value.length > 0 && value.length <= max;
 const fail = code => { throw Object.assign(new Error(code), { policyCode: code }); };
 const warning = code => ({ systemMessage: `Autonomy warning: ${code}. Stop is allowed; inspect the bound state or explicitly resume after resolving the cause.` });
+const stopRequest = code => ({ continue: false, stopReason: `Autonomy stopped this request: ${code}. Input or owner control could not be confirmed; resolve the cause before explicitly resuming.` });
 const codeOf = error => error.policyCode || 'RUNTIME_ERROR';
 const same = (a, b) => process.platform === 'win32' ? a.toLowerCase() === b.toLowerCase() : a === b;
 const homePath = home => path.resolve(home || process.env.CODEX_HOME || path.join(os.homedir(), '.codex'));
@@ -247,10 +249,13 @@ function stop(input, bound, runs, now) {
 }
 
 export function handleEvent(input, { home, now = Date.now() } = {}) {
+  let valid = false, controlRecorded = false;
   try {
     if (!object(input) || !EVENTS.has(input.hook_event_name) || !text(input.session_id) || !text(input.cwd, 4096) || !path.isAbsolute(input.cwd) || !Number.isFinite(now) || now < 0) fail('INPUT_INVALID');
+    valid = true;
     const directories = runtimeDirs(homePath(home));
     const control = ['Interrupt', 'UserPromptSubmit'].includes(input.hook_event_name) ? recordControl(directories, input, now) : null;
+    controlRecorded = Boolean(control);
     return runtime(homePath(home), runs => {
       const bound = binding(runs, input.session_id); applyControls(runs, input.session_id, bound);
       let output = {}, code = input.hook_event_name.toUpperCase(), stateHash, details = {};
@@ -274,7 +279,10 @@ export function handleEvent(input, { home, now = Date.now() } = {}) {
       if (output.decision === 'block') { applyControls(runs, input.session_id, bound); if (!bound.active || bound.interrupted) { output = {}; code = 'CONTROL_DISARMED'; } }
       audit(runs, input, now, code, stateHash, details); return output;
     });
-  } catch (error) { return warning(codeOf(error)); }
+  } catch (error) {
+    const stop = (!valid && input?.hook_event_name !== 'Interrupt') || (valid && input.hook_event_name === 'UserPromptSubmit' && !controlRecorded);
+    return stop ? stopRequest(codeOf(error)) : warning(codeOf(error));
+  }
 }
 function bind(args, home, now) {
   if (args.length !== 6) fail('INPUT_INVALID'); const options = {};
@@ -302,12 +310,12 @@ async function stdin() {
     const timer = setTimeout(() => { process.stdin.destroy(); reject(Object.assign(new Error(), { policyCode: 'INPUT_TIMEOUT' })); }, 1500);
     process.stdin.on('data', chunk => {
       size += chunk.length;
-      if (size > 65536) { clearTimeout(timer); process.stdin.destroy(); reject(Object.assign(new Error(), { policyCode: 'INPUT_TOO_LARGE' })); }
+      if (size > INPUT_LIMIT_BYTES) { clearTimeout(timer); process.stdin.destroy(); reject(Object.assign(new Error(), { policyCode: 'INPUT_TOO_LARGE' })); }
       else chunks.push(chunk);
     });
     process.stdin.on('end', () => { clearTimeout(timer); try { resolve(JSON.parse(Buffer.concat(chunks))); } catch { reject(Object.assign(new Error(), { policyCode: 'INPUT_INVALID' })); } });
     process.stdin.on('error', error => { clearTimeout(timer); reject(error); });
-  });
+  }).catch(error => { throw Object.assign(error, { inputFailure: true }); });
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
   let output;
@@ -319,6 +327,6 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
       if (args.length && hash(readBounded(fileURLToPath(import.meta.url), 131072)) !== args[1].toLowerCase()) fail('REVISION_MISMATCH');
       output = handleEvent(await stdin());
     }
-  } catch (error) { output = warning(codeOf(error)); if (process.argv[2] === 'bind') process.exitCode = 1; }
+  } catch (error) { output = error.inputFailure ? stopRequest(codeOf(error)) : warning(codeOf(error)); if (process.argv[2] === 'bind') process.exitCode = 1; }
   process.stdout.write(JSON.stringify(output) + '\n');
 }

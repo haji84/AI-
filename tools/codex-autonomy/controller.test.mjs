@@ -55,11 +55,13 @@ function fixture(t, extra = {}) {
 function blocked(output) { assert.equal(output.decision, 'block', JSON.stringify(output)); assert.ok(output.reason); }
 function allowed(output) { assert.notEqual(output.decision, 'block', JSON.stringify(output)); }
 function warning(output, code) { allowed(output); assert.match(output.systemMessage || '', new RegExp(code)); }
-function launch(args, env, input) {
+function halted(output, code) { allowed(output); assert.equal(output.continue, false); assert.match(output.stopReason || '', new RegExp(code)); }
+function launch(args, env, input, { keepOpen = false } = {}) {
   const child = spawn(process.execPath, args, { env: { ...process.env, ...env }, stdio: ['pipe', 'pipe', 'pipe'] });
   let stdout = '', stderr = ''; child.stdout.on('data', value => { stdout += value; }); child.stderr.on('data', value => { stderr += value; });
   const result = new Promise((resolve, reject) => { child.on('error', reject); child.on('exit', code => resolve({ code, stdout, stderr })); });
-  child.stdin.end(input); return { child, result };
+  if (keepOpen) { if (input !== undefined) child.stdin.write(input); } else child.stdin.end(input);
+  return { child, result };
 }
 async function until(predicate, timeout = 1500) {
   const deadline = Date.now() + timeout;
@@ -100,7 +102,7 @@ test('only one exact pending continuation survives UserPromptSubmit', t => {
 for (const event of ['Interrupt', 'UserPromptSubmit']) test(`${event} remains latched when the shared lock is busy`, t => {
   const f = fixture(t); f.bind();
   const lock = path.join(f.home, 'autonomy', 'runs', '.lock'); fs.mkdirSync(lock);
-  try { warning(f.event(event, { prompt: 'An ordinary owner question' }), 'CONTROLLER_BUSY'); }
+  try { const output = f.event(event, { prompt: 'An ordinary owner question' }); warning(output, 'CONTROLLER_BUSY'); assert.notEqual(output.continue, false); }
   finally { fs.rmdirSync(lock); }
   allowed(f.event('Stop'));
   f.bind(); blocked(f.event('Stop'));
@@ -109,7 +111,7 @@ for (const event of ['Interrupt', 'UserPromptSubmit']) test(`${event} remains la
 test('an exact own continuation remains valid if its prompt handler encounters the busy lock', t => {
   const f = fixture(t); f.bind(); const first = f.event('Stop'); blocked(first);
   const lock = path.join(f.home, 'autonomy', 'runs', '.lock'); fs.mkdirSync(lock);
-  try { warning(f.event('UserPromptSubmit', { prompt: first.reason }), 'CONTROLLER_BUSY'); }
+  try { const output = f.event('UserPromptSubmit', { prompt: first.reason }); warning(output, 'CONTROLLER_BUSY'); assert.notEqual(output.continue, false); }
   finally { fs.rmdirSync(lock); }
   blocked(f.event('Stop'));
 });
@@ -126,7 +128,7 @@ test('a partially written control signal cannot prevent a later Interrupt from b
 test('a transient binding read failure cannot prevent an ordinary owner prompt from being latched', t => {
   const f = fixture(t); f.bind();
   const file = path.join(f.home, 'autonomy', 'runs', 'bindings', `${digest('session-1')}.json`), before = fs.readFileSync(file);
-  fs.writeFileSync(file, '{'); allowed(f.event('UserPromptSubmit', { prompt: 'A new ordinary question' }));
+  fs.writeFileSync(file, '{'); const output = f.event('UserPromptSubmit', { prompt: 'A new ordinary question' }); allowed(output); assert.notEqual(output.continue, false);
   fs.writeFileSync(file, before);
   allowed(f.event('Stop'));
 });
@@ -331,17 +333,60 @@ test('malformed state shapes and duplicate task ids cannot arm the controller', 
   }
 });
 
-test('CLI accepts bounded JSON on stdin and malformed or excessive input always exits cleanly', t => {
+test('CLI accepts bounded JSON and stops requests with malformed, invalid, or excessive input', t => {
   const f = fixture(t); f.bind();
-  for (const input of ['{', ' '.repeat(65537)]) {
+  for (const input of ['{', 'null', '[]', '{}', ' '.repeat(1048577)]) {
     const result = spawnSync(process.execPath, [controller], { input, encoding: 'utf8', timeout: 5000,
       env: { ...process.env, CODEX_HOME: f.home } });
-    assert.equal(result.status, 0, result.stderr); warning(JSON.parse(result.stdout), 'INPUT_');
+    assert.equal(result.status, 0, result.stderr); halted(JSON.parse(result.stdout), 'INPUT_');
   }
   const result = spawnSync(process.execPath, [controller], { input: JSON.stringify({ hook_event_name: 'Stop',
     session_id: 'session-1', cwd: f.cwd }), encoding: 'utf8', timeout: 5000,
     env: { ...process.env, CODEX_HOME: f.home } });
   assert.equal(result.status, 0, result.stderr); blocked(JSON.parse(result.stdout));
+});
+
+test('substantial ordinary questions within the one MiB input budget disarm the previously active goal through the real CLI', t => {
+  const f = fixture(t);
+  for (const prompt of ['Question: ' + 'x'.repeat(100000), '質問: ' + 'あ'.repeat(250000)]) {
+    f.bind();
+    const input = JSON.stringify({ hook_event_name: 'UserPromptSubmit', session_id: 'session-1', cwd: f.cwd, prompt });
+    assert.ok(Buffer.byteLength(input) > 65536 && Buffer.byteLength(input) < 1048576);
+    const submitted = spawnSync(process.execPath, [controller], { input, encoding: 'utf8', timeout: 5000,
+      env: { ...process.env, CODEX_HOME: f.home } });
+    const stopped = spawnSync(process.execPath, [controller], { input: JSON.stringify({ hook_event_name: 'Stop', session_id: 'session-1', cwd: f.cwd }),
+      encoding: 'utf8', timeout: 5000, env: { ...process.env, CODEX_HOME: f.home } });
+    assert.equal(stopped.status, 0, stopped.stderr); allowed(JSON.parse(stopped.stdout));
+    assert.equal(submitted.status, 0, submitted.stderr); assert.deepEqual(JSON.parse(submitted.stdout), {});
+  }
+});
+
+test('a valid owner prompt exceeding the bounded input budget stops that native request', t => {
+  const f = fixture(t); f.bind();
+  const result = spawnSync(process.execPath, [controller], { input: JSON.stringify({ hook_event_name: 'UserPromptSubmit',
+    session_id: 'session-1', cwd: f.cwd, prompt: 'x'.repeat(1048576) }), encoding: 'utf8', timeout: 5000,
+    env: { ...process.env, CODEX_HOME: f.home } });
+  assert.equal(result.status, 0, result.stderr); halted(JSON.parse(result.stdout), 'INPUT_TOO_LARGE');
+});
+
+test('incomplete stdin times out with a native request stop instead of proceeding with a stale binding', async t => {
+  const f = fixture(t); f.bind();
+  const pending = launch([controller], { CODEX_HOME: f.home }, '{"hook_event_name":"UserPromptSubmit"', { keepOpen: true });
+  t.after(() => pending.child.kill());
+  const result = await pending.result;
+  assert.equal(result.code, 0, result.stderr); halted(JSON.parse(result.stdout), 'INPUT_TIMEOUT');
+});
+
+test('unrecordable ordinary prompts halt their request while valid Interrupt and Stop failures remain nonblocking', t => {
+  const f = fixture(t); f.bind();
+  const directory = path.join(f.home, 'autonomy', 'runs', 'controls', digest('session-1'));
+  fs.writeFileSync(directory, 'invalid control directory');
+  halted(f.event('UserPromptSubmit', { prompt: 'A new ordinary question' }), 'UNSAFE_PATH');
+  const result = spawnSync(process.execPath, [controller], { input: JSON.stringify({ hook_event_name: 'UserPromptSubmit',
+    session_id: 'session-1', cwd: f.cwd, prompt: 'Another ordinary question' }), encoding: 'utf8', timeout: 5000,
+    env: { ...process.env, CODEX_HOME: f.home } });
+  assert.equal(result.status, 0, result.stderr); halted(JSON.parse(result.stdout), 'UNSAFE_PATH');
+  for (const event of ['Interrupt', 'Stop']) { const output = f.event(event); warning(output, 'UNSAFE_PATH'); assert.notEqual(output.continue, false); }
 });
 
 test('hook revision mismatch allows Stop before running policy or consuming goal resources', t => {
