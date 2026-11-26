@@ -1,0 +1,38 @@
+{
+  "scope": "read-only resolution; no canonical state/Goal mutation",
+  "result": {
+    "kind": "EXISTING_GOAL",
+    "intent": "DEVELOPMENT_TASK",
+    "intake": {
+      "id": "intake-1ef6de810034a698e57e",
+      "source": "codex",
+      "text": "GORIQが自分を完成まで持って行けるように自立開発して。GitHubの現行Goalと最新指示を必ず確認して進める。",
+      "sourceContext": {
+        "issue": 1948,
+        "githubGoal": "https://github.com/haji84/AI-/issues/1944#issuecomment-7170101968",
+        "ownerClarification": "https://github.com/haji84/AI-/issues/1944#issuecomment-7188751595"
+      },
+      "idempotencyKey": "7e60b2c1fa248fd2093d",
+      "goalHint": "goal-12a4b6561adc308b"
+    },
+    "goal": {
+      "goal": {
+        "title": "haji84/AI- #681 JARVIS Product Completion",
+        "description": "Owner-directed P0–P10 program. Requirement Ledger is product requirement authority; PROJECT_STATE.md remains repository governance authority. Replaces stale Compass smoke-test goal; historical records retained.",
+        "successCriteria": [
+          "Every specified requirement occurs exactly once in docs/JARVIS_PRODUCT_SPEC.md and docs/jarvis-requirements.json",
+          "All requirements VERIFIED with required evidence or proven PLATFORM_LIMITED with implemented safe fallback and UI capability",
+          "Physical cellular, reboot, recovery, takeover, offline and multi-device acceptance observed; terminal-free routine operation"
+        ],
+        "constraints": [
+          "No paid model API, public ingress/Funnel, secret disclosure, Human Gate weakening or fake physical PASS",
+          "Issue #321 R1–R20 stays separate; no AGI claim",
+          "Maximum 3 automatic fix attempts per issue"
+        ]
+      },
+      "goalId": "goal-12a4b6561adc308b",
+      "workState": null
+    },
+    "reason": "explicit_goal_hint"
+  }
+}

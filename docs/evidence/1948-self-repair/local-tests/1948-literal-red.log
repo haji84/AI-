@@ -1,0 +1,31 @@
+✖ tracked model source replacement preserves literal dollar sequences (9860.2881ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9946.2503
+
+✖ failing tests:
+
+test at tests\tracked-repair-literal-edits.test.mjs:4:1
+✖ tracked model source replacement preserves literal dollar sequences (9860.2881ms)
+  AssertionError [ERR_ASSERTION]: Literal source edit values must retain dollar sequences exactly
+  + actual - expected
+  
+  + 'export const answer = "literal 0 $ export const answer =  ;\n";\n'
+  - 'export const answer = "literal $& $$ $` $\'";\n'
+  
+      at assertLiteralTrackedRepair (file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/tests/helpers/tracked-repair-literal-probe.mjs:38:12)
+      at async TestContext.<anonymous> (file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/tests/tracked-repair-literal-edits.test.mjs:5:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'export const answer = "literal 0 $ export const answer =  ;\n";\n',
+    expected: 'export const answer = "literal $& $$ $` $\'";\n',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -59,6 +59,13 @@ test('legacy checkpoint refuses recovery profiles whose rejected history it cann
   assert.throws(()=>validateCheckpoint(cp),/TRACKED_ACTIONS_RECOVERY_TRANSPORT_REQUIRED/);
 });
 
+test('legacy checkpoint refuses focused profiles without a supported prompt-context transport',()=>{
+  const cp=fixture(),m=manifest(cp);
+  m.promptContext={version:1,paddingLines:2};replaceManifest(cp,m);
+  assert.throws(()=>validateCheckpoint(cp),/TRACKED_ACTIONS_PROMPT_CONTEXT_TRANSPORT_REQUIRED/);
+  assert.throws(()=>encodeCheckpoint(cp),/TRACKED_ACTIONS_PROMPT_CONTEXT_TRANSPORT_REQUIRED/);
+});
+
 test('legacy checkpoint refuses Ollama profiles whose model observations it cannot preserve',()=>{
   const cp=fixture(),m=manifest(cp);
   m.model.provider='ollama';m.model.endpoint='http://127.0.0.1:11434/api/generate';replaceManifest(cp,m);

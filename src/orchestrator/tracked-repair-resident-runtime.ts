@@ -19,6 +19,7 @@ import { assertExternalRuntimePath, readBoundedRuntimeFile } from "./resident-ru
 import { validateSignedLocalVerifierReceipt } from "./signed-local-verifier-receipt.ts";
 import { withDevelopmentResourceAdmission } from "../gai/development-resource-admission.ts";
 import { isDeepStrictEqual } from "node:util";
+import { renderTrackedRepairSources, validateTrackedRepairPromptContext, type TrackedRepairPromptContext } from "./tracked-repair-prompt-context.ts";
 
 const hash=(bytes:string|Buffer)=>createHash("sha256").update(bytes).digest("hex");
 const digest=(v:unknown):v is string=>typeof v==="string"&&/^[a-f0-9]{64}$/.test(v);
@@ -40,6 +41,8 @@ export interface TrackedRepairManifest {
   verifier:{publicKeyFile:string;publicKeySha256:string;receiptFile:string};
   /** Explicitly provisioned capacity; never reuse or reset a rejected worktree. */
   recoveryAttempts?:Array<{workspace:string;receiptFile:string}>;
+  /** Optional bounded excerpts. Omission retains the original complete-source prompt. */
+  promptContext?:TrackedRepairPromptContext;
 }
 interface Attestation {candidateRevision:string;artifactDigest:string;patchDigest:string;fileHashes:Record<string,string>}
 interface ModelObservation {stage:"installed-before"|"loaded-after"|"installed-after";modelId:string;modelSha256:string}
@@ -81,9 +84,10 @@ export function readTrackedRepairManifest(env:Record<string,string|undefined>,go
   if(hash(bytes)!==pin)throw Error("TRACKED_REPAIR_MANIFEST_PIN_MISMATCH");
   const value:unknown=JSON.parse(bytes.toString("utf8"));
   if(!value||typeof value!=="object"||Array.isArray(value)
-    ||Object.keys(value).filter(key=>key!=="bookkeeping"&&key!=="recoveryAttempts").sort().join(",")!=="baselineWorkspace,model,probe,profile,sequence,slots,targetPath,trackedFiles,verifier,version,workspace"
+    ||Object.keys(value).filter(key=>key!=="bookkeeping"&&key!=="recoveryAttempts"&&key!=="promptContext").sort().join(",")!=="baselineWorkspace,model,probe,profile,sequence,slots,targetPath,trackedFiles,verifier,version,workspace"
     ||("version" in value&&value.version!==1)||!("profile" in value)||value.profile!=="tracked-source-repair-v1")throw Error("TRACKED_REPAIR_MANIFEST_INVALID");
   const m=value as unknown as TrackedRepairManifest;
+  validateTrackedRepairPromptContext(m.promptContext);
   if(!m.sequence||m.sequence.jobs?.length!==1||m.sequence.completionMode!=="verified-local-artifact"||m.sequence.maxRisk!=="low"
     ||!Number.isFinite(Date.parse(m.sequence.expiresAt))||Date.parse(m.sequence.expiresAt)<=Date.now()
     ||!isAbsolute(m.workspace??"")||!isAbsolute(m.baselineWorkspace??"")||contains(m.workspace,m.baselineWorkspace)||contains(m.baselineWorkspace,m.workspace)
@@ -263,7 +267,7 @@ export function createTrackedRepairRuntimeOptions(input:TrackedRepairRuntimeInpu
       previousFiles=old.prepared.files.filter(f=>f.path!==bookkeepingPath);
     }
     return {digest:hash(JSON.stringify(history)),previousFiles,prompt:history.length?"\nPreviously independently rejected attempts (check names and saved diagnosis; raw check output is not supplied):\n"+
-      JSON.stringify(history)+"\nThe SOURCE context is the previous rejected candidate. Edits still replace the original baseline SLOT text shown above. "+
+      JSON.stringify(history)+(m.promptContext?"\nSOURCE contains baseline excerpts; REJECTED SOURCE shows changed boundaries of the previous rejected candidate, with intervening lines possibly omitted. ":"\nThe SOURCE context is the previous rejected candidate. ")+"Edits still replace the original baseline SLOT text shown above. "+
       "\nUse the frozen regression and diagnosis to produce a different repair. Do not repeat rejected source bytes.\n":""};
   };
   const assertPreparedWorkspace=(workspace:string,prepared:ReturnType<typeof loadPrepared>)=>{
@@ -303,11 +307,13 @@ export function createTrackedRepairRuntimeOptions(input:TrackedRepairRuntimeInpu
           const item=job.workItems.find(item=>item.id===workItemId);
           if(!item)throw Error("TRACKED_REPAIR_WORK_ITEM_UNKNOWN");
           // Reuse unchanged context once, even when a real source file nearly fills the prompt budget.
-          const prompt=files.map(f=>"SOURCE "+f.path+"\n"+(recovery.previousFiles.find(previous=>previous.path===f.path)?.content??f.content)).join("\n")+"\n"+
-            m.slots.map(slot=>"SLOT "+slot.id+" in "+slot.path+"; exact selected before text:\n"+slot.before).join("\n")+
-            "\nThe trusted frozen regression failed on the original baseline. Objective: "+item.objective+"\n"+
-            recovery.prompt+
-            "\nFrozen regression (read-only):\n"+probe.toString("utf8")+"\n"+
+          const sourceContext=renderTrackedRepairSources(files,m.slots,m.promptContext,recovery.previousFiles)+"\n"+
+            m.slots.map(slot=>"SLOT "+slot.id+" in "+slot.path+"; exact selected before text:\n"+slot.before).join("\n");
+          const objective="\nThe trusted frozen regression failed on the original baseline. Objective: "+item.objective+"\n";
+          const regression="\nFrozen regression (read-only):\n"+probe.toString("utf8")+"\n";
+          // Keep the actual source/slot nearest the response for focused profiles; fixtures are evidence, never edit targets.
+          const prompt=(m.promptContext?regression+"\nRegression fixtures above are read-only examples, not the source to replace. Repair ONLY the following SOURCE/SLOT.\n"+
+            recovery.prompt+sourceContext+objective:sourceContext+objective+recovery.prompt+regression)+
             "Return ONLY JSON {\"edits\":[{\"slot\":1,\"after\":\"replacement text\"}]}. "+
             "Slots identify exact before strings; use each selected slot once. Each after value must be the complete replacement of its selected before text, including declarations and syntax. "+
             "No paths/commands/permissions/tests may be added. Preserve unselected source.";
@@ -363,7 +369,7 @@ export function createTrackedRepairRuntimeOptions(input:TrackedRepairRuntimeInpu
           for(const edit of answer.edits){
             if(!exact(edit,"after,slot")||typeof edit.after!=="string"||!edit.after.length||edit.after.length>16000||typeof edit.slot!=="number"||seen.has(edit.slot))throw Error("TRACKED_REPAIR_EDIT_SCHEMA_INVALID");
             const slot=m.slots.find(s=>s.id===edit.slot);if(!slot)throw Error("TRACKED_REPAIR_EDIT_SCOPE_INVALID");seen.add(edit.slot);
-            const old=content.get(slot.path)!;if(old.split(slot.before).length!==2)throw Error("TRACKED_REPAIR_SLOT_NOT_UNIQUE");content.set(slot.path,old.replace(slot.before,edit.after));
+            const old=content.get(slot.path)!,replacement=edit.after;if(old.split(slot.before).length!==2)throw Error("TRACKED_REPAIR_SLOT_NOT_UNIQUE");content.set(slot.path,old.replace(slot.before,()=>replacement));
           }
           const changed=[...content].filter(([path,value])=>hash(value)!==m.trackedFiles.find(p=>p.path===path)!.beforeSha256).map(([path,content])=>({path,content}));
           if(!changed.some(f=>f.path===m.targetPath))throw Error("TRACKED_REPAIR_NO_TARGET_CHANGE");

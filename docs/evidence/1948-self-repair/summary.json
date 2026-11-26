@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "scope": "Source repair support and exact failed/inconclusive model evidence; not product or physical completion",
+  "baselineMain": "8ca36986e759f2fe8b3257f07d36bf30afa05fb6",
+  "experimentBase": "7310f95e",
+  "productGoal": "https://github.com/haji84/AI-/issues/1944#issuecomment-7188751595",
+  "activeIssue": 1948,
+  "sourceFixActor": "Codex",
+  "realModelRepairPassed": false,
+  "fullyAutonomousResumeVerified": false,
+  "physicalAcceptanceVerified": false,
+  "attempts": [
+    {
+      "kind": "controlled source-context diagnostic",
+      "model": "qwen3:4b",
+      "outcome": "unchanged null-budget proposal; no adoption"
+    },
+    {
+      "kind": "actual tracked-runtime self-repair",
+      "model": "qwen2.5-coder:7b",
+      "outcome": "copied inner fixture output into runtime; syntax failure; first receipt also contains harness dependency failures"
+    },
+    {
+      "kind": "same-Goal/same-Job remaining recovery",
+      "model": "qwen2.5-coder:7b",
+      "outcome": "operator-assisted after context-bound source fix; request issued but wrapper deadline ended it before response archival; inconclusive, no re-inference allowed"
+    }
+  ],
+  "operatorAssistCount": 1,
+  "interruptionGuard": "PASS with zero model calls and both candidate hashes unchanged",
+  "harnessDefects": [
+    "Dependency path accidentally changed1946 to1948; corrected with an alias to the existing exact locked installation, no new install",
+    "Resume did not assert executionScheduled and its waiting budget started before the explicit isolated recovery; no repair success inferred from the incomplete intent"
+  ],
+  "next": "Continue #921 with a more reliable existing Builder capability and correct bounded harness; inspect #1819/current main/PR/CI before selecting work. Preserve all used attempts; no old Goal recovery."
+}

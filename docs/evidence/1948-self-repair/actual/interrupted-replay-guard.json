@@ -1,0 +1,10 @@
+{
+  "status": "PASS",
+  "scope": "Interruption/no-repeat guard only; NOT model repair completion",
+  "error": "Error: TRACKED_REPAIR_INFERENCE_INTERRUPTED_NO_RETRY",
+  "modelCalls": 0,
+  "sourceHashes": [
+    "6659757e6f3432d2e3505b6a693324fb76d71404dee85248a4b46d889b65838e",
+    "545f7cc52a330b740fab8b59cd7ac340956c647223f806e611b8e43719696e2c"
+  ]
+}

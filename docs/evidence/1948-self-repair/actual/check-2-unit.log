@@ -1,0 +1,37 @@
+✖ tracked model source replacement preserves literal dollar sequences (52.4565ms)
+✔ focused excerpts retain multiline/CRLF bytes, merge neighboring windows and keep distant selections (1.2786ms)
+✔ focused recovery shows actual inserted/deleted lines rather than reusing baseline line numbers (0.5412ms)
+✔ focused source without slots remains complete and ambiguous slots fail closed (0.595ms)
+✔ omitted context retains the complete previous source prompt byte for byte (0.1402ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 4
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 271.5772
+
+✖ failing tests:
+
+test at tests\tracked-repair-literal-edits.test.mjs:4:1
+✖ tracked model source replacement preserves literal dollar sequences (52.4565ms)
+  file:///C:/Users/qq113/AppData/Local/Temp/goriq-selfdev1948-4UOD83/candidate-0/src/orchestrator/tracked-repair-resident-runtime.ts:370
+              const slot=m.slots.find(s=>s.id===edit.slot);if(!slot)throw Error("TRACKED_REPAIR_EDIT_SCOPE_INVALID");seen.add(edit.slot);
+              const old=content.get(slot.path)!;if(old.split(slot.before).length!==2)throw Error("TRACKED_REPAIR_SLOT_NOT_UNIQUE");export const answer = "literal content.set(slot.path,old.replace(slot.before,edit.after)); $ import type { ResidentPersistence } from "./resident-execution-authority.ts";
+                                                                                                                                   ^^^^^^
+  import { createHash, createPublicKey } from "node:crypto";
+  
+  SyntaxError [ERR_INVALID_TYPESCRIPT_SYNTAX]: 'import', and 'export' cannot be used outside of module code
+      at parseTypeScript (node:internal/modules/typescript:72:36)
+      at processTypeScriptCode (node:internal/modules/typescript:146:42)
+      at stripTypeScriptModuleTypes (node:internal/modules/typescript:215:22)
+      at ModuleLoader.<anonymous> (node:internal/modules/esm/translators:680:29)
+      at #translate (node:internal/modules/esm/loader:434:20)
+      at afterLoad (node:internal/modules/esm/loader:502:29)
+      at ModuleLoader.loadAndTranslate (node:internal/modules/esm/loader:507:12)
+      at #getOrCreateModuleJobAfterResolve (node:internal/modules/esm/loader:560:36)
+      at afterResolve (node:internal/modules/esm/loader:607:52)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:613:12) {
+    code: 'ERR_INVALID_TYPESCRIPT_SYNTAX'
+  }

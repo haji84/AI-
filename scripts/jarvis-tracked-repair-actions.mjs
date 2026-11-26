@@ -39,6 +39,7 @@ export function validateCheckpoint(cp,{now=Date.now(),expectedHead,phase}={}){
  const m=json('manifest.json');
  legacyModelTransport(m);
  if(m.recoveryAttempts!==undefined)throw Error('TRACKED_ACTIONS_RECOVERY_TRANSPORT_REQUIRED');
+ if(m.promptContext!==undefined)throw Error('TRACKED_ACTIONS_PROMPT_CONTEXT_TRANSPORT_REQUIRED');
  if(hash(files.get('manifest.json'))!==cp.manifestSha256||m.version!==1||m.profile!=='tracked-source-repair-v1'||m.workspace!==FIXED_ROOT+'/candidate'||m.baselineWorkspace!==FIXED_ROOT+'/baseline'
   ||m.probe?.file!==FIXED_ROOT+'/frozen-probe.mjs'||m.verifier?.publicKeyFile!==FIXED_ROOT+'/public.pem'||m.verifier?.receiptFile!==FIXED_ROOT+'/receipt.json'
   ||!m.sequence||m.sequence.taskScopeId!=='issue:1219'||m.sequence.maxRisk!=='low'||m.sequence.completionMode!=='verified-local-artifact'||m.sequence.jobs?.length!==1
