@@ -212,6 +212,39 @@ test("tracked recovery supplies rejected source once so a real-size source stays
   assert.equal((await f.create({fetchImpl:f.repairFetch}).run(input)).goalEvaluation?.achieved,true);
 });
 
+test("host-pinned focused context repairs a large file and retains the rejected source across restart",async t=>{
+  const padding="/* unrelated context */\n".repeat(1800),f=recoveryFixture(t,false,padding),input={goalId:f.goalId,goal:f.goal,context:[]};
+  Object.assign(f.manifest,{promptContext:{version:1,paddingLines:2}});f.repin();
+  let runtime:ReturnType<typeof f.create>;
+  assert.doesNotThrow(()=>{runtime=f.create({fetchImpl:f.repairFetch});});
+  await runtime!.run(input);
+  assert.equal(readFileSync(join(f.workspace,"scripts/logic.mjs"),"utf8"),"export const answer = 41;\n"+padding);
+  await fixtureReceipt(f,f.manifest.verifier.receiptFile,true);
+  await f.create({fetchImpl:f.repairFetch}).run(input);
+  await f.create({fetchImpl:f.repairFetch}).run(input);
+  assert.equal(f.repairCalls(),2);
+  assert.ok(f.prompts.every(prompt=>Buffer.byteLength(prompt)<10000));
+  assert.match(f.prompts[0]!,/SOURCE scripts\/logic.mjs.*lines 1-3/);
+  assert.match(f.prompts[1]!,/REJECTED SOURCE scripts\/logic.mjs/);
+  assert.match(f.prompts[1]!,/export const answer = 41/);
+  assert.match(f.prompts[1]!,/original baseline SLOT/);
+  assert.equal(readFileSync(join(f.recoveryWorkspace,"scripts/logic.mjs"),"utf8"),"export const answer = 42;\n"+padding);
+  assert.equal(readFileSync(join(f.workspace,"scripts/logic.mjs"),"utf8"),"export const answer = 41;\n"+padding);
+  await fixtureReceipt(f,f.recoveryReceipt);
+  assert.equal((await f.create({fetchImpl:f.repairFetch}).run(input)).goalEvaluation?.achieved,true);
+  assert.equal(f.repairCalls(),2,"verified restart must not invoke the model again");
+});
+
+test("focused context rejects unsupported or unbounded host configuration before inference",t=>{
+  const f=fixture(t);
+  for(const value of [null,{},[],{version:2,paddingLines:2},{version:1,paddingLines:-1},{version:1,paddingLines:1.5},
+    {version:1,paddingLines:41},{version:1,paddingLines:2,command:"ignored"}]){
+    Object.assign(f.manifest,{promptContext:value});f.repin();
+    assert.throws(()=>f.create(),/TRACKED_REPAIR_PROMPT_CONTEXT_INVALID/);
+  }
+  assert.equal(f.counts().calls,0);
+});
+
 test("tracked repair recovery reads injected rejected history across reconstructed factories",async t=>{
   const f=recoveryFixture(t),persistence={jobs:new JsonFileDevelopmentJobStore(join(f.root,"shared/jobs.json")),
     changeSets:new JsonFileDevelopmentChangeSetStore(join(f.root,"shared/changes.json"))};

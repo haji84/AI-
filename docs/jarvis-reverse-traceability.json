@@ -6694,8 +6694,17 @@
       "reason": "#1219 immutable create-only, fsynced external prepared-write journal binds the trusted execution contract and exact Goal/Job/WorkItem/attempt/phase/base/workspace/path/model and public fixture bytes. It supports interrupted local execution recovery under the existing host authority; unverified intent grants no criterion acceptance, signer authority or physical reboot completion."
     },
     {
+      "path": "src/orchestrator/tracked-repair-prompt-context.ts",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-014"
+      ],
+      "reason": "Host-pinned bounded source presentation for the existing tracked repair Builder; no new execution authority or feature completion claim",
+      "sha256": "a232c315184c430dd464bb229be7ab7734065d2cea791f00bb221ba5cdff2fae"
+    },
+    {
       "path": "src/orchestrator/tracked-repair-resident-runtime.ts",
-      "sha256": "693a1478f7ef0cadc74bb4a171c0179475a255096c16d32b8e5bdd812b82e0ba",
+      "sha256": "545f7cc52a330b740fab8b59cd7ac340956c647223f806e611b8e43719696e2c",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -6707,7 +6716,7 @@
     },
     {
       "path": "scripts/jarvis-tracked-repair-actions.mjs",
-      "sha256": "da843fd0c6f129daacc0015ebf8317da9c182ff71dfdb8f6a6d821c47ac2e16c",
+      "sha256": "4408517def564a70ee47516f66dadc741a72636f64378f30790810c40b9cd39f",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",

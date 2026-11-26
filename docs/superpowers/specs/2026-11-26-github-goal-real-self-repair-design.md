@@ -1,0 +1,13 @@
+# Current GitHub Goal and real source self-repair (#1948)
+
+Owner asks GORIQ to advance its own completion and requires GitHub inspection before development. Current direction is #1944 comment7170101968, clarified by comment7188751595; parent #681 and active runtime gap #921. Old #1219 recovery is historical, not the entry for this independent work. Preserve its failed history and the unrelated #1845 stopped state.
+
+Use the existing tracked repair stages/Resident controller. Two concrete gaps: replacement strings are interpreted by String.replace instead of being preserved as source bytes, and whole-file prompts cannot represent larger self-repair modules within the fixed30KB bound. Keep all source/model/scope/Goal pins, verifier checks, resource bounds and restart/no-repeat behavior.
+
+Alternatives considered: repeat broad prompt/model changes (does not isolate a cause); activate the existing Codex engine (installed/logged-in, but active quota/cost/owner-scope has not been verified); use explicit host-pinned slot context in the current local repair capability. The agent selects the last approach under delegated implementation judgment, conditional on controlled evidence. This is not an owner-selected model or a new authority.
+
+First compare one retained failed request with the same local model/endpoint/schema/budgets and only a smaller source window. An optional versioned slot-context policy may then render pinned baseline/current source excerpts; default manifests retain their existing full-source behavior. Rejected source remains advisory, original SLOT bytes remain the replacement target, and oversized/ambiguous contexts fail visibly. Full source bytes are still independently read back and hashed before any write.
+
+The actual runtime will repair its own literal replacement defect against a frozen regression. Codex writes the oracle/supporting context mechanism, not a purported model response. Any source fix remains labeled by its real actor. Persist the current GitHub-first entry in AGENTS/state under this explicit owner instruction; retain all historic records and341 requirements. No credentials, payment, scope, migration or production activation.
+
+Acceptance: real local inference and candidate evidence; literal dollar patterns survive materialization; legacy full-context behavior and scoped focused-context/recovery tests; normal runtime restart/no-repeat/receipt checks; exact PR/main CI and preservation audits. If the real model cannot complete the defect, preserve the exact failure rather than substituting Codex or fixture success. Broader #921 completion remains evidence-based.

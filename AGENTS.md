@@ -6,6 +6,8 @@ Before modifying anything, read in order:
 3. the assigned GitHub issue
 4. relevant files under `docs/architecture/` and `docs/decisions/`
 
+At every development start or resume, also read the current GitHub owner instructions and latest comments, current main, related open PRs and exact-revision CI before choosing the next job. The owner instruction in [#1944 comment7188751595](https://github.com/haji84/AI-/issues/1944#issuecomment-7188751595) continues the full GORIQ completion Goal under #681/#921 using [the detailed handoff](https://github.com/haji84/AI-/issues/1944#issuecomment-7170101968). Old #1219 Goal recovery is not a prerequisite for this body development. Preserve its NOT_ACHIEVED/G1 HOLD records and consumed attempts. A stale local priority must not override a newer explicit owner instruction on GitHub. Resolve the current instruction through the existing intake/Goal Resolver; this read requirement grants no new execution authority.
+
 ## JARVIS Autonomous Development Protocol v1.0-RC2
 
 For every non-trivial development goal, optimize for verified GOAL achievement inside the safety envelope, not merely for completing the current issue or preserving the first plan.
