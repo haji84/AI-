@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "issue": 1950,
+  "baseMain": "b06d8633359c5c803a9133acec923a4a5ffbf3dc",
+  "actor": "Codex",
+  "scope": "Atomic development Job/ChangeSet snapshots; not model self-repair, production or physical acceptance",
+  "observedFailure": {
+    "fullWindows": {
+      "tests": 86,
+      "pass": 85,
+      "fail": 1
+    },
+    "cause": "EPERM renaming jobs.json.tmp-* to jobs.json",
+    "phase": "PLANNING",
+    "modelCalls": 0,
+    "isolatedUnchangedRerun": {
+      "pass": 1
+    }
+  },
+  "change": {
+    "platform": "win32",
+    "error": "EPERM",
+    "maxRenameCalls": 5,
+    "totalDelayMs": 150,
+    "delaysMs": [
+      10,
+      20,
+      40,
+      80
+    ],
+    "writeLeaseRetained": true,
+    "canonicalDestinationNeverDeleted": true,
+    "cachePublishedAfterCommit": true
+  },
+  "verification": {
+    "storeAndAuthority": {
+      "tests": 26,
+      "pass": 26,
+      "fail": 0
+    },
+    "nativeBroker": {
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "scope": "Authenticated profile+sequence fixtures, fixed existing deadlines; fake model transport"
+    },
+    "lint": "PASS",
+    "types": "PASS",
+    "requirements": 341,
+    "cognitive": 17,
+    "research": 20,
+    "roadmap": 35,
+    "surfaces": 629
+  },
+  "limits": [
+    "Persistent Windows EPERM and unrelated errors still fail visibly; this does not grant ACL or service authority",
+    "Fault injection exercises real stores and complete old/new snapshots; not proof every native sharing delay will finish within150ms",
+    "Original model experiments remain failed/inconclusive and consumed; no new model inference",
+    "Initial intermediate green log failed only on optional undefined keys versus the existing JSON wire representation; expected record comparison was normalized to that unchanged representation"
+  ],
+  "next": "Protected exact-head CI/review/current-main validation, then existing reliable Builder capability work under#921 after reading GitHub"
+}

@@ -1,4 +1,5 @@
-import { mkdir, open, readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
+import { mkdir, open, readFile, stat, unlink, writeFile } from "node:fs/promises";
+import { replaceDevelopmentSnapshot } from "./replace-development-snapshot.ts";
 import { createHash } from "node:crypto";
 import { dirname } from "node:path";
 import { assertDevelopmentChangeSet, type DevelopmentChangeSet } from "./development-change-set.ts";
@@ -73,11 +74,14 @@ export class JsonFileDevelopmentChangeSetStore {
           const existing = this.values.get(value.changeSetId);
           if (existing && (existing.jobId !== value.jobId || existing.workItemId !== value.workItemId || existing.baseRevision !== value.baseRevision)) throw new Error(`development Change Set identity conflict: ${value.changeSetId}`);
           if (existing && existing.updatedAt > value.updatedAt) throw new Error(`stale development Change Set write: ${value.changeSetId}`);
-          this.values.set(value.changeSetId, clone(value));
-          const snapshot: Snapshot = { version: 1, changeSets: [...this.values.values()].map(clone), savedAt: now.toISOString() };
+          const pending = new Map(this.values);
+          pending.set(value.changeSetId, clone(value));
+          const snapshot: Snapshot = { version: 1, changeSets: [...pending.values()].map(clone), savedAt: now.toISOString() };
           const temporary = `${this.filePath}.tmp-${process.pid}-${Date.now()}`;
           await writeFile(temporary, `${JSON.stringify(validate(snapshot), null, 2)}\n`, "utf8");
-          await rename(temporary, this.filePath);
+          await replaceDevelopmentSnapshot(temporary, this.filePath);
+          // Readers must not observe a ChangeSet whose snapshot has not committed.
+          this.values.set(value.changeSetId, clone(value));
           return;
         } finally { await handle.close(); await unlink(lockPath).catch(() => undefined); }
       } catch (error) {

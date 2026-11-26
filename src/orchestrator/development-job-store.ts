@@ -1,6 +1,7 @@
-import { mkdir, open, readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
+import { mkdir, open, readFile, stat, unlink, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { assertDevelopmentJob, type DevelopmentJob } from "./development-job.ts";
+import { replaceDevelopmentSnapshot } from "./replace-development-snapshot.ts";
 
 export interface DevelopmentJobSnapshot {
   version: 1;
@@ -139,6 +140,6 @@ export class JsonFileDevelopmentJobStore extends BaseDevelopmentJobStore {
     await mkdir(dirname(this.filePath), { recursive: true });
     const temporary = `${this.filePath}.tmp-${process.pid}-${Date.now()}`;
     await writeFile(temporary, `${JSON.stringify(value, null, 2)}\n`, "utf8");
-    await rename(temporary, this.filePath);
+    await replaceDevelopmentSnapshot(temporary, this.filePath);
   }
 }

@@ -3,6 +3,11 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import promises from "node:fs/promises";
+import { syncBuiltinESMExports } from "node:module";
+import { existsSync } from "node:fs";
+import { createDevelopmentChangeSet } from "../src/orchestrator/development-change-set.ts";
+import { JsonFileDevelopmentChangeSetStore } from "../src/orchestrator/development-change-set-store.ts";
 import { createDevelopmentJob, DevelopmentJobStateController } from "../src/orchestrator/development-job.ts";
 import {
   JsonFileDevelopmentJobStore,
@@ -73,4 +78,75 @@ test("concurrent stale history cannot overwrite a Human Gate even with a newer t
     await assert.rejects(first.put(late), /conflicting development job history/);
     assert.equal((await first.get(initial.jobId))?.phase, "HUMAN_GATE");
   } finally { await rm(directory, { recursive: true, force: true }); }
+});
+
+async function withRenameFault<T>(platform:NodeJS.Platform,
+  fault:(attempt:number,perform:()=>Promise<void>)=>Promise<void>,body:(calls:()=>number)=>Promise<T>):Promise<T>{
+  const original=promises.rename,descriptor=Object.getOwnPropertyDescriptor(process,"platform")!;let calls=0;
+  Object.defineProperty(process,"platform",{...descriptor,value:platform});
+  promises.rename=async(...args)=>fault(++calls,()=>original(...args));syncBuiltinESMExports();
+  try{return await body(()=>calls);}
+  finally{promises.rename=original;syncBuiltinESMExports();Object.defineProperty(process,"platform",descriptor);}
+}
+
+test("Windows transient replacement sharing failure preserves the complete old Job and lease until commit",async()=>{
+  const directory=await mkdtemp(join(tmpdir(),"goriq-job-transient-")),path=join(directory,"jobs.json"),store=new JsonFileDevelopmentJobStore(path),initial=job();
+  const next=new DevelopmentJobStateController().apply(initial,{transitionId:"plan",actor:"state-controller",to:"PLANNING",reason:"plan",at:"2026-09-26T00:00:01.000Z"});
+  try{
+    await store.put(initial);const old=await readFile(path,"utf8");
+    await withRenameFault("win32",async(attempt,perform)=>{
+      assert.equal(await readFile(path,"utf8"),old);assert.equal(existsSync(path+".lock"),true);
+      if(attempt<3)throw Object.assign(Error("sharing violation"),{code:"EPERM"});await perform();
+    },async calls=>{await store.put(next);assert.equal(calls(),3);});
+    assert.deepEqual(await new JsonFileDevelopmentJobStore(path).get(initial.jobId),JSON.parse(JSON.stringify(next)));
+    assert.equal(existsSync(path+".lock"),false);
+  }finally{await rm(directory,{recursive:true,force:true});}
+});
+
+test("Windows persistent replacement denial fails within its bound and retains the previous complete snapshot",async()=>{
+  const directory=await mkdtemp(join(tmpdir(),"goriq-job-denied-")),path=join(directory,"jobs.json"),store=new JsonFileDevelopmentJobStore(path),initial=job();
+  const denial=Object.assign(Error("permanent denial"),{code:"EPERM"});
+  try{
+    await store.put(initial);const old=await readFile(path,"utf8");
+    await withRenameFault("win32",async()=>{assert.equal(await readFile(path,"utf8"),old);throw denial;},async calls=>{
+      await assert.rejects(()=>store.put({...initial,blockers:["new snapshot"]}),error=>error===denial);
+      assert.ok(calls()>1&&calls()<=5);
+    });
+    assert.equal(await readFile(path,"utf8"),old);assert.deepEqual(await new JsonFileDevelopmentJobStore(path).get(initial.jobId),initial);
+    assert.equal(existsSync(path+".lock"),false);
+  }finally{await rm(directory,{recursive:true,force:true});}
+});
+
+for(const [platform,code] of [["win32","EACCES"],["linux","EPERM"]] as const)test("unrelated replacement failure is not retried: "+platform+"/"+code,async()=>{
+  const directory=await mkdtemp(join(tmpdir(),"goriq-job-fail-fast-")),path=join(directory,"jobs.json"),store=new JsonFileDevelopmentJobStore(path),initial=job();
+  const failure=Object.assign(Error("unchanged failure"),{code});
+  try{
+    await store.put(initial);const old=await readFile(path,"utf8");
+    await withRenameFault(platform,async()=>{throw failure;},async calls=>{
+      await assert.rejects(()=>store.put({...initial,blockers:["new snapshot"]}),error=>error===failure);assert.equal(calls(),1);
+    });
+    assert.equal(await readFile(path,"utf8"),old);
+  }finally{await rm(directory,{recursive:true,force:true});}
+});
+
+for(const permanent of [false,true])test("ChangeSet replacement exposes only committed state during "+(permanent?"persistent denial":"transient sharing failure"),async()=>{
+  const directory=await mkdtemp(join(tmpdir(),"goriq-change-replace-")),path=join(directory,"changes.json"),store=new JsonFileDevelopmentChangeSetStore(path);
+  const initial=createDevelopmentChangeSet({changeSetId:"change-replace",jobId:"job-681",workItemId:"job-681:implement",deviceId:"fixture",
+    baseRevision:"a".repeat(40),changedPaths:["src/example.ts"],affectedSymbols:[],patchDigest:"b".repeat(64),evidenceDigest:"c".repeat(64),rollback:{kind:"git-base",reference:"a".repeat(40)}},new Date("2026-09-26T00:00:00.000Z"));
+  const next={...initial,patchDigest:"d".repeat(64),updatedAt:"2026-09-26T00:00:01.000Z"},denial=Object.assign(Error("sharing denial"),{code:"EPERM"});
+  try{
+    await store.put(initial);const old=await readFile(path,"utf8");
+    await withRenameFault("win32",async(attempt,perform)=>{
+      assert.equal(await readFile(path,"utf8"),old);assert.deepEqual(await store.get(initial.changeSetId),initial);
+      assert.equal(existsSync(path+".lock"),true);
+      if(permanent||attempt<3)throw denial;await perform();
+    },async calls=>{
+      if(permanent){await assert.rejects(()=>store.put(next),error=>error===denial);assert.ok(calls()>1&&calls()<=5);}
+      else await store.put(next);
+    });
+    const expected=permanent?initial:next;
+    assert.deepEqual(await store.get(initial.changeSetId),expected);
+    assert.deepEqual(await new JsonFileDevelopmentChangeSetStore(path).get(initial.changeSetId),expected);
+    assert.equal(existsSync(path+".lock"),false);
+  }finally{await rm(directory,{recursive:true,force:true});}
 });

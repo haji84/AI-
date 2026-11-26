@@ -5126,7 +5126,7 @@
     },
     {
       "path": "src/orchestrator/development-change-set-store.ts",
-      "sha256": "71b1496a1361857d9c0f5b6992dd294d1ba1630bb3b928455175e4a68bcb47e4",
+      "sha256": "841bfde4e0d279e8fb0a0f2cb21a14f97deda1780a4b72d1d1d401fc9bcb7e59",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -5165,7 +5165,7 @@
     },
     {
       "path": "src/orchestrator/development-job-store.ts",
-      "sha256": "7589cc672859c410f9f17fab782ed23df90ec07ca8fc7c1cd2dc59afb3fc65ed",
+      "sha256": "a1c9e58dd0de5fd12d5a1089b5e916636558396db9ee36ea8c5ccc9bbc01c0b7",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -6828,6 +6828,15 @@
         "GOV-025"
       ],
       "reason": "Host-pinned composition reuses the existing real source repair stages, signed verification and same-Goal Job sequence; scoped implementation binding only, not full autonomous completion."
+    },
+    {
+      "path": "src/orchestrator/replace-development-snapshot.ts",
+      "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
+      "requirement_ids": [
+        "CORE-014"
+      ],
+      "reason": "Bounded Windows EPERM retry of the existing atomic Job/ChangeSet snapshot replacement while its existing write lease remains held; no schema, authority or completion claim",
+      "sha256": "1b602a00895e3ed3f20fb413e62091676f2532a90aefc4740102233957c2ad4a"
     }
   ],
   "hash_policy": "utf8-crlf-to-lf-v1;binary-raw"
