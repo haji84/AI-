@@ -1,6 +1,6 @@
 # Codex shared autonomy — Issue 1952
 
-Owner scope: https://github.com/haji84/AI-/issues/1952. Source baseline: `0462861c921972af43b6d8305f8cf7de73ab10c8`; isolated branch `feat/1952-codex-autonomy`. No unrelated application implementation, old Goal, production runtime, credential, permission/sandbox policy or billing setting was changed.
+Owner scope: https://github.com/haji84/AI-/issues/1952. Original acceptance baseline: `0462861c921972af43b6d8305f8cf7de73ab10c8`; isolated branch `feat/1952-codex-autonomy`, rebased onto current main `1fa2d36db1119fa265a16e342ec58d019d2cd0cb` before delivery. The PROJECT_STATE insertion conflict was resolved by preserving the entire current upstream state and adding only this task's namespaced checkpoint. Module bytes and controller hash remained unchanged. Draft PR: https://github.com/haji84/AI-/pull/1953. No unrelated application implementation, old Goal, production runtime, credential, permission/sandbox policy or billing setting was changed.
 
 ## Installed on ZBook
 
