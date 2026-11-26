@@ -192,8 +192,11 @@ test("no installed approved local model blocks without generating or contacting 
     };
     const router = createRuntimeBuilderRouter({
       ...env(p.isolated), GORIQ_LOCAL_OLLAMA_FALLBACK_MODELS: "qwen2.5-coder:1.5b",
+      CODE_BUILDER_PLAN_CODEX_APPROVED:"1",CODE_BUILDER_PLAN_CODEX_URL:"http://127.0.0.1:8797",
+      CODE_BUILDER_PLAN_CODEX_TOKEN:"fixture-token",CODE_BUILDER_PLAN_CODEX_WORKSPACE:p.isolated,
     }, localFetch);
-    const result = await router.execute(request(p.head), []);
+    const action=request(p.head);action.input.localOnly=false;
+    const result = await router.execute(action, []);
     assert.equal(result.ok, false);
     assert.equal(result.blocker, "real_builder_capability_unavailable");
     assert.equal(calls, 1);

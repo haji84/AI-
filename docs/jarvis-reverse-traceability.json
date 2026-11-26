@@ -5968,7 +5968,7 @@
     },
     {
       "path": "src/orchestrator/runtime-builder-capability.ts",
-      "sha256": "8d9ea0d2be98e2bea5fd82da77b1b6450849a50da054b9b446e94f70cc17ca56",
+      "sha256": "019209e63a6d75d7589059e48acc105148413148184dab853f77f919cf42d94a",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
@@ -5977,7 +5977,7 @@
         "AUTO-004",
         "OWN-001"
       ],
-      "reason": "Declared runtime-builder-capability.ts responsibility implements/supports Software Development Autopilot. Parent ownership is not functional or physical acceptance evidence. #1219 allows the resident Mac Goal executor to discover its protected local Builder token and loopback endpoint. #1219 adds explicit isolated Ollama-only routing; main/8796/8797 and fallback unchanged when disabled. #1219 forwards prepared-write recovery only as a direct trusted host option; Goal/model/environment payloads cannot select a journal path."
+      "reason": "Declared runtime-builder-capability.ts responsibility implements/supports Software Development Autopilot. Parent ownership is not functional or physical acceptance evidence. #1219 allows the resident Mac Goal executor to discover its protected local Builder token and loopback endpoint. #1219 adds explicit isolated Ollama-only routing; main/8796/8797 and fallback unchanged when disabled. #1219 forwards prepared-write recovery only as a direct trusted host option; Goal/model/environment payloads cannot select a journal path. Current#1944/#921 reuses the explicit owner-approved plan Codex external capability, authenticated exact-loopback/workspace health and bounded no-redirect probe. Device-local-only and explicit Ollama-only remain exclusive; trusted host beforeWrite is rechecked before Codex dispatch. Source routing is not capacity, model, production or physical acceptance."
     },
     {
       "path": "src/orchestrator/runtime-development-planner.ts",

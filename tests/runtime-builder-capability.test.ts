@@ -1,5 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { createServer } from "node:http";
+import { once } from "node:events";
 import { createCodeBuilderCapability, createRuntimeBuilderRouter } from "../src/orchestrator/runtime-builder-capability.ts";
 
 test("runtime Builder accepts explicit loopback endpoint and executes through registry handler", async () => {
@@ -43,4 +45,203 @@ test("runtime Builder fails closed when local configuration is incomplete", () =
   assert.throws(() => createRuntimeBuilderRouter({
     CODE_BUILDER_LOCAL_URL: "http://127.0.0.1:8796",
   }), /must be configured together/);
+});
+
+test("owner-approved plan Codex routes through exact isolated loopback workspace", async () => {
+  const calls: string[] = [];
+  const env = {
+    CODE_BUILDER_PLAN_CODEX_APPROVED: "1",
+    CODE_BUILDER_PLAN_CODEX_URL: "http://127.0.0.1:8797",
+    CODE_BUILDER_PLAN_CODEX_TOKEN: "owner-scoped-test-token",
+    CODE_BUILDER_PLAN_CODEX_WORKSPACE: "C:\\isolated\\goal-one",
+  };
+  const fetchImpl: typeof fetch = async (input, init) => {
+    calls.push(String(input));
+    assert.equal((init?.headers as Record<string, string>)?.Authorization, "Bearer owner-scoped-test-token");
+    if (String(input).endsWith("/health")) {
+      return new Response(JSON.stringify({
+        ok: true, service: "code-builder-worker", engine: "codex",
+        capabilities: ["code-builder", "filesystem"], workspace: "C:\\isolated\\goal-one",
+        inference: { locality: "unknown", networkAccess: true },
+      }), { status: 200 });
+    }
+    assert.equal(init?.method, "POST");
+    return new Response(JSON.stringify({
+      ok: true, summary: "bounded edit", changedPaths: ["docs/evidence/goal.txt"],
+      patchDigest: "a".repeat(64), artifactDigest: "b".repeat(64),
+      candidateRevision: "c".repeat(64), artifactRef: `sha256:${"b".repeat(64)}`,
+      requestedAuthority: [],
+    }), { status: 200 });
+  };
+  const action = {
+    id: "plan-codex-one", description: "write fixture", capability: "code.builder" as const,
+    risk: "low" as const,
+    input: {
+      goalId: "g", attemptId: "a", strategyId: "s", objective: "write fixture",
+      baseRevision: "d".repeat(40), files: ["docs/evidence/goal.txt"],
+    },
+  };
+  const capability = createCodeBuilderCapability(createRuntimeBuilderRouter(env, fetchImpl));
+  const result = await capability.execute(action, []);
+  assert.equal(result.ok, true);
+  assert.equal((result.evidence as { changeSet: { builderKind: string } }).changeSet.builderKind, "external");
+  assert.deepEqual(calls, ["http://127.0.0.1:8797/health", "http://127.0.0.1:8797/build"]);
+
+  const localOnly = createCodeBuilderCapability(createRuntimeBuilderRouter(env, fetchImpl));
+  const rejected = await localOnly.execute({ ...action, input: { ...action.input, localOnly: true } }, []);
+  assert.equal(rejected.ok, false);
+  assert.equal(rejected.blocker, "real_builder_capability_unavailable");
+  assert.equal(calls.length, 2, "local-only route must not call remote-reasoning engine");
+});
+
+test("plan Codex requires explicit complete opt-in, never auto-enables with available token", () => {
+  const base = {
+    CODE_BUILDER_PLAN_CODEX_URL: "http://127.0.0.1:8797",
+    CODE_BUILDER_PLAN_CODEX_TOKEN: "token",
+    CODE_BUILDER_PLAN_CODEX_WORKSPACE: "C:\\isolated\\goal-one",
+  };
+  assert.throws(() => createRuntimeBuilderRouter(base), /explicit owner approval/);
+  assert.throws(() => createRuntimeBuilderRouter({ ...base, CODE_BUILDER_PLAN_CODEX_APPROVED: "false" }), /explicit owner approval/);
+  assert.throws(() => createRuntimeBuilderRouter({ ...base, CODE_BUILDER_PLAN_CODEX_APPROVED: "1", CODE_BUILDER_PLAN_CODEX_TOKEN: "" }), /explicit owner approval/);
+});
+
+test("plan Codex rejects non-loopback or ambiguous control URLs", () => {
+  const base = {
+    CODE_BUILDER_PLAN_CODEX_APPROVED: "1",
+    CODE_BUILDER_PLAN_CODEX_TOKEN: "token",
+    CODE_BUILDER_PLAN_CODEX_WORKSPACE: "C:\\isolated\\goal-one",
+  };
+  for (const url of [
+    "https://127.0.0.1:8797", "http://localhost:8797",
+    "http://192.168.1.10:8797", "http://127.0.0.1:8797/health",
+    "http://127.0.0.1:8797/?a=1", "http://user:password@127.0.0.1:8797",
+  ]) {
+    assert.throws(() => createRuntimeBuilderRouter({ ...base, CODE_BUILDER_PLAN_CODEX_URL: url }), /exact loopback HTTP/);
+  }
+});
+
+test("plan Codex will not route when live engine, identity or workspace differs", async () => {
+  const env = {
+    CODE_BUILDER_PLAN_CODEX_APPROVED: "1",
+    CODE_BUILDER_PLAN_CODEX_URL: "http://127.0.0.1:8797",
+    CODE_BUILDER_PLAN_CODEX_TOKEN: "token",
+    CODE_BUILDER_PLAN_CODEX_WORKSPACE: "C:\\isolated\\goal-one",
+  };
+  for (const health of [
+    { ok: true, service: "other", engine: "codex", capabilities: ["code-builder"], workspace: "C:\\isolated\\goal-one" },
+    { ok: true, service: "code-builder-worker", engine: "aider", capabilities: ["code-builder"], workspace: "C:\\isolated\\goal-one" },
+    { ok: true, service: "code-builder-worker", engine: "codex", capabilities: ["code-builder"], workspace: "C:\\other" },
+    { ok: true, service: "code-builder-worker", engine: "codex", capabilities: ["filesystem"], workspace: "C:\\isolated\\goal-one" },
+  ]) {
+    let posts = 0;
+    const fetchImpl: typeof fetch = async (input) => {
+      if (String(input).endsWith("/build")) posts++;
+      return new Response(JSON.stringify(health), { status: 200 });
+    };
+    const router = createCodeBuilderCapability(createRuntimeBuilderRouter(env, fetchImpl));
+    const result = await router.execute({
+      id: "a", description: "change fixture", capability: "code.builder", risk: "low",
+      input: { goalId: "g", attemptId: "a", strategyId: "s", objective: "change fixture" },
+    }, []);
+    assert.equal(result.ok, false);
+    assert.equal(posts, 0, "unverified Builder must not receive source");
+  }
+});
+
+test("owner-pinned Codex workspace refuses relative, root, UNC and traversal paths", () => {
+  const base = {
+    CODE_BUILDER_PLAN_CODEX_APPROVED: "1",
+    CODE_BUILDER_PLAN_CODEX_URL: "http://127.0.0.1:8797",
+    CODE_BUILDER_PLAN_CODEX_TOKEN: "test-token-only",
+  };
+  const invalid = [
+    "relative/workspace", "../worktree", ".", "C:", "C:\\", "/",
+    "C:\\isolated\\..\\other", "/tmp/../other", "//server/share",
+    "\\\\server\\share", "C:\\isolated\nmalformed",
+  ];
+  for (const workspace of invalid) {
+    assert.throws(() => createRuntimeBuilderRouter({
+      ...base, CODE_BUILDER_PLAN_CODEX_WORKSPACE: workspace,
+    }), /workspace must/, workspace.replaceAll("\n", "[newline]"));
+  }
+});
+
+test("owner-pinned Codex health has an abort deadline and no redirect", async () => {
+  const env = {
+    CODE_BUILDER_PLAN_CODEX_APPROVED: "1",
+    CODE_BUILDER_PLAN_CODEX_URL: "http://127.0.0.1:8797",
+    CODE_BUILDER_PLAN_CODEX_TOKEN: "test-token-only",
+    CODE_BUILDER_PLAN_CODEX_WORKSPACE: "C:\\isolated\\goal-one",
+  };
+  let buildCalls = 0;
+  let healthCalls = 0;
+  const fetchImpl: typeof fetch = async (input, init) => {
+    if (!String(input).endsWith("/health")) {
+      buildCalls += 1;
+      throw new Error("Builder must not receive task when health fails");
+    }
+    healthCalls += 1;
+    assert.equal(init?.redirect, "error");
+    assert.ok(init?.signal instanceof AbortSignal, "health fetch must be abortable");
+    throw new Error("Simulated offline Builder");
+  };
+  const router = createCodeBuilderCapability(createRuntimeBuilderRouter(env, fetchImpl));
+  const result = await router.execute({
+    id: "health-gate", description: "do not build", capability: "code.builder", risk: "low",
+    input: { goalId: "g", attemptId: "a", strategyId: "s", objective: "do not build" },
+  }, []);
+  assert.equal(result.ok, false);
+  assert.equal(result.blocker, "real_builder_capability_unavailable");
+  assert.equal(healthCalls, 1);
+  assert.equal(buildCalls, 0);
+});
+
+test("Codex workspace comparison normalizes trailing separators but preserves POSIX case",async()=>{
+  for(const [expected,actual,accepted] of [["C:\\Isolated\\goal-one\\","c:\\isolated\\goal-one",true],
+    ["/srv/Isolated/goal-one/","/srv/Isolated/goal-one",true],["/srv/Isolated/goal-one","/srv/isolated/goal-one",false]] as const){
+    let posts=0;
+    const fetchImpl:typeof fetch=async input=>{
+      if(String(input).endsWith("/health"))return Response.json({ok:true,service:"code-builder-worker",engine:"codex",capabilities:["code-builder"],workspace:actual});
+      posts++;return Response.json({ok:true,summary:"scoped fixture build",requestedAuthority:[]});
+    };
+    const router=createRuntimeBuilderRouter({CODE_BUILDER_PLAN_CODEX_APPROVED:"1",CODE_BUILDER_PLAN_CODEX_URL:"http://127.0.0.1:8797",
+      CODE_BUILDER_PLAN_CODEX_TOKEN:"fixture-token",CODE_BUILDER_PLAN_CODEX_WORKSPACE:expected},fetchImpl);
+    const result=await createCodeBuilderCapability(router).execute({id:"workspace",description:"fixture",capability:"code.builder",risk:"low",
+      input:{goalId:"fixture",attemptId:"attempt",strategyId:"strategy",objective:"fixture"}},[]);
+    assert.equal(result.ok,accepted,expected+" vs "+actual);assert.equal(posts,accepted?1:0);
+  }
+});
+
+test("Codex honors the trusted host stop after health and before dispatching a write",async()=>{
+  let posts=0,stops=0;const stop=Error("canonical owner stop");
+  const router=createRuntimeBuilderRouter({CODE_BUILDER_PLAN_CODEX_APPROVED:"1",CODE_BUILDER_PLAN_CODEX_URL:"http://127.0.0.1:8797",
+    CODE_BUILDER_PLAN_CODEX_TOKEN:"fixture-token",CODE_BUILDER_PLAN_CODEX_WORKSPACE:"/srv/isolated/goal"},async input=>{
+    if(String(input).endsWith("/health"))return Response.json({ok:true,service:"code-builder-worker",engine:"codex",capabilities:["code-builder"],workspace:"/srv/isolated/goal"});
+    posts++;return Response.json({ok:true,summary:"must not write"});
+  },{beforeWrite:async()=>{stops++;throw stop;}});
+  await assert.rejects(()=>createCodeBuilderCapability(router).execute({id:"stop",description:"fixture",capability:"code.builder",risk:"low",
+    input:{goalId:"fixture",attemptId:"attempt",strategyId:"strategy",objective:"fixture"}},[]),error=>error===stop);
+  assert.equal(stops,1);assert.equal(posts,0);
+});
+
+test("scoped Codex build refuses a redirect without sending the task body to its destination",async()=>{
+  let redirected=0,builds=0;
+  const sink=createServer((request,response)=>{redirected++;request.resume();response.setHeader("content-type","application/json");response.end(JSON.stringify({ok:true,summary:"unverified destination"}));});
+  sink.listen(0,"127.0.0.1");await once(sink,"listening");
+  const server=createServer((request,response)=>{
+    request.resume();
+    if(request.url==="/health"){response.setHeader("content-type","application/json");response.end(JSON.stringify({ok:true,service:"code-builder-worker",engine:"codex",capabilities:["code-builder"],workspace:"/srv/isolated/goal"}));return;}
+    builds++;response.writeHead(307,{location:`http://127.0.0.1:${(sink.address() as {port:number}).port}/unverified`});response.end();
+  });
+  try{
+    server.listen(0,"127.0.0.1");await once(server,"listening");
+    const router=createRuntimeBuilderRouter({CODE_BUILDER_PLAN_CODEX_APPROVED:"1",CODE_BUILDER_PLAN_CODEX_URL:`http://127.0.0.1:${(server.address() as {port:number}).port}`,
+      CODE_BUILDER_PLAN_CODEX_TOKEN:"fixture-token",CODE_BUILDER_PLAN_CODEX_WORKSPACE:"/srv/isolated/goal"});
+    const result=await createCodeBuilderCapability(router).execute({id:"redirect",description:"fixture",capability:"code.builder",risk:"low",
+      input:{goalId:"fixture",attemptId:"attempt",strategyId:"strategy",objective:"task body must stay on its scoped endpoint"}},[]);
+    assert.equal(redirected,0);assert.equal(builds,1);assert.equal(result.ok,false);
+  }finally{
+    server.closeAllConnections();sink.closeAllConnections();
+    await Promise.all([new Promise<void>(resolve=>server.close(()=>resolve())),new Promise<void>(resolve=>sink.close(()=>resolve()))]);
+  }
 });
