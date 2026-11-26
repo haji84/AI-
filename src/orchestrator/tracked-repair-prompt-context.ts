@@ -21,7 +21,7 @@ function excerpt(label:string,source:Source,ranges:Array<[number,number]>,paddin
   const merged:Array<[number,number]>=[];
   for(const window of windows){const previous=merged.at(-1);if(previous&&window[0]<=previous[1]+1)previous[1]=Math.max(previous[1],window[1]);else merged.push(window);}
   return merged.map(([first,last])=>label+" "+source.path+" (lines "+(first+1)+"-"+(last+1)+" of "+lines.length+")\n"+
-    lines.slice(first,last+1).join("")).join("\n");
+    lines.slice(first,last+1).join("")).join("\n[Unshown lines between excerpts]\n");
 }
 
 export function renderTrackedRepairSources(files:Source[],slots:Slot[],context:TrackedRepairPromptContext|undefined,previousFiles:Source[]):string {
@@ -40,12 +40,13 @@ export function renderTrackedRepairSources(files:Source[],slots:Slot[],context:T
     const original=files.find(f=>f.path===source.path)?.content;
     if(original===undefined)throw Error("TRACKED_REPAIR_CONTEXT_SOURCE_UNKNOWN");
     if(original===source.content)return [];
-    // One conservative changed extent; no guessed alignment after inserted/deleted lines.
-    // Distant changes may still exceed the existing prompt cap and must fail closed.
+    // Show the exact changed boundaries without guessing alignment after inserted/deleted lines.
+    // The rejected candidate is advisory; its full immutable bytes were already re-attested.
     let start=0,end=source.content.length,oldEnd=original.length;
     while(start<end&&start<oldEnd&&source.content[start]===original[start])start++;
     while(end>start&&oldEnd>start&&source.content[end-1]===original[oldEnd-1]){end--;oldEnd--;}
-    return [excerpt("REJECTED SOURCE",source,[[start,Math.max(start,end-1)]],context.paddingLines)];
+    const last=Math.max(start,end-1);
+    return [excerpt("REJECTED SOURCE",source,[[start,start],[last,last]],context.paddingLines)];
   }).join("\n");
   return baseline+(rejected?"\n"+rejected:"");
 }

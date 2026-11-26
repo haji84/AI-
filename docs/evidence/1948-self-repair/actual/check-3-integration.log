@@ -1,0 +1,70 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+file:///C:/Users/qq113/AppData/Local/Temp/goriq-selfdev1948-4UOD83/candidate-0/src/orchestrator/tracked-repair-resident-runtime.ts:370
+            const slot=m.slots.find(s=>s.id===edit.slot);if(!slot)throw Error("TRACKED_REPAIR_EDIT_SCOPE_INVALID");seen.add(edit.slot);
+            const old=content.get(slot.path)!;if(old.split(slot.before).length!==2)throw Error("TRACKED_REPAIR_SLOT_NOT_UNIQUE");export const answer = "literal content.set(slot.path,old.replace(slot.before,edit.after)); $ import type { ResidentPersistence } from "./resident-execution-authority.ts";
+                                                                                                                                 ^^^^^^
+import { createHash, createPublicKey } from "node:crypto";
+
+SyntaxError [ERR_INVALID_TYPESCRIPT_SYNTAX]: 'import', and 'export' cannot be used outside of module code
+    at parseTypeScript (node:internal/modules/typescript:72:36)
+    at processTypeScriptCode (node:internal/modules/typescript:146:42)
+    at stripTypeScriptModuleTypes (node:internal/modules/typescript:215:22)
+    at ModuleLoader.<anonymous> (node:internal/modules/esm/translators:680:29)
+    at #translate (node:internal/modules/esm/loader:434:20)
+    at afterLoad (node:internal/modules/esm/loader:502:29)
+    at ModuleLoader.loadAndTranslate (node:internal/modules/esm/loader:507:12)
+    at #getOrCreateModuleJobAfterResolve (node:internal/modules/esm/loader:560:36)
+    at afterResolve (node:internal/modules/esm/loader:607:52)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:613:12) {
+  code: 'ERR_INVALID_TYPESCRIPT_SYNTAX'
+}
+
+Node.js v24.19.0
+✖ tests\resident-receipt-wakes.test.ts (133.4633ms)
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+file:///C:/Users/qq113/AppData/Local/Temp/goriq-selfdev1948-4UOD83/candidate-0/src/orchestrator/tracked-repair-resident-runtime.ts:370
+            const slot=m.slots.find(s=>s.id===edit.slot);if(!slot)throw Error("TRACKED_REPAIR_EDIT_SCOPE_INVALID");seen.add(edit.slot);
+            const old=content.get(slot.path)!;if(old.split(slot.before).length!==2)throw Error("TRACKED_REPAIR_SLOT_NOT_UNIQUE");export const answer = "literal content.set(slot.path,old.replace(slot.before,edit.after)); $ import type { ResidentPersistence } from "./resident-execution-authority.ts";
+                                                                                                                                 ^^^^^^
+import { createHash, createPublicKey } from "node:crypto";
+
+SyntaxError [ERR_INVALID_TYPESCRIPT_SYNTAX]: 'import', and 'export' cannot be used outside of module code
+    at parseTypeScript (node:internal/modules/typescript:72:36)
+    at processTypeScriptCode (node:internal/modules/typescript:146:42)
+    at stripTypeScriptModuleTypes (node:internal/modules/typescript:215:22)
+    at ModuleLoader.<anonymous> (node:internal/modules/esm/translators:680:29)
+    at #translate (node:internal/modules/esm/loader:434:20)
+    at afterLoad (node:internal/modules/esm/loader:502:29)
+    at ModuleLoader.loadAndTranslate (node:internal/modules/esm/loader:507:12)
+    at #getOrCreateModuleJobAfterResolve (node:internal/modules/esm/loader:560:36)
+    at afterResolve (node:internal/modules/esm/loader:607:52)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:613:12) {
+  code: 'ERR_INVALID_TYPESCRIPT_SYNTAX'
+}
+
+Node.js v24.19.0
+✖ tests\self-development-1948-0.test.mjs (119.0439ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 260.4079
+
+✖ failing tests:
+
+test at tests\resident-receipt-wakes.test.ts:1:1
+✖ tests\resident-receipt-wakes.test.ts (133.4633ms)
+  'test failed'
+
+test at tests\self-development-1948-0.test.mjs:1:1
+✖ tests\self-development-1948-0.test.mjs (119.0439ms)
+  'test failed'

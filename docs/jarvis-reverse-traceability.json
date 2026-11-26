@@ -6700,11 +6700,11 @@
         "CORE-014"
       ],
       "reason": "Host-pinned bounded source presentation for the existing tracked repair Builder; no new execution authority or feature completion claim",
-      "sha256": "a232c315184c430dd464bb229be7ab7734065d2cea791f00bb221ba5cdff2fae"
+      "sha256": "7f2322e51178562b7b280286a0a9a644bc903022b536acb735a2a0ad62b6cb5d"
     },
     {
       "path": "src/orchestrator/tracked-repair-resident-runtime.ts",
-      "sha256": "545f7cc52a330b740fab8b59cd7ac340956c647223f806e611b8e43719696e2c",
+      "sha256": "3a098c32277cf4686554eb31c0805bae93b58308a08f908deeaedf528d1b43fe",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",

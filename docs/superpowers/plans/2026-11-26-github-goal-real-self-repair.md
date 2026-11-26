@@ -12,12 +12,12 @@
 
 ## Work and verification
 
-- [ ] Read GitHub main/PR/CI/current Goal; resolve this instruction as continuation through the existing Goal Resolver without mutating old Goal or #1845 state.
-- [ ] One controlled, read-only context diagnostic against the retained failed request; preserve exact prompt/model/response hashes.
-- [ ] RED: frozen regression for literal source edit values; add focused-context/large-file/rejected-candidate cases without weakening existing tests.
-- [ ] GREEN: if supported, add minimal optional prompt-context rendering in a focused helper and validate it through the existing manifest pin. Preserve old default behavior, all limits and unsupported-export refusal.
+- [x] Read GitHub main/PR/CI/current Goal; resolve this instruction as continuation through the existing Goal Resolver without mutating old Goal or #1845 state.
+- [x] One controlled, read-only context diagnostic against the retained failed request; preserve exact prompt/model/response hashes.
+- [x] RED: frozen regression for literal source edit values; add focused-context/large-file/rejected-candidate cases without weakening existing tests.
+- [x] GREEN: if supported, add minimal optional prompt-context rendering in a focused helper and validate it through the existing manifest pin. Preserve old default behavior, all limits and unsupported-export refusal.
 - [ ] Have the real local capability repair the selected literal defect in its own runtime through an isolated normal Goal/Job. Preserve actual attempts, frozen checks and restart behavior; no manual patch attributed to the model.
-- [ ] Persist GitHub-first/current-Goal entry in AGENTS and state-only current priority; preserve historical source/old Goal conditions.
+- [x] Persist GitHub-first/current-Goal entry in AGENTS and state-only current priority; preserve historical source/old Goal conditions.
 - [ ] Reconcile affected existing/new source fingerprints, run necessary tests/lint/types/audits, request one bounded review, protected PR/main CI, then GitHub/Compass writeback/readback.
 
 ## Review focus and rollback
@@ -30,3 +30,7 @@ Source context is never authority; all candidate bytes stay pinned and independe
 - Existing GoalResolver classified the request as EXISTING_GOAL / explicit_goal_hint against current product Goal goal-12a4b6561adc308b. Read-only evidence is retained; no Goal/Compass mutation.
 - Controlled diagnostic: same qwen3:4b digest/endpoint/schema/budgets, source context19278→2625bytes. Model still returned unchanged null-budget source. This rejects the claim that context extent alone fixes that old semantic failure; do not repeat that condition.
 - Ruling: focused context remains justified for bounded self-repair of the larger current runtime file, which cannot fit whole within30KB. Its acceptance is source coverage/binding/size, not a promise of model quality. Test the concrete literal-byte defect with the installed coding model and frozen oracle instead of another null-budget prompt loop.
+- Frozen literal transport regression was RED; first real7B proposal copied the fixture's sample source into the runtime and failed. Literal expansion enlarged the rejected source; a contiguous recovery extent exceeded the unchanged30KB cap. Added a failing expanded-rejection regression, then exact changed-boundary excerpts with explicit omissions and focused target context after the read-only oracle. Legacy full prompts remain byte-identical.
+- Isolated normal intake kept the terminal run stopped. One explicitly recorded operator-assisted fixture transition retained the same Goal/Job/manifest/FAIL/attempt1. Remaining model request was interrupted by the resume harness's previously started waiting deadline before archival; no extra inference. Replay guard PASS with zero calls and unchanged source hashes. This is not autonomous terminal recovery.
+- Harness dependency path and resume deadline/scheduling mistakes are preserved as failures in evidence. They do not establish model quality. Ruling: no further equivalent model attempts. Codex fixes the proven production literal defect with explicit authorship; actual-model/self-completion acceptance remains unchecked, and #921 stays open.
+- Literal source regression GREEN after the Codex fix; focused source cases, lint, types and preservation checks pass. Final full related tests, one fresh branch review, protected PR/exact-main CI and GitHub/Compass handoff remain in progress.

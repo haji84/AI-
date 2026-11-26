@@ -6,7 +6,7 @@ test("focused excerpts retain multiline/CRLF bytes, merge neighboring windows an
   const path="scripts/source.mjs",content="zero\r\none\r\ntwo\r\nthree\r\nfour\r\nfive\r\nsix\r\nlast";
   const prompt=renderTrackedRepairSources([{path,content}],
     [{path,before:"one\r\ntwo"},{path,before:"three"},{path,before:"last"}],{version:1,paddingLines:0},[]);
-  assert.equal(prompt,"SOURCE scripts/source.mjs (lines 2-4 of 8)\none\r\ntwo\r\nthree\r\n\nSOURCE scripts/source.mjs (lines 8-8 of 8)\nlast");
+  assert.equal(prompt,"SOURCE scripts/source.mjs (lines 2-4 of 8)\none\r\ntwo\r\nthree\r\n\n[Unshown lines between excerpts]\nSOURCE scripts/source.mjs (lines 8-8 of 8)\nlast");
 });
 
 test("focused recovery shows actual inserted/deleted lines rather than reusing baseline line numbers",()=>{
@@ -27,4 +27,13 @@ test("focused source without slots remains complete and ambiguous slots fail clo
 test("omitted context retains the complete previous source prompt byte for byte",()=>{
   assert.equal(renderTrackedRepairSources([{path:"scripts/a.mjs",content:"baseline\n"},{path:"scripts/b.mjs",content:"full\r\n"}],[],undefined,
     [{path:"scripts/a.mjs",content:"rejected\n"}]),"SOURCE scripts/a.mjs\nrejected\n\nSOURCE scripts/b.mjs\nfull\r\n");
+});
+
+test("a malformed rejected candidate cannot force its entire expanded body into focused recovery",()=>{
+  const path="scripts/source.mjs",content="head\nselected\ntail\n";
+  const rejected="head\nbad beginning\n"+"expanded source\n".repeat(6000)+"bad ending\ntail\n";
+  const prompt=renderTrackedRepairSources([{path,content}],[{path,before:"selected"}],{version:1,paddingLines:1},[{path,content:rejected}]);
+  assert.ok(Buffer.byteLength(prompt)<2000,"rejected source is advisory; immutable full bytes remain outside the prompt");
+  assert.match(prompt,/bad beginning/);assert.match(prompt,/bad ending/);
+  assert.match(prompt,/Unshown lines between excerpts/);
 });

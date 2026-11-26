@@ -1,0 +1,11 @@
+✔ tracked recovery supplies rejected source once so a real-size source stays within the prompt bound (25764.434ms)
+✔ host-pinned focused context repairs a large file and retains the rejected source across restart (25103.7154ms)
+✔ focused context rejects unsupported or unbounded host configuration before inference (517.1903ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 51629.1021

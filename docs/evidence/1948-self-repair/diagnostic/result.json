@@ -1,0 +1,51 @@
+{
+  "scope": "READ-ONLY diagnostic, not a Goal completion or adopted source fix",
+  "baseline": "8ca36986e759f2fe8b3257f07d36bf30afa05fb6",
+  "issue": 1948,
+  "variable": "source context extent only",
+  "model": {
+    "provider": "ollama",
+    "endpoint": "http://127.0.0.1:11434/api/generate",
+    "id": "qwen3:4b",
+    "sha256": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
+    "nPredict": 768,
+    "timeoutMs": 120000
+  },
+  "originalIntentSha256": "cbe5efa9c7381f0bb3a361448e987074fd8519c9d210ba316e5ccaf3e44a12e7",
+  "originalPromptSha256": "3a64d0ec4891667b00105d96de8f21b240929bbdc3d328e2672bc6986362fc39",
+  "promptSha256": "57aa4cb09eee159ac1078990f2ad5a3b43ba95ef9444df295370a23c06212f2a",
+  "originalBytes": 19278,
+  "focusedBytes": 2625,
+  "sourceLines": [
+    72,
+    85
+  ],
+  "startedAt": "2026-11-26T10:04:00.470Z",
+  "before": {
+    "path": "/api/tags",
+    "name": "qwen3:4b",
+    "digest": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
+    "size": 2497293931
+  },
+  "loaded": {
+    "path": "/api/ps",
+    "name": "qwen3:4b",
+    "digest": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
+    "size": 3888675552
+  },
+  "after": {
+    "path": "/api/tags",
+    "name": "qwen3:4b",
+    "digest": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
+    "size": 2497293931
+  },
+  "responseSha256": "b3b5aabe579558d12a2974c7fe20e7a445f7d8205a17d38fed4387d54eff7fa2",
+  "edits": [
+    {
+      "slot": 1,
+      "after": "const maxCycles = options.maxCycles ?? 3;"
+    }
+  ],
+  "status": "OBSERVED",
+  "finishedAt": "2026-11-26T10:04:17.943Z"
+}

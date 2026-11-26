@@ -1,0 +1,13 @@
+✔ focused excerpts retain multiline/CRLF bytes, merge neighboring windows and keep distant selections (1.0216ms)
+✔ focused recovery shows actual inserted/deleted lines rather than reusing baseline line numbers (0.3873ms)
+✔ focused source without slots remains complete and ambiguous slots fail closed (0.4079ms)
+✔ omitted context retains the complete previous source prompt byte for byte (0.1211ms)
+✔ a malformed rejected candidate cannot force its entire expanded body into focused recovery (1.5436ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 117.8367

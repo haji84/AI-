@@ -225,6 +225,8 @@ test("host-pinned focused context repairs a large file and retains the rejected 
   assert.equal(f.repairCalls(),2);
   assert.ok(f.prompts.every(prompt=>Buffer.byteLength(prompt)<10000));
   assert.match(f.prompts[0]!,/SOURCE scripts\/logic.mjs.*lines 1-3/);
+  assert.ok(f.prompts[0]!.indexOf("Frozen regression")<f.prompts[0]!.indexOf("SOURCE scripts/logic.mjs"));
+  assert.match(f.prompts[0]!,/Regression fixtures above are read-only examples/);
   assert.match(f.prompts[1]!,/REJECTED SOURCE scripts\/logic.mjs/);
   assert.match(f.prompts[1]!,/export const answer = 41/);
   assert.match(f.prompts[1]!,/original baseline SLOT/);
