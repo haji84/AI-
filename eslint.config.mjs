@@ -6,7 +6,7 @@ export default defineConfig([
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ["scripts/**/*.mjs"],
+    files: ["scripts/**/*.mjs", "tools/codex-autonomy/**/*.mjs"],
     languageOptions: {
       globals: {
         AbortSignal: "readonly",

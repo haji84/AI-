@@ -1,0 +1,44 @@
+{
+  "verifiedAt": "2026-11-26T12:41:58.543Z",
+  "projects": [
+    {
+      "project": "project-a",
+      "status": "complete",
+      "tasks": 4,
+      "evidenceReferencesValid": true
+    },
+    {
+      "project": "project-b",
+      "status": "complete",
+      "tasks": 5,
+      "evidenceReferencesValid": true
+    },
+    {
+      "project": "project-a/interrupt-probe",
+      "status": "complete",
+      "tasks": 3,
+      "evidenceReferencesValid": true
+    }
+  ],
+  "resume": {
+    "artifactAndTimestampUnchanged": true,
+    "spentContinuationsBefore": 1,
+    "spentContinuationsAfter": 1
+  },
+  "nativeHookEvents": [
+    "Bind",
+    "SessionStart",
+    "UserPromptSubmit",
+    "SubagentStart",
+    "SubagentStop",
+    "Stop",
+    "Interrupt"
+  ],
+  "nativeEarlyStopAndQuestionAndCompletion": true,
+  "failedWorker": {
+    "nativeExitCode": 1,
+    "attempts": 1,
+    "missingInputRetained": true
+  },
+  "auditSha256": "de5c1ef60a74f5bb5a49e577585df2e76bed483a01a7d17ad9a420f7b7dbc1fb"
+}
