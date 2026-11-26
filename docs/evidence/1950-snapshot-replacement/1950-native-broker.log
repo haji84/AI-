@@ -1,0 +1,10 @@
+✔ authenticated Broker selects tracked profile and restarts the same waiting Job without another model call (13287.4455ms)
+✔ authenticated Broker selects tracked sequence and restarts the same waiting Job without another model call (28340.9892ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 41862.5233

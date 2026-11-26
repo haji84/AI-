@@ -1,0 +1,35 @@
+✔ development Change Set binds immutable base, device, digests, and rollback (2.9089ms)
+✔ development Change Set rejects traversal and secret-bearing metadata (0.794ms)
+✔ Change Set store survives restart and refuses identity mutation (12.3653ms)
+✔ memory store returns clones and deduplicates job identity (5.2972ms)
+✔ JSON store survives reconstruction and uses a versioned snapshot (11.8625ms)
+✔ JSON store rejects a corrupt or unsupported snapshot (3.6002ms)
+✔ concurrent stale history cannot overwrite a Human Gate even with a newer timestamp (11.6754ms)
+✔ Windows transient replacement sharing failure preserves the complete old Job and lease until commit (67.5222ms)
+✔ Windows persistent replacement denial fails within its bound and retains the previous complete snapshot (199.9187ms)
+✔ unrelated replacement failure is not retried: win32/EACCES (8.459ms)
+✔ unrelated replacement failure is not retried: linux/EPERM (7.6688ms)
+✔ ChangeSet replacement exposes only committed state during transient sharing failure (66.1277ms)
+✔ ChangeSet replacement exposes only committed state during persistent denial (201.7615ms)
+✔ ChangeSet cache publishes the captured committed record despite caller mutation during rename (4.916ms)
+✔ affected surfaces select platform, visual, security, and physical iPhone checks (1.4834ms)
+✔ verification fails closed for Builder self-verification and stale evidence (0.4093ms)
+✔ verification accepts only complete evidence bound to the exact revision and artifact (0.2749ms)
+✔ Compass authority commits observed progress without changing canonical controls (57.124ms)
+✔ Compass runtime cannot delete canonical WorkRun blockers or evidence (38.8788ms)
+✔ the canonical bridge repairs failed verification without a second owner instruction, then preserves the release Human Gate (69.612ms)
+✔ an equivalent rejected candidate stops automatic continuation and is preserved (43.5478ms)
+✔ recovery strategy limits survive a new host and reject an unbounded series of different bad candidates (119.3826ms)
+✔ stale verification is a stop, not permission to keep coding (26.5243ms)
+✔ inconclusive verification is a stop, not permission to keep coding (28.533ms)
+✔ self-verified verification is a stop, not permission to keep coding (30.7063ms)
+✔ interrupted job failure checkpoint does not grant an unrecorded repair (122.141ms)
+✔ interrupted candidate failure checkpoint does not grant an unrecorded repair (133.621ms)
+ℹ tests 27
+ℹ suites 0
+ℹ pass 27
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1989.2826
