@@ -150,3 +150,18 @@ for(const permanent of [false,true])test("ChangeSet replacement exposes only com
     assert.equal(existsSync(path+".lock"),false);
   }finally{await rm(directory,{recursive:true,force:true});}
 });
+
+test("ChangeSet cache publishes the captured committed record despite caller mutation during rename",async()=>{
+  const directory=await mkdtemp(join(tmpdir(),"goriq-change-captured-")),path=join(directory,"changes.json"),store=new JsonFileDevelopmentChangeSetStore(path);
+  const value=createDevelopmentChangeSet({changeSetId:"captured-change",jobId:"job-681",workItemId:"job-681:implement",deviceId:"fixture",
+    baseRevision:"a".repeat(40),changedPaths:["src/example.ts"],affectedSymbols:[],patchDigest:"b".repeat(64),evidenceDigest:"c".repeat(64),rollback:{kind:"git-base",reference:"a".repeat(40)}});
+  const committed=structuredClone(value);
+  try{
+    await withRenameFault("win32",async(_attempt,perform)=>{
+      value.changeSetId="mutated-id";value.patchDigest="e".repeat(64);value.changedPaths.push("src/other.ts");await perform();
+    },async()=>{await store.put(value);});
+    assert.deepEqual(await store.get(committed.changeSetId),committed);
+    assert.deepEqual(await new JsonFileDevelopmentChangeSetStore(path).get(committed.changeSetId),committed);
+    assert.equal(await store.get("mutated-id"),null);
+  }finally{await rm(directory,{recursive:true,force:true});}
+});

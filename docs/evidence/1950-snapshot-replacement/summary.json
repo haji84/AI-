@@ -50,7 +50,12 @@
     "cognitive": 17,
     "research": 20,
     "roadmap": 35,
-    "surfaces": 629
+    "surfaces": 629,
+    "latestStoreAndAuthority": {
+      "tests": 27,
+      "pass": 27,
+      "fail": 0
+    }
   },
   "limits": [
     "Persistent Windows EPERM and unrelated errors still fail visibly; this does not grant ACL or service authority",
@@ -58,5 +63,11 @@
     "Original model experiments remain failed/inconclusive and consumed; no new model inference",
     "Initial intermediate green log failed only on optional undefined keys versus the existing JSON wire representation; expected record comparison was normalized to that unchanged representation"
   ],
-  "next": "Protected exact-head CI/review/current-main validation, then existing reliable Builder capability work under#921 after reading GitHub"
+  "next": "Protected exact-head CI/review/current-main validation, then existing reliable Builder capability work under#921 after reading GitHub",
+  "review": {
+    "critical": 0,
+    "important": 1,
+    "minor": 0,
+    "resolution": "Captured pending value/key published; caller-mutation regression RED/GREEN,27PASS; original Important finding retained"
+  }
 }

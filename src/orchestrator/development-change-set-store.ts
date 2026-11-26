@@ -75,13 +75,14 @@ export class JsonFileDevelopmentChangeSetStore {
           if (existing && (existing.jobId !== value.jobId || existing.workItemId !== value.workItemId || existing.baseRevision !== value.baseRevision)) throw new Error(`development Change Set identity conflict: ${value.changeSetId}`);
           if (existing && existing.updatedAt > value.updatedAt) throw new Error(`stale development Change Set write: ${value.changeSetId}`);
           const pending = new Map(this.values);
-          pending.set(value.changeSetId, clone(value));
+          const pendingValue = clone(value);
+          pending.set(pendingValue.changeSetId, pendingValue);
           const snapshot: Snapshot = { version: 1, changeSets: [...pending.values()].map(clone), savedAt: now.toISOString() };
           const temporary = `${this.filePath}.tmp-${process.pid}-${Date.now()}`;
           await writeFile(temporary, `${JSON.stringify(validate(snapshot), null, 2)}\n`, "utf8");
           await replaceDevelopmentSnapshot(temporary, this.filePath);
           // Readers must not observe a ChangeSet whose snapshot has not committed.
-          this.values.set(value.changeSetId, clone(value));
+          this.values.set(pendingValue.changeSetId, pendingValue);
           return;
         } finally { await handle.close(); await unlink(lockPath).catch(() => undefined); }
       } catch (error) {

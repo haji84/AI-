@@ -49,6 +49,16 @@
       "sha256": "b6156703594fc1c3d09897a967d61351112c71d0f9c108da7cfc3b9ce6e8fa90"
     },
     {
+      "path": "1950-review-mutation-green.log",
+      "bytes": 2649,
+      "sha256": "5cee25ed782873a4b6b3bffafaae50e40c2a528dc1cca9e0aeb39cf16c746a74"
+    },
+    {
+      "path": "1950-review-mutation-red.log",
+      "bytes": 2926,
+      "sha256": "b284ad28a7c7cb4401debf6b89c325096f8a8081c27b7ea7468d40a3ac36f315"
+    },
+    {
       "path": "1950-secret-audit.log",
       "bytes": 120,
       "sha256": "285edd6445394316f96de914ec588aadb4d2026b550054ddfe22cf488e986d5e"
@@ -80,8 +90,8 @@
     },
     {
       "path": "summary.json",
-      "bytes": 1955,
-      "sha256": "9644b3a65ee8e9a4847fb92440262dd864d991a3d22ebb323d5697da86836284"
+      "bytes": 2261,
+      "sha256": "0f4ae5cf711192d17a574250b2792bd517ad25d761202494500808da1a381edf"
     }
   ]
 }
