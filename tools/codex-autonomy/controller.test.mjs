@@ -15,9 +15,10 @@ import { handleEvent } from './controller.mjs';
 const controller = fileURLToPath(new URL('./controller.mjs', import.meta.url));
 const digest = value => createHash('sha256').update(value).digest('hex');
 const task = (id, status = 'pending', extra = {}) => ({ id, status, depends_on: [], actionable: true, evidence: [], ...extra });
-function fixture(t, extra = {}) {
+function fixture(t, extra = {}, beforeCleanup = null) {
   const canonicalTemp = fs.realpathSync(os.tmpdir()), root = fs.mkdtempSync(path.join(canonicalTemp, 'codex-autonomy-test-'));
-  t.after(() => {
+  t.after(async () => {
+    if (beforeCleanup) await beforeCleanup();
     const resolved = fs.realpathSync(root), relative = path.relative(canonicalTemp, resolved);
     assert.ok(relative.startsWith('codex-autonomy-test-') && !relative.includes(path.sep) && !path.isAbsolute(relative), 'cleanup stays within its canonical fixture directory');
     fs.rmSync(resolved, { recursive: true, force: true });
@@ -434,16 +435,39 @@ test('SubagentStop audits a claim digest and actual state snapshot without decla
   assert.equal(unavailable.end_state, 'stopped-reported'); assert.equal(unavailable.state_hash, undefined);
 });
 
-test('concurrent subagent events retain every metadata audit record', async t => {
-  const f = fixture(t); f.bind();
-  const results = await Promise.all(Array.from({ length: 24 }, (_, i) => new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [controller], { env: { ...process.env, CODEX_HOME: f.home }, stdio: ['pipe', 'pipe', 'pipe'] });
+test('concurrent subagent events retain every metadata audit record', { timeout: 15000 }, async t => {
+  const children = new Set(), pending = new Set(), results = new Array(24); let next = 0, stopping = false;
+  const stop = () => { stopping = true; for (const child of children) child.kill('SIGKILL'); };
+  const f = fixture(t, {}, async () => { stop(); await Promise.allSettled([...pending]); }); f.bind();
+  t.signal.addEventListener('abort', stop, { once: true });
+  const run = i => {
+    const completion = new Promise(resolve => {
+    const child = spawn(process.execPath, [controller], { env: { ...process.env, CODEX_HOME: f.home },
+      stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true, timeout: 5000, killSignal: 'SIGKILL' });
+    children.add(child);
+    let error = null;
     let stdout = '', stderr = ''; child.stdout.on('data', value => { stdout += value; }); child.stderr.on('data', value => { stderr += value; });
-    child.on('error', reject); child.on('exit', code => resolve({ code, stdout, stderr }));
+    child.on('error', value => { error = value.code || value.message; });
+    child.stdin.on('error', value => { error ||= value.code || value.message; });
+    child.on('close', (code, signal) => { children.delete(child); resolve({ code, signal, error, stdout, stderr }); });
     child.stdin.end(JSON.stringify({ hook_event_name: 'SubagentStop', session_id: 'session-1', cwd: f.cwd,
       agent_id: `concurrent-${i}`, agent_type: 'worker', last_assistant_message: 'DO_NOT_LOG' }));
-  })));
-  for (const result of results) { assert.equal(result.code, 0, result.stderr); assert.deepEqual(JSON.parse(result.stdout), {}, result.stderr); }
+    }).finally(() => pending.delete(completion));
+    pending.add(completion); return completion;
+  };
+  // Retain all 24 events while admitting four Node runtimes at once. Node's
+  // native threads also consume the restricted verifier's 128 PID budget.
+  await Promise.all(Array.from({ length: 4 }, async () => {
+    while (!stopping && !t.signal.aborted && next < results.length) { const i = next++; results[i] = await run(i); }
+  }));
+  if (t.signal.aborted) return;
+  for (const result of results) {
+    const diagnostic = JSON.stringify({ code: result.code, signal: result.signal, error: result.error,
+      stdout: result.stdout.slice(0, 1000), stderr: result.stderr.slice(0, 2000) });
+    if (result.code !== 0 || result.signal || result.error) process.stderr.write(`Audit writer failed: ${diagnostic}\n`);
+    assert.equal(result.code, 0, diagnostic); assert.equal(result.signal, null, diagnostic); assert.equal(result.error, null, diagnostic);
+    assert.deepEqual(JSON.parse(result.stdout), {}, diagnostic);
+  }
   const events = f.audit().filter(event => event.agent_id?.startsWith('concurrent-'));
   assert.equal(events.length, 24); assert.equal(new Set(events.map(event => event.agent_id)).size, 24);
 });
