@@ -1,0 +1,20 @@
+✔ runtime Builder accepts explicit loopback endpoint and executes through registry handler (4.0028ms)
+✔ runtime Builder rejects non-loopback local endpoint (0.3787ms)
+✔ runtime Builder fails closed when local configuration is incomplete (0.1377ms)
+✔ owner-approved plan Codex routes through exact isolated loopback workspace (3.2042ms)
+✔ plan Codex requires explicit complete opt-in, never auto-enables with available token (0.2371ms)
+✔ plan Codex rejects non-loopback or ambiguous control URLs (0.2021ms)
+✔ plan Codex will not route when live engine, identity or workspace differs (1.2199ms)
+✔ owner-pinned Codex workspace refuses relative, root, UNC and traversal paths (0.4001ms)
+✔ owner-pinned Codex health has an abort deadline and no redirect (0.3662ms)
+✔ Codex workspace comparison normalizes trailing separators but preserves POSIX case (2.3511ms)
+✔ Codex honors the trusted host stop after health and before dispatching a write (0.4803ms)
+✔ scoped Codex build refuses a redirect without sending the task body to its destination (37.1679ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 221.895

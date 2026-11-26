@@ -85,8 +85,9 @@ function planCodexBuilder(
     return windowsPath ? leaf.toLowerCase() : leaf;
   };
   const expectedPath = actualHostPath(expectedWorkspace);
+  const scopedFetch: typeof fetch = (input, init) => fetchImpl(input, { ...init, redirect: "error" });
   const delegate = new HttpWorkerBuilderCapability(
-    "owner-plan-codex-builder", { url: url.origin, token }, fetchImpl, "external",
+    "owner-plan-codex-builder", { url: url.origin, token }, scopedFetch, "external",
   );
   return {
     id: delegate.id,

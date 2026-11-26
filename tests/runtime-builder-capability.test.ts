@@ -1,5 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { createServer } from "node:http";
+import { once } from "node:events";
 import { createCodeBuilderCapability, createRuntimeBuilderRouter } from "../src/orchestrator/runtime-builder-capability.ts";
 
 test("runtime Builder accepts explicit loopback endpoint and executes through registry handler", async () => {
@@ -220,4 +222,26 @@ test("Codex honors the trusted host stop after health and before dispatching a w
   await assert.rejects(()=>createCodeBuilderCapability(router).execute({id:"stop",description:"fixture",capability:"code.builder",risk:"low",
     input:{goalId:"fixture",attemptId:"attempt",strategyId:"strategy",objective:"fixture"}},[]),error=>error===stop);
   assert.equal(stops,1);assert.equal(posts,0);
+});
+
+test("scoped Codex build refuses a redirect without sending the task body to its destination",async()=>{
+  let redirected=0,builds=0;
+  const sink=createServer((request,response)=>{redirected++;request.resume();response.setHeader("content-type","application/json");response.end(JSON.stringify({ok:true,summary:"unverified destination"}));});
+  sink.listen(0,"127.0.0.1");await once(sink,"listening");
+  const server=createServer((request,response)=>{
+    request.resume();
+    if(request.url==="/health"){response.setHeader("content-type","application/json");response.end(JSON.stringify({ok:true,service:"code-builder-worker",engine:"codex",capabilities:["code-builder"],workspace:"/srv/isolated/goal"}));return;}
+    builds++;response.writeHead(307,{location:`http://127.0.0.1:${(sink.address() as {port:number}).port}/unverified`});response.end();
+  });
+  try{
+    server.listen(0,"127.0.0.1");await once(server,"listening");
+    const router=createRuntimeBuilderRouter({CODE_BUILDER_PLAN_CODEX_APPROVED:"1",CODE_BUILDER_PLAN_CODEX_URL:`http://127.0.0.1:${(server.address() as {port:number}).port}`,
+      CODE_BUILDER_PLAN_CODEX_TOKEN:"fixture-token",CODE_BUILDER_PLAN_CODEX_WORKSPACE:"/srv/isolated/goal"});
+    const result=await createCodeBuilderCapability(router).execute({id:"redirect",description:"fixture",capability:"code.builder",risk:"low",
+      input:{goalId:"fixture",attemptId:"attempt",strategyId:"strategy",objective:"task body must stay on its scoped endpoint"}},[]);
+    assert.equal(redirected,0);assert.equal(builds,1);assert.equal(result.ok,false);
+  }finally{
+    server.closeAllConnections();sink.closeAllConnections();
+    await Promise.all([new Promise<void>(resolve=>server.close(()=>resolve())),new Promise<void>(resolve=>sink.close(()=>resolve()))]);
+  }
 });

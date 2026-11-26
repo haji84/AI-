@@ -15,7 +15,12 @@
     "cognitive": 17,
     "research": 20,
     "roadmap": 35,
-    "surfaces": 629
+    "surfaces": 629,
+    "latestRuntimeBuilderTests": {
+      "tests": 12,
+      "pass": 12,
+      "fail": 0
+    }
   },
   "preserved": [
     "Explicit Ollama-only selection, including when Codex configuration is present and approved local model unavailable",
@@ -37,7 +42,14 @@
     "No real model request or normal Goal acceptance was executed by this source integration",
     "Existing CLI account/rate-limit was read-only observed locally; no account identity/credit details are published, and no capacity or authorization inferred from flags alone",
     "Old physical8797 evidence is history, not current scope or production/physical acceptance",
-    "Actual model self-repair#1948 remains failed/inconclusive; do not reset/retry exhausted conditions"
+    "Actual model self-repair#1948 remains failed/inconclusive; do not reset/retry exhausted conditions",
+    "beforeWrite is pre-dispatch only; generic deadlines/post-dispatch fencing and lexical vs filesystem identity remain unchanged/unverified"
   ],
-  "next": "Current-main review/exact-head CI/protected merge/exact-main; then one bounded actual existing Builder outcome through normal Goal/Job/verifier/restart after fresh capacity/scope preflight"
+  "next": "Current-main review/exact-head CI/protected merge/exact-main; then one bounded actual existing Builder outcome through normal Goal/Job/verifier/restart after fresh capacity/scope preflight",
+  "review": {
+    "critical": 0,
+    "important": 1,
+    "minor": 0,
+    "resolution": "Scoped Codex build no-redirect wrapper; real307redirect regression RED1forwardedPOST→GREEN0; generic defaults unchanged"
+  }
 }
