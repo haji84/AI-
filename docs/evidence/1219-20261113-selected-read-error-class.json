@@ -1,0 +1,22 @@
+{
+  "version":1,
+  "issue":1219,
+  "pr":1910,
+  "parentHead":"e870bc4b17f3fdc8e34ad04b63be0c92f09f8be3",
+  "parentCI":43339656600,
+  "parentCIConclusion":"success",
+  "sourceBlob":"beb88b910144d162c88854d90f5ac74c14b3f5bd",
+  "sourceSha256":"b5e31a09925a4926d54ab3e5249656a191f8525b78783bf0c8d63b48be12366e",
+  "testBlob":"18f6a612a55e75ffb7c97ed624ae068e9c1c6074",
+  "testSha256":"d7a77910f6320617f2ba8275a9f1b4085c04b82fb6e4064e717d7aa96ef6ce6f",
+  "red":{"tests":21,"pass":3,"fail":18},
+  "green":{"tests":21,"pass":21,"fail":0,"skip":0},
+  "combinedFocusedTests":{"tests":46,"pass":46,"fail":0,"skip":0},
+  "environment":"Node22.16.0 isolated partial source snapshot",
+  "realOwnerProbeExecutedAfterFix":false,
+  "responseTransport":"fixture-only; same production probe source",
+  "safety":"No new request, URL, credential, state mutation, retry or permissions; only enum and bounded HTTP code retained on existing failed Goal GET",
+  "authority":"HOLD remains HOLD; no authentication/approval/Goal grant from diagnostics",
+  "fullRepositoryTests":"Require fresh exact-HEAD GitHub CI",
+  "productionAcceptance":false
+}

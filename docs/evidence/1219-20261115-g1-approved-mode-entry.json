@@ -1,0 +1,174 @@
+{
+  "version": 1,
+  "issue": 1219,
+  "goalId": "goal-fcc81c97e09153f7",
+  "jobId": "rotation-recovery-37",
+  "originalGoalStatus": "NOT_ACHIEVED",
+  "productionAcceptance": false,
+  "originalGoalRecovered": false,
+  "authority": {
+    "kind": "specific owner chat approval",
+    "messages": [
+      "許可",
+      "許可して進めて"
+    ],
+    "recordedAt": "2026-11-15T14:40:55.000Z",
+    "implementationEligibilityUntil": "2026-11-15T20:40:55.000Z",
+    "reference": "https://github.com/haji84/AI-/issues/1219#issuecomment-6890852588",
+    "commentIsHumanSignature": false,
+    "originalGoalApprovalStateRecreated": false,
+    "scope": [
+      "owner-config-file",
+      "mac-canonical-repo-default"
+    ],
+    "entryConnectionApproved": true,
+    "maxConsumptions": 1
+  },
+  "baseline": {
+    "main": "74c0b5fa40dc2249e482f26e904bdbb1d85fb842",
+    "mainCi": 43695429682,
+    "draftHead": "32212deaed73030ecf45da90368a329cba880e71",
+    "draftCi": 43696637223,
+    "actualInventory": 43687204876,
+    "actualMacJob": 132730063657,
+    "runnerId": 22,
+    "runnerName": "MacBook",
+    "lastObserved": "two NONPRIVATE_PERMISSIONS Compass leaves; all nine sidecars missing; no original recovered"
+  },
+  "newBehavior": {
+    "native": "retained descriptors, safe parent walk, Darwin SDK metadata shim, private baseline/journal, O_EXCL durable approval consumption, fchmod on same descriptor",
+    "atomicAllFactsCas": false,
+    "modeRule": "beforeMode & 0700",
+    "nativeDeadlineImmediatelyBeforeEffect": true,
+    "nativeUncertainAttemptReplay": false,
+    "darwinFixtureBeforeOwnerCapture": true,
+    "entry": "fixed PR1918 merge, current exactmain, successful fixed CI + all four jobs and existing in-job six-check audit; same observed runner22; no dispatch or arbitrary command/path inputs",
+    "sourceLease": "fresh currentmain GET before native; five-second refresh interval, failed reads invalidate, forty-five-second fail-closed maximum; immutable local source checked at every verification",
+    "tokenPermissions": [
+      "contents:read"
+    ],
+    "newSecretsOrScopes": false
+  },
+  "verification": {
+    "rootFocused": {
+      "tests": 112,
+      "pass": 112,
+      "fail": 0,
+      "skip": 0,
+      "durationMs": 370.64415,
+      "outerTimeoutSeconds": 60,
+      "killGraceSeconds": 5
+    },
+    "independentFocused": {
+      "tests": 112,
+      "pass": 112,
+      "fail": 0,
+      "skip": 0,
+      "durationMs": 277.109152,
+      "overlapsRoot": true
+    },
+    "pythonNativeFixtures": {
+      "tests": 17,
+      "pass": 17,
+      "embeddedInNodeWrapper": true,
+      "darwinMetadata": "injected fixture port; not real Mac acceptance"
+    },
+    "fullEslint": "PASS",
+    "typecheck": "PASS",
+    "traceability": {
+      "status": "PASS",
+      "surfaces": 626,
+      "requirements": 341
+    },
+    "sourceReview": "no unresolved concrete findings",
+    "exactNewHeadCi": "PENDING",
+    "exactNewMainCi": "PENDING",
+    "actualMacRepair": "NOT_EXECUTED",
+    "actualDarwinMetadataFixture": "NOT_EXECUTED"
+  },
+  "failureHistory": [
+    {
+      "kind": "initial authorization TDD",
+      "tests": 45,
+      "pass": 0,
+      "fail": 45,
+      "reason": "missing new module"
+    },
+    {
+      "kind": "initial entry TDD",
+      "tests": 9,
+      "pass": 0,
+      "fail": 9,
+      "reason": "missing new entry/workflow"
+    },
+    {
+      "kind": "initial native TDD",
+      "tests": 2,
+      "pass": 0,
+      "fail": 2,
+      "reason": "missing native module"
+    },
+    {
+      "kind": "native fixture ancestry refusal",
+      "resolution": "move synthetic fixture to safe owned home; do not relax production parent guard"
+    },
+    {
+      "kind": "native last-metadata mode drift",
+      "resolution": "compare expected metadata immediately before effect"
+    },
+    {
+      "kind": "native uncertain syscall retry",
+      "resolution": "reserve attempt before syscall; no native reapply"
+    },
+    {
+      "kind": "root final fstat review reproduction",
+      "tests": 17,
+      "pass": 16,
+      "fail": 1,
+      "resolution": "fresh fstat after last metadata query before deadline/effect"
+    },
+    {
+      "kind": "source lease stale time",
+      "tests": 12,
+      "pass": 10,
+      "fail": 2,
+      "resolution": "fresh currentmain admission and no redating failed reads"
+    },
+    {
+      "kind": "lint",
+      "reason": "structuredClone globals and regex spacing",
+      "resolution": "explicit globalThis binding and counted spaces; final lint PASS"
+    },
+    {
+      "kind": "review coverage gaps",
+      "resolution": "freeze binding mutants and advance time inside awaited source callback; add uncertain consume replay regression"
+    },
+    {
+      "kind": "withdrawn review allegation",
+      "reason": "existing config reader was already exported; real import verified; no unnecessary source edit"
+    }
+  ],
+  "remaining": [
+    "protected publish/merge and exact-head/main CI",
+    "actual Mac preflight and permission repair",
+    "original complete authenticated Goal/Job/attempt recovery",
+    "real AI changes and failed-attempt repair",
+    "Actions A to B restart",
+    "automatic next Job",
+    "production result authenticity and artifact behavior"
+  ],
+  "sourceSha256": {
+    ".github/workflows/goriq-g1-compass-mode-repair.yml": "79ed84ab85449290038a0e984df637381d5031ee8507437f4d77bca8e842a57e",
+    "scripts/goriq-g1-compass-mode-authorization.mjs": "5683a460addb62ca89433182cb8aafec0f5d8b89175688a55e4c1cda51bdcbd5",
+    "scripts/goriq-g1-compass-mode-entry.mjs": "1d4977ab310d6846de4f9dbf66546230b3c6a6095879c458cb24ff8e08740872",
+    "scripts/goriq-g1-compass-mode-repair.mjs": "4a0bbae7f488a11da012a35ad74f8ad135d92a298b8be59d9298e3546d0dad9c",
+    "scripts/goriq-g1-compass-mode-native.mjs": "fd476a9ec2042fa3fec147127f3bb713118b877798f1975ca0739c544c0e9b7d",
+    "scripts/goriq-g1-compass-mode-native.py": "fa3e0fb8f60e0aac8490b366317a15c8e14c9d033e46100a8780a3a768451f6d",
+    "scripts/goriq-g1-compass-mode-metadata.c": "f7a5878b67377f13a2f54a3c47a070466205810fb3a13544c36e6d809e9b8222",
+    "tests/goriq-g1-compass-mode-authorization.test.mjs": "5b74e0e90fda7dc0017c9e71fa04045353d61410e0cd38600e98bc8a74da3fb3",
+    "tests/goriq-g1-compass-mode-entry.test.mjs": "95eadb944140ee0bc37aab1501b9f8a80d7d42093b48ad155e1367ef916af88c",
+    "tests/goriq-g1-compass-mode-native.test.mjs": "b28f0d89d112838a208cd26efd6faa662b0428328c8fde94ea1ef2ed0df3d848",
+    "tests/goriq-g1-compass-mode-native.test.py": "af2e8e77faafd955282a69fe21f980f117275ebd66ac0562a63beffaa258b8a5",
+    "tests/goriq-g1-compass-mode-darwin.test.py": "31dc6b98005f94c37e5a38863c04206c8ab66d4016a3824e539eb565ef9fc614"
+  }
+}

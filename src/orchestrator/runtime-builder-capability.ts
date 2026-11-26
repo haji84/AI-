@@ -3,6 +3,9 @@ import { join, win32, posix } from "node:path";
 import { homedir } from "node:os";
 import type { CapabilityHandler } from "./capabilities.ts";
 import { BuilderRouter, type BuilderCapability } from "./builder-router.ts";
+import { configuredLocalOllamaBuilder } from "./runtime-local-ollama-builder.ts";
+import type { PreparedLocalWriteCheckpoint } from "./local-prepared-write.ts";
+import { withDevelopmentResourceAdmission } from "../gai/development-resource-admission.ts";
 import { HttpWorkerBuilderCapability, createEnvHttpWorkerBuilders } from "../gai/http-worker-builder-capability.ts";
 
 function localBuilderConfig(env: Record<string, string | undefined>): { url: string; token: string } | null {
@@ -43,6 +46,7 @@ function assertLocalLoopback(urlString: string): void {
 function planCodexBuilder(
   env: Record<string, string | undefined>,
   fetchImpl: typeof fetch,
+  beforeWrite?: () => Promise<void>,
 ): BuilderCapability | null {
   const keys = [
     env.CODE_BUILDER_PLAN_CODEX_APPROVED?.trim(),
@@ -77,7 +81,8 @@ function planCodexBuilder(
     if (normalized === dialect.parse(normalized).root) {
       throw new Error("Plan-included Codex workspace must not be a filesystem root");
     }
-    return windowsPath ? normalized.toLowerCase() : normalized;
+    const leaf = normalized.replace(windowsPath ? /[\\/]+$/ : /\/+$/, "");
+    return windowsPath ? leaf.toLowerCase() : leaf;
   };
   const expectedPath = actualHostPath(expectedWorkspace);
   const delegate = new HttpWorkerBuilderCapability(
@@ -107,16 +112,21 @@ function planCodexBuilder(
         return false;
       }
     },
-    build(request) { return delegate.build(request); },
+    async build(request) { await beforeWrite?.(); return delegate.build(request); },
   };
 }
 
 export function createRuntimeBuilderRouter(
   env: Record<string, string | undefined> = process.env,
   fetchImpl: typeof fetch = fetch,
+  hostOptions: { preparedWrite?: PreparedLocalWriteCheckpoint; resourceAdmission?: typeof withDevelopmentResourceAdmission; beforeWrite?: () => Promise<void> } | typeof withDevelopmentResourceAdmission = {},
 ): BuilderRouter {
+  // Explicit Codex-free selection: never fall back to the 8796/8797 coding engines
+  // or any potentially billable remote endpoint for this isolated Goal.
+  const ollama = configuredLocalOllamaBuilder(env, fetchImpl, hostOptions);
+  if (ollama) return new BuilderRouter([ollama]);
   const builders: BuilderCapability[] = [...createEnvHttpWorkerBuilders(env)];
-  const scopedCodex = planCodexBuilder(env, fetchImpl);
+  const scopedCodex = planCodexBuilder(env, fetchImpl, typeof hostOptions === "function" ? undefined : hostOptions.beforeWrite);
   if (scopedCodex) builders.unshift(scopedCodex);
   const local = localBuilderConfig(env);
   if (local) {

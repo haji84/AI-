@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "issue": 1845,
+  "capturedAt": "2026-10-21T21:25:26+09:00",
+  "repositoryVisibility": "public",
+  "cache": { "bytes": 100651600, "entries": 30, "documentedIncludedGiB": 10 },
+  "artifacts": { "entries": 1346, "pagesRead": 14, "metadataBytes": 19841759, "metadataMiB": 18.923, "contentDownloaded": false },
+  "accountSharedAllowanceKnown": false,
+  "historicalAccruedBillingKnown": false,
+  "newArtifactUploadsOrRetentionIncreases": false,
+  "source": "read-only public GitHub REST metadata; connector endpoint unsupported, public REST fallback; no credential or billing-setting changes",
+  "officialSources": ["https://docs.github.com/en/actions/reference/runners/github-hosted-runners", "https://docs.github.com/en/billing/concepts/product-billing/github-actions"]
+}

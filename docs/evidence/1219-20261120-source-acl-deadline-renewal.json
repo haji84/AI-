@@ -1,0 +1,79 @@
+{
+  "issue": 1219,
+  "goal": "goal-fcc81c97e09153f7",
+  "job": "rotation-recovery-37",
+  "baseMain": "c6d0e22a512ee1e5779aa9dff779cb836b1e1695",
+  "atUTC": "2026-11-19T22:05:44.255068+00:00",
+  "risk": "HIGH permission expiry renewal explicitly owner-approved; Builder / independent Verifier / owner Gate separated",
+  "ownerApproval": {
+    "reply": "期限更新を承認する",
+    "deadlineUTC": "2026-11-20T06:00:00Z",
+    "deadlineJST": "2026-11-20T15:00:00+09:00",
+    "scopeSha256": "477f156730cab88b3a27588ef4bee6af52dcb88a2594d7978c4b57aa935b5599",
+    "approvalRecordSha256": "3c548630cd231f5ee88251a0bc9bc502f621fbf8939a331c1bdd1f6d715fdd0a",
+    "proposalSha256": "fce6a9188c5da9c7847758f1c1fec4a2f76df5bf4e55041a22d734510edf00db",
+    "reviewedPatchSha256": "e533e1c604498f87c4b0e24a61173d773623ec743fea6517bff61dc5c13e1d1d"
+  },
+  "change": "Only native and bootstrap expiry, dependent native pin and boundary fixture clocks/assertions. Original not-before, Source-only targets, reader selector, ancestor integrity policy, same-scope persistent claim, caps and guarded rollback unchanged.",
+  "preserved": "No ancestor ACL/owner/group/SACL/content/service/credential change; original frozen scope/proposal/approval records remain byte exact; deadline override is append-only.",
+  "limits": {
+    "maxApplyAttempts": 1,
+    "maxPlanDispatches": 1,
+    "applyConsumedAtRenewal": 0,
+    "planConsumedAtRenewal": 0,
+    "claimIdentityUnchanged": true,
+    "attemptBudgetNeverReplenished": true
+  },
+  "sourceHashes": {
+    "captureSha256Unchanged": "c149d00466bd75d35282fb44a5940ff64ef926c17f624b4e5d84d2ac1751b68c",
+    "wrapperSha256Unchanged": "50396f93268ab416b68ce08e5b86391f0a441580c28386a8f25779118f95ecdc",
+    "wrapperNativePin": "No literal native CS hash/expiry exists in wrapper; wrapper checks runtime SHA256(UTF8(capture+newline+repair)) against workflow-supplied digest. Therefore no wrapper content or wrapper pin change.",
+    "oldNativeSha256": "1ca44025cc06169656c054f6cdfced4b3527aa5bba49e3740aa1972f5d2ce85d",
+    "newNativeSha256": "5518ae608d303bdaa232a6f14f25919168aabe6401c3e6d0342710493d730480",
+    "oldCompositeImplementationSha256": "b245a2b0053805e3a1f791850f0bb7d6a40d24b4e89618956586772647583b72",
+    "proposedCompositeImplementationSha256": "a83a700d88993dc77014c146647d27fb7a6ba2a016573bce07f4c36d433ddaae",
+    "workflowPinUpdate": "Replace only native .cs digest with proposed newNativeSha256; preserve wrapper50396f... and capturec149d... pins. Composite runtime digest changes automatically and must match new locally frozen DPAPI plan."
+  },
+  "localProposalVerification": {
+    "nativePortablePassed": 106,
+    "csharp5CompilePassed": true,
+    "workflowTestsPassed": 26,
+    "wrapperChecksPassed": 44,
+    "originalImplementationMeaningfulRed": true,
+    "boundary": "100ns before deadline allowed; exact deadline and100ns after refused; before original not-before refused. Bootstrap rejects expired clocks before metadata access."
+  },
+  "independentReview": {
+    "critical": 0,
+    "important": 0,
+    "minor": 0,
+    "verified": "Exact4file patch/hash chain/baseline/persistent caps; native106 and5bootstrap boundary cases independently passed"
+  },
+  "newSourceCI": "PENDING exact new head all4 and signed6",
+  "newMainCI": "PENDING exact protected merge all4 and signed6",
+  "actualDeviceChanged": false,
+  "actualOriginalReadSuccess": false,
+  "goalStatus": "NOT_ACHIEVED",
+  "g1": "HOLD",
+  "acceptance": "Actual fixed runner21/ZBook plan, one apply before deadline, then original COPIED_STATE_READ with preserved=true/queryVerified=true required to claim this ACL error resolved.",
+  "rollback": "Unchanged same-ID attributable-state conditional parent-first restore with original read regrant; manualRecovery on drift; no claim deletion/reset or automatic cross-process recovery.",
+  "expectedCounts": {
+    "root": 4416,
+    "hosted": 4417,
+    "existingSkip": 26
+  },
+  "rootWorkingTreeChecks": {
+    "relatedNodeTests": 29,
+    "passed": 29,
+    "failed": 0,
+    "skipped": 0,
+    "typecheckExitCode": 0,
+    "lintExitCode": 0,
+    "requirementAudit": {
+      "status": "PASS",
+      "surfaces": 626,
+      "requirements": 341
+    },
+    "traceabilityTestsPassed": 10,
+    "diffCheckPassed": true
+  }
+}

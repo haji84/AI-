@@ -16,7 +16,10 @@ function fixture({failPath,runPhase="RUNNING",builderPayload=builder,brokerPaylo
     if(url==="http://127.0.0.1:8787/api/jarvis/admin/bridge/events?goalId=ai09-connection-probe")return result({events:[]});
     if(url==="http://127.0.0.1:8796/health")return result(builderPayload);
     if(url==="http://127.0.0.1:8787/api/jarvis/admin/work/goal-test-123")
-      return result({run:{goalId:"goal-test-123",phase:runPhase}});
+      return result({
+        run:{goalId:"goal-test-123",phase:runPhase},
+        goalAuthority:{kind:"CURRENT_COMPASS_GOAL",goalId:"goal-test-123",current:true},
+      });
     throw Error("UNEXPECTED_REMOTE_PATH");
   };
   return {calls,fetchImpl};

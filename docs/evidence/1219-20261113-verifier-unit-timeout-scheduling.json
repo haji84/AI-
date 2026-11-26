@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "issue": 1219,
+  "pr": 1910,
+  "baselineHead": "5c451d0cb9ac21259e6d2639ded21b4a010352e4",
+  "ciFailureRun": 43328271306,
+  "unitTimeoutMs": 300000,
+  "unitObservedElapsedMs": 300007.47172,
+  "unitSignal": "SIGKILL",
+  "unitErrorCode": "ETIMEDOUT",
+  "unitSuccessMarkers": 3719,
+  "unitSummary": false,
+  "downstreamChecks": [
+    "integration",
+    "security",
+    "build"
+  ],
+  "downstreamNotRun": true,
+  "recordedResource": {
+    "throttledPeriods": 2492,
+    "periods": 2938,
+    "throttledNs": 150335442000,
+    "peakMemoryNotProven": true
+  },
+  "parentRun": 43325429860,
+  "parentUnitElapsedMs": 259817.827496,
+  "parentIntegrationElapsedMs": 272049.739972,
+  "action": "rename unchanged test fixture to schedule earlier without changing assertions or limits",
+  "originalTestPath": "tests/resident-sequence-broker-e2e.test.ts",
+  "newTestPath": "tests/autonomous-resident-sequence-broker-e2e.test.ts",
+  "testFileGitBlob": "265144967ccace94f4b684b3751a3e2c5cf328fd",
+  "applied": false,
+  "newHeadCI": "REQUIRED",
+  "productionGoalStatus": "NOT_ACHIEVED"
+}

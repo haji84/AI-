@@ -1,0 +1,639 @@
+{
+  "schemaVersion": 1,
+  "issue": 1845,
+  "baseline": "cb6b0fa06492b3d610ecb527645244b9a46ba8eb",
+  "retrievedAt": "2026-10-21T12:16:00Z",
+  "queryWindow": "2026-10-21 UTC; 2026-10-21 09:00 through 2026-10-22 09:00 JST, observed portion only",
+  "totalRuns": 124,
+  "completePagination": true,
+  "groups": [
+    {
+      "name": "GAI R20 Evidence Dossier",
+      "runs": 11,
+      "conclusions": {
+        "success": 6,
+        "skipped": 5
+      },
+      "events": {
+        "workflow_run": 11
+      }
+    },
+    {
+      "name": "GAI Research Evidence Ledger",
+      "runs": 11,
+      "conclusions": {
+        "success": 6,
+        "skipped": 5
+      },
+      "events": {
+        "workflow_run": 10,
+        "schedule": 1
+      }
+    },
+    {
+      "name": "GAI R2 Fresh Heldout v2",
+      "runs": 3,
+      "conclusions": {
+        "success": 3
+      },
+      "events": {
+        "schedule": 3
+      }
+    },
+    {
+      "name": "Mobile Autonomy",
+      "runs": 4,
+      "conclusions": {
+        "success": 2,
+        "failure": 2
+      },
+      "events": {
+        "schedule": 2,
+        "repository_dispatch": 2
+      }
+    },
+    {
+      "name": "GAI Research Control Plane",
+      "runs": 2,
+      "conclusions": {
+        "success": 2
+      },
+      "events": {
+        "schedule": 2
+      }
+    },
+    {
+      "name": "Runtime GitHub Token Repair",
+      "runs": 14,
+      "conclusions": {
+        "skipped": 14
+      },
+      "events": {
+        "workflow_run": 14
+      }
+    },
+    {
+      "name": "GORIQ PR CI Recovery",
+      "runs": 14,
+      "conclusions": {
+        "skipped": 9,
+        "cancelled": 3,
+        "failure": 2
+      },
+      "events": {
+        "workflow_run": 14
+      }
+    },
+    {
+      "name": "GORIQ AI-09 Advisory PR Review",
+      "runs": 14,
+      "conclusions": {
+        "success": 13,
+        "failure": 1
+      },
+      "events": {
+        "workflow_run": 14
+      }
+    },
+    {
+      "name": "Scoped Production Deploy",
+      "runs": 14,
+      "conclusions": {
+        "skipped": 14
+      },
+      "events": {
+        "workflow_run": 14
+      }
+    },
+    {
+      "name": "CI",
+      "runs": 14,
+      "conclusions": {
+        "success": 10,
+        "failure": 4
+      },
+      "events": {
+        "pull_request": 14
+      }
+    },
+    {
+      "name": "GAI R18 Adaptation Preflight",
+      "runs": 7,
+      "conclusions": {
+        "skipped": 5,
+        "success": 2
+      },
+      "events": {
+        "workflow_run": 5,
+        "schedule": 2
+      }
+    },
+    {
+      "name": "GORIQ Stage C Read-only Nubia Preflight",
+      "runs": 5,
+      "conclusions": {
+        "skipped": 5
+      },
+      "events": {
+        "issue_comment": 5
+      }
+    },
+    {
+      "name": "GAI R17 Governed Self Modification",
+      "runs": 5,
+      "conclusions": {
+        "skipped": 5
+      },
+      "events": {
+        "issue_comment": 5
+      }
+    },
+    {
+      "name": "GORIQ Approved Mac Private Dashboard Repair",
+      "runs": 2,
+      "conclusions": {
+        "skipped": 2
+      },
+      "events": {
+        "workflow_run": 2
+      }
+    },
+    {
+      "name": "GORIQ JARVIS Production Sync",
+      "runs": 2,
+      "conclusions": {
+        "failure": 2
+      },
+      "events": {
+        "schedule": 2
+      }
+    },
+    {
+      "name": "GAI R2 Measured Improvement",
+      "runs": 2,
+      "conclusions": {
+        "success": 2
+      },
+      "events": {
+        "schedule": 2
+      }
+    }
+  ],
+  "ciHeads": [
+    {
+      "id": 39576155740,
+      "headSha": "e9ef944312c4d00be2aadb00e8eac0407d2c771f",
+      "attempt": 1,
+      "event": "pull_request",
+      "status": "completed",
+      "conclusion": "success",
+      "start": "2026-10-21T09:20:15Z",
+      "end": "2026-10-21T09:27:53Z"
+    },
+    {
+      "id": 39575707328,
+      "headSha": "694180f2caefbdf91eb6c3fd881c2d9ff62e7221",
+      "attempt": 1,
+      "event": "pull_request",
+      "status": "completed",
+      "conclusion": "success",
+      "start": "2026-10-21T09:16:45Z",
+      "end": "2026-10-21T09:22:28Z"
+    },
+    {
+      "id": 39573470846,
+      "headSha": "2c872d09c088a27a2a89e3bcc556858d1b1d5c20",
+      "attempt": 1,
+      "event": "pull_request",
+      "status": "completed",
+      "conclusion": "success",
+      "start": "2026-10-21T08:59:30Z",
+      "end": "2026-10-21T09:01:37Z"
+    },
+    {
+      "id": 39572977323,
+      "headSha": "8a5c7b305044b4ddd2cf3a3f7b8ba574b78680f4",
+      "attempt": 1,
+      "event": "pull_request",
+      "status": "completed",
+      "conclusion": "failure",
+      "start": "2026-10-21T08:55:37Z",
+      "end": "2026-10-21T08:58:13Z"
+    },
+    {
+      "id": 39572472183,
+      "headSha": "f918d1e0a67a02a5099250020b44f5fad7f53ef4",
+      "attempt": 1,
+      "event": "pull_request",
+      "status": "completed",
+      "conclusion": "failure",
+      "start": "2026-10-21T08:51:43Z",
+      "end": "2026-10-21T08:54:16Z"
+    },
+    {
+      "id": 39563290098,
+      "headSha": "530f1d8e15e2000a420842ca3593dc13c6fa7222",
+      "attempt": 1,
+      "event": "pull_request",
+      "status": "completed",
+      "conclusion": "success",
+      "start": "2026-10-21T07:37:27Z",
+      "end": "2026-10-21T07:40:02Z"
+    },
+    {
+      "id": 39562655491,
+      "headSha": "3398223361a19e696fbbc81345ad5bef176958ea",
+      "attempt": 1,
+      "event": "pull_request",
+      "status": "completed",
+      "conclusion": "success",
+      "start": "2026-10-21T07:32:05Z",
+      "end": "2026-10-21T07:34:43Z"
+    },
+    {
+      "id": 39561969133,
+      "headSha": "47f146304d24e73572b3c7943a1deea8b3675303",
+      "attempt": 1,
+      "event": "pull_request",
+      "status": "completed",
+      "conclusion": "success",
+      "start": "2026-10-21T07:26:20Z",
+      "end": "2026-10-21T07:28:55Z"
+    },
+    {
+      "id": 39561741538,
+      "headSha": "b204571ebcd774216c24eb61bf97067402884302",
+      "attempt": 1,
+      "event": "pull_request",
+      "status": "completed",
+      "conclusion": "failure",
+      "start": "2026-10-21T07:24:25Z",
+      "end": "2026-10-21T07:26:27Z"
+    },
+    {
+      "id": 39561043381,
+      "headSha": "5faa889a7768b8cfdad0ae9169b76b5c801016a5",
+      "attempt": 1,
+      "event": "pull_request",
+      "status": "completed",
+      "conclusion": "success",
+      "start": "2026-10-21T07:18:19Z",
+      "end": "2026-10-21T07:20:03Z"
+    },
+    {
+      "id": 39560167608,
+      "headSha": "e10d9f0e5d023deee3b3a76af4d888865bae7bcc",
+      "attempt": 1,
+      "event": "pull_request",
+      "status": "completed",
+      "conclusion": "failure",
+      "start": "2026-10-21T07:10:38Z",
+      "end": "2026-10-21T07:13:14Z"
+    },
+    {
+      "id": 39551250174,
+      "headSha": "885bcf7cf5afa7cb6313cc569c79e2a891c63635",
+      "attempt": 1,
+      "event": "pull_request",
+      "status": "completed",
+      "conclusion": "success",
+      "start": "2026-10-21T05:44:18Z",
+      "end": "2026-10-21T05:46:10Z"
+    },
+    {
+      "id": 39549420329,
+      "headSha": "9c5a2f2e7ae1c69ee723fd4d9744f14d904fb6e6",
+      "attempt": 1,
+      "event": "pull_request",
+      "status": "completed",
+      "conclusion": "success",
+      "start": "2026-10-21T05:24:56Z",
+      "end": "2026-10-21T05:27:08Z"
+    },
+    {
+      "id": 39532888671,
+      "headSha": "72e84f9ccaee76ab31419c6eab89b9d03f1c126a",
+      "attempt": 1,
+      "event": "pull_request",
+      "status": "completed",
+      "conclusion": "success",
+      "start": "2026-10-21T02:25:02Z",
+      "end": "2026-10-21T02:32:39Z"
+    }
+  ],
+  "duplicateCiHeads": [],
+  "jobSamples": [
+    {
+      "id": 119142070586,
+      "name": "independent-verifier-container",
+      "labels": [
+        "ubuntu-latest"
+      ],
+      "startedAt": "2026-10-21T09:20:17Z",
+      "completedAt": "2026-10-21T09:27:53Z",
+      "conclusion": "success",
+      "durationSeconds": 456,
+      "steps": [
+        {
+          "name": "Run actions/checkout@v4",
+          "startedAt": "2026-10-21T09:20:19Z",
+          "completedAt": "2026-10-21T09:20:20Z",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/setup-node@v4",
+          "startedAt": "2026-10-21T09:20:20Z",
+          "completedAt": "2026-10-21T09:20:26Z",
+          "conclusion": "success"
+        },
+        {
+          "name": "Real restricted-container six-check verification",
+          "startedAt": "2026-10-21T09:20:26Z",
+          "completedAt": "2026-10-21T09:27:50Z",
+          "conclusion": "success"
+        },
+        {
+          "name": "Retain hosted-container evidence",
+          "startedAt": "2026-10-21T09:27:50Z",
+          "completedAt": "2026-10-21T09:27:51Z",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "id": 119142071093,
+      "name": "project-checks",
+      "labels": [
+        "ubuntu-latest"
+      ],
+      "startedAt": "2026-10-21T09:20:18Z",
+      "completedAt": "2026-10-21T09:23:44Z",
+      "conclusion": "success",
+      "durationSeconds": 206,
+      "steps": [
+        {
+          "name": "Run actions/checkout@v4",
+          "startedAt": "2026-10-21T09:20:20Z",
+          "completedAt": "2026-10-21T09:20:21Z",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run pnpm/action-setup@v4",
+          "startedAt": "2026-10-21T09:20:21Z",
+          "completedAt": "2026-10-21T09:20:22Z",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/setup-node@v4",
+          "startedAt": "2026-10-21T09:20:22Z",
+          "completedAt": "2026-10-21T09:20:31Z",
+          "conclusion": "success"
+        },
+        {
+          "name": "Install dependencies",
+          "startedAt": "2026-10-21T09:20:31Z",
+          "completedAt": "2026-10-21T09:20:34Z",
+          "conclusion": "success"
+        },
+        {
+          "name": "Lint",
+          "startedAt": "2026-10-21T09:20:34Z",
+          "completedAt": "2026-10-21T09:20:46Z",
+          "conclusion": "success"
+        },
+        {
+          "name": "Test",
+          "startedAt": "2026-10-21T09:20:46Z",
+          "completedAt": "2026-10-21T09:22:58Z",
+          "conclusion": "success"
+        },
+        {
+          "name": "P8 Security Regression Suite",
+          "startedAt": "2026-10-21T09:22:58Z",
+          "completedAt": "2026-10-21T09:23:09Z",
+          "conclusion": "success"
+        },
+        {
+          "name": "Windows ACL repair decision fixtures",
+          "startedAt": "2026-10-21T09:23:09Z",
+          "completedAt": "2026-10-21T09:23:17Z",
+          "conclusion": "success"
+        },
+        {
+          "name": "Build",
+          "startedAt": "2026-10-21T09:23:17Z",
+          "completedAt": "2026-10-21T09:23:38Z",
+          "conclusion": "success"
+        },
+        {
+          "name": "Verify production health endpoint",
+          "startedAt": "2026-10-21T09:23:38Z",
+          "completedAt": "2026-10-21T09:23:40Z",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "id": 119142071094,
+      "name": "repository-guard",
+      "labels": [
+        "ubuntu-latest"
+      ],
+      "startedAt": "2026-10-21T09:20:18Z",
+      "completedAt": "2026-10-21T09:20:23Z",
+      "conclusion": "success",
+      "durationSeconds": 5,
+      "steps": [
+        {
+          "name": "Run actions/checkout@v4",
+          "startedAt": "2026-10-21T09:20:19Z",
+          "completedAt": "2026-10-21T09:20:20Z",
+          "conclusion": "success"
+        },
+        {
+          "name": "Validate Phase 0 control files",
+          "startedAt": "2026-10-21T09:20:20Z",
+          "completedAt": "2026-10-21T09:20:20Z",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "id": 119142071119,
+      "name": "windows-runtime-byte-fixtures",
+      "labels": [
+        "windows-latest"
+      ],
+      "startedAt": "2026-10-21T09:20:17Z",
+      "completedAt": "2026-10-21T09:21:38Z",
+      "conclusion": "success",
+      "durationSeconds": 81,
+      "steps": [
+        {
+          "name": "Run actions/checkout@v4",
+          "startedAt": "2026-10-21T09:20:19Z",
+          "completedAt": "2026-10-21T09:20:26Z",
+          "conclusion": "success"
+        },
+        {
+          "name": "Windows PowerShell 5.1 atomic pointer fixtures",
+          "startedAt": "2026-10-21T09:20:26Z",
+          "completedAt": "2026-10-21T09:21:20Z",
+          "conclusion": "success"
+        },
+        {
+          "name": "Windows PowerShell 5.1 access media fixtures",
+          "startedAt": "2026-10-21T09:21:20Z",
+          "completedAt": "2026-10-21T09:21:34Z",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "id": 119130903614,
+      "name": "preflight",
+      "labels": [
+        "ubuntu-latest"
+      ],
+      "startedAt": "2026-10-21T08:54:21Z",
+      "completedAt": "2026-10-21T08:54:25Z",
+      "conclusion": "success",
+      "durationSeconds": 4,
+      "steps": [
+        {
+          "name": "Resolve eligible same-repository pull request",
+          "startedAt": "2026-10-21T08:54:23Z",
+          "completedAt": "2026-10-21T08:54:24Z",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "id": 119130944931,
+      "name": "recover",
+      "labels": [
+        "self-hosted",
+        "Windows",
+        "X64"
+      ],
+      "startedAt": "2026-10-21T08:54:28Z",
+      "completedAt": "2026-10-21T09:37:24Z",
+      "conclusion": "failure",
+      "durationSeconds": 2576,
+      "steps": [
+        {
+          "name": "Checkout trusted recovery control",
+          "startedAt": "2026-10-21T08:54:33Z",
+          "completedAt": "2026-10-21T08:54:42Z",
+          "conclusion": "success"
+        },
+        {
+          "name": "Checkout target PR branch",
+          "startedAt": "2026-10-21T08:54:42Z",
+          "completedAt": "2026-10-21T08:54:57Z",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run pnpm/action-setup@v4",
+          "startedAt": "2026-10-21T08:54:57Z",
+          "completedAt": "2026-10-21T08:55:01Z",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/setup-node@v4",
+          "startedAt": "2026-10-21T08:55:01Z",
+          "completedAt": "2026-10-21T08:55:03Z",
+          "conclusion": "success"
+        },
+        {
+          "name": "Install target dependencies",
+          "startedAt": "2026-10-21T08:55:03Z",
+          "completedAt": "2026-10-21T08:55:13Z",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run bounded autonomous CI recovery",
+          "startedAt": "2026-10-21T08:55:13Z",
+          "completedAt": "2026-10-21T10:02:05Z",
+          "conclusion": "cancelled"
+        }
+      ]
+    },
+    {
+      "id": 119090211084,
+      "name": "preflight",
+      "labels": [
+        "ubuntu-latest"
+      ],
+      "startedAt": "2026-10-21T07:13:19Z",
+      "completedAt": "2026-10-21T07:13:23Z",
+      "conclusion": "success",
+      "durationSeconds": 4,
+      "steps": [
+        {
+          "name": "Resolve eligible same-repository pull request",
+          "startedAt": "2026-10-21T07:13:20Z",
+          "completedAt": "2026-10-21T07:13:21Z",
+          "conclusion": "success"
+        }
+      ]
+    },
+    {
+      "id": 119090249577,
+      "name": "recover",
+      "labels": [
+        "self-hosted",
+        "Windows",
+        "X64"
+      ],
+      "startedAt": "2026-10-21T07:13:26Z",
+      "completedAt": "2026-10-21T07:33:40Z",
+      "conclusion": "failure",
+      "durationSeconds": 1214,
+      "steps": [
+        {
+          "name": "Checkout trusted recovery control",
+          "startedAt": "2026-10-21T07:13:32Z",
+          "completedAt": "2026-10-21T07:13:41Z",
+          "conclusion": "success"
+        },
+        {
+          "name": "Checkout target PR branch",
+          "startedAt": "2026-10-21T07:13:41Z",
+          "completedAt": "2026-10-21T07:13:55Z",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run pnpm/action-setup@v4",
+          "startedAt": "2026-10-21T07:13:55Z",
+          "completedAt": "2026-10-21T07:13:59Z",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/setup-node@v4",
+          "startedAt": "2026-10-21T07:13:59Z",
+          "completedAt": "2026-10-21T07:14:02Z",
+          "conclusion": "success"
+        },
+        {
+          "name": "Install target dependencies",
+          "startedAt": "2026-10-21T07:14:02Z",
+          "completedAt": "2026-10-21T07:14:13Z",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run bounded autonomous CI recovery",
+          "startedAt": "2026-10-21T07:14:13Z",
+          "completedAt": "2026-10-21T07:33:31Z",
+          "conclusion": "failure"
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "No historical per-job CPU/RAM/commit telemetry in these API metadata responses.",
+    "One self-hosted job's step timestamps extend beyond its reported job completion time; retain both values, do not infer exact compute allocation interval.",
+    "Temporal overlap does not identify the memory-allocation culprit.",
+    "No local Windows raw logs, identities, credentials or prompts included."
+  ]
+}

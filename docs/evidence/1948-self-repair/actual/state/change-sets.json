@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "changeSets": [
+    {
+      "version": 1,
+      "changeSetId": "development-29e6b9db06851079e24e997b6f8a8fbea6e7711ccee3de9f0d894050ec2b73b0:tracked-red",
+      "jobId": "development-29e6b9db06851079e24e997b6f8a8fbea6e7711ccee3de9f0d894050ec2b73b0",
+      "workItemId": "development-29e6b9db06851079e24e997b6f8a8fbea6e7711ccee3de9f0d894050ec2b73b0:test",
+      "deviceId": "local-tracked-model-builder",
+      "baseRevision": "7310f95ef10177fc97421c51f6786e9157520e91",
+      "changedPaths": [
+        "tests/self-development-1948-0.test.mjs"
+      ],
+      "affectedSymbols": [],
+      "patchDigest": "6601a640e0a284e896c139ef0cc58faa709c02c732b96fd5ad8f1035fa668bf7",
+      "candidateRevision": "a7bb940e8a1b8d6ba78dcb354650c619717cf6ee3677be19fc9fb31e4614e860",
+      "artifactDigest": "79bd7b8e713e4057786c90b8b60877deb76ece10871023eaa88088bf1fd92c0f",
+      "evidenceDigest": "79bd7b8e713e4057786c90b8b60877deb76ece10871023eaa88088bf1fd92c0f",
+      "tddPhase": "red",
+      "tddEvidenceDigest": "1f417d443add4e5d159cd91b45e1bc9f112797a5b6a9c59b513e5c888c183ac2",
+      "rollback": {
+        "kind": "git-base",
+        "reference": "7310f95ef10177fc97421c51f6786e9157520e91"
+      },
+      "artifactRef": "sha256:79bd7b8e713e4057786c90b8b60877deb76ece10871023eaa88088bf1fd92c0f",
+      "status": "VERIFIED",
+      "createdAt": "2026-11-26T10:17:52.399Z",
+      "updatedAt": "2026-11-26T10:18:04.487Z"
+    },
+    {
+      "version": 1,
+      "changeSetId": "development-29e6b9db06851079e24e997b6f8a8fbea6e7711ccee3de9f0d894050ec2b73b0:tracked-candidate",
+      "jobId": "development-29e6b9db06851079e24e997b6f8a8fbea6e7711ccee3de9f0d894050ec2b73b0",
+      "workItemId": "development-29e6b9db06851079e24e997b6f8a8fbea6e7711ccee3de9f0d894050ec2b73b0:implement",
+      "deviceId": "local-tracked-model-builder",
+      "baseRevision": "7310f95ef10177fc97421c51f6786e9157520e91",
+      "changedPaths": [
+        "docs/jarvis-reverse-traceability.json",
+        "src/orchestrator/tracked-repair-resident-runtime.ts",
+        "tests/self-development-1948-0.test.mjs"
+      ],
+      "affectedSymbols": [],
+      "patchDigest": "250e9c783fade346fe7d26cae8c23ba1443af63bee37219a1bb88c63c8a9bc0f",
+      "candidateRevision": "599811966e861ddd29ab16482fb7fc233d49fa062e1e4c68dec525119a4ee9aa",
+      "artifactDigest": "6659757e6f3432d2e3505b6a693324fb76d71404dee85248a4b46d889b65838e",
+      "evidenceDigest": "f71b35d5fac2f8fdb939e7de57f303610b7324369086a4317f06743917fcfdce",
+      "rollback": {
+        "kind": "git-base",
+        "reference": "7310f95ef10177fc97421c51f6786e9157520e91"
+      },
+      "artifactRef": "sha256:6659757e6f3432d2e3505b6a693324fb76d71404dee85248a4b46d889b65838e",
+      "status": "REJECTED",
+      "createdAt": "2026-11-26T10:19:00.757Z",
+      "updatedAt": "2026-11-26T10:19:23.402Z"
+    }
+  ],
+  "savedAt": "2026-11-26T10:19:23.402Z"
+}

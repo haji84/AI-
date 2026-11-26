@@ -242,6 +242,38 @@ export class CompassStore {
     };
   }
 
+  /** Intake may adopt an identical Goal, but cannot replace another accepted Goal. */
+  createGoalIfAbsent(input: {
+    title: string;
+    description?: string;
+    successCriteria?: unknown[];
+    constraints?: unknown[];
+  }, commitIntake?: (goal: GoalRecord, active: unknown[]) => unknown[]): GoalRecord {
+    assertNonEmpty(input.title, "title");
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      // Acquire SQLite's writer lock before comparing. A different process may
+      // have accepted a Goal after the resolver observed an empty registry.
+      const existing = this.getGoal();
+      if (existing && (existing.title !== input.title
+        || existing.description !== (input.description ?? "")
+        || encode(existing.successCriteria) !== encode(input.successCriteria ?? [])
+        || encode(existing.constraints) !== encode(input.constraints ?? []))) {
+        throw new Error("active Compass Goal already exists; resolve or explicitly change it before creating a new Goal");
+      }
+      const goal = existing ?? this.setGoal(input);
+      // The intake decision and its Goal must commit together. A rejected key
+      // or failed state write rolls back the prospective Goal as well.
+      if (commitIntake) {
+        const active = commitIntake(goal, this.getState().active);
+        this.db.prepare("UPDATE state SET active = ?, updated_at = ? WHERE project_id = ?")
+          .run(encode(active), nowIso(), PROJECT_ID);
+      }
+      this.db.exec("COMMIT");
+      return goal;
+    } catch (error) { this.db.exec("ROLLBACK"); throw error; }
+  }
+
   setGoal(input: {
     title: string;
     description?: string;
@@ -283,6 +315,34 @@ export class CompassStore {
       if (!current || current.successCriteria.length || encode(current) !== encode(expectedGoal) || encode(state) !== encode(expectedState)) throw Error("Goal or work state changed before refinement");
       const result = this.setGoal({ title: current.title, description: current.description, constraints: current.constraints, successCriteria: criteria });
       this.db.prepare("UPDATE state SET decisions = ?, updated_at = ? WHERE project_id = ?").run(encode([...state.decisions, receipt]), nowIso(), PROJECT_ID);
+      this.db.exec("COMMIT");
+      return result;
+    } catch (error) { this.db.exec("ROLLBACK"); throw error; }
+  }
+
+  /** Goal Controller-only atomic adoption. The synchronous policy runs under
+   * the same write lock as replacement, so a late owner stop cannot be lost.
+   * Old metadata/evidence must be retained by the controller in active state. */
+  promoteGoal(transform: (goal: GoalRecord | null, state: StateRecord) => {
+    goal: { title: string; description: string; successCriteria: string[]; constraints: string[] };
+    active: unknown[];
+  } | null): GoalRecord | null {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const current = this.getGoal(), state = this.getState(), next = transform(current, state);
+      if (!next) { this.db.exec("ROLLBACK"); return null; }
+      if (!current) throw Error("Goal promotion requires a predecessor");
+      assertNonEmpty(next.goal.title, "title");
+      const timestamp = nowIso();
+      this.db.prepare(`UPDATE goal SET title = ?, description = ?, success_criteria = ?,
+        constraints = ?, created_at = ?, updated_at = ? WHERE id = 1`).run(
+        next.goal.title, next.goal.description, encode(next.goal.successCriteria),
+        encode(next.goal.constraints), timestamp, timestamp);
+      this.db.prepare(`UPDATE state SET phase = ?, status = ?, active = ?,
+        verification_summary = NULL, next_action = ?, updated_at = ? WHERE project_id = ?`).run(
+        "successor_planning", "IN_PROGRESS", encode(preserveOwnerReceipts(state.active, next.active)),
+        "Plan accepted next Goal", timestamp, PROJECT_ID);
+      const result = this.getGoal();
       this.db.exec("COMMIT");
       return result;
     } catch (error) { this.db.exec("ROLLBACK"); throw error; }

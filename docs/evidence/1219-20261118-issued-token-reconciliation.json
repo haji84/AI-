@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "issue": 1219,
+  "pr": 1934,
+  "failedCi": 44359480102,
+  "failedJob": 134996560267,
+  "failureCategory": "CANONICAL_SOURCE_FINGERPRINT_STALE",
+  "updated": [
+    {
+      "path": "scripts/jarvis-broker.ts",
+      "oldFingerprint": "69f3ed3d8726b61cab0ff0abc3d089a119a2d905df55a2946eb7ca4a2d1c11c7",
+      "newFingerprint": "e1604e78b47d533c01cfb67905980d45cd67da1cd3d2588fab7c865fb3bea000",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "NET-003",
+        "NET-006",
+        "NET-007",
+        "FLEET-003",
+        "FLEET-004",
+        "FLEET-006",
+        "FLEET-007",
+        "DEV-A-013",
+        "DEV-A-014",
+        "SEC-003",
+        "SEC-004",
+        "SEC-005",
+        "SEC-006",
+        "SEC-007",
+        "SEC-010",
+        "UI-009",
+        "INT-001",
+        "OPS-015",
+        "OPS-016"
+      ]
+    },
+    {
+      "path": "src/jarvis/enrollment.ts",
+      "oldFingerprint": "3b5ebf2bfe36c4b128fa7bdba7ce14950f1905a60cfbe1f2227e62533dbcd76d",
+      "newFingerprint": "f541793b3fa315c158078e305ec4ca96e2a9d6c59c3c9501205ddc9af8c0e146",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "FLEET-001",
+        "FLEET-002",
+        "FLEET-003",
+        "FLEET-004",
+        "FLEET-005",
+        "FLEET-006",
+        "FLEET-007",
+        "FLEET-008"
+      ]
+    }
+  ],
+  "canonicalLedgerHashesUnchanged": {
+    "docs/jarvis-requirements.json": "9ad4e273529efe5e2e9895179a3dd967f8be991baefb0e26b50cf6ff63af068e",
+    "docs/JARVIS_PRODUCT_SPEC.md": "9340a8684dd2d0e8b47566df7c4cd1b70a923ca459ccd2f5545575f1a38ef9da",
+    "docs/jarvis-owner-decisions.json": "c941efffed69cfb78ce54dbf5e1615fcc734ba6d845e1bc95dce88eb25ee3c8c",
+    "docs/jarvis-additional-requirements.json": "c05f5e0c544a88edb8694ca34eaeb3bb123b0256ad6dfec7d341de9cc6beb67b",
+    "docs/goriq-cognitive-status.json": "49e984321e41a0339588a197dc8f393112454e37ab0054f45f8cc5e85905cb55"
+  },
+  "assertionsRemoved": 0,
+  "requirementsStatusChanged": false,
+  "cognitiveGapsChanged": false,
+  "ownerDecisionsAdded": false,
+  "codeModifiedByThisReconciliation": false,
+  "ownerGoalVerified": false,
+  "fullCiAcceptance": "PENDING_NEW_HEAD",
+  "atUTC": "2026-11-18T17:40:23.433Z",
+  "review": "Independent0Critical0Important0Minor; exactly2of626surface rows SHA+reason only, other624rows/classifications/requirement_ids/source_main unchanged; 5canonical ledgers byteexact.",
+  "verification": "RequirementauditPASS626surfaces341requirements/CompletionauditPASSfunctionalfalse; existingtraceability+completion18/18PASS0skip."
+}

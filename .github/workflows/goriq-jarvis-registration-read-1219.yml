@@ -1,0 +1,120 @@
+name: GORIQ JARVIS Registration Metadata 1219
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: goriq-pc-private-network-readonly
+  cancel-in-progress: false
+
+jobs:
+  jarvis_registrations:
+    if: github.repository == 'haji84/AI-' && github.ref == 'refs/heads/main' && github.actor == 'haji84' && github.triggering_actor == 'haji84' && github.run_attempt == 1 && github.run_number == 1 && github.event_name == 'workflow_dispatch'
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 5
+    env:
+      GORIQ_ZBOOK_BRIDGE_ORIGINAL_ONLY: 'true'
+      GORIQ_ZBOOK_NATIVE_ONLY: 'false'
+      GORIQ_ZBOOK_RUNNER_ONLY: 'false'
+      GORIQ_ZBOOK_OWNER_PROBE_ONLY: 'false'
+    steps:
+      - name: Inspect stored JARVIS registrations from a preserved working copy
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $WarningPreference = 'Stop'
+          $env:PSModulePath = Join-Path $PSHOME 'Modules'
+          $failure = 'CONTEXT_UNVERIFIED'
+          try {
+            if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT -or
+                $env:OS -cne 'Windows_NT' -or $env:RUNNER_OS -cne 'Windows' -or $env:RUNNER_NAME -cne 'ZBook' -or
+                $env:GITHUB_REPOSITORY -cne 'haji84/AI-' -or $env:GITHUB_ACTOR -cne 'haji84' -or
+                $env:GITHUB_REF -cne 'refs/heads/main' -or $env:GITHUB_EVENT_NAME -cne 'workflow_dispatch' -or
+                $env:GITHUB_SHA -cnotmatch '^[a-f0-9]{40}\z' -or $env:GITHUB_RUN_ID -cnotmatch '^[1-9][0-9]{0,19}\z' -or
+                $env:GITHUB_RUN_ATTEMPT -cne '1' -or $env:GITHUB_RUN_NUMBER -cne '1' -or $env:GITHUB_TRIGGERING_ACTOR -cne 'haji84') { throw 'REFUSED' }
+            $failure = 'OWNER_SCOPE_UNVERIFIED'
+            $now = [datetimeoffset]::UtcNow
+            if ($now -lt [datetimeoffset]::Parse('2026-11-20T03:00:00Z') -or $now -ge [datetimeoffset]::Parse('2026-11-20T06:00:00Z')) { throw 'REFUSED' }
+            function Read-GoriqPublicMetadata {
+              param([string]$Path)
+              Invoke-RestMethod -Method Get -Uri ('https://api.github.com/repos/haji84/AI-/' + $Path) -TimeoutSec 10 -MaximumRedirection 0 -Headers @{
+                Accept='application/vnd.github+json'; 'User-Agent'='goriq-jarvis-registration-metadata-1219'
+              } -ErrorAction Stop
+            }
+            $failure = 'CURRENT_MAIN_CI_UNVERIFIED'
+            $main = Read-GoriqPublicMetadata -Path 'git/ref/heads/main'
+            if ($main.object.sha -cne $env:GITHUB_SHA) { throw 'REFUSED' }
+            function Get-GoriqVerifiedCurrentCI {
+              $runs = Read-GoriqPublicMetadata -Path ('actions/workflows/ci.yml/runs?head_sha=' + $env:GITHUB_SHA + '&event=push&per_page=100')
+              $eligible = @($runs.workflow_runs | Where-Object {
+                $_.name -ceq 'CI' -and $_.path -ceq '.github/workflows/ci.yml' -and $_.event -ceq 'push' -and
+                $_.head_branch -ceq 'main' -and $_.head_sha -ceq $env:GITHUB_SHA
+              } | Select-Object -First 1)
+              if ($eligible.Count -ne 1 -or [string]$eligible[0].id -cnotmatch '^[1-9][0-9]{0,19}\z' -or
+                  [string]$eligible[0].run_attempt -cnotmatch '^[1-9][0-9]{0,9}\z' -or
+                  $eligible[0].status -cne 'completed' -or $eligible[0].conclusion -cne 'success') { throw 'REFUSED' }
+              $ciId = [string]$eligible[0].id
+              $jobs = Read-GoriqPublicMetadata -Path ('actions/runs/' + $ciId + '/jobs?filter=latest&per_page=100')
+              $required = @('repository-guard','project-checks','independent-verifier-container','windows-runtime-byte-fixtures')
+              if ($jobs.total_count -ne 4 -or @($jobs.jobs).Count -ne 4) { throw 'REFUSED' }
+              $seen = @{}
+              foreach ($job in $jobs.jobs) {
+                if ($job.name -cnotin $required -or $seen.ContainsKey($job.name) -or [string]$job.run_id -cne $ciId -or
+                    $job.head_sha -cne $env:GITHUB_SHA -or $job.status -cne 'completed' -or $job.conclusion -cne 'success') { throw 'REFUSED' }
+                $seen[$job.name] = $true
+              }
+              [pscustomobject]@{ id=$ciId; attempt=[string]$eligible[0].run_attempt }
+            }
+            $ciProof = Get-GoriqVerifiedCurrentCI
+            $failure = 'RUNNER_BINDING_UNVERIFIED'
+            $current = Read-GoriqPublicMetadata -Path ('actions/runs/' + $env:GITHUB_RUN_ID + '/jobs?filter=latest&per_page=100')
+            if ($current.total_count -ne 1 -or @($current.jobs).Count -ne 1) { throw 'REFUSED' }
+            $own = @($current.jobs)[0]
+            if ($own.name -cne 'jarvis_registrations' -or [string]$own.run_id -cne $env:GITHUB_RUN_ID -or $own.head_sha -cne $env:GITHUB_SHA -or
+                $own.status -cne 'in_progress' -or $own.runner_id -ne 21 -or $own.runner_name -cne 'ZBook') { throw 'REFUSED' }
+            $failure = 'SOURCE_BYTES_UNVERIFIED'
+            $pins = [ordered]@{
+              'scripts/goriq-zbook-bridge-original-read.ps1'='bbbcfe2a7c4c8b58597d43cc05629ace0788d829587713e67f33311ef986d96c'
+              'scripts/goriq-jarvis-registration-read.ps1'='9d02b5ec63f1d1a6ceb3c6895af51ab21dc7baec75c53c0c6e4a855f7c5f58e4'
+              'scripts/goriq-jarvis-registration-read.mjs'='efe8b0c2bb5fbcc44dd69fdbeb1ebe56eb4661f64f590da7311bc9930554b413'
+              'scripts/goriq-g1-backup-inventory.mjs'='63d236135979ca681212f6b51b7b5d63c5a284c332fdb3615ba1f6c529fc2f66'
+              'scripts/goriq-zbook-bridge-capture.cs'='c149d00466bd75d35282fb44a5940ff64ef926c17f624b4e5d84d2ac1751b68c'
+            }
+            $sources = @{}
+            $utf8 = [Text.UTF8Encoding]::new($false,$true)
+            foreach ($file in $pins.Keys) {
+              $source = Read-GoriqPublicMetadata -Path ('contents/' + $file + '?ref=' + $env:GITHUB_SHA)
+              if ($source.type -cne 'file' -or $source.path -cne $file -or $source.encoding -cne 'base64' -or $source.content -isnot [string] -or
+                  ($source.size -isnot [int] -and $source.size -isnot [long]) -or $source.size -lt 1 -or $source.size -gt 65536 -or $source.content.Length -gt 90000) { throw 'REFUSED' }
+              $encoded = $source.content.Replace("`r",'').Replace("`n",'')
+              if ($encoded.Length -eq 0 -or $encoded.Length % 4 -ne 0 -or $encoded -cnotmatch '^[A-Za-z0-9+/]*={0,2}\z') { throw 'REFUSED' }
+              $bytes = [Convert]::FromBase64String($encoded)
+              if ($bytes.Length -ne $source.size -or [Convert]::ToBase64String($bytes) -cne $encoded -or ($bytes.Length -ge 3 -and $bytes[0] -eq 239 -and $bytes[1] -eq 187 -and $bytes[2] -eq 191)) { throw 'REFUSED' }
+              $hash = [Security.Cryptography.SHA256]::Create()
+              try { $actual = [BitConverter]::ToString($hash.ComputeHash($bytes)).Replace('-','').ToLowerInvariant() } finally { $hash.Dispose() }
+              if ($actual -cne $pins[$file]) { throw 'REFUSED' }
+              $sources[$file] = $bytes
+            }
+            foreach ($definitionPath in @('scripts/goriq-zbook-bridge-original-read.ps1','scripts/goriq-jarvis-registration-read.ps1')) {
+              $definition = @(. ([scriptblock]::Create($utf8.GetString($sources[$definitionPath]))) 2>&1 3>&1 4>&1 5>&1 6>&1)
+              if ($definition.Count -ne 0) { throw 'REFUSED' }
+            }
+            $failure = 'CURRENT_MAIN_CI_UNVERIFIED'
+            $finalCI = Get-GoriqVerifiedCurrentCI
+            if ($finalCI.id -cne $ciProof.id -or $finalCI.attempt -cne $ciProof.attempt) { throw 'REFUSED' }
+            $finalMain = Read-GoriqPublicMetadata -Path 'git/ref/heads/main'
+            if ($finalMain.object.sha -cne $env:GITHUB_SHA) { throw 'REFUSED' }
+            $failure = 'OBSERVATION_RESULT_UNVERIFIED'
+            $raw = @(Invoke-GoriqJarvisRegistrationRead -QuerySource $sources['scripts/goriq-jarvis-registration-read.mjs'] -InventorySource $sources['scripts/goriq-g1-backup-inventory.mjs'] -NativeSource $utf8.GetString($sources['scripts/goriq-zbook-bridge-capture.cs']) 2>&1 3>&1 4>&1 5>&1 6>&1)
+            if ($raw.Count -ne 1 -or $raw[0] -isnot [string]) { throw 'REFUSED' }
+            $report = ConvertFrom-GoriqJarvisRegistrationSummary $raw[0] $true
+            $clean = $report | ConvertTo-Json -Depth 3 -Compress
+            Write-Output ('GORIQ_JARVIS_REGISTRATION_METADATA ' + $clean)
+            if ($report.status -cne 'READ' -or $report.failureCode -cne 'NONE' -or -not $report.queryVerified -or -not $report.preserved) { exit 1 }
+          } catch {
+            Write-Output ('GORIQ_JARVIS_REGISTRATION_REFUSED ' + $failure)
+            exit 1
+          }

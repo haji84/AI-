@@ -1,0 +1,33 @@
+✔ focused excerpts retain multiline/CRLF bytes, merge neighboring windows and keep distant selections (1.0917ms)
+✔ focused recovery shows actual inserted/deleted lines rather than reusing baseline line numbers (0.3785ms)
+✔ focused source without slots remains complete and ambiguous slots fail closed (0.3931ms)
+✔ omitted context retains the complete previous source prompt byte for byte (0.1218ms)
+✖ a malformed rejected candidate cannot force its entire expanded body into focused recovery (1.8295ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 4
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 124.5598
+
+✖ failing tests:
+
+test at tests\tracked-repair-prompt-context.test.ts:32:1
+✖ a malformed rejected candidate cannot force its entire expanded body into focused recovery (1.8295ms)
+  AssertionError [ERR_ASSERTION]: rejected source is advisory; immutable full bytes remain outside the prompt
+      at TestContext.<anonymous> (file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/tests/tracked-repair-prompt-context.test.ts:36:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

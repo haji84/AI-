@@ -1,0 +1,4637 @@
+{
+  "schema_version": 1,
+  "purpose": "Historical preservation reference; existing canonical ledger and governance remain authoritative. Not functional completion evidence.",
+  "baseline_main": "ea02180eac6fe46522b62eae6916f26f3844719d",
+  "source_blobs": {
+    "docs/jarvis-requirements.json": "49bdffe8c65a5b0a7b4bc25721f495f07364ce08",
+    "docs/JARVIS_PRODUCT_SPEC.md": "3ed8c1507b72aeb6e9b5041503ce81f11caae27c",
+    "docs/goriq-cognitive-status.json": "f9f2f80cdad8c5e3f433dd81397286da66475339",
+    "docs/jarvis-additional-requirements.json": "7639886f04d787d655778d5ea91b66bc662a75bf",
+    "docs/jarvis-owner-decisions.json": "fc539e1a47dbd3aad37873f6352926e94fb01e7e",
+    "docs/research-ops-r1-r20.md": "fb9402263d0d77eda6029f91225f63c953d8cd90",
+    "ROADMAP.md": "e079a7e868ebf67a9711e61c1e211e82866e2345",
+    "docs/jarvis-reverse-traceability.json": "72c86de0772c4bebf00913863c7ad91c2b56ff23"
+  },
+  "requirements": [
+    {
+      "id": "NET-001",
+      "title": "外出先スマホのWi-FiをOFFにし4G/5G→private encrypted network→ZBook→JARVIS→Broker/Remote Gateway→Home Wi-Fi Workersへ接続",
+      "description": "外出先スマホのWi-FiをOFFにし4G/5G→private encrypted network→ZBook→JARVIS→Broker/Remote Gateway→Home Wi-Fi Workersへ接続。Router Port Forwarding禁止。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "NET-002",
+      "title": "Tailscale等のPrivate Overlayを利用しPublic Funnelを使用しない",
+      "description": "Tailscale等のPrivate Overlayを利用しPublic Funnelを使用しない。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "NET-003",
+      "title": "Android Fleetは特定PCを恒久Gatewayとせずtrusted LAN/private routeから接続",
+      "description": "Android各端末へPrivate Overlay導入を必須にせず、利用可能なtrusted Gateway/Coordinator NodeがLAN Worker群を橋渡しする。ZBook固定依存を禁止し、NubiaでNode Contractを先行実証後、保存済みAndroid 38台を同一Fleet Contractへ後日追加する。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "NET-004",
+      "title": "Internet/Wi-Fi切断から再登録なしで自動復帰",
+      "description": "Internet/Wi-Fi切断から再登録なしで自動復帰。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "NET-005",
+      "title": "Owner authenticationを維持",
+      "description": "Owner authenticationを維持。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "NET-006",
+      "title": "Signed worker request/resultを維持",
+      "description": "Signed worker request/resultを維持。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "NET-007",
+      "title": "Nonce/replay/clock protectionを維持",
+      "description": "Nonce/replay/clock protectionを維持。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "HOST-001",
+      "title": "恒久Main Hostを置かず利用可能なtrusted node全体をGORIQ本体とする",
+      "description": "GORIQはZBook、MacBookその他の単一物理PCを恒久Main Hostとしない。現在利用可能なtrusted node群とdurable Goal/Task/State/Memory/EvidenceがGORIQ本体として振る舞い、Coordinatorは移動可能な論理roleとする。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "HOST-002",
+      "title": "MacBookは固定本体ではなく独立Node・Coordinator候補として参加",
+      "description": "MacBookは補助Hostに固定せず、ZBook等と同じtrusted Node Contractに参加する。能力・負荷・データ所在・接続状態に応じてCoordinator/Executor/Storage/Verifier等の論理roleを保持または解放し、停止・復旧時は自動再構成する。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "HOST-003",
+      "title": "Windows起動後にdashboard、Broker、Remote Gateway、supervisor、private network entry、health monitoringが手動起動なしで稼働",
+      "description": "Windows起動後にdashboard、Broker、Remote Gateway、supervisor、private network entry、health monitoringが手動起動なしで稼働。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "HOST-004",
+      "title": "プロセス異常終了時にbounded exponential backoffで自動再起動",
+      "description": "プロセス異常終了時にbounded exponential backoffで自動再起動。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "HOST-005",
+      "title": "Internet/Wi-Fi復帰後に自動再接続",
+      "description": "Internet/Wi-Fi復帰後に自動再接続。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "HOST-006",
+      "title": "短時間停電はZBook battery/UPSでの継続を考慮",
+      "description": "短時間停電はZBook battery/UPSでの継続を考慮。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "HOST-007",
+      "title": "AC断→復電→BIOS/UEFI AC Restore→Windows Boot→Tailscale unattended→JARVIS automatic startup→Broker/Gateway→Android reconnect→Remote access recovery",
+      "description": "AC断→復電→BIOS/UEFI AC Restore→Windows Boot→Tailscale unattended→JARVIS automatic startup→Broker/Gateway→Android reconnect→Remote access recovery。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "HOST-008",
+      "title": "BIOS設定が必要な場合はコードで可能と偽らず一度だけ必要なHuman Gateを明示",
+      "description": "BIOS設定が必要な場合はコードで可能と偽らず一度だけ必要なHuman Gateを明示。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "FLEET-001",
+      "title": "最大100台を一元管理",
+      "description": "最大100台を一元管理。 ADR 0013のfleet groupsで管理する。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "FLEET-002",
+      "title": "100台分の手入力を不要にする",
+      "description": "100台分の手入力を不要にする。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "FLEET-003",
+      "title": "固定端末登録URL→server側fresh短時間token→Worker enrollment→完了",
+      "description": "固定端末登録URL→server側fresh短時間token→Worker enrollment→完了。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "FLEET-004",
+      "title": "既存Androidを簡単登録",
+      "description": "既存Androidを簡単登録。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "FLEET-005",
+      "title": "新品/初期化済みAndroidはOSが許せばQR Zero-Touch/Device Owner provisioning",
+      "description": "新品/初期化済みAndroidはOSが許せばQR Zero-Touch/Device Owner provisioning。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "FLEET-006",
+      "title": "既存使用中Androidにも可能な範囲でone-touch onboarding",
+      "description": "既存使用中Androidにも可能な範囲でone-touch onboarding。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "FLEET-007",
+      "title": "各Nodeにidentity/signing/capability/resource/platform/connectivity/healthを保持",
+      "description": "各Nodeはstable identity/signingに加え、CPU/GPU/accelerator、RAM、OS/architecture、現在負荷、storage/data locality、network route、power/battery、thermal、sensor/camera/location、background制約、tool capability、health/lastSeenを可能な範囲でmanifest化する。不明値は推測しない。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "FLEET-008",
+      "title": "再起動・切断後は再Enrollmentなしで復帰",
+      "description": "再起動・切断後は再Enrollmentなしで復帰。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "FLEET-009",
+      "title": "端末交換フロー",
+      "description": "端末交換フロー。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "FLEET-010",
+      "title": "100-node capacity regression test",
+      "description": "100-node capacity regression test。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "FLEET-011",
+      "title": "101台目等のcapacity overflowを安全に拒否",
+      "description": "101台目等のcapacity overflowを安全に拒否。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "DEV-A-001",
+      "title": "Android Worker常駐",
+      "description": "Android Worker常駐。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "DEV-A-002",
+      "title": "Task受信",
+      "description": "Task受信。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "DEV-A-003",
+      "title": "UI操作",
+      "description": "UI操作。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "DEV-A-004",
+      "title": "アプリ起動",
+      "description": "アプリ起動。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "DEV-A-005",
+      "title": "tap",
+      "description": "tap。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "DEV-A-006",
+      "title": "swipe",
+      "description": "swipe。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "DEV-A-007",
+      "title": "text input",
+      "description": "text input。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "DEV-A-008",
+      "title": "Back/Home/app switch",
+      "description": "Back/Home/app switch。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "DEV-A-009",
+      "title": "Screenshot",
+      "description": "Screenshot。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "DEV-A-010",
+      "title": "Supported recording",
+      "description": "Supported recording。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "DEV-A-011",
+      "title": "Reboot後自動復帰",
+      "description": "Reboot後自動復帰。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "DEV-A-012",
+      "title": "Wi-Fi再接続",
+      "description": "Wi-Fi再接続。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "DEV-A-013",
+      "title": "Offline queue",
+      "description": "Offline queue。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "DEV-A-014",
+      "title": "Offline→reconnect→resume",
+      "description": "Offline→reconnect→resume。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "DEV-A-015",
+      "title": "Device Owner機能が必要な能力をCapabilityとして明示",
+      "description": "Device Owner機能が必要な能力をCapabilityとして明示。 ADR 0013のDevice Wake/Lock/Dedicated Device Managerを含み、personal lockはHuman TakeoverとしPINの中央保存・自動入力で回避しない。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "DEV-I-001",
+      "title": "iPhone Worker",
+      "description": "iPhone Worker。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "DEV-I-002",
+      "title": "Stable device identity",
+      "description": "Stable device identity。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "DEV-I-003",
+      "title": "Supported task delivery",
+      "description": "Supported task delivery。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "DEV-I-004",
+      "title": "Signed result",
+      "description": "Signed result。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "DEV-I-005",
+      "title": "Reconnect",
+      "description": "Reconnect。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "DEV-I-006",
+      "title": "Keychain credential",
+      "description": "Keychain credential。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "DEV-I-007",
+      "title": "iOS Background制約を無視しない",
+      "description": "iOS Background制約を無視しない。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "DEV-I-008",
+      "title": "Android同等の自由操作ができない場合view-only/limited-control等を明示",
+      "description": "Android同等の自由操作ができない場合view-only/limited-control等を明示。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "DEV-PC-001",
+      "title": "ZBook PC Worker",
+      "description": "ZBook PC Worker。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "DEV-PC-002",
+      "title": "Browser operation",
+      "description": "Browser operation。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "DEV-PC-003",
+      "title": "Filesystem operation",
+      "description": "Filesystem operation。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "DEV-PC-004",
+      "title": "Development operation",
+      "description": "Development operation。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "DEV-PC-005",
+      "title": "Office等のPC capability",
+      "description": "Office等のPC capability。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "DEV-PC-006",
+      "title": "Mac Worker",
+      "description": "Mac Worker。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "DEV-PC-007",
+      "title": "Platform-specific capability/resource manifest",
+      "description": "PC/Mobile NodeはOS固有能力だけでなくCPU/GPU/RAM/load/data locality/network/power/thermal等のresource情報を共通Node Manifestへ公開し、Capability Routerが配置・fallback・rebalancingに利用する。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "RA-001",
+      "title": "Devices画面から端末画面を確認",
+      "description": "Devices画面から端末画面を確認。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "RA-002",
+      "title": "Single device view",
+      "description": "Single device view。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "RA-003",
+      "title": "2画面split",
+      "description": "2画面split。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "RA-004",
+      "title": "4画面split",
+      "description": "4画面split。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "RA-005",
+      "title": "Fleet thumbnail/grid",
+      "description": "Fleet thumbnail/grid。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "RA-006",
+      "title": "Device capability badge: VIEW ONLY / CONTROLLABLE / FULL MANAGEMENT",
+      "description": "Device capability badge: VIEW ONLY / CONTROLLABLE / FULL MANAGEMENT。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "RA-007",
+      "title": "Android/PC remote tap/click",
+      "description": "Android/PC remote tap/click。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "RA-008",
+      "title": "Remote text",
+      "description": "Remote text。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "RA-009",
+      "title": "Remote scroll/swipe",
+      "description": "Remote scroll/swipe。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "RA-010",
+      "title": "Back/Home",
+      "description": "Back/Home。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "RA-011",
+      "title": "App switch",
+      "description": "App switch。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "RA-012",
+      "title": "Screenshot",
+      "description": "Screenshot。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "RA-013",
+      "title": "Recording",
+      "description": "Recording。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "RA-014",
+      "title": "Remote Assist Session",
+      "description": "Remote Assist Session。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "RA-015",
+      "title": "Session auth",
+      "description": "Session auth。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "RA-016",
+      "title": "Encryption",
+      "description": "Encryption。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "RA-017",
+      "title": "Timeout",
+      "description": "Timeout。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "RA-018",
+      "title": "Audit log",
+      "description": "Audit log。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "RA-019",
+      "title": "AI作業→UI変化/失敗→OwnerへHuman Takeover提示→Live View→Owner操作→「続きやって」→画面再観測→自律処理再開",
+      "description": "AI作業→UI変化/失敗→OwnerへHuman Takeover提示→Live View→Owner操作→「続きやって」→画面再観測→自律処理再開。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "RA-020",
+      "title": "Human Takeover前後の状態を保存",
+      "description": "Human Takeover前後の状態を保存。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "RA-021",
+      "title": "Pointing/gestureだけではdestructive actionを許可しない",
+      "description": "Pointing/gestureだけではdestructive actionを許可しない。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "RA-022",
+      "title": "iPhoneはOS制約に応じてgraceful degradation",
+      "description": "iPhoneはOS制約に応じてgraceful degradation。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "UI-001",
+      "title": "Home: 24h clock/date/JARVIS status/connectivity/Current Goal/progress/NOW/NEXT/Human Gate/active workers/device health/activity/failures/suggestions",
+      "description": "Home: 24h clock/date/JARVIS status/connectivity/Current Goal/progress/NOW/NEXT/Human Gate/active workers/device health/activity/failures/suggestions。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "UI-002",
+      "title": "Devices / ノード管理",
+      "description": "Devices / ノード管理。各Nodeをカードで表示し、オンライン/オフライン、現在のTask、負荷の要約、役割・Capability、詳細への導線を一目で確認できる。通常のTask配置は自動のまま、新しいNode追加と必要時の詳細操作だけを明示する。画面デザイン変更でNodeの実体・権限・状態は変えない。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": [
+        "owner-2026-10-06-goriq-design-session"
+      ]
+    },
+    {
+      "id": "UI-003",
+      "title": "Projects / Tasks / 判断待ち",
+      "description": "Projects / Tasks / 判断待ち。Project詳細はGoal、現在のphase/state、進捗、次のcheckpoint/action、Task状態、参加Node、最近のactivityを優先表示する。判断待ちは問題・選択肢・影響・推奨理由を短く表示し、完全なTask/Decision/Failure/Recovery履歴は保持したまま通常画面では最近/関連分だけを見せ、詳細履歴は必要時に開ける。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": [
+        "owner-2026-10-06-goriq-design-session"
+      ]
+    },
+    {
+      "id": "UI-004",
+      "title": "Research",
+      "description": "Research。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "UI-005",
+      "title": "Settings",
+      "description": "Settings。Owner向け表記を分かりやすい日本語にし、少なくとも「画面デザイン」「画面の配置を変更」「声」を独立して設定できる。画面デザインはサムネイル、試し適用/プレビュー、お気に入り、再選択を提供し、声は試し聞きから選択できる。設定変更はGoal/Task/権限/Human Gateを変えない。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": [
+        "owner-2026-10-06-goriq-design-session"
+      ]
+    },
+    {
+      "id": "UI-006",
+      "title": "未来的GORIQ表示・可読性・共通操作の両立",
+      "description": "未来的GORIQ表示と可読性を両立し、毎日長時間使っても情報過多や配色で疲れにくい構成にする。画面デザインごとに見た目や配置は変えてよいが、open/select/back/close/save/cancel/pause/resumeの意味、主要機能への到達性、状態ラベルの意味は一貫させる。状態を色だけで表現せず文字/アイコンも併用し、デザイン変更でGoal data、履歴、進捗、権限、実行状態を変えない。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": [
+        "owner-2026-10-06-goriq-design-session"
+      ]
+    },
+    {
+      "id": "UI-007",
+      "title": "35 selectable 画面デザイン + persona presets",
+      "description": "Owner提供の2つのvisual reference setを統合せず個別プリセットとして保持し、合計35枠の「画面デザイン」を選択可能にする。Set A 15: クリーンモダン / ダークシネマティック / アニメ調 美人秘書 / リアル 美人秘書 / イケメン秘書 / ホログラム空間 / ナチュラルウッド / ミニマルGlass / AR空間UI / サイバーシティ / コックピット / モバイル特化 / デュアルモニター / データビジュアル / 癒し空間。Set B 20: クリーンモダン / ダークシネマティック / アニメ美人秘書 / リアル美人秘書 / リアルイケメン秘書 / アニメイケメン秘書 / ホログラム人型 / AIコア型 / 執事型JARVIS / 秘書チーム型 / 未来研究室型 / 宇宙船ブリッジ型 / 高級車コックピット型 / AR空間型 / サイバーシティ型 / 自然融合型 / ブラック＆ゴールド / 白銀ラボ型 / デジタルツイン型 / 可変人格型。似た名称/世界観でもOwnerが別枠として指定したものは統合しない。画面デザインは色だけでなくlayout/density/装飾/hero/persona presentationを変えられるが、機能とdata contractは共通。Settingsでthumbnail、即時preview/apply、お気に入り、再切替を提供する。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": [
+        "owner-2026-10-06-goriq-design-session"
+      ]
+    },
+    {
+      "id": "UI-008",
+      "title": "ThemeとPersonaは独立設定",
+      "description": "ThemeとPersonaは独立設定。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "UI-009",
+      "title": "Voice / 声は独立設定",
+      "description": "VoiceはTheme/Persona/Speech styleから独立したOwner設定とし、表示名は分かりやすく「声」とする。利用可能なlicense確認済み音声を一覧表示し、1タップ試聴から選択できる。初期catalogは8〜12種類を目標とし、speech rate、pitch(対応engineのみ)、volumeを別設定できる。声を変えても会話履歴、AI能力、権限、Human Gateは変わらない。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": [
+        "owner-2026-10-06-goriq-design-session"
+      ]
+    },
+    {
+      "id": "UI-010",
+      "title": "Accent Colorは独立設定",
+      "description": "Accent Colorは独立設定。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "UI-011",
+      "title": "Layoutは独立設定",
+      "description": "LayoutはTheme/Persona/Voice/Colorから独立設定。さらにOwnerの画面デザインごと・screenごとに配置を保存し、そのデザインへ戻した時は前回配置を復元する。画面デザイン切替は表示/配置だけを変え、Goal/Task/data/authorityは変えない。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": [
+        "owner-2026-10-06-goriq-design-session"
+      ]
+    },
+    {
+      "id": "UI-012",
+      "title": "Widget drag/move",
+      "description": "Widget drag/move。通常時は誤移動させず、長押しまたはSettingsの「画面の配置を変更」から明示的にlayout edit modeへ入り、そのmode中だけdrag/moveを許可する。Touchでは誤操作防止の意図確認を挟める。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": [
+        "owner-2026-10-06-goriq-design-session"
+      ]
+    },
+    {
+      "id": "UI-013",
+      "title": "Widget resize",
+      "description": "Widget resize。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "UI-014",
+      "title": "Widget hide/show",
+      "description": "Widget hide/show。Ownerが補助情報を非表示/再表示できる一方、新規開発・Project/Task・判断待ち・Node/Device・Settingsなど主要capabilityへの到達手段は完全には消せない。デザイン変更やhide/showで実行中Goalのstateを変えない。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": [
+        "owner-2026-10-06-goriq-design-session"
+      ]
+    },
+    {
+      "id": "UI-015",
+      "title": "Layout preset",
+      "description": "Layout preset。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "UI-016",
+      "title": "Screen別Layout profile",
+      "description": "Screen別Layout profile。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "UI-017",
+      "title": "Undo",
+      "description": "Undo。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "UI-018",
+      "title": "Redo",
+      "description": "Redo。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "UI-019",
+      "title": "Reset / 初期配置に戻す",
+      "description": "Reset。画面デザインごとの配置を安全に「初期配置に戻す」操作を提供する。配置変更のUndo/Redoとは別に明示し、Goal/Task/data/権限はresetしない。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": [
+        "owner-2026-10-06-goriq-design-session"
+      ]
+    },
+    {
+      "id": "UI-020",
+      "title": "Universal Command / Conversation entry",
+      "description": "Universal Command BarをGORIQ全体のcommand/conversation入口として扱う。どの主要画面・どの画面デザインでも会話へ1 actionで入れ、PC/mobileとも「新規開発」を明示的な主要入口として到達可能にする。主要導線としてProject/Task、判断待ち、Node/Device、Settingsへの到達性もデザインで失わない。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": [
+        "owner-2026-10-06-goriq-design-session"
+      ]
+    },
+    {
+      "id": "UI-021",
+      "title": "Universal Search",
+      "description": "Universal Search。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "UI-022",
+      "title": "Notification Priority",
+      "description": "Notification Priority。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "UI-023",
+      "title": "Focus Mode",
+      "description": "Focus Mode。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "UI-024",
+      "title": "Distance Mode",
+      "description": "Distance Mode。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "UI-025",
+      "title": "3〜5m離れて見える拡大UI",
+      "description": "3〜5m離れて見える拡大UI。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "UI-026",
+      "title": "Mobile Mode / smartphone-specific UX",
+      "description": "Mobile Mode。Desktopを縮小するだけにせず、phone専用の縦scroll/片手操作layoutを使う。Bottom navigationの基本は「ホーム / プロジェクト / 新規開発 / 判断待ち / その他」とし、global conversation/voiceを1 actionで呼び出せる。Project詳細はGoal→current state→next action→running tasks→recent historyを優先し、判断待ちは短いlarge-card操作にする。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": [
+        "owner-2026-10-06-goriq-design-session"
+      ]
+    },
+    {
+      "id": "UI-027",
+      "title": "Adaptive Layout / 35-design mobile rendition",
+      "description": "Adaptive Layout。各画面デザインはdesktop gridを単純縮小せず、同じ世界観をphone/tablet用layoutへ変換する。35個すべての画面デザインで機能同等性を保ち、touchのlayout編集は意図的なedit modeに限定する。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": [
+        "owner-2026-10-06-goriq-design-session"
+      ]
+    },
+    {
+      "id": "UI-028",
+      "title": "Privacy Mode",
+      "description": "Privacy Mode。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "UI-029",
+      "title": "Sensitive panel blackout",
+      "description": "Sensitive panel blackout。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "UI-030",
+      "title": "Kiosk/Read-only Mode",
+      "description": "Kiosk/Read-only Mode。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "UI-031",
+      "title": "Accessibility",
+      "description": "Accessibility。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "UI-032",
+      "title": "Keyboard navigation",
+      "description": "Keyboard navigation。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "UI-033",
+      "title": "Captions",
+      "description": "Captions。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "UI-034",
+      "title": "Offline indicator",
+      "description": "Offline indicator。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "UI-035",
+      "title": "Reconnecting indicator",
+      "description": "Reconnecting indicator。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "UI-036",
+      "title": "Syncing indicator",
+      "description": "Syncing indicator。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "UI-037",
+      "title": "Device Live View統合",
+      "description": "Device Live View統合。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "UI-038",
+      "title": "Japanese-first UI",
+      "description": "Japanese-first UI。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "INT-001",
+      "title": "Voice command / system-wide voice conversation",
+      "description": "Voice command。音声は新規開発専用ではなく、GORIQの全主要画面から呼べるsystem-wide conversation inputとする。認識した発話は送信前/送信後にvisible textとして扱い、Voice Human Gate等の既存authorityを一切迂回しない。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": [
+        "owner-2026-10-06-goriq-design-session"
+      ]
+    },
+    {
+      "id": "INT-002",
+      "title": "Text command",
+      "description": "Text command。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "INT-003",
+      "title": "Touch",
+      "description": "Touch。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "INT-004",
+      "title": "Voice/text同一conversation context + visible transcript",
+      "description": "Voice/textは同一conversation contextと履歴を共有する。Voice inputはdefaultでvoice response、text inputはdefaultでtext responseとし、Owner設定でoverride可能。Owner発話の文字起こしとAI返答はhidden storageだけでなく通常の会話履歴に見える形で残し、modeを切り替えてもcontextを失わない。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": [
+        "owner-2026-10-06-goriq-design-session"
+      ]
+    },
+    {
+      "id": "INT-005",
+      "title": "Screen-context + GORIQ-wide context「これ」",
+      "description": "「これ」等のscreen-context referenceでは現在画面/Projectを高優先contextとして使うが、それを検索境界にはしない。Owner権限内のGORIQ-wide Goal/Project/Task/Decision/Node/Log/History/Settings stateへ質問でき、command対象が一意ならそのauthority内で操作する。曖昧な変更指示だけ最小限のclarificationを求める。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": [
+        "owner-2026-10-06-goriq-design-session"
+      ]
+    },
+    {
+      "id": "INT-006",
+      "title": "Screen-context reference「さっきのやつ」",
+      "description": "Screen-context reference「さっきのやつ」。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "INT-007",
+      "title": "Screen-context reference「2番目」",
+      "description": "Screen-context reference「2番目」。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "INT-008",
+      "title": "Local-first TTS engine / Voice Persona",
+      "description": "Voice Personaと音声engine authorityを分離する。標準TTS engineはAivisSpeech Engine、fallbackはVOICEVOX Engineとし、local-firstで動作するreplaceable engine abstractionを持つ。利用不能時に有料providerや外部data egressへ黙ってfallbackしない。各voice modelのlicenseを確認し、engine/model unavailableはfail-visibleにする。Voice selection、Persona、Speech styleは独立設定。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": [
+        "owner-2026-10-06-goriq-design-session"
+      ]
+    },
+    {
+      "id": "INT-009",
+      "title": "Speech style",
+      "description": "Speech style。Voice engine/voice selection/personaとは独立し、少なくともstandard/brief/formal等の返答styleを保存できる。Speech rate/pitch/volumeはVoice settingsとして別管理し、style変更でcommand parsing、priority、permission、Human Gateを変えない。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": [
+        "owner-2026-10-06-goriq-design-session"
+      ]
+    },
+    {
+      "id": "INT-010",
+      "title": "Barge-in",
+      "description": "Barge-in。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "INT-011",
+      "title": "AI音声を途中で遮れる",
+      "description": "AI音声を途中で遮れる。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "INT-012",
+      "title": "Push-to-talk",
+      "description": "Push-to-talk。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "INT-013",
+      "title": "Mute",
+      "description": "Mute。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "INT-014",
+      "title": "Caption",
+      "description": "Caption。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "INT-015",
+      "title": "Quiet Hours",
+      "description": "Quiet Hours。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "INT-016",
+      "title": "Priority speech queue",
+      "description": "Priority speech queue。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "INT-017",
+      "title": "Voice Human Gate",
+      "description": "Voice Human Gate。音声でもHuman Gateを突破しない。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "GEST-001",
+      "title": "Camera hand gesture",
+      "description": "Camera hand gesture。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "GEST-002",
+      "title": "Camera active indicator",
+      "description": "Camera active indicator。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "GEST-003",
+      "title": "可能ならlocal processing",
+      "description": "可能ならlocal processing。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "GEST-004",
+      "title": "False gesture protection",
+      "description": "False gesture protection。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "GEST-005",
+      "title": "重要操作はgestureだけで確定しない",
+      "description": "重要操作はgestureだけで確定しない。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "GEST-006",
+      "title": "Smartphone gyro/IMU pointer",
+      "description": "Smartphone gyro/IMU pointer。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "GEST-007",
+      "title": "スマホをリモコン化",
+      "description": "スマホをリモコン化。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "GEST-008",
+      "title": "Distance Modeと連動",
+      "description": "Distance Modeと連動。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "AUTO-001",
+      "title": "One Front Door",
+      "description": "One Front Door。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "AUTO-002",
+      "title": "Goal persistence",
+      "description": "Goal persistence。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "AUTO-003",
+      "title": "DoD persistence",
+      "description": "DoD persistence。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "AUTO-004",
+      "title": "Current State persistence",
+      "description": "Current State persistence。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "AUTO-005",
+      "title": "Decisions persistence / rationale history",
+      "description": "Decisions persistence。Owner/AIが確定した仕様判断、選択肢、採用/不採用、理由、影響、関連Goal/Task、必要な差分をdurableに保持し、後から「なぜこれにしたか」を追跡できる。判断確定後は仕様/Goalへ反映し、待っていた依存Taskだけを正確にresumeする。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": [
+        "owner-2026-10-06-goriq-design-session"
+      ]
+    },
+    {
+      "id": "AUTO-006",
+      "title": "Deliverables persistence",
+      "description": "Deliverables persistence。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "AUTO-007",
+      "title": "Verification persistence",
+      "description": "Verification persistence。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "AUTO-008",
+      "title": "Next Action persistence",
+      "description": "Next Action persistence。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "AUTO-009",
+      "title": "Planner",
+      "description": "Planner。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "AUTO-010",
+      "title": "Resource-aware Capability Router",
+      "description": "Capability Routerはrequired capabilityに加えCPU/GPU/RAM、OS固有能力、現在負荷、data locality、network/power/thermal、risk/privacyを評価し、利用可能NodeへTaskを配置する。高速経路喪失時は正しさを維持できる低速経路へ自動fallbackし、独立Taskは可能な範囲で並列化する。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "AUTO-011",
+      "title": "Dynamic worker selection and automatic rebalancing",
+      "description": "Node参加・離脱・復旧・負荷変化のたびに利用可能能力を再評価し、待機Taskと安全に移行可能な実行中Taskを自動再配置する。新規高性能PC追加時は手動topology再構成なしで処理能力を拡張する。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "AUTO-012",
+      "title": "Dynamic logical role composition across nodes",
+      "description": "Coordinator/Executor/Storage/Verifier/Gateway/Owner-Input/Sensor-Edge等のroleを物理端末へ固定せず、verified capability・health・riskに応じて動的構成する。一Nodeが複数roleを持てるがCoordinator消失をGORIQ全停止条件にしない。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "AUTO-013",
+      "title": "Child Goal Gate",
+      "description": "Child Goal Gate。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "AUTO-014",
+      "title": "Context Partitioning",
+      "description": "Context Partitioning。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "AUTO-015",
+      "title": "Executor",
+      "description": "Executor。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "AUTO-016",
+      "title": "Verifier",
+      "description": "Verifier。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "AUTO-017",
+      "title": "Repair",
+      "description": "Repair。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "AUTO-018",
+      "title": "Replan",
+      "description": "Replan。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "AUTO-019",
+      "title": "Bounded retry",
+      "description": "Bounded retry。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "AUTO-020",
+      "title": "Failure classification",
+      "description": "Failure classification。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "AUTO-021",
+      "title": "Ordinary LOW/MEDIUM auto-continue",
+      "description": "Ordinary LOW/MEDIUM auto-continue。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "AUTO-022",
+      "title": "Only genuine Human Gate interrupts; dependency-only pause",
+      "description": "Only genuine Human Gate interrupts。判断待ち/Human Gateが発生してもProject全体を一律停止せず、その判断に依存するTask/closureだけをPAUSED/WAITINGにし、無関係なsafe workは自動継続する。判断が全体architecture等へ波及する時だけ必要範囲を広く止め、解決後は影響Taskのみresumeする。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": [
+        "owner-2026-10-06-goriq-design-session"
+      ]
+    },
+    {
+      "id": "AUTO-023",
+      "title": "Restart resume",
+      "description": "Restart resume。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "AUTO-024",
+      "title": "Offline resume",
+      "description": "Offline resume。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "AUTO-025",
+      "title": "Reconnect resume",
+      "description": "Reconnect resume。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "AUTO-026",
+      "title": "Verified completion only",
+      "description": "Verified completion only。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "AUTO-027",
+      "title": "Skill creation from verified evidence only",
+      "description": "Skill creation from verified evidence only。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "AUTO-028",
+      "title": "Self-improvement proposal",
+      "description": "Self-improvement proposal。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "AUTO-029",
+      "title": "Sandbox before promotion",
+      "description": "Sandbox before promotion。 ADR 0013のsimulation/dry-runおよびcanary executionを経て昇格する。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "AUTO-030",
+      "title": "Regression test",
+      "description": "Regression test。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "AUTO-031",
+      "title": "Known-good rollback",
+      "description": "Known-good rollback。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "MEM-001",
+      "title": "Working Memory",
+      "description": "Working Memory。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "MEM-002",
+      "title": "Episodic Memory",
+      "description": "Episodic Memory。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "MEM-003",
+      "title": "Semantic Memory",
+      "description": "Semantic Memory。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "MEM-004",
+      "title": "Procedural Memory",
+      "description": "Procedural Memory。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "MEM-005",
+      "title": "Memory provenance",
+      "description": "Memory provenance。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "MEM-006",
+      "title": "Offline/local memory availability",
+      "description": "Offline/local memory availability。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "MEM-007",
+      "title": "Reconnect synchronization",
+      "description": "Reconnect synchronization。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "MEM-008",
+      "title": "Verified execution→reusable knowledge",
+      "description": "Verified execution→reusable knowledge。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "OFF-001",
+      "title": "Networkを生存条件にしない",
+      "description": "Networkを生存条件にしない。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "OFF-002",
+      "title": "Local-capable workはOffline中も実行",
+      "description": "Local-capable workはOffline中も実行。 ADR 0013のoffline data pack/local model managerを含み、モデル容量がない場合は実行可能と偽らない。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "OFF-003",
+      "title": "代替不能TaskだけをWAITING_FOR_CONNECTIVITY/CAPABILITYにする",
+      "description": "Onlineまたは特定Node/OS/Device capabilityが真に必要なTaskだけをdurable waiting状態へ置く。高速経路だけが失われた場合は低速fallbackを評価し、無関係なlocal-capable Taskは継続する。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "OFF-004",
+      "title": "Persistent queue",
+      "description": "Persistent queue。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "OFF-005",
+      "title": "Checkpoint + Task Migration Class",
+      "description": "Durable checkpointを保持し、各TaskをMIGRATABLE / RESTARTABLE / PINNED / SIDE_EFFECTINGに分類する。移行不能Taskを移行可能と偽らず、migration classに応じてcheckpoint継続、再実行、待機、side-effect保護を選ぶ。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "OFF-006",
+      "title": "Resume / migrate / restart according to durable ownership",
+      "description": "Node停止時にdurable checkpointとmigration classを読み、別Nodeで安全ならresume/migrate/restartする。復旧後の旧Nodeは現所有権を再確認し、古い実行を継続しない。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "OFF-007",
+      "title": "Idempotency",
+      "description": "Idempotency。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "OFF-008",
+      "title": "Lease / execution ownership / epoch / fencing token / duplicate prevention",
+      "description": "各TaskはTask ID、idempotency key、current execution owner、lease expiry、execution epoch、fencing token、checkpoint/result versionを保持する。Ownership移動時はepoch/tokenを進め、旧Nodeの遅延結果・二重反映・二重side effectを拒否する。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "OFF-009",
+      "title": "Partition delta sync for Task/Result/State/Evidence/Memory/Learning",
+      "description": "別拠点または通信断で各Node/partitionが独立稼働した後、再接続時にGoal/Task/checkpoint/result/state/evidence/artifact reference/memory/verified learning/capability差分を同期する。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "OFF-010",
+      "title": "Causal conflict resolution after node partitions",
+      "description": "再接続時の競合はnaive timestamp/LWWで決めず、execution ownership、epoch/fencing token、causal/version metadata、verification evidenceを使って解決する。安全に解決できない競合はfail-visibleとする。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "OFF-011",
+      "title": "Critical stateでnaive last-write-wins禁止",
+      "description": "Critical stateでnaive last-write-wins禁止。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "OFF-012",
+      "title": "Real physical node-loss / offline / recovery matrix",
+      "description": "MacBook停止、ZBook停止、通信断、same-LAN継続、途中復旧、両方復旧、再同期、競合、処理再配分、Nubia join/loss/return、新規PC追加を自動テストと実機テストで検証し証拠を残す。Android 38台はNubia canary後の後続Fleet受入とする。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "SEC-001",
+      "title": "Owner Authentication",
+      "description": "Owner Authentication。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "SEC-002",
+      "title": "Session Control",
+      "description": "Session Control。 ADR 0013のsecrets managerとRBAC/node policyを維持する。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "SEC-003",
+      "title": "Signed Worker Request",
+      "description": "Signed Worker Request。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "SEC-004",
+      "title": "Signed Result",
+      "description": "Signed Result。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "SEC-005",
+      "title": "Nonce protection",
+      "description": "Nonce protection。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "SEC-006",
+      "title": "Replay protection",
+      "description": "Replay protection。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "SEC-007",
+      "title": "Clock/stale request protection",
+      "description": "Clock/stale request protection。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "SEC-008",
+      "title": "Device Allowlist",
+      "description": "Device Allowlist。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "SEC-009",
+      "title": "Capability authorization",
+      "description": "Capability authorization。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "SEC-010",
+      "title": "Private ingress only",
+      "description": "Private ingress only。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "SEC-011",
+      "title": "No secrets in repo",
+      "description": "No secrets in repo。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "SEC-012",
+      "title": "No secrets in logs",
+      "description": "No secrets in logs。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "SEC-013",
+      "title": "No silent paid API",
+      "description": "No silent paid API。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "SEC-014",
+      "title": "Human Gate: payment/purchase/billing/contract/permission changes/credentials/tokens/security weakening/destructive deletion/irreversible action/governance changes/protected external publication/protected production action",
+      "description": "Human Gate: payment/purchase/billing/contract/permission changes/credentials/tokens/security weakening/destructive deletion/irreversible action/governance changes/protected external publication/protected production action。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "SEC-015",
+      "title": "Human Takeover audit",
+      "description": "Human Takeover audit。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "SEC-016",
+      "title": "Remote Assist audit",
+      "description": "Remote Assist audit。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "SEC-017",
+      "title": "Privacy Blackout",
+      "description": "Privacy Blackout。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "SEC-018",
+      "title": "Threat Model",
+      "description": "Threat Model。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "SEC-019",
+      "title": "Negative Security Tests",
+      "description": "Negative Security Tests。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "OPS-001",
+      "title": "Task history",
+      "description": "Task history。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "OPS-002",
+      "title": "Worker history",
+      "description": "Worker history。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "OPS-003",
+      "title": "Verification history",
+      "description": "Verification history。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "OPS-004",
+      "title": "Failure history",
+      "description": "Failure history。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "OPS-005",
+      "title": "Recovery history",
+      "description": "Recovery history。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "OPS-006",
+      "title": "Connectivity status",
+      "description": "Connectivity status。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "OPS-007",
+      "title": "Power status where available",
+      "description": "Power status where available。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "OPS-008",
+      "title": "Self Diagnostics: Tailscale disconnected/build missing/worker missing/host down/Broker down/Gateway down/auth missing/Device permission missing/firmware gate/Human Gate pendingを具体表示",
+      "description": "Self Diagnostics: Tailscale disconnected/build missing/worker missing/host down/Broker down/Gateway down/auth missing/Device permission missing/firmware gate/Human Gate pendingを具体表示。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "OPS-009",
+      "title": "Recovery Dashboard",
+      "description": "Recovery Dashboard。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "OPS-010",
+      "title": "Automatic startup",
+      "description": "Automatic startup。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "OPS-011",
+      "title": "Stable owner access URL",
+      "description": "Stable owner access URL。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "OPS-012",
+      "title": "First-run setup wizard",
+      "description": "First-run setup wizard。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "OPS-013",
+      "title": "Update",
+      "description": "Update。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "OPS-014",
+      "title": "Rollback",
+      "description": "Rollback。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "OPS-015",
+      "title": "Backup",
+      "description": "Backup。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "OPS-016",
+      "title": "Restore",
+      "description": "Restore。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "OPS-017",
+      "title": "Operator Guide",
+      "description": "Operator Guide。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "OPS-018",
+      "title": "Terminal-free routine use",
+      "description": "Terminal-free routine use。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "ACC-001",
+      "title": "外出先スマホWi-Fi OFF、4G/5Gのみでprivate JARVISへ接続",
+      "description": "外出先スマホWi-Fi OFF、4G/5Gのみでprivate JARVISへ接続。Authenticated JARVIS UIが開くこと。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "ACC-002",
+      "title": "外出先スマホ→JARVIS→家Android→task→execution→signed result→verifier PASS",
+      "description": "外出先スマホ→JARVIS→家Android→task→execution→signed result→verifier PASS。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "ACC-003",
+      "title": "Internet/Wi-Fi interruption→restore→reconnect→no re-enrollment→resume",
+      "description": "Internet/Wi-Fi interruption→restore→reconnect→no re-enrollment→resume。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "ACC-004",
+      "title": "ZBook reboot→Windows→Tailscale→JARVIS→Broker→Gateway→remote reconnectが人操作なしで戻る",
+      "description": "ZBook reboot→Windows→Tailscale→JARVIS→Broker→Gateway→remote reconnectが人操作なしで戻る。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "ACC-005",
+      "title": "可能ならAC power off→restore→BIOS boot→Windows→JARVIS→remote recoveryを実機確認",
+      "description": "可能ならAC power off→restore→BIOS boot→Windows→JARVIS→remote recoveryを実機確認。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "ACC-006",
+      "title": "Android reboot→worker returns automatically",
+      "description": "Android reboot→worker returns automatically。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "ACC-007",
+      "title": "AIに意図的UI failure→AI停止→Live View→Human操作→「続きやって」→AI再開→Goal complete",
+      "description": "AIに意図的UI failure→AI停止→Live View→Human操作→「続きやって」→AI再開→Goal complete。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "ACC-008",
+      "title": "Offline/partition→local work or waiting→reconnect→sync→rebalance→verify",
+      "description": "通信断中は各Node/partitionが安全なlocal workを継続し、代替不能Taskだけ待機する。再接続後は差分同期、競合解決、stale ownership拒否、Task再配分、Verifier再確認まで実機で通す。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "ACC-009",
+      "title": "複数deviceを並列使用し1つのGoalを完了",
+      "description": "複数deviceを並列使用し1つのGoalを完了。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "TEACH-001",
+      "title": "全端末共通の実演・手順記憶",
+      "description": "全端末共通の実演・手順記憶。Android・iPhone・Windows・Mac・Linuxの対応範囲を偽らず共通機能として扱う。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "TEACH-002",
+      "title": "機種・OS・アプリ・端末別の手順選択",
+      "description": "機種・OS・アプリ・端末別の手順選択。Android・iPhone・Windows・Mac・Linuxの対応範囲を偽らず共通機能として扱う。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "TEACH-003",
+      "title": "観測付き教示記録と完了条件",
+      "description": "観測付き教示記録と完了条件。Android・iPhone・Windows・Mac・Linuxの対応範囲を偽らず共通機能として扱う。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "TEACH-004",
+      "title": "別実行で検証した手順のみ自動再実行",
+      "description": "別実行で検証した手順のみ自動再実行。Android・iPhone・Windows・Mac・Linuxの対応範囲を偽らず共通機能として扱う。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "TEACH-005",
+      "title": "教示時の秘密情報保護とHuman Gate",
+      "description": "教示時の秘密情報保護とHuman Gate。Android・iPhone・Windows・Mac・Linuxの対応範囲を偽らず共通機能として扱う。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "TEACH-006",
+      "title": "手順・検証・途中状態の永続化と重複操作防止",
+      "description": "手順・検証・途中状態の永続化と重複操作防止。Android・iPhone・Windows・Mac・Linuxの対応範囲を偽らず共通機能として扱う。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "MIG-001",
+      "title": "Android再登録不要",
+      "description": "既存AndroidのID・鍵・設定を保持し再Enrollmentなしで接続する",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "MIG-002",
+      "title": "iPhone identity維持",
+      "description": "stable Device IDとKeychain credentialを保持する",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "MIG-003",
+      "title": "署名関係維持",
+      "description": "既存signed worker request/resultとnonce・clock保護を維持する",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "MIG-004",
+      "title": "Pending Task保全",
+      "description": "未完了タスク・lease・idempotencyを保持し二重実行を防ぐ",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "MIG-005",
+      "title": "Offline Queue保全",
+      "description": "端末とCoordinatorのoffline queueを消失させない",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "MIG-006",
+      "title": "履歴Evidence保全",
+      "description": "task/result履歴・検証履歴・外部Evidenceを保持する",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "MIG-007",
+      "title": "100台個別再設定禁止",
+      "description": "既存端末の一括削除・再登録・QR再読込を移行条件にしない",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "MIG-008",
+      "title": "Coordinator role separation and failover",
+      "description": "durable Broker/registry/enrollment/routing/schedulingのCoordinatorを物理PCから分離した論理roleとし、現在のCoordinator Node停止時に別trusted Nodeへ安全にfailoverできるようにする。Coordinator消失をGORIQ全停止条件にしない。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "MIG-009",
+      "title": "Mobile ZBook Worker",
+      "description": "ZBookを持ち出せる高性能Workerとし家側稼働を維持する",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "MIG-010",
+      "title": "Legacy endpoint互換",
+      "description": "固定IP・hostname・cached endpoint・TLS信頼を実装監査し旧pathをbridgeで維持する",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "MIG-011",
+      "title": "Logical Coordinator ID + transferable coordinator lease",
+      "description": "物理host移動で変化しないservice identityを維持し、Coordinator ownershipはlease/epoch/fencingで移動可能にする。旧Coordinator復帰後のstale authorityを拒否する。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "MIG-012",
+      "title": "Protocol migration window",
+      "description": "vCurrentを継続しvNextと共存、強制全台更新を移行条件にしない",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "MIG-013",
+      "title": "M0–M10段階移行",
+      "description": "inventoryからshadow/canary/段階展開/physical/cleanupまでexit gateを順に満たす",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "MIG-014",
+      "title": "Shadow副作用禁止",
+      "description": "shadowはregistry・task・signature・queue・health・evidenceを比較しdispatchや登録変更しない",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "MIG-015",
+      "title": "State copy validation",
+      "description": "consistent copy→validate→switchとしcritical stateのnaive last-write-winsは禁止",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "MIG-016",
+      "title": "Nubia first Android canary, iPhone capability acceptance, then Android Fleet",
+      "description": "Nubiaを最初のfull Android/mobile-edge distributed Nodeとしてidentity/capability/task/offline/failover/reconnect/rebalanceを実証する。iPhoneはiOS制約内のOwner/input/sensor Nodeとして受入し、その後保存済みAndroid 38台を同一Node/Fleet Contractへ追加する。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "MIG-017",
+      "title": "Authenticated update migration",
+      "description": "必要なWorker更新は署名検証し既存configを移行して再接続、手作業100台を要求しない",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "MIG-018",
+      "title": "Protected backup",
+      "description": "registry/state/queue/configとcredential metadataを保存、秘密鍵は平文backup/commitしない",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "MIG-019",
+      "title": "Lossless rollback",
+      "description": "旧Coordinator pathへ戻してもID/key/queue/history/evidenceと切替後の新規進捗を失わない",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "MIG-020",
+      "title": "MacBook/ZBook node removal and failover test",
+      "description": "MacBookまたはZBookを意図的に停止/切断しても、残存Nodeで代替可能なGoal/Taskが継続し、PINNED/代替不能Taskだけが待機することを再登録なしで実証する。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "MIG-021",
+      "title": "Node return and automatic reintegration test",
+      "description": "MacBook/ZBook/Nubia等のNode復旧時に同じidentityを維持してcapability/resourceを再登録し、offline中の差分を同期し、待機/実行Taskを再評価して自動rebalancingする。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "MIG-022",
+      "title": "Automatic route and execution-path selection",
+      "description": "trusted LAN fast path/private tailnet/durable offlineに加え、利用可能Nodeのcapability/resource/load/data localityを評価してidentity変更なしでroute/execute/fallback pathを自動選択する。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "MIG-023",
+      "title": "Authenticated discovery",
+      "description": "signed discovery/trusted bootstrap/cached known-goodを用い偽Coordinatorへcredentialを渡さない",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "MIG-024",
+      "title": "Distributed security invariants",
+      "description": "Owner auth、stable device/node identity、signed request/result、nonce/replay/clock、allowlist、capability authorization、Human Gate、private ingress、audit/evidence/queue/historyをNode failover・offline・rebalancing中も維持する。性能最適化やfailoverは権限拡張を意味しない。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "MIG-025",
+      "title": "Connected baseline比較",
+      "description": "変更前後にID/platform/protocol/capability/connectivity/heartbeat/enrollment/pending/credential存在/verificationを比較する",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "MIG-026",
+      "title": "Physical existing-device evidence",
+      "description": "既存Android/iPhoneとZBook home/away/returnの実機証明をCIから分離する",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "MIG-027",
+      "title": "切替操作不要UX",
+      "description": "ZBookを持ち出す前後にユーザーのnetwork切替操作を求めない",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "MIG-028",
+      "title": "Hardware independence",
+      "description": "Macを自宅candidateとしlogical roleをWindows/Linux等へ将来移設できる設計にする",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "MIG-029",
+      "title": "Single writer fencing",
+      "description": "shadowとprimaryの二重lease/dispatchを防ぎreplay windowと進行中登録を保護する",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "MIG-030",
+      "title": "Evidence後の依存整理",
+      "description": "fallbackを保持したprimary化と充分な実機evidence取得後のみlegacy依存を整理する",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "CORE-001",
+      "title": "汎用Goal Completion",
+      "description": "Goal/Request/Material/Current Situationを理解し、調査・分析・計画・実行・検証・修正・改善・記録・学習まで行い、専門promptや逐次指示なしに使える完成状態にする。組織の一員として働く。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "CORE-002",
+      "title": "Goal Completion Engine",
+      "description": "Goal・Intent・Constraints・Context・Required Output・Deadline・Risk・DoD・Dependencies・Unknownsを解析し、状況理解から必要作業を発見し完了状態まで実行する。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "CORE-003",
+      "title": "MUST / INTENT / BETTER",
+      "description": "明示要求・本来目的・追加改善を分離する。BETTERでGoal/Constraintを壊さず依頼を勝手に別物にしない。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "CORE-004",
+      "title": "Ask Last",
+      "description": "ファイル→会話→Project State→Memory→過去成果物→接続ソース→組織データ→公式→Web→合理的推論の順で調査。重要事項が確定しない場合のみ質問し非依存作業を継続。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "CORE-005",
+      "title": "Input Recovery",
+      "description": "欠落ファイル、dirty Excel、scan PDF、画像、OCR、encoding、typo、重複、矛盾、旧文書、壊れた構造、不完全コード、悪いfilename、参考/本件混在、複数versionを監査・修復・再構築・照合する。CONFIRMED/INFERRED/UNKNOWN/CONFLICTEDを区別。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "CORE-006",
+      "title": "Dynamic Orchestration",
+      "description": "Commander/Planner/Researcher/Analyst/Reader/Vision/Coder/Data Analyst/UX/Security/Judge/Critic/VerifierとJob専用Agentを必要時に構成し終了後解散。一つのJARVIS窓口。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "CORE-007",
+      "title": "Model Router",
+      "description": "Small/Large Local、Reasoning、Coding、Vision、Audio、Specialized、Optional Cloudを難度・Risk・Confidence・Cost・Deadline・Modality・実績・Data Classification・Hardwareで選択。特定LLMへ固定しない。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "CORE-008",
+      "title": "Local-first / Cloud-optional",
+      "description": "User/Organization device、自前GPU/server/local modelを利用しLOCAL_ONLY=true、CLOUD_BUDGET=0のCoreを成立させる。性能をBenchmarkで測定しCloud超えを無条件保証しない。追加有料APIは禁止を維持。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "CORE-009",
+      "title": "Parallel / Adaptive / Multi-plan",
+      "description": "独立Taskを複数trusted Nodeへ並列化し、Fast/Deep、High Riskの独立検証を行う。配置はcapabilityだけでなくCPU/GPU/RAM、負荷、data locality、network/power制約を考慮する。重要案件は複数Planの成功確率・品質・時間・費用・Riskを比較し実測Verifierで評価。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "CORE-010",
+      "title": "独立Verification",
+      "description": "Execution/Fact/Security/Quality Verifierを分離。失敗時RCA→Re-plan→Repair→Re-execute→Re-verify。必要時Adversarial Critic。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "CORE-011",
+      "title": "World-state Verification",
+      "description": "Action performedとGoal completedを分離。ファイルExists/Opens/Correct、URLとユーザーフロー、DB保存結果などDesired World Stateを実測してDONEにする。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "CORE-012",
+      "title": "Fact Verification Engine",
+      "description": "Claim抽出→Type→Risk/Freshness→深度→取得→Claim-specific Authority→Independent Origin→Temporal Validation→Citation Entailment→Cross Verification→Contradiction→Numerical Validation→Confidence Calibration→Evidence Graph→Final Fact Audit。VERIFIED/SUPPORTED/INFERRED/CONFLICTED/UNKNOWN/STALEを管理。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "CORE-013",
+      "title": "Numerical Verification",
+      "description": "数字はLLM再思考だけで検証せずCalculator/Python/SQL/Spreadsheet Engine/Deterministic Codeで独立再計算。全数値Claimへ検証結果を結合。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "CORE-014",
+      "title": "Software Development Autopilot + conversational 新規開発",
+      "description": "Frontend/Backend/DB/API/Auth/Web/iOS/Android/Windows/macOS/AI/Infrastructure/Deployを要件発見→研究→設計→実装→統合→Unit/Integration/E2E/Security→必須Visual QA→Deploy→Production Verificationまで扱う。新規開発はform-firstではなくconversation-firstの設計室とし、Goal/spec/architecture/technology/DoDを対話で提案・修正・確定する。確定済み内容と後続要求が矛盾する場合はsilent overwriteせず差分と必要判断を示す。開始前にGoal/spec/design/technology/DoDの最終summaryを1回確認し、承認後は既存Goal Controllerで自律実行する。技術選定は要件に基づき候補・tradeoff・推奨を説明し、採用stackを黙って変更しない。真正な新規ProjectではGitHub repositoryをprivate defaultで自動作成し、README/.gitignore/GORIQ Goal linkage等の最小bootstrapを行える。完了後のautomation levelは「開発完了で停止 / 配布成果物まで / 許可済み本番・運用まで」をProjectごとに選択し、本番cutover等の既存Human Gateを維持する。外部serviceはpurpose/data flow/read-write/cost/authorityを明示し、zero-additional-cost policyと既存secret/permission/billing gateを守る。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION"
+      ],
+      "source_decisions": [
+        "owner-2026-10-06-goriq-design-session"
+      ]
+    },
+    {
+      "id": "CORE-015",
+      "title": "Software Lifecycle",
+      "description": "Build→Operate→Monitor→Improve→Update→Repair。Product Spec/Architecture/Code/DB Schema/Tests/Deployment/Decisions/Change HistoryをLiving Specificationとして同期。 Ownerが採用した会話要求をIDEA/PROPOSEDと区別し、出典・採用状態・既存要件への意味対応・supersede履歴を保持してPRODUCT_SPEC/JSON mirrorへ同期する。採用済み要求の仕様未同期は完了扱いにしない。重大変更は既存Human Gateを維持する。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION"
+      ],
+      "source_decisions": [
+        "owner-1205-living-specification"
+      ]
+    },
+    {
+      "id": "CORE-016",
+      "title": "Learning / Skills",
+      "description": "成功TrajectoryをWorkflow/Template/Tool/Validation Rule/Skillへ昇格。失敗のWhat/Why/Where/Fix/成功代替/予防をFailure Memoryへ保存。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "CORE-017",
+      "title": "Preference Learning",
+      "description": "Accepted/Correction/Rejected output、Design/Quality/Speed/Automation tolerance/Output formatを学習して修正不要な成果物を増やす。人格模倣を目的にしない。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "CORE-018",
+      "title": "Demonstration Learning",
+      "description": "Screen/Click/Tap/Keyboard/Files/App State/Before-After/Error/Undo/Delete/Re-entry/CorrectionからWorkflow/Decision Rule/Template/Tool Usage/Exception/DoDを学習。誤操作を模倣せずOBSERVED/SUSPECTED_MISTAKE/CONFIRMED_MISTAKE/CORRECTED/VALIDATED/LEARNED_RULE/UNKNOWN/NEEDS_VALIDATIONを管理。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "CORE-019",
+      "title": "Long-Horizon",
+      "description": "数時間〜数週間JobのCheckpoint/Stateを保持しReboot/Model change/Network loss/Process crashからResume。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "CORE-020",
+      "title": "Risk / Capability Grant",
+      "description": "Scope単位の自律範囲、Impact/Reversibility/Permission/Confidence/ScopeでRisk分類。Low実行、Medium snapshot/backup後実行、High/irreversible Human Gate。安全な継続を制御。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "CORE-021",
+      "title": "Rollback First",
+      "description": "File version/backup、Git、DB transaction/controlled migration、Previous Deploy、Settings Snapshot、JARVIS Stable/Candidateで可逆化。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "CORE-022",
+      "title": "Self Modification",
+      "description": "Stable→Candidate→Sandbox→Benchmark→Regression→Real-world Test→Canary→Promotion。Security Rootは自由変更させない。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "CORE-023",
+      "title": "Privacy / Data Security",
+      "description": "Public/Internal/Personal/Confidential/Highly Confidential/Credentials/Secretを分類。Local First/Minimization/Redaction/Tokenization/Vault/External Transfer Control/Encryption/Audit/Data Sovereignty/Air-gapped。SecretをLLM Contextに直接入れない。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "CORE-024",
+      "title": "Security Kernel",
+      "description": "LLM外部でAction Request→Policy→Identity→Authorization→Runtime→Executionを強制。LLMをSecurity Boundaryにしない。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "CORE-025",
+      "title": "Agentic Security",
+      "description": "Prompt Injection/Goal Hijack/Tool Misuse/Excessive Agency/Identity・Privilege Abuse/Disclosure/Improper Output/Supply Chain/Unexpected Execution/Memory・Context・Model・Data Poisoning/Unbounded Resourceを防ぐ。Web/PDF/email/OCR/tool outputはdataでGoal/Gate/Owner/Policy/Permissionを書換不可。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "CORE-026",
+      "title": "Scoped Ephemeral Authorization",
+      "description": "Job/Target/Operation/Timeに限定し終了後失効。Worker間Permission貸借禁止。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "CORE-027",
+      "title": "Agent Communication",
+      "description": "内部通信Identity/AuthN/AuthZ/Integrity/Schema/Replay/Audit。Shared Goal/DoD/Evidence/Findings/Decisions/Files/Unknowns/Tasks/ResultsとSensitive Context ACL。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "CORE-028",
+      "title": "Network Default Deny",
+      "description": "Job/Worker/Destination/Protocol/Duration単位の必要時許可を実行時強制。ネットワーク全体の原則拒否。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "CORE-029",
+      "title": "Memory Trust",
+      "description": "Source/Trust Level/Created By/At/Evidence/Expiry/Scope/Integrityを保持。外部文書のみで永続Memoryを更新不可。UNVERIFIED→VERIFIED→TRUSTED_FOR_ACTIONを強制。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "CORE-030",
+      "title": "Runtime Control Plane",
+      "description": "Identity/Capability/Policy/Runtime/Network/Secrets/Audit/Memory Trust/Agent Authentication/Emergency Shutdownを統合。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "CORE-031",
+      "title": "Evaluation / Benchmark",
+      "description": "Completion/Accuracy/Requirement/Intent/First-pass Acceptance/Human Intervention/Speed/Cost/Critical Error/Rollback/Long Horizon/API Dependency/Fact Verification/Org Compliance/Repeat Error/Security Incidentを測定。外部比較のInput/Goal/Environment/Permissions/Time/Resources/Evalを揃える。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "CORE-032",
+      "title": "Organization Digital Twin",
+      "description": "Rule/Template/Workflow/Authority/Exception/Effective Date/Version/Source/Evidence/Superseded Byを構造化。現行規程→公式manual→承認template→正式workflow→過去正式文書→慣習をClaim-specific Authorityで評価。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "CORE-033",
+      "title": "Knowledge Graph",
+      "description": "Person/Organization/Project/File/Rule/Decision/Deadline/Task/Dependency/Evidence/System/Assetと変更影響をGraphで追跡。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "CORE-034",
+      "title": "Advanced Production Controls",
+      "description": "Instruction Trust/Goal Integrity/Policy-as-Code/Identity Device Trust/Model Tool Registry/Provenance/Reproducibility/Eval Governance/Held-out/Red Team/SLO/RTO/RPO/Backup Restore/Chaos/Time/Data Lifecycle/Retention/Deletion/Purpose/Tenant/Tamper Audit/Incident/Revocation/Resources/Override/Safe Stop/Preview/Impact Graph/Requirement Evidence/Degradation/Failure Transparencyを統合。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "GOV-001",
+      "title": "103. Instruction Trust Boundary",
+      "description": "JARVIS must distinguish trusted control instructions from untrusted content.\r\n\r\nSources such as web pages, PDFs, email bodies, chat content, code comments, retrieved documents, screenshots, OCR text and external tool output are data by default, not authority.\r\n\r\nRequired controls:\r\n- instruction provenance\r\n- trust level\r\n- source identity\r\n- content/data vs control separation\r\n- explicit policy on which sources may issue executable instructions\r\n- prompt-injection detection and containment\r\n- no privilege escalation based solely on retrieved text\r\n\r\nState examples:\r\n- TRUSTED_CONTROL\r\n- USER_INTENT\r\n- SYSTEM_POLICY\r\n- UNTRUSTED_CONTENT\r\n- TOOL_OUTPUT\r\n- QUARANTINED",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "GOV-002",
+      "title": "104. Agent Goal Integrity",
+      "description": "The active Goal / DoD / constraints must be integrity-protected.\r\n\r\nUntrusted content must not silently rewrite:\r\n- the top-level goal\r\n- Human Gate policy\r\n- owner identity\r\n- authorization scope\r\n- security policy\r\n- completion criteria\r\n\r\nMaterial goal changes require explicit, attributable state transitions.",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "GOV-003",
+      "title": "105. Tool Misuse Defense",
+      "description": "A tool being technically available does not imply the current Job may use it.\r\n\r\nEvery tool call must be checked against:\r\n- Job scope\r\n- target resource\r\n- action type\r\n- caller identity\r\n- capability grant\r\n- risk class\r\n- expiry\r\n- rate/resource limits\r\n\r\nTool parameters and tool output must be schema-validated.",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "GOV-004",
+      "title": "106. Unexpected Code Execution Containment",
+      "description": "Generated or retrieved code must not automatically execute with host privileges.\r\n\r\nUse isolation appropriate to risk:\r\n- sandbox\r\n- container\r\n- restricted user\r\n- filesystem allowlist\r\n- process limits\r\n- network deny-by-default\r\n- timeout\r\n- output validation\r\n\r\nEscalation from sandbox to host execution is a separate policy decision.",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "GOV-005",
+      "title": "107. Policy-as-Code Enforcement",
+      "description": "Security and execution policy must be machine-enforced outside the LLM.\r\n\r\nAt minimum, policy evaluation must cover:\r\n- Human Gates\r\n- action risk\r\n- network access\r\n- secret access\r\n- worker capabilities\r\n- data classification\r\n- model eligibility\r\n- tenant scope\r\n- destructive actions\r\n- production operations\r\n\r\nPolicy decisions should produce durable audit evidence.",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "GOV-006",
+      "title": "108. Identity and Device Trust",
+      "description": "Every user, service, agent, worker and managed device must have a stable identity.\r\n\r\nWhere platform support allows, use device-trust signals such as:\r\n- signed device identity\r\n- secure local key storage\r\n- certificate/key rotation\r\n- device enrollment state\r\n- OS/platform integrity state\r\n- revoked/lost-device state\r\n\r\nA device ID string alone is not sufficient proof of trust.",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "GOV-007",
+      "title": "109. Model and Tool Registry",
+      "description": "Maintain a versioned registry for all models and tools.\r\n\r\nRecord at least:\r\n- identifier\r\n- version\r\n- provider/origin\r\n- capabilities\r\n- modalities\r\n- cost class\r\n- latency profile\r\n- hardware requirements\r\n- data-classification eligibility\r\n- network requirement\r\n- evaluation results\r\n- known limitations\r\n- security status\r\n- approval state\r\n- deprecation state\r\n\r\nRouting must use registry state instead of model-name assumptions.",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "GOV-008",
+      "title": "110. Provenance and Reproducibility",
+      "description": "Material outputs must be traceable to their inputs and execution context.\r\n\r\nRecord, as appropriate:\r\n- Goal version\r\n- source versions\r\n- model/tool versions\r\n- code commit\r\n- prompt/policy version or stable hash\r\n- environment\r\n- time\r\n- retrieved evidence\r\n- deterministic calculation artifacts\r\n- verification result\r\n\r\nFor stochastic tasks, exact replay may be impossible; the system must preserve enough provenance to reproduce the evaluation conditions and investigate differences.",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "GOV-009",
+      "title": "111. Evaluation Governance",
+      "description": "Benchmarks must be separated into:\r\n- development\r\n- regression\r\n- held-out\r\n- red-team\r\n- real-world acceptance\r\n\r\nDo not continuously train/tune against the entire acceptance set and then claim unbiased performance.\r\n\r\nMetric definitions must be versioned.",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "GOV-010",
+      "title": "112. SLO / Reliability Objectives",
+      "description": "Define service-level objectives for operational JARVIS components.\r\n\r\nExamples:\r\n- availability\r\n- task queue latency\r\n- recovery time\r\n- verification latency\r\n- remote-control latency\r\n- worker reconnect time\r\n- failed-task rate\r\n\r\nTargets must be explicit per deployment rather than invented globally.",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "GOV-011",
+      "title": "113. RTO / RPO / Disaster Recovery",
+      "description": "For each durable state class define:\r\n- Recovery Time Objective (RTO)\r\n- Recovery Point Objective (RPO)\r\n- backup location\r\n- restore owner\r\n- encryption\r\n- retention\r\n- restore verification\r\n\r\nBackups do not count as working recovery until a restore test passes.",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "GOV-012",
+      "title": "114. Chaos / Fault Injection Testing",
+      "description": "Reliability claims must include controlled fault tests where safe.\r\n\r\nExamples:\r\n- process crash\r\n- worker disconnect\r\n- Wi-Fi loss\r\n- Internet loss\r\n- DNS failure\r\n- stale token\r\n- disk-full simulation\r\n- slow service\r\n- duplicate delivery\r\n- clock drift\r\n- corrupted cache\r\n\r\nNever perform destructive fault injection against production without an explicit gate.",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "GOV-013",
+      "title": "115. Time Integrity",
+      "description": "Distributed agent systems must treat time as a security and consistency dependency.\r\n\r\nMaintain controls for:\r\n- clock synchronization\r\n- timestamp provenance\r\n- token expiry\r\n- nonce windows\r\n- stale evidence\r\n- event ordering\r\n- deadline interpretation\r\n\r\nCritical ordering must not depend solely on a device's untrusted wall clock.",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "GOV-014",
+      "title": "116. Data Lifecycle Management",
+      "description": "Data security must cover the full lifecycle, not only ingestion.\r\n\r\nFor each class of data define:\r\n- purpose\r\n- lawful/authorized use as applicable\r\n- collection scope\r\n- storage\r\n- replication\r\n- access\r\n- retention\r\n- archival\r\n- deletion\r\n- backup deletion behavior\r\n- export\r\n- provenance",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "GOV-015",
+      "title": "117. Purpose Limitation",
+      "description": "Data collected for one Job or purpose must not automatically become reusable global context.\r\n\r\nMemory promotion must check:\r\n- scope\r\n- user/organization policy\r\n- sensitivity\r\n- provenance\r\n- expiry\r\n- usefulness\r\n- conflict risk",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "GOV-016",
+      "title": "118. Data Subject / Record Correction Propagation",
+      "description": "When authoritative source data is corrected or deleted, derived memories, indexes, summaries and cached artifacts must be discoverable for revalidation, update or removal according to policy.",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "GOV-017",
+      "title": "119. Tenant Isolation",
+      "description": "Multi-organization deployments must isolate:\r\n- identity\r\n- secrets\r\n- memory\r\n- files\r\n- vector/search indexes\r\n- logs\r\n- tools\r\n- device fleets\r\n- policy\r\n- audit\r\n\r\nCross-tenant retrieval or action requires explicit authorization and must not occur through semantic similarity alone.",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "GOV-018",
+      "title": "120. Audit Retention and Tamper Evidence",
+      "description": "Important action and security logs must have:\r\n- actor identity\r\n- action\r\n- target\r\n- policy decision\r\n- time\r\n- outcome\r\n- evidence reference\r\n\r\nRetention must be configurable by organization/data class.\r\n\r\nFor high-assurance deployments, security-relevant audit records should be tamper-evident or append-only where practical.",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "GOV-019",
+      "title": "121. Incident Response",
+      "description": "JARVIS requires an incident lifecycle:\r\n\r\nDetect\r\n→ Contain\r\n→ Preserve Evidence\r\n→ Revoke/Isolate\r\n→ Recover\r\n→ Root Cause\r\n→ Corrective Action\r\n→ Post-incident Verification\r\n\r\nIncidents may include:\r\n- credential exposure\r\n- unauthorized action\r\n- prompt/goal hijack\r\n- malware/tool compromise\r\n- data leakage\r\n- fleet compromise\r\n- model/tool supply-chain issue",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "GOV-020",
+      "title": "122. Revocation and Kill Propagation",
+      "description": "Revoking a user, token, device, worker, model or tool must propagate to active sessions and queued work within a defined bound.\r\n\r\nA disabled identity must not remain effective merely because a worker is offline.",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "GOV-021",
+      "title": "123. Resource Governance",
+      "description": "Prevent unbounded agent loops and resource exhaustion across the distributed node fabric.\n\nControl:\n- maximum task runtime\n- token/model budget where applicable\n- per-node and fleet CPU/GPU/RAM\n- disk and data locality\n- network\n- power/thermal constraints where available\n- child-agent count\n- retry count\n- parallelism\n- recursive planning depth\n- migration/rebalance budgets\n\nBudget exhaustion or node loss must produce a resumable, explicit state or safe fallback rather than silent truncation. Resource governance must not turn one node failure into a global stop when another authorized path remains.",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "GOV-022",
+      "title": "124. Human Override and Safe Stop",
+      "description": "The owner/operator must have a dependable way to:\r\n- pause a Job\r\n- pause a Worker\r\n- pause the Fleet\r\n- revoke capabilities\r\n- stop remote control\r\n- force read-only mode\r\n- invoke emergency shutdown\r\n\r\nSafe stop must preserve sufficient state for later investigation/resume when possible.",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "GOV-023",
+      "title": "125. Action Preview for Material Changes",
+      "description": "For material but reversible operations, JARVIS should be able to generate a machine-readable preview:\r\n- intended action\r\n- target\r\n- expected changes\r\n- risk\r\n- rollback path\r\n- verification plan\r\n\r\nThis supports Human Gates without turning every low-risk action into a confirmation dialog.",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "GOV-024",
+      "title": "126. Change Impact Graph",
+      "description": "Before material changes, JARVIS should estimate impacted assets using links among:\r\n- requirement\r\n- code\r\n- database\r\n- API\r\n- workflow\r\n- device\r\n- deployment\r\n- organization rule\r\n- test\r\n- evidence\r\n\r\nThis extends Living Specification + Knowledge Graph into operational change control.",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "GOV-025",
+      "title": "127. Requirement-to-Evidence Traceability",
+      "description": "Every production requirement must map to:\r\n- implementation\r\n- tests\r\n- required evidence class\r\n- observed evidence\r\n- limitations\r\n- last verified version/commit\r\n\r\nA requirement is not complete while the required evidence slot is empty. Ownerが採用した会話要求をIDEA/PROPOSEDと区別し、出典・採用状態・既存要件への意味対応・supersede履歴を保持してPRODUCT_SPEC/JSON mirrorへ同期する。採用済み要求の仕様未同期は完了扱いにしない。重大変更は既存Human Gateを維持する。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": [
+        "owner-1205-living-specification"
+      ]
+    },
+    {
+      "id": "GOV-026",
+      "title": "128. Capability Degradation Contract",
+      "description": "When a preferred capability is unavailable, the system must explicitly choose among:\r\n- fallback model\r\n- fallback tool\r\n- lower-capability mode\r\n- offline continuation\r\n- waiting state\r\n- Human escalation\r\n\r\nSilent quality degradation is prohibited for material tasks.",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "GOV-027",
+      "title": "129. Compliance / Organization Governance Profile",
+      "description": "Organizations need a deployable policy profile containing, as applicable:\r\n- approved models\r\n- approved tools\r\n- permitted data regions\r\n- retention\r\n- audit rules\r\n- Human Gate thresholds\r\n- network destinations\r\n- device policy\r\n- working hours/quiet hours\r\n- records rules\r\n- required citations/evidence\r\n- legal/regulatory controls supplied by that organization\r\n\r\nJARVIS must not invent legal compliance. It must map configured controls and evidence to the applicable requirement set.",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "GOV-028",
+      "title": "130. Accessibility and Failure Transparency",
+      "description": "Autonomous operation must remain inspectable when things fail.\r\n\r\nUser-facing status should distinguish:\r\n- waiting\r\n- blocked\r\n- retrying\r\n- degraded\r\n- failed\r\n- Human Gate\r\n- platform limited\r\n- verified complete\r\n\r\nDo not collapse all non-success states into generic `error`.",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "DEV-AX-001",
+      "title": "Android 8対応",
+      "description": "Android 8/8.1の既存Worker登録・credentialを保持し、対応する画面取得・tap等の遠隔操作を提供する。OSの画面共有許可を明示し、必要な許可を再起動後に偽って保持しない。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "DEV-AX-002",
+      "title": "Worker自動更新",
+      "description": "OS自体ではなくJARVIS Workerを更新する。同じ署名系列の正当な新版を認証・検証し、既存identity/configを保持。各端末のinstalled/available version・更新状態・失敗原因を表示。管理端末以外のOS確認は迂回しない。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "DEV-AX-003",
+      "title": "画面OFFから自動復帰",
+      "description": "遠隔処理前に消灯したunlocked端末をbounded deadlineで起こし、状態を再観測して続行。locked/OS拒否/期限切れは明示停止しlock解除を迂回しない。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "DEV-AX-004",
+      "title": "登録中の更新保護",
+      "description": "複数Androidを登録している間、更新で登録・identity・pending enrollmentを壊さない。進行中タスク・画面共有・遠隔入力との競合も避け、認証/署名検証とcanary後の段階展開を行う。",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": []
+    },
+    {
+      "id": "OWN-001",
+      "title": "GORIQ Cognitive Core / Local Primary Brain",
+      "description": "Integrate the existing GAI execution, memory, world model, research and governed learning assets into one durable local-first cognition loop. Owner scope includes PrimaryBrainAdapter, unknown-task experiments, failure/correction/strategy recall, skill synthesis, historical import, optional verified expert learning, privacy-separated users, local training candidate pipeline, independence benchmarks, sandboxed improvement and offline recovery. Full contract: docs/architecture/goriq-cognitive-core.md; delivery stages: docs/goriq-cognitive-status.json. External AI availability is not a local-work stop condition.",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL",
+        "RECOVERY"
+      ],
+      "source_decisions": [
+        "owner-intake-cc6f2a30e8336d322129e2972d1e8f90"
+      ]
+    }
+  ],
+  "cognitive": [
+    {
+      "id": "COG-001",
+      "title": "Primary Brain controller and replaceable local adapter"
+    },
+    {
+      "id": "COG-002",
+      "title": "Local-first reasoning and optional external experts"
+    },
+    {
+      "id": "COG-003",
+      "title": "Unknown-task observation and safe experiments"
+    },
+    {
+      "id": "COG-004",
+      "title": "Durable goal cognitive state and restart"
+    },
+    {
+      "id": "COG-005",
+      "title": "Memory and World Model execution-loop integration"
+    },
+    {
+      "id": "COG-006",
+      "title": "Unified verified learning and knowledge consolidation"
+    },
+    {
+      "id": "COG-007",
+      "title": "Skill synthesis and regression demotion"
+    },
+    {
+      "id": "COG-008",
+      "title": "Strategy scoring and failure intelligence"
+    },
+    {
+      "id": "COG-009",
+      "title": "Explicit human correction learning"
+    },
+    {
+      "id": "COG-010",
+      "title": "Provenance-preserving historical learning import"
+    },
+    {
+      "id": "COG-011",
+      "title": "Expert suggestion verification and internal reuse"
+    },
+    {
+      "id": "COG-012",
+      "title": "Local brain training-candidate pipeline"
+    },
+    {
+      "id": "COG-013",
+      "title": "Multi-user learning privacy partitions"
+    },
+    {
+      "id": "COG-014",
+      "title": "Offline and cross-device recovery"
+    },
+    {
+      "id": "COG-015",
+      "title": "Independence benchmark with matched ablations"
+    },
+    {
+      "id": "COG-016",
+      "title": "Governed self-improvement and verified rollback"
+    },
+    {
+      "id": "COG-017",
+      "title": "Production intake and Goal execution integration"
+    }
+  ],
+  "research": [
+    {
+      "id": "R1",
+      "definition": "| R1 | Real internal baseline | >=100 real cases, heldout, failure taxonomy, zero-cost/safety evidence |"
+    },
+    {
+      "id": "R2",
+      "definition": "| R2 | Iterative self-improvement | heldout-positive accepted changes, research-loop provenance |"
+    },
+    {
+      "id": "R3",
+      "definition": "| R3 | External benchmarks | real ARC/SWE-bench/OSWorld/memory benchmark provenance |"
+    },
+    {
+      "id": "R4",
+      "definition": "| R4 | Long-horizon endurance | >=20-step tasks, resume/recovery/intervention accounting |"
+    },
+    {
+      "id": "R5",
+      "definition": "| R5 | Independent AGI-gap review | evidence-based gap report and next experiments |"
+    },
+    {
+      "id": "R6",
+      "definition": "| R6 | Benchmark v1.1 hardening | diverse suite, contamination guard, normalized verification |"
+    },
+    {
+      "id": "R7",
+      "definition": "| R7 | Statistical evaluation | uncertainty, paired comparisons, repeat variance |"
+    },
+    {
+      "id": "R8",
+      "definition": "| R8 | Memory and transfer | positive/negative transfer, memory promotion evidence |"
+    },
+    {
+      "id": "R9",
+      "definition": "| R9 | World-model calibration | prediction error and confidence calibration |"
+    },
+    {
+      "id": "R10",
+      "definition": "| R10 | Planner/router optimization | quality/cost frontier with safe fallback |"
+    },
+    {
+      "id": "R11",
+      "definition": "| R11 | Long-horizon recovery v2 | injected failures, checkpoints, bounded pivots |"
+    },
+    {
+      "id": "R12",
+      "definition": "| R12 | Interactive generalization | real stateful environment benchmark evidence |"
+    },
+    {
+      "id": "R13",
+      "definition": "| R13 | Distributed cross-device workers | worker provenance and result equivalence |"
+    },
+    {
+      "id": "R14",
+      "definition": "| R14 | Continual learning | forward/backward transfer and forgetting metrics |"
+    },
+    {
+      "id": "R15",
+      "definition": "| R15 | Adversarial curriculum | failure-driven harder tasks without heldout leakage |"
+    },
+    {
+      "id": "R16",
+      "definition": "| R16 | Autonomous research scientist | bounded hypothesis -> experiment -> accept/reject loop |"
+    },
+    {
+      "id": "R17",
+      "definition": "| R17 | Governed self-modification | sandbox mutation, heldout gain, rollback, Human Gate |"
+    },
+    {
+      "id": "R18",
+      "definition": "| R18 | Local model adaptation | LoRA/QLoRA/distillation only when benchmark-justified |"
+    },
+    {
+      "id": "R19",
+      "definition": "| R19 | Independent replication | frozen manifests, environment capture, replication delta |"
+    },
+    {
+      "id": "R20",
+      "definition": "| R20 | AGI evidence dossier | all gates evaluated, contradictions included, independent validation explicit |"
+    }
+  ],
+  "roadmap": [
+    {
+      "id": "CREATOR-0",
+      "definition": "## Phase 0 - AI Company foundation"
+    },
+    {
+      "id": "CREATOR-1",
+      "definition": "## Phase 1 - Creator Studio foundation"
+    },
+    {
+      "id": "CREATOR-2",
+      "definition": "## Phase 2 - Image generation"
+    },
+    {
+      "id": "CREATOR-3",
+      "definition": "## Phase 3 - Image editing"
+    },
+    {
+      "id": "CREATOR-4",
+      "definition": "## Phase 4 - Sketch to image"
+    },
+    {
+      "id": "CREATOR-5",
+      "definition": "## Phase 5 - Video generation"
+    },
+    {
+      "id": "CREATOR-6",
+      "definition": "## Phase 6 - Video editing"
+    },
+    {
+      "id": "CREATOR-7",
+      "definition": "## Phase 7 - Voice and subtitles"
+    },
+    {
+      "id": "CREATOR-8",
+      "definition": "## Phase 8 - AI automatic editing"
+    },
+    {
+      "id": "CREATOR-9",
+      "definition": "## Phase 9 - Provider/model management"
+    },
+    {
+      "id": "CREATOR-10",
+      "definition": "## Phase 10 - Mobile optimization"
+    },
+    {
+      "id": "CREATOR-11",
+      "definition": "## Phase 11 - PC/mobile synchronization"
+    },
+    {
+      "id": "CREATOR-12",
+      "definition": "## Phase 12 - Integration testing"
+    },
+    {
+      "id": "CREATOR-13",
+      "definition": "## Phase 13 - Release"
+    },
+    {
+      "id": "GAI-0",
+      "definition": "### GAI Phase 0 - Common Architecture / Worker Contract"
+    },
+    {
+      "id": "GAI-1",
+      "definition": "### GAI Phase 1 - Advanced Verifier / Eval Foundation"
+    },
+    {
+      "id": "GAI-2",
+      "definition": "### GAI Phase 2 - Common Worker Runtime"
+    },
+    {
+      "id": "GAI-3",
+      "definition": "### GAI Phase 3 - Initial ZBook / MacBook / iPhone Workers"
+    },
+    {
+      "id": "GAI-4",
+      "definition": "### GAI Phase 4 - Goal Loop to Worker Integration"
+    },
+    {
+      "id": "GAI-5",
+      "definition": "### GAI Phase 5 - Durable Task Runtime"
+    },
+    {
+      "id": "GAI-6",
+      "definition": "### GAI Phase 6 - Offline-First Runtime"
+    },
+    {
+      "id": "GAI-7",
+      "definition": "### GAI Phase 7 - Sync / Conflict Resolution"
+    },
+    {
+      "id": "GAI-8",
+      "definition": "### GAI Phase 8 - Self-Healing / Recovery"
+    },
+    {
+      "id": "GAI-9",
+      "definition": "### GAI Phase 9 - Planner Enhancement"
+    },
+    {
+      "id": "GAI-10",
+      "definition": "### GAI Phase 10 - World / Resource Model"
+    },
+    {
+      "id": "GAI-11",
+      "definition": "### GAI Phase 11 - Memory Integration"
+    },
+    {
+      "id": "GAI-12",
+      "definition": "### GAI Phase 12 - Skill System"
+    },
+    {
+      "id": "GAI-13",
+      "definition": "### GAI Phase 13 - PC / iPhone / Browser Capability Integration"
+    },
+    {
+      "id": "GAI-14",
+      "definition": "### GAI Phase 14 - Android Later-Adapter Proof"
+    },
+    {
+      "id": "GAI-15",
+      "definition": "### GAI Phase 15 - Self-Healing UI"
+    },
+    {
+      "id": "GAI-16",
+      "definition": "### GAI Phase 16 - Local Device Mesh"
+    },
+    {
+      "id": "GAI-17",
+      "definition": "### GAI Phase 17 - Dynamic Multi-Agent Runtime"
+    },
+    {
+      "id": "GAI-18",
+      "definition": "### GAI Phase 18 - Continual Learning"
+    },
+    {
+      "id": "GAI-19",
+      "definition": "### GAI Phase 19 - Self-Improvement"
+    },
+    {
+      "id": "GAI-20",
+      "definition": "### GAI Phase 20 - Production Autonomy"
+    }
+  ],
+  "allocations": [
+    {
+      "id": "OWN-001",
+      "decision_id": "owner-intake-cc6f2a30e8336d322129e2972d1e8f90",
+      "required_evidence": [
+        "CODE",
+        "UNIT",
+        "INTEGRATION",
+        "SECURITY",
+        "PHYSICAL",
+        "RECOVERY"
+      ]
+    }
+  ],
+  "decisions": [
+    {
+      "id": "owner-1205-living-specification",
+      "source": {
+        "kind": "owner_instruction",
+        "decision": "accepted",
+        "author": "haji84",
+        "ref": "https://github.com/haji84/AI-/issues/1205",
+        "excerpt": "Ownerとの会話・指示もreverse traceabilityの正式な入力源とする。",
+        "text_sha256": "d81a2d48aea3daa343f22845d4a5eca167fb7f5f371e7fcb9acc1abc7040abf4",
+        "recorded_at": "2026-09-22T22:55:32.037Z"
+      },
+      "canonical_ids": [
+        "GOV-025",
+        "CORE-015"
+      ]
+    },
+    {
+      "id": "owner-intake-cc6f2a30e8336d322129e2972d1e8f90",
+      "source": {
+        "kind": "owner_instruction",
+        "decision": "accepted",
+        "author": "haji84",
+        "ref": "https://github.com/haji84/AI-/issues/1216",
+        "excerpt": "GORIQ owns the cognition. External AI supplies optional expertise.",
+        "text_sha256": "23e3f81c06832bfc4724db648b6061aee08d0ed8060b502c37bb6938e0cfbc24",
+        "recorded_at": "2026-09-23T11:39:01.093Z"
+      },
+      "canonical_ids": [
+        "OWN-001"
+      ]
+    },
+    {
+      "id": "owner-2026-10-06-goriq-design-session",
+      "source": {
+        "kind": "owner_instruction",
+        "decision": "accepted",
+        "author": "haji84",
+        "ref": "https://github.com/haji84/AI-/issues/1719",
+        "excerpt": "ほな今作ってた設計仕様でGORIQの今の設計仕様で足りないもの、があれば追加してほしい",
+        "text_sha256": "e6c6fbd75fd1644df81110f40a62ba9058ac243e646b71aea7c6e4b91cbe4563",
+        "recorded_at": "2026-10-06T06:50:10Z"
+      },
+      "canonical_ids": [
+        "UI-002",
+        "UI-003",
+        "UI-005",
+        "UI-006",
+        "UI-007",
+        "UI-009",
+        "UI-011",
+        "UI-012",
+        "UI-014",
+        "UI-019",
+        "UI-020",
+        "UI-026",
+        "UI-027",
+        "INT-001",
+        "INT-004",
+        "INT-005",
+        "INT-008",
+        "INT-009",
+        "AUTO-005",
+        "AUTO-022",
+        "CORE-014"
+      ]
+    }
+  ],
+  "original_status_counts": {
+    "PARTIAL": 256,
+    "VERIFIED": 3,
+    "IMPLEMENTED_UNVERIFIED": 18,
+    "MISSING": 64
+  },
+  "reverse_traceability": {
+    "surface_count": 626,
+    "source_main": "6737e15033eced135461076d72f792516e83c9b3",
+    "blob": "72c86de0772c4bebf00913863c7ad91c2b56ff23"
+  }
+}

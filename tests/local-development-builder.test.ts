@@ -1,6 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { LocalDevelopmentBuilder } from "../src/orchestrator/local-development-builder.ts";
+import { ResourceWaitError } from "../src/gai/development-resource-admission.ts";
+
+test("typed resource waiting remains resumable instead of becoming a rejected Builder contract", async () => {
+  const wait = new ResourceWaitError({ status: "WAITING_FOR_RESOURCE", reason: "fixture pressure",
+    retryAfterMs: 30_000, observedAt: new Date().toISOString() });
+  const builder = new LocalDevelopmentBuilder({ id: "fixture", workspaceRoot: "/fixture",
+    async run() { throw wait; } });
+  await assert.rejects(() => builder.build({ goalId: "g", attemptId: "a", strategyId: "s",
+    objective: "bounded fixture", context: [] }), error => error === wait);
+});
 
 test("local Builder returns the shared bounded Change Set envelope", async () => {
   const builder = new LocalDevelopmentBuilder({

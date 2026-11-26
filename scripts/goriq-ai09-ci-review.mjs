@@ -13,6 +13,16 @@ import {
 } from "../src/orchestrator/ai09-pr-review-automation.mjs";
 
 const safeRepo = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
+// Fixed diagnostic codes only: never print arbitrary caught error text, API
+// payloads, model output, paths or credential-bearing configuration.
+const reviewFailureCodes = new Set([
+  "github_read_unavailable", "stale_or_foreign_pr", "comparison_revision_mismatch",
+  "missing_comparison_files", "unverifiable_patch_statistics", "incomplete_github_patch",
+  "invalid_or_oversized_comparison", "unsafe_or_unreviewable_patch", "duplicate_changed_path",
+  "diff_exceeds_local_review_budget", "unreviewable_oversized_line",
+  "review_source_line_coverage_mismatch", "review_chunk_budget_exhausted",
+  "review_chunk_coverage_mismatch", "pr_changed_during_review",
+]);
 
 function config() {
   const env = process.env;
@@ -143,7 +153,10 @@ async function main() {
     console.log("AI09_MODEL_ANCHOR_GATE=" + result.status);
     const after = await githubGet(c, "/pulls/" + c.prNumber);
     if (!safePr(after, c)) throw new Error("pr_changed_during_review");
-  } catch {
+  } catch (error) {
+    const code = error instanceof Error && reviewFailureCodes.has(error.message)
+      ? error.message : "review_prerequisite_or_model_unavailable";
+    console.log("AI09_REVIEW_BLOCKER=" + code);
     result = makeBlockedReview(scope, "review_prerequisite_or_model_unavailable");
   }
   const receipt = reviewReceipt({

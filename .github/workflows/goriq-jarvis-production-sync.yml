@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   deploy-code:
-    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'
+    if: ${{ false }}
     concurrency:
       group: jarvis-vercel-code-deploy
       cancel-in-progress: true
@@ -177,7 +177,7 @@ jobs:
           echo "JARVIS Production code deploy responded successfully."
 
   sync:
-    if: github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
+    if: github.event_name == 'workflow_dispatch'
     concurrency:
       group: jarvis-vercel-runtime-sync
       cancel-in-progress: true

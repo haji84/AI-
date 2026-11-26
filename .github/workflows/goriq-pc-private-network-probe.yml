@@ -2,6 +2,23 @@ name: GORIQ PC Private Network Read-only Probe
 
 on:
   workflow_dispatch:
+    inputs:
+      zbook_runner_only:
+        description: Observe existing ZBook SSH runner processes from Mac only
+        type: boolean
+        default: false
+      zbook_native_only:
+        description: Inspect existing ZBook without external action preparation
+        type: boolean
+        default: false
+      zbook_owner_probe_only:
+        description: Observe metadata and owner equality of existing fixed private capture targets
+        type: boolean
+        default: false
+      zbook_bridge_original_only:
+        description: Privately preserve and read the one fixed bridge Compass candidate
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -11,25 +28,385 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+
+  zbook_owner_probe:
+    if: github.repository == 'haji84/AI-' && github.ref == 'refs/heads/main' && github.actor == 'haji84' && github.event_name == 'workflow_dispatch' && inputs.zbook_owner_probe_only && !inputs.zbook_native_only && !inputs.zbook_bridge_original_only && !inputs.zbook_runner_only
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 3
+    steps:
+      - name: Observe existing fixed private owner metadata without acquisition
+        shell: powershell
+        env:
+          GORIQ_ZBOOK_OWNER_PROBE_ONLY: ${{ inputs.zbook_owner_probe_only }}
+          GORIQ_ZBOOK_BRIDGE_ORIGINAL_ONLY: ${{ inputs.zbook_bridge_original_only }}
+          GORIQ_ZBOOK_NATIVE_ONLY: ${{ inputs.zbook_native_only }}
+          GORIQ_ZBOOK_RUNNER_ONLY: ${{ inputs.zbook_runner_only }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $WarningPreference = 'Stop'
+          $failure = 'CONTEXT_INVALID'
+          try {
+            if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT -or
+                $env:OS -cne 'Windows_NT' -or $env:RUNNER_OS -cne 'Windows' -or $env:RUNNER_NAME -cne 'ZBook' -or
+                $env:GITHUB_REPOSITORY -cne 'haji84/AI-' -or $env:GITHUB_ACTOR -cne 'haji84' -or
+                $env:GITHUB_REF -cne 'refs/heads/main' -or $env:GITHUB_EVENT_NAME -cne 'workflow_dispatch' -or
+                $env:GITHUB_SHA -cnotmatch '^[a-f0-9]{40}\z' -or $env:GITHUB_RUN_ID -cnotmatch '^[1-9][0-9]{0,19}\z' -or $env:GITHUB_RUN_ATTEMPT -cnotmatch '^[1-9][0-9]{0,19}\z' -or
+                $env:GORIQ_ZBOOK_OWNER_PROBE_ONLY -cne 'true' -or $env:GORIQ_ZBOOK_BRIDGE_ORIGINAL_ONLY -cne 'false' -or $env:GORIQ_ZBOOK_NATIVE_ONLY -cne 'false' -or $env:GORIQ_ZBOOK_RUNNER_ONLY -cne 'false') { throw 'REFUSED' }
+            function Read-GoriqPublicMetadata {
+              param([string]$Path)
+              Invoke-RestMethod -Method Get -Uri ('https://api.github.com/repos/haji84/AI-/' + $Path) -TimeoutSec 10 -MaximumRedirection 0 -Headers @{
+                Accept='application/vnd.github+json'; 'User-Agent'='goriq-zbook-actionfree-readonly'
+              } -ErrorAction Stop
+            }
+            function Assert-GoriqKeys {
+              param($Value, [string[]]$Keys)
+              if ($null -eq $Value -or $Value -isnot [pscustomobject]) { throw 'REFUSED' }
+              $actual = @($Value.PSObject.Properties.Name)
+              if ($actual.Count -ne $Keys.Count) { throw 'REFUSED' }
+              foreach ($key in $actual) { if ($key -cnotin $Keys) { throw 'REFUSED' } }
+            }
+            function Assert-GoriqInteger {
+              param($Value, [long]$Max)
+              if (($Value -isnot [int] -and $Value -isnot [long]) -or $Value -lt 0 -or $Value -gt $Max) { throw 'REFUSED' }
+            }
+            $failure = 'CURRENT_MAIN_CI_UNVERIFIED'
+            $main = Read-GoriqPublicMetadata -Path 'git/ref/heads/main'
+            if ($main.object.sha -cne $env:GITHUB_SHA) { throw 'REFUSED' }
+            $runs = Read-GoriqPublicMetadata -Path ('actions/workflows/ci.yml/runs?head_sha=' + $env:GITHUB_SHA + '&event=push&per_page=100')
+            $eligible = @($runs.workflow_runs | Where-Object {
+              $_.name -ceq 'CI' -and $_.path -ceq '.github/workflows/ci.yml' -and $_.event -ceq 'push' -and
+              $_.head_branch -ceq 'main' -and $_.head_sha -ceq $env:GITHUB_SHA -and $_.status -ceq 'completed' -and $_.conclusion -ceq 'success'
+            } | Select-Object -First 1)
+            if ($eligible.Count -ne 1 -or [string]$eligible[0].id -cnotmatch '^[1-9][0-9]{0,19}\z') { throw 'REFUSED' }
+            $ciId = [string]$eligible[0].id
+            $jobs = Read-GoriqPublicMetadata -Path ('actions/runs/' + $ciId + '/jobs?filter=latest&per_page=100')
+            $required = @('repository-guard','project-checks','independent-verifier-container','windows-runtime-byte-fixtures')
+            if ($jobs.total_count -ne 4 -or @($jobs.jobs).Count -ne 4) { throw 'REFUSED' }
+            $seen = @{}
+            foreach ($job in $jobs.jobs) {
+              if ($job.name -cnotin $required -or $seen.ContainsKey($job.name) -or
+                  [string]$job.run_id -cne $ciId -or $job.head_sha -cne $env:GITHUB_SHA -or
+                  $job.status -cne 'completed' -or $job.conclusion -cne 'success') { throw 'REFUSED' }
+              $seen[$job.name] = $true
+            }
+
+            $failure = 'OWNER_PROBE_SOURCE_UNVERIFIED'
+            $pins = [ordered]@{
+              'scripts/goriq-owner-probe/observe-private-owner.ps1'='dcd0f8a1ec35e235b77a68ce7d6530c7793e4a08b558cdac508fcf8e63140ec6'
+              'scripts/goriq-owner-probe/goriq-private-owner-probe.cs'='42bb4baa436e5ab1d5ad01317a23e0656444b529560afdff2d85d8c7436efcb3'
+            }
+            $sources = @{}
+            foreach ($file in $pins.Keys) {
+              $source = Read-GoriqPublicMetadata -Path ('contents/' + $file + '?ref=' + $env:GITHUB_SHA)
+              if ($source.type -cne 'file' -or $source.path -cne $file -or $source.encoding -cne 'base64' -or $source.content -isnot [string] -or $source.content.Length -gt 90000) { throw 'REFUSED' }
+              Assert-GoriqInteger -Value $source.size -Max 65536
+              $encoded = $source.content.Replace("`r",'').Replace("`n",'')
+              if ($encoded.Length -eq 0 -or $encoded.Length % 4 -ne 0 -or $encoded -cnotmatch '^[A-Za-z0-9+/]*={0,2}\z') { throw 'REFUSED' }
+              $bytes = [Convert]::FromBase64String($encoded)
+              if ($bytes.Length -gt 65536 -or $bytes.Length -ne $source.size -or [Convert]::ToBase64String($bytes) -cne $encoded) { throw 'REFUSED' }
+              $hasher = [Security.Cryptography.SHA256]::Create()
+              try { $hash = [BitConverter]::ToString($hasher.ComputeHash($bytes)).Replace('-','').ToLowerInvariant() } finally { $hasher.Dispose() }
+              if ($hash -cne $pins[$file]) { throw 'REFUSED' }
+              $sources[$file] = $bytes
+            }
+            $failure = 'OWNER_PROBE_RESULT_UNVERIFIED'
+            $utf8 = [Text.UTF8Encoding]::new($false,$true)
+            $definition = @(. ([ScriptBlock]::Create($utf8.GetString($sources['scripts/goriq-owner-probe/observe-private-owner.ps1']))) 2>&1 3>&1 4>&1 5>&1 6>&1)
+            if ($definition.Count -ne 0) { throw 'REFUSED' }
+            $raw = @(Invoke-OwnerProbeObservation -NativeSource $utf8.GetString($sources['scripts/goriq-owner-probe/goriq-private-owner-probe.cs']) 2>&1 3>&1 4>&1 5>&1 6>&1)
+            if ($raw.Count -ne 1 -or $raw[0] -isnot [string] -or $raw[0].Length -gt 16384) { throw 'REFUSED' }
+            $clean = ConvertTo-OwnerProbeClosedJson -Text $raw[0]
+            $failure = 'SOURCE_ACL_PROBE_RESULT_UNVERIFIED'
+            $sourceRaw = @(Invoke-SourceAclProbeObservation -NativeSource $utf8.GetString($sources['scripts/goriq-owner-probe/goriq-private-owner-probe.cs']) 2>&1 3>&1 4>&1 5>&1 6>&1)
+            if ($sourceRaw.Count -ne 1 -or $sourceRaw[0] -isnot [string] -or $sourceRaw[0].Length -gt 131072) { throw 'REFUSED' }
+            $sourceClean = ConvertTo-SourceAclProbeClosedJson -Text $sourceRaw[0]
+            Write-Output ('GORIQ_ZBOOK_OWNER_OBSERVATION ' + $clean)
+            Write-Output ('GORIQ_ZBOOK_SOURCE_ACL_OBSERVATION ' + $sourceClean)
+          } catch {
+            Write-Output ('GORIQ_ZBOOK_OWNER_REFUSED ' + $failure)
+            exit 1
+          }
   observe:
-    if: github.repository == 'haji84/AI-' && github.ref == 'refs/heads/main' && github.actor == 'haji84'
+    if: github.repository == 'haji84/AI-' && github.ref == 'refs/heads/main' && github.actor == 'haji84' && !inputs.zbook_native_only && !inputs.zbook_bridge_original_only && !inputs.zbook_owner_probe_only
     strategy:
       fail-fast: false
       matrix:
-        runner: [[self-hosted, macOS, ARM64], [self-hosted, Windows, X64]]
+        runner: ${{ inputs.zbook_runner_only && fromJSON('[["self-hosted","macOS","ARM64"]]') || fromJSON('[["self-hosted","macOS","ARM64"],["self-hosted","Windows","X64"]]') }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 3
     steps:
-      - uses: actions/checkout@v5
-        with:
-          ref: ${{ github.sha }}
-          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 24.19.0
+      - name: Require unused per-run source directory
+        id: source_precheck
+        shell: bash
+        run: >-
+          node -e 'const fs=require("node:fs"),p=require("node:path"),e=process.env; if(!/^[1-9][0-9]{0,19}$/.test(e.GITHUB_RUN_ID||"")||!/^[1-9][0-9]{0,19}$/.test(e.GITHUB_RUN_ATTEMPT||"")||!p.isAbsolute(e.GITHUB_WORKSPACE||""))throw Error("PC_SOURCE_CONTEXT_INVALID");let canonical;try{canonical=fs.realpathSync(e.GITHUB_WORKSPACE)}catch{throw Error("PC_SOURCE_CONTEXT_INVALID")}if(canonical!==e.GITHUB_WORKSPACE||p.resolve(e.GITHUB_WORKSPACE)!==e.GITHUB_WORKSPACE)throw Error("PC_SOURCE_CONTEXT_INVALID");const target=p.join(e.GITHUB_WORKSPACE,"goriq-pc-route-source-"+e.GITHUB_RUN_ID+"-"+e.GITHUB_RUN_ATTEMPT);try{fs.mkdirSync(target,{recursive:false})}catch{throw Error("PC_SOURCE_DIRECTORY_NOT_FRESH")}'
+      - uses: actions/checkout@v5
+        id: source_checkout
+        with:
+          ref: ${{ github.sha }}
+          path: goriq-pc-route-source-${{ github.run_id }}-${{ github.run_attempt }}
+          clean: false
+          persist-credentials: false
       - name: Require exact current main with successful CI
+        id: approved_source
+        working-directory: goriq-pc-route-source-${{ github.run_id }}-${{ github.run_attempt }}
         env:
           GORIQ_PC_APPROVED_REVISION: ${{ github.sha }}
         run: node scripts/goriq-pc-approved-source.mjs
       - name: Observe native private route and local health without changing state
+        if: ${{ !inputs.zbook_runner_only }}
+        working-directory: goriq-pc-route-source-${{ github.run_id }}-${{ github.run_attempt }}
         run: node scripts/goriq-pc-private-network-probe.mjs
+      - name: Observe existing ZBook runner processes from Mac
+        id: runner_observation
+        if: ${{ inputs.zbook_runner_only }}
+        working-directory: goriq-pc-route-source-${{ github.run_id }}-${{ github.run_attempt }}
+        run: node scripts/goriq-zbook-runner-readonly.mjs
+      - name: Upload sanitized runner observation
+        if: ${{ inputs.zbook_runner_only && steps.source_precheck.outcome == 'success' && steps.source_checkout.outcome == 'success' && steps.approved_source.outcome == 'success' && steps.runner_observation.outcome == 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: zbook-runner-readonly-${{ github.run_id }}-${{ github.run_attempt }}
+          path: goriq-pc-route-source-${{ github.run_id }}-${{ github.run_attempt }}/.gai-results/zbook-runner-readonly.json
+          if-no-files-found: error
+
+  zbook_bridge_original:
+    if: github.repository == 'haji84/AI-' && github.ref == 'refs/heads/main' && github.actor == 'haji84' && github.event_name == 'workflow_dispatch' && inputs.zbook_bridge_original_only && !inputs.zbook_native_only && !inputs.zbook_runner_only && !inputs.zbook_owner_probe_only
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 3
+    steps:
+      - name: Preserve and inspect fixed original bridge candidate privately
+        shell: powershell
+        env:
+          GORIQ_ZBOOK_BRIDGE_ORIGINAL_ONLY: ${{ inputs.zbook_bridge_original_only }}
+          GORIQ_ZBOOK_NATIVE_ONLY: ${{ inputs.zbook_native_only }}
+          GORIQ_ZBOOK_RUNNER_ONLY: ${{ inputs.zbook_runner_only }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $WarningPreference = 'Stop'
+          $failure = 'CONTEXT_INVALID'
+          try {
+            if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT -or
+                $env:OS -cne 'Windows_NT' -or $env:RUNNER_OS -cne 'Windows' -or $env:RUNNER_NAME -cne 'ZBook' -or
+                $env:GITHUB_REPOSITORY -cne 'haji84/AI-' -or $env:GITHUB_ACTOR -cne 'haji84' -or
+                $env:GITHUB_REF -cne 'refs/heads/main' -or $env:GITHUB_EVENT_NAME -cne 'workflow_dispatch' -or
+                $env:GITHUB_SHA -cnotmatch '^[a-f0-9]{40}\z' -or $env:GITHUB_RUN_ID -cnotmatch '^[1-9][0-9]{0,19}\z' -or $env:GITHUB_RUN_ATTEMPT -cnotmatch '^[1-9][0-9]{0,19}\z' -or
+                $env:GORIQ_ZBOOK_BRIDGE_ORIGINAL_ONLY -cne 'true' -or $env:GORIQ_ZBOOK_NATIVE_ONLY -cne 'false' -or $env:GORIQ_ZBOOK_RUNNER_ONLY -cne 'false') { throw 'REFUSED' }
+            function Read-GoriqPublicMetadata {
+              param([string]$Path)
+              Invoke-RestMethod -Method Get -Uri ('https://api.github.com/repos/haji84/AI-/' + $Path) -TimeoutSec 10 -MaximumRedirection 0 -Headers @{
+                Accept='application/vnd.github+json'; 'User-Agent'='goriq-zbook-actionfree-readonly'
+              } -ErrorAction Stop
+            }
+            function Assert-GoriqKeys {
+              param($Value, [string[]]$Keys)
+              if ($null -eq $Value -or $Value -isnot [pscustomobject]) { throw 'REFUSED' }
+              $actual = @($Value.PSObject.Properties.Name)
+              if ($actual.Count -ne $Keys.Count) { throw 'REFUSED' }
+              foreach ($key in $actual) { if ($key -cnotin $Keys) { throw 'REFUSED' } }
+            }
+            function Assert-GoriqInteger {
+              param($Value, [long]$Max)
+              if (($Value -isnot [int] -and $Value -isnot [long]) -or $Value -lt 0 -or $Value -gt $Max) { throw 'REFUSED' }
+            }
+            $failure = 'CURRENT_MAIN_CI_UNVERIFIED'
+            $main = Read-GoriqPublicMetadata -Path 'git/ref/heads/main'
+            if ($main.object.sha -cne $env:GITHUB_SHA) { throw 'REFUSED' }
+            $runs = Read-GoriqPublicMetadata -Path ('actions/workflows/ci.yml/runs?head_sha=' + $env:GITHUB_SHA + '&event=push&per_page=100')
+            $eligible = @($runs.workflow_runs | Where-Object {
+              $_.name -ceq 'CI' -and $_.path -ceq '.github/workflows/ci.yml' -and $_.event -ceq 'push' -and
+              $_.head_branch -ceq 'main' -and $_.head_sha -ceq $env:GITHUB_SHA -and $_.status -ceq 'completed' -and $_.conclusion -ceq 'success'
+            } | Select-Object -First 1)
+            if ($eligible.Count -ne 1 -or [string]$eligible[0].id -cnotmatch '^[1-9][0-9]{0,19}\z') { throw 'REFUSED' }
+            $ciId = [string]$eligible[0].id
+            $jobs = Read-GoriqPublicMetadata -Path ('actions/runs/' + $ciId + '/jobs?filter=latest&per_page=100')
+            $required = @('repository-guard','project-checks','independent-verifier-container','windows-runtime-byte-fixtures')
+            if ($jobs.total_count -ne 4 -or @($jobs.jobs).Count -ne 4) { throw 'REFUSED' }
+            $seen = @{}
+            foreach ($job in $jobs.jobs) {
+              if ($job.name -cnotin $required -or $seen.ContainsKey($job.name) -or
+                  [string]$job.run_id -cne $ciId -or $job.head_sha -cne $env:GITHUB_SHA -or
+                  $job.status -cne 'completed' -or $job.conclusion -cne 'success') { throw 'REFUSED' }
+              $seen[$job.name] = $true
+            }
+
+            $failure = 'FIXED_READER_SOURCE_UNVERIFIED'
+            $pins = [ordered]@{
+              'scripts/goriq-zbook-bridge-original-read.ps1'='bbbcfe2a7c4c8b58597d43cc05629ace0788d829587713e67f33311ef986d96c'
+              'scripts/goriq-zbook-bridge-original-read.mjs'='3a2bc58a0d07b5d605da38acfad6851df01c258136046e8772aa2a36d55528ab'
+              'scripts/goriq-g1-backup-inventory.mjs'='63d236135979ca681212f6b51b7b5d63c5a284c332fdb3615ba1f6c529fc2f66'
+              'scripts/goriq-zbook-bridge-capture.cs'='c149d00466bd75d35282fb44a5940ff64ef926c17f624b4e5d84d2ac1751b68c'
+            }
+            $sources = @{}
+            foreach ($file in $pins.Keys) {
+              $source = Read-GoriqPublicMetadata -Path ('contents/' + $file + '?ref=' + $env:GITHUB_SHA)
+              if ($source.type -cne 'file' -or $source.path -cne $file -or $source.encoding -cne 'base64' -or $source.content -isnot [string] -or $source.content.Length -gt 90000) { throw 'REFUSED' }
+              Assert-GoriqInteger -Value $source.size -Max 65536
+              $encoded = $source.content.Replace("`r",'').Replace("`n",'')
+              if ($encoded.Length -eq 0 -or $encoded.Length % 4 -ne 0 -or $encoded -cnotmatch '^[A-Za-z0-9+/]*={0,2}\z') { throw 'REFUSED' }
+              $bytes = [Convert]::FromBase64String($encoded)
+              if ($bytes.Length -gt 65536 -or $bytes.Length -ne $source.size -or [Convert]::ToBase64String($bytes) -cne $encoded) { throw 'REFUSED' }
+              $hasher = [Security.Cryptography.SHA256]::Create()
+              try { $hash = [BitConverter]::ToString($hasher.ComputeHash($bytes)).Replace('-','').ToLowerInvariant() } finally { $hasher.Dispose() }
+              if ($hash -cne $pins[$file]) { throw 'REFUSED' }
+              $sources[$file] = $bytes
+            }
+            $failure = 'FIXED_READER_RESULT_UNVERIFIED'
+            $utf8 = [Text.UTF8Encoding]::new($false,$true)
+            $definition = @(. ([ScriptBlock]::Create($utf8.GetString($sources['scripts/goriq-zbook-bridge-original-read.ps1']))) 2>&1 3>&1 4>&1 5>&1 6>&1)
+            if ($definition.Count -ne 0) { throw 'REFUSED' }
+            $raw = @(& {
+              Invoke-GoriqBridgeRead -QuerySource $sources['scripts/goriq-zbook-bridge-original-read.mjs'] -InventorySource $sources['scripts/goriq-g1-backup-inventory.mjs'] -NativeSource $utf8.GetString($sources['scripts/goriq-zbook-bridge-capture.cs']) | ConvertTo-Json -Depth 4 -Compress
+            } 2>&1 3>&1 4>&1 5>&1 6>&1)
+            if ($raw.Count -ne 1 -or $raw[0] -isnot [string] -or $raw[0].Length -gt 16384) { throw 'REFUSED' }
+            $candidate = ConvertFrom-Json -InputObject $raw[0] -ErrorAction Stop
+            if ($candidate.preserved -isnot [bool]) { throw 'REFUSED' }
+            # Revalidate fixed keys/types/enums; exceptions, payloads, paths and child output never print.
+            # INCOMPLETE adapter failures also use a fixed closed failureCode.
+            $allowed = @('CONTEXT_INVALID','PRIVATE_STORAGE_UNAVAILABLE','NATIVE_BUILD_UNAVAILABLE','PRIVATE_IDENTITY_UNAVAILABLE','PRIVATE_ENVIRONMENT_UNAVAILABLE','PRIVATE_ANCESTRY_UNAVAILABLE','PRIVATE_PARENT_UNAVAILABLE','PRIVATE_LAYOUT_UNAVAILABLE','PRIVATE_CONTEXT_UNAVAILABLE','PRIVATE_PATH_UNVERIFIED','PRIVATE_LOCAL_STORAGE_UNAVAILABLE','PRIVATE_NATIVE_OPEN_UNAVAILABLE','PRIVATE_FILE_METADATA_UNVERIFIED','PRIVATE_FINAL_PATH_UNVERIFIED','PRIVATE_OWNER_UNVERIFIED','PRIVATE_DACL_UNVERIFIED','PRIVATE_CREATE_UNAVAILABLE','SOURCE_ACQUISITION_INCOMPLETE','SOURCE_PRIVATE_PATH_UNVERIFIED','SOURCE_PRIVATE_LOCAL_STORAGE_UNAVAILABLE','SOURCE_PRIVATE_NATIVE_OPEN_UNAVAILABLE','SOURCE_PRIVATE_FILE_METADATA_UNVERIFIED','SOURCE_PRIVATE_FINAL_PATH_UNVERIFIED','SOURCE_PRIVATE_OWNER_UNVERIFIED','SOURCE_PRIVATE_DACL_UNVERIFIED','SOURCE_PRIVATE_CREATE_UNAVAILABLE','INSTALLED_RUNTIME_UNAVAILABLE','COPIED_QUERY_UNVERIFIED')
+            $originalFailure = $candidate.failureCode
+            if ($candidate.status -ceq 'INCOMPLETE' -and $candidate.failureCode -cin $allowed) { $candidate.failureCode = 'COPIED_QUERY_INVALID' }
+            $clean = ConvertFrom-GoriqBridgeSummary -Text ($candidate | ConvertTo-Json -Depth 4 -Compress) -PreservedExpected $candidate.preserved
+            $clean.failureCode = $originalFailure
+            Write-Output ('GORIQ_ZBOOK_BRIDGE_ORIGINAL ' + ($clean | ConvertTo-Json -Depth 4 -Compress))
+          } catch {
+            Write-Output ('GORIQ_ZBOOK_BRIDGE_REFUSED ' + $failure)
+            exit 1
+          }
+
+  zbook_native:
+    if: github.repository == 'haji84/AI-' && github.ref == 'refs/heads/main' && github.actor == 'haji84' && github.event_name == 'workflow_dispatch' && inputs.zbook_native_only && !inputs.zbook_bridge_original_only && !inputs.zbook_owner_probe_only
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 3
+    steps:
+      - name: Inspect existing Windows runner and original location metadata
+        shell: powershell
+        env:
+          GORIQ_ZBOOK_NATIVE_ONLY: ${{ inputs.zbook_native_only }}
+          GORIQ_ZBOOK_RUNNER_ONLY: ${{ inputs.zbook_runner_only }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $WarningPreference = 'Stop'
+          Write-Output 'GORIQ_ZBOOK_NATIVE_STARTED'
+          $failure = 'CONTEXT_INVALID'
+          try {
+            if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT -or
+                $env:OS -cne 'Windows_NT' -or $env:RUNNER_OS -cne 'Windows' -or
+                $env:GITHUB_REPOSITORY -cne 'haji84/AI-' -or $env:GITHUB_ACTOR -cne 'haji84' -or
+                $env:GITHUB_REF -cne 'refs/heads/main' -or $env:GITHUB_EVENT_NAME -cne 'workflow_dispatch' -or
+                $env:RUNNER_NAME -cne 'ZBook' -or $env:GITHUB_SHA -cnotmatch '^[a-f0-9]{40}\z' -or
+                $env:GITHUB_RUN_ID -cnotmatch '^[1-9][0-9]{0,19}\z' -or $env:GITHUB_RUN_ATTEMPT -cnotmatch '^[1-9][0-9]{0,19}\z' -or
+                $env:GORIQ_ZBOOK_NATIVE_ONLY -cne 'true' -or $env:GORIQ_ZBOOK_RUNNER_ONLY -cne 'false') { throw 'REFUSED' }
+
+            function Read-GoriqPublicMetadata {
+              param([string]$Path)
+              Invoke-RestMethod -Method Get -Uri ('https://api.github.com/repos/haji84/AI-/' + $Path) -TimeoutSec 10 -MaximumRedirection 0 -Headers @{
+                Accept='application/vnd.github+json'; 'User-Agent'='goriq-zbook-actionfree-readonly'
+              } -ErrorAction Stop
+            }
+            function Assert-GoriqKeys {
+              param($Value, [string[]]$Keys)
+              if ($null -eq $Value -or $Value -isnot [pscustomobject]) { throw 'REFUSED' }
+              $actual = @($Value.PSObject.Properties.Name)
+              if ($actual.Count -ne $Keys.Count) { throw 'REFUSED' }
+              foreach ($key in $actual) { if ($key -cnotin $Keys) { throw 'REFUSED' } }
+            }
+            function Assert-GoriqInteger {
+              param($Value, [long]$Max)
+              if (($Value -isnot [int] -and $Value -isnot [long]) -or $Value -lt 0 -or $Value -gt $Max) { throw 'REFUSED' }
+            }
+            $failure = 'CURRENT_MAIN_CI_UNVERIFIED'
+            $main = Read-GoriqPublicMetadata -Path 'git/ref/heads/main'
+            if ($main.object.sha -cne $env:GITHUB_SHA) { throw 'REFUSED' }
+            $runs = Read-GoriqPublicMetadata -Path ('actions/workflows/ci.yml/runs?head_sha=' + $env:GITHUB_SHA + '&event=push&per_page=100')
+            $eligible = @($runs.workflow_runs | Where-Object {
+              $_.name -ceq 'CI' -and $_.path -ceq '.github/workflows/ci.yml' -and $_.event -ceq 'push' -and
+              $_.head_branch -ceq 'main' -and $_.head_sha -ceq $env:GITHUB_SHA -and $_.status -ceq 'completed' -and $_.conclusion -ceq 'success'
+            } | Select-Object -First 1)
+            if ($eligible.Count -ne 1 -or [string]$eligible[0].id -cnotmatch '^[1-9][0-9]{0,19}\z') { throw 'REFUSED' }
+            $ciId = [string]$eligible[0].id
+            $jobs = Read-GoriqPublicMetadata -Path ('actions/runs/' + $ciId + '/jobs?filter=latest&per_page=100')
+            $required = @('repository-guard','project-checks','independent-verifier-container','windows-runtime-byte-fixtures')
+            if ($jobs.total_count -ne 4 -or @($jobs.jobs).Count -ne 4) { throw 'REFUSED' }
+            $seen = @{}
+            foreach ($job in $jobs.jobs) {
+              if ($job.name -cnotin $required -or $seen.ContainsKey($job.name) -or
+                  [string]$job.run_id -cne $ciId -or $job.head_sha -cne $env:GITHUB_SHA -or
+                  $job.status -cne 'completed' -or $job.conclusion -cne 'success') { throw 'REFUSED' }
+              $seen[$job.name] = $true
+            }
+
+            $failure = 'PROCESS_QUERY_UNVERIFIED'
+            $processes = @(Get-Process -ErrorAction Stop)
+            $listeners = @($processes | Where-Object { $_.ProcessName -ceq 'Runner.Listener' }).Count
+            $workers = @($processes | Where-Object { $_.ProcessName -ceq 'Runner.Worker' }).Count
+            if ($listeners -gt 64 -or $workers -gt 64) { throw 'REFUSED' }
+            $observation = [ordered]@{
+              sourceRevision=$env:GITHUB_SHA;runId=$env:GITHUB_RUN_ID;runAttempt=$env:GITHUB_RUN_ATTEMPT;checkedAt=[DateTime]::UtcNow.ToString('o')
+              processObservationVerified=$true;listenerCount=$listeners;workerCount=$workers;originalGoalRecovered=$false
+            }
+            Write-Output ('GORIQ_ZBOOK_PROCESS_OBSERVATION ' + ($observation | ConvertTo-Json -Compress))
+
+            $failure = 'LOCATOR_SOURCE_UNVERIFIED'
+            $source = Read-GoriqPublicMetadata -Path ('contents/scripts/goriq-zbook-original-state-locator.ps1?ref=' + $env:GITHUB_SHA)
+            if ($source.type -cne 'file' -or $source.encoding -cne 'base64' -or $source.content -isnot [string] -or $source.content.Length -gt 90000) { throw 'REFUSED' }
+            Assert-GoriqInteger -Value $source.size -Max 65536
+            $encoded = $source.content.Replace("`r",'').Replace("`n",'')
+            if ($encoded.Length -eq 0 -or $encoded.Length % 4 -ne 0 -or $encoded -cnotmatch '^[A-Za-z0-9+/]*={0,2}\z') { throw 'REFUSED' }
+            $bytes = [Convert]::FromBase64String($encoded)
+            if ($bytes.Length -gt 65536 -or $bytes.Length -ne $source.size -or [Convert]::ToBase64String($bytes) -cne $encoded) { throw 'REFUSED' }
+            $hasher = [Security.Cryptography.SHA256]::Create()
+            try { $hash = [BitConverter]::ToString($hasher.ComputeHash($bytes)).Replace('-','').ToLowerInvariant() } finally { $hasher.Dispose() }
+            if ($hash -cne 'a7ca4f50c60a6da54feab92f14f50308899858ff7e932b85d6eb971707748590') { throw 'REFUSED' }
+            $text = [Text.UTF8Encoding]::new($false,$true).GetString($bytes)
+            $failure = 'LOCATOR_RESULT_UNVERIFIED'
+            # Execute only verified source bytes in memory, preserving the native environment and original GITHUB_WORKSPACE.
+            $raw = @(& ([ScriptBlock]::Create($text)) 2>&1 3>&1 4>&1 5>&1 6>&1)
+            if ($raw.Count -ne 1 -or $raw[0] -isnot [string] -or $raw[0].Length -gt 131072) { throw 'REFUSED' }
+            $report = ConvertFrom-Json -InputObject $raw[0] -ErrorAction Stop
+            Assert-GoriqKeys -Value $report -Keys @('version','mode','readOnly','contentsRead','goalId','jobId','sourceRevision','runId','checkedAt','originalGoalRecovered','originalMatch','originalAbsent','configuredProductionPath','coverage','directoryMountedVolumes','recursiveSearch','maxVolumes','maxCandidates','budgetSeconds','budgetScope','hardJobTimeoutMinutes','candidateLimitReached','volumeLimitReached','status','volumes','candidates')
+            $fixed = @{
+              version=1;mode='ORIGINAL_LOCATION_METADATA_ONLY';goalId='goal-fcc81c97e09153f7';jobId='rotation-recovery-37'
+              sourceRevision=$env:GITHUB_SHA;runId=$env:GITHUB_RUN_ID;originalMatch='NOT_INSPECTED';originalAbsent='NOT_ESTABLISHED'
+              configuredProductionPath='UNAVAILABLE_WITHOUT_DECRYPTION';coverage='READY_LOCAL_DRIVE_LETTERS_AND_FIXED_KNOWN_PATHS_ONLY'
+              directoryMountedVolumes='NOT_ENUMERATED';maxVolumes=32;maxCandidates=512;budgetSeconds=45;budgetScope='CANDIDATE_METADATA';hardJobTimeoutMinutes=5
+            }
+            foreach ($key in $fixed.Keys) {
+              if ($fixed[$key] -is [int]) { Assert-GoriqInteger -Value $report.$key -Max 512 }
+              elseif ($report.$key -isnot [string]) { throw 'REFUSED' }
+              if ($report.$key -cne $fixed[$key]) { throw 'REFUSED' }
+            }
+            # PS5 keeps JSON dates as strings; newer fixture hosts may parse UTC dates.
+            if ($report.checkedAt -is [DateTime] -and $report.checkedAt.Kind -eq [DateTimeKind]::Utc) { $report.checkedAt = $report.checkedAt.ToString('o') }
+            foreach ($key in @('readOnly','contentsRead','originalGoalRecovered','recursiveSearch','candidateLimitReached','volumeLimitReached')) {
+              if ($report.$key -isnot [bool]) { throw 'REFUSED' }
+            }
+            if (-not $report.readOnly -or $report.contentsRead -or $report.originalGoalRecovered -or $report.recursiveSearch -or
+                $report.status -cnotin @('METADATA_ONLY_COMPLETE','LIMIT_REACHED','BUDGET_EXHAUSTED') -or
+                $report.checkedAt -isnot [string] -or $report.checkedAt -cnotmatch '^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{7}Z\z' -or
+                $report.volumes -isnot [array] -or $report.candidates -isnot [array] -or $report.volumes.Count -gt 32 -or $report.candidates.Count -gt 512) { throw 'REFUSED' }
+            $roots = '(profile|checkout|profile-jarvis|profile-jarvis-ai-|profile-production|task-working-directory|task-parent|local-bridge-state|local-bridge-workspace|volume-(0[1-9]|[12][0-9]|3[0-2])-(goriq|jarvis|jarvis-ai-|ai-|hidden-goriq|hidden-goriq-handoff|workspace))'
+            $leaves = '(compass-default|compass-standalone|compass-configured-default|persistent-compass|persistent-configured-compass|persistent-jobs|persistent-changes|state-compass|state-configured-compass|bridge-compass|compass-adjacent|compass-configured-adjacent|jobs|changes|default-jobs|default-changes|standalone-jobs|standalone-changes|backup-catalog|nov3-retention|nov3-retention-adjacent)'
+            foreach ($row in $report.candidates) {
+              if ($row.status -ceq 'FILE') {
+                Assert-GoriqKeys -Value $row -Keys @('label','status','bytes')
+                Assert-GoriqInteger -Value $row.bytes -Max ([long]::MaxValue)
+              } else { Assert-GoriqKeys -Value $row -Keys @('label','status') }
+              if ($row.label -isnot [string] -or $row.label -cnotmatch ('^' + $roots + '(-' + $leaves + ')?\z') -or
+                  $row.status -cnotin @('FILE','DIRECTORY','UNSAFE_PATH','NONLOCAL_VOLUME','NOT_READY','REPARSE_REFUSED','NOT_DIRECTORY','INACCESSIBLE','MISSING','UNKNOWN')) { throw 'REFUSED' }
+            }
+            foreach ($row in $report.volumes) {
+              Assert-GoriqKeys -Value $row -Keys @('id','driveLetter','driveType','ready','mediaType')
+              if ($row.id -isnot [string] -or $row.id -cnotmatch '^volume-(0[1-9]|[12][0-9]|3[0-2])\z' -or
+                  $row.driveLetter -isnot [string] -or $row.driveLetter -cnotmatch '^([A-Z]|UNKNOWN)\z' -or
+                  $row.driveType -cnotin @('Fixed','Removable') -or $row.ready -isnot [bool] -or $row.mediaType -cne 'UNKNOWN') { throw 'REFUSED' }
+            }
+            # Reserialize the validated fixed schema; never print raw source/API/exception text.
+            Write-Output ('GORIQ_ZBOOK_ORIGINAL_LOCATION ' + ($report | ConvertTo-Json -Depth 12 -Compress))
+          } catch {
+            Write-Output ('GORIQ_ZBOOK_NATIVE_REFUSED ' + $failure)
+            exit 1
+          }

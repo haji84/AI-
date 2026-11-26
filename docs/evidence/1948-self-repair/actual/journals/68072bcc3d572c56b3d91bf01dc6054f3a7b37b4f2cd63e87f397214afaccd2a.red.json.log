@@ -1,0 +1,36 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Literal source edit values must retain dollar sequences exactly
++ actual - expected
+
++ 'export const answer = "literal 0 $ export const answer =  ;\n";\n'
+- 'export const answer = "literal $& $$ $` $\'";\n'
+
+    at assertLiteralTrackedRepair (file:///C:/Users/qq113/AppData/Local/Temp/goriq-selfdev1948-4UOD83/baseline-0/tests/self-development-1948-0.test.mjs:40:12)
+    at async file:///C:/Users/qq113/AppData/Local/Temp/goriq-selfdev1948-4UOD83/baseline-0/tests/self-development-1948-0.test.mjs:44:79 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 'export const answer = "literal 0 $ export const answer =  ;\n";\n',
+  expected: 'export const answer = "literal $& $$ $` $\'";\n',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.19.0
+✖ tests\self-development-1948-0.test.mjs (9545.3002ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9551.6221
+
+✖ failing tests:
+
+test at tests\self-development-1948-0.test.mjs:1:1
+✖ tests\self-development-1948-0.test.mjs (9545.3002ms)
+  'test failed'

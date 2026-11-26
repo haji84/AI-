@@ -1,0 +1,69 @@
+# 検証済みPROFILEのapp-silo capability通過権限の誤拒否を修正
+
+Goal goal-fcc81c97e09153f7 / Job rotation-recovery-37 / Issue1219の現在の所有者・ACLエラーを完全解消する。
+Ownerのinline読取り結果は、ランナーとのuser SID照合後のprofile ACLに、信頼済み3主体のFullControlと、
+明示的・非継承のapp-silo capability SIDによるExecuteFile|Synchronizeだけを示した。
+ディレクトリではFILE_TRAVERSE|SYNCHRONIZE=0x100020で、一覧・内容読取・書込・権限制御を含まない。
+実機44129203049はownerSYSTEMを確認し、これを汎用private DACL違反として拒否した。
+個人名や実SIDは公開しない。原本の作成者・過去の状態を推測しない。
+
+## 実装
+
+検証済みのprofile本体だけで、正規なapp-silo capability SIDの形（authority15/base3/app-silo65536/8uint32）、
+exact0x100020、AceFlags.None、非callbackのALLOWを適正な通過ACEとして扱う。
+新しい例外はflags0の実効ACEだけに適用し、従来のInheritOnly skipは変更しない。
+対象外のSID・mask・flags、private子対象とfileの既存拒否は維持する。
+Capture中央Securityは実handleから属性・final pathを再確認してscopeを判定し、descriptor snapshot/recheckでも
+同じ規則を適用する。所有者は本人/SYSTEMの既存profile規則、全private子対象は本人のみを維持する。
+observerはmetadata検証済みのfixed PROFILE roleだけで同じpredicateを使い、legacy reducerに例外を広げない。
+
+Windows ACLや所有者を変更しない。原本・専用保存先への新たな読み書き・実行・制御権限を誰にも与えず、
+private子対象へ継承させない。これは既存privacy/integrity制御を維持する限定された誤拒否修正（MEDIUM）であり、
+安全性の弱体化やpermission変更を本件の完了指示から推論しない。
+
+## 方針と履歴
+
+新しいユーザー証拠により、一般的なdiagnostic classifierを先に統合する必要はなくなった。
+旧head58fb45dと2回のCI失敗は履歴として保持し、その未統合classifierを最小修正へ置き換える。
+OS profileのACL削除や広い例外化は不要。既存の専用private子対象・原本の厳格な拒否を残す。
+
+## 検証
+
+実C#5でcapturer/observer両predicateの正負・mirror・owner/flags/masks/targetをRED→GREEN検証する。
+Windowsの模擬descriptorで中央Securityのsnapshot/recheckとobserverの実parseを実行する。
+fresh review、全4exact-source/main CI、署名付き6項目を確認後、実機でprofile DACLの通過を確認し、
+必要な元の固定読取りの検証へ継続する。runtime/credential/OS権限/原本変更の期限切れ許可を再利用しない。
+元Goal全体の復旧と現在のエラー解消を区別し、未証明のGoal完了を宣言しない。
+rollbackはCapture/observer/依存pinsをまとめた保護付きrevert。Windows設定の復元操作は生じない。
+
+## 必要になった検証実行の修正
+
+旧head58fbは別hostでも300s Unit上限に達し、追加の同一再試行は行わない。
+localでは既存の60case action-free PSbatchが基準版でも10sを超え、実測はコンパイル2.8s、
+各ケースinvoke合計8.8sだった。新しい本体修正を検証するため、inert fixtureだけで
+模擬応答は必要になったcaseで1回だけ作り、case自身のJSONだけを解析し、同じprogramは同じbytesで共有する。
+POSIXの60caseは30caseずつの2つのowned processへ分割し、各processの10s上限と全体300s上限を維持する。
+60caseの合計batch予算は従来の10sから最大20sへ変わる。製品のtimeoutは変更しない。
+fresh runspace、Windowsのnative processの区別、unique原本canary、状態復元、全assertionは維持する。
+26+60caseの完全なstatus/stdout/stderrはJSON key orderと実行時刻以外で一致した。
+純粋な新predicate試験も既存の同一source C#compileを再利用し、全assertionとWindows16+7caseを残す。
+試験専用preload/helperでDOTNET_PROCESSOR_COUNTを未指定時だけ1にし、並列Node試験とCLR内部workerの
+CPU競合を抑える。この環境変数は試験から起動する.NET子process全体に継承され、
+認識processor数を設定するもので強制CPU上限ではない。既存の明示設定を尊重し、製品の実行環境やNode並列度2は変更しない。
+これは検証省略ではなく準備処理の重複削減と試験workerのCPU admissionである。
+標準環境のrelated159件とbatch境界3件、計162/162PASS。実Windowsでも新16+7件と既存owner11件が通過した。
+
+## 独立検証hostの固定
+
+最終04ee463の独立Unitは別hostでも300sに達し、4042件の成功marker・失敗marker0で終了した。
+同じ割当戦略の再試行は終了する。直前の成功と比較した既存950caseは合計1.536倍・中央値1.613倍だった。
+hostは両方Ubuntu26.04だが、image更新版は成功時20261111.82.6、失敗時20261111.196.1と異なる。
+これは相関でありOS原因を断定しない。次の別戦略としてindependent-verifier-containerのhostだけを
+公式にサポートされているx64 Ubuntu24.04 poolへ固定する。全6check・署名・300s期限・CPU2・memory2GB・
+pids128・network none・UID65534、branch protectionと実機の条件は変更しない。
+同じhost割当の追加再試行予算は0。label変更のprotected revertは独立して可能で、原本・OSへの復元操作はない。
+
+752f4e9のWindows再実行で、owner workflowの25case共有batchが10s上限に達した。
+全25case・既存callback/assertionとfresh runspaceを残し、最大9caseの3owned processへ分割する。
+各process10s、CI全体300sは維持し、この25caseの合計batch予算は従来10sから最大30sへ変わる。
+製品コード、native境界試験、実機のtimeoutには変更しない。

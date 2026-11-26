@@ -1,0 +1,106 @@
+{
+  "goal": "goal-fcc81c97e09153f7",
+  "job": "rotation-recovery-37",
+  "issue": 1219,
+  "goalStatus": "NOT_ACHIEVED",
+  "g1": "HOLD",
+  "baselineMain": "4432cebe1ad99a3b7974f0c0c269aa2c0bb3540a",
+  "ownerInstruction": "完全解消的まで進めてほしいんだけど。",
+  "currentTask": "Completely resolve current private owner/profile ACL guard error; preserve original Goal and all data.",
+  "actualNative": {
+    "run": 44129203049,
+    "job": 134201287550,
+    "runnerId": 21,
+    "target": "PROFILE",
+    "owner": "SYSTEM",
+    "dacl": "UNVERIFIED",
+    "reason": "PRIVATE_DACL_UNVERIFIED"
+  },
+  "decisiveUserEvidence": {
+    "class": "USER_REPORTED",
+    "source": "Inline GetOwnerSid match guard followed by GetAcl; no reported guard failure",
+    "profileAcl": "SYSTEM/Admin/CurrentUser FullControl plus explicit app-silo capability FILE_TRAVERSE|SYNCHRONIZE only, no inheritance",
+    "mask": 1048608,
+    "flags": 0,
+    "privateUsernameAndSid": "OMITTED"
+  },
+  "publicSdkReference": {
+    "url": "https://github.com/microsoft/win32metadata/blob/main/generation/WinSDK/RecompiledIdlHeaders/um/winnt.h",
+    "authority": 15,
+    "capabilityBase": 3,
+    "appSiloRid": 65536,
+    "FILE_TRAVERSE": 32,
+    "SYNCHRONIZE": 1048576
+  },
+  "rootCause": "Private DACL guard treats harmless noninheriting profile-directory traversal as forbidden private data access.",
+  "fixScope": "Exact validated profile directory, app-silo SID shape with8canonical uint32 suffixes, exact0x100020, flagsNone, noncallback allow only. Capture obtains scope from actual handle centrally for snapshots/rechecks; observer fixed PROFILE role follows existing native metadata checks.",
+  "risk": "MEDIUM correctness fix; no new read/list/write/control/inherited access, private children/files and owner/runtime rules remain strict, no OS ACL/owner mutation. Existing completion authority covers ordinary scoped implementation; no privileged/permission/safety-weakening authority inferred.",
+  "validation": {
+    "red": "76 missing predicate",
+    "green": "77 executable C#5 positive/negative/mirror policy",
+    "nativeFixtures": "Actual Windows job134265619239 at source9323: Capture16 + Observer7 new boundaries and existing owner11 all PASS; inert workflow batch later exceeded10s, CI not accepted.",
+    "lint": "PASS",
+    "types": "PASS92",
+    "requirements": 341,
+    "surfaces": 626,
+    "focused": 162,
+    "focusedPass": 162,
+    "combinedPolicyTest": "New capability matrix reuses existing same-source C# types; all assertions retained; Node still requires new native16+7markers.",
+    "freshReview": "Source review and fixture-only followup:0Critical/0Important; documentation clarified InheritOnly, combined batch20s vs former10s, and all test .NET child environment scope. Explicit DOTNET value preservation executed by reviewer.",
+    "focusedLatest": "99owner+batch33/33PASS"
+  },
+  "history": {
+    "supersededDiagnosticOnlySource": "58fb45d6e1bc37c4fc46fb0cb28dedbc08e71cb6",
+    "ci": 44133606525,
+    "attempts": 2,
+    "status": "Both independentUnit timeout; failures preserved, no third unchanged retry",
+    "newEvidence": "User ACL made generic classifier unnecessary; final source fixes real cause. Old classifier removed from final change."
+  },
+  "rollback": "Protected revert of Capture, observer, dependent2pins together; no Windows settings or original state changed to restore.",
+  "compassWriteBack": "UNAVAILABLE; PR/evidence handoff, no Controller state fabricated.",
+  "actualAuthor": "Codex",
+  "localModel": "NOT_RUN",
+  "pending": [
+    "new exact-source/main4CI and signed6",
+    "actual error disappearance and original fixed-read validation within current ordinary task authority"
+  ],
+  "verificationRuntimeRecovery": {
+    "why": "Old diagnostic-only source58fb Unit timedout twice; local baseline actionfree PSbatch10s also fails. No third unchanged retry.",
+    "measuredOldBatchMs": {
+      "compile": 2792.4723,
+      "state": 253.2664,
+      "open": 1340.7095,
+      "invoke": 8760.2416,
+      "dispose": 858.9549
+    },
+    "change": "Lazy inert mock data once per used fresh case, exact-case JSON, byte-identical program reuse. POSIX60 cases split into2owned batches30cases, each10s. Test-only DOTNET_PROCESSOR_COUNT defaults1 unless explicitly configured; package.test preloads helper, direct PS batch test files import same helper. Production environment unchanged.",
+    "equivalence": "Complete26+60status/stdout/stderr equal after JSON key order and valid live observation time normalization only.",
+    "strictLocal": "90:162/162PASS at default environment, Node concurrency2,26760ms; includes all159related and3batch contract/timeout cases; lintPASS. CPU admission hypothesis89:159/159PASS.",
+    "limits": "All assertions/cases retained. Each process10s and global300s/resources unchanged; POSIX60case combined budget now20s vs former10s. package.test adds test-only preload while Node concurrency2 remains; recognized processor count applies to all test .NET children and is not an enforced CPU quota. Production timeouts/environment unchanged."
+  },
+  "verificationHostRecovery": {
+    "failedSource": "04ee463343baa34f54031b551a4845ea457c84c4",
+    "run": 44155345743,
+    "attempts": 2,
+    "result": "IndependentUnit300s timeout both,4042passmarkers0failuremarkers; allother3jobsPASS. No further identical retry.",
+    "hostCorrelation": "Ubuntu26.04 image20261111.196.1 vs prior success20261111.82.6; root cause not proven",
+    "change": "Only independent verifier host ubuntu-latest -> supportedubuntu-24.04; allchecks/deadlines/CPU2/memory2GB/pids128/networknone/UID65534/signer/protection preserved",
+    "localFull96": "Frozen clean before/after4376total4349pass1unrelatedexistingpwshstartup15s timeout26skip500s; actualumask0022/private per-run Node compile cache. Isolated unchanged dialog test97PASS; no failed full run accepted."
+  },
+  "ownerFixtureSharding": {
+    "caseCallbacksAndAssertionsUnchangedFrom": "752f4e9e8b6b51a7b924b1da4b8af76afab4d6f8",
+    "all25Preserved": true,
+    "groups": [
+      9,
+      9,
+      7
+    ],
+    "perProcessMs": 10000,
+    "combinedMaxMs": 30000,
+    "previousCombinedMaxMs": 10000,
+    "globalMs": 300000,
+    "focused99": "33/33PASS0skip",
+    "review": "profile_capability_final_review0Critical0Important; no assertion/production/gate changes",
+    "red": "752CI44160045692 Windows134311089248 shared25case PSbatch10s timeout. No unchanged rerun; split preparation only."
+  }
+}

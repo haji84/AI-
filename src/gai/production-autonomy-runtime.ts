@@ -1,4 +1,5 @@
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { mkdir, open, readFile, rename, unlink } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { CycleReport, Goal, GoalDrivenLoop } from "../orchestrator/goal-loop.ts";
 
@@ -258,6 +259,10 @@ function assertRecoveryLimit(value: number): number {
 export class ProductionAutonomyRuntime {
   #runs: ProductionRunRecord[] = [];
   #loaded = false;
+  #loading?: Promise<void>;
+  #persistTail: Promise<void> = Promise.resolve();
+  #revision = 0;
+  #persistedRevision = 0;
   private readonly filePath: string;
   private readonly loopFactory: (runId: string) => GoalDrivenLoop;
   private readonly hooks: ProductionAutonomyHooks;
@@ -280,7 +285,11 @@ export class ProductionAutonomyRuntime {
   async run(input: { runId: string; goal: Goal; maxCycles?: number }): Promise<ProductionRunRecord> {
     await this.#ensureLoaded();
     const existing = this.#runs.find((item) => item.runId === input.runId);
-    if (existing?.state === "completed" || existing?.state === "blocked") return existing;
+    if (existing?.state === "completed" || existing?.state === "blocked") {
+      // A failed commit must be retried without repeating terminal side effects.
+      if (this.#persistedRevision < this.#revision) await this.#persist();
+      return existing;
+    }
     const record = existing ?? {
       runId: input.runId,
       goal: input.goal,
@@ -580,31 +589,59 @@ export class ProductionAutonomyRuntime {
   #upsert(record: ProductionRunRecord): void {
     this.#runs = this.#runs.filter((item) => item.runId !== record.runId);
     this.#runs.push(record);
+    this.#revision += 1;
   }
 
   async #persistRecord(record: ProductionRunRecord): Promise<void> { this.#upsert(record); await this.#persist(); }
 
   async #ensureLoaded(): Promise<void> {
     if (this.#loaded) return;
-    try {
-      const parsed = JSON.parse(await readFile(this.filePath, "utf8")) as RunFile;
-      this.#runs = (parsed.runs ?? []).map((record) => {
-        this.#ensureRecoveryBudget(record);
-        this.#ensureJournal(record);
-        this.#ensureVerificationHistory(record);
-        this.#ensureFailureHistory(record);
-        this.#ensureRecoveryHistory(record);
-        return record;
-      });
+    if (!this.#loading) {
+      this.#loading = (async () => {
+        try {
+          const parsed = JSON.parse(await readFile(this.filePath, "utf8")) as RunFile;
+          this.#runs = (parsed.runs ?? []).map((record) => {
+            this.#ensureRecoveryBudget(record);
+            this.#ensureJournal(record);
+            this.#ensureVerificationHistory(record);
+            this.#ensureFailureHistory(record);
+            this.#ensureRecoveryHistory(record);
+            return record;
+          });
+        }
+        catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+        this.#loaded = true;
+      })().finally(() => { this.#loading = undefined; });
     }
-    catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
-    this.#loaded = true;
+    await this.#loading;
   }
 
-  async #persist(): Promise<void> {
-    await mkdir(dirname(this.filePath), { recursive: true });
-    const temp = `${this.filePath}.tmp`;
-    await writeFile(temp, `${JSON.stringify({ version: 1, runs: this.#runs }, null, 2)}\n`, "utf8");
-    await rename(temp, this.filePath);
+  #persist(): Promise<void> {
+    const commit = this.#persistTail.then(async () => {
+      await mkdir(dirname(this.filePath), { recursive: true });
+      // Capture the snapshot inside the queue so older writes cannot land last.
+      const revision = this.#revision;
+      const snapshot = `${JSON.stringify({ version: 1, runs: this.#runs }, null, 2)}\n`;
+      const temp = `${this.filePath}.${randomUUID()}.tmp`;
+      let ownedTemp: Awaited<ReturnType<typeof open>> | undefined;
+      try {
+        ownedTemp = await open(temp, "wx");
+        await ownedTemp.writeFile(snapshot, "utf8");
+        await ownedTemp.close();
+        await rename(temp, this.filePath);
+        this.#persistedRevision = revision;
+      } catch (error) {
+        // Only a successful exclusive open grants ownership for cleanup.
+        // Cleanup must not replace the original open/write/rename failure.
+        if (ownedTemp) {
+          await ownedTemp.close().catch(() => undefined);
+          await unlink(temp).catch(() => undefined);
+        }
+        throw error;
+      }
+    });
+    // Keep the failure visible to this caller while allowing later commits.
+    this.#persistTail = commit.catch(() => undefined);
+    return commit;
   }
 }

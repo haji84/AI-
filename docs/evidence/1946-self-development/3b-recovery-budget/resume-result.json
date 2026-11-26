@@ -1,0 +1,276 @@
+{
+  "scope": "ISOLATED ACTUAL LOCAL MODEL + REAL SCOPED CHECKS; published fixture signer, NOT production trust",
+  "root": "C:/Users/qq113/AppData/Local/Temp/goriq-selfdev1946-lPZqG1",
+  "base": "6b16c31212e8b54c28ef2ca1c81ad34b916fc40d",
+  "goalId": "goal-126f6d65da4ada28",
+  "model": {
+    "id": "qwen2.5-coder:3b",
+    "digest": "f72c60cabf6237b07f6e632b2c48d533cef25eda2efbd34bed21c5e9c01e6225"
+  },
+  "startedAt": "2026-11-25T19:18:20.353Z",
+  "checks": [],
+  "restarts": [],
+  "artifacts": [],
+  "intake": {
+    "accepted": true,
+    "executionScheduled": true,
+    "requirement": null,
+    "conversation": {
+      "resolution": "ordinary",
+      "input": null,
+      "message": "通常の依頼として処理します。",
+      "referenceIds": [],
+      "confidence": 0,
+      "needsClarification": false
+    },
+    "goalId": "goal-126f6d65da4ada28",
+    "action": "CONTINUE_GOAL",
+    "resolution": "NEW_GOAL",
+    "nextAction": null,
+    "remainingCriteria": [
+      "criterion-1",
+      "criterion-2"
+    ]
+  },
+  "resumedFrom": "result.json",
+  "status": "FAIL",
+  "error": "Error: Timeout source Job 0 attempt 1 ",
+  "diagnostics": "",
+  "jobs": [
+    {
+      "version": 1,
+      "jobId": "development-d4573ac266e5f6843e321e5e04b84ef82937e28634dfe65a40805e8c5e8a4197",
+      "goalId": "goal-126f6d65da4ada28",
+      "requirementIds": [
+        "CORE-014"
+      ],
+      "acceptanceCriteria": [
+        "明示nullの処理予算を実行前に拒否する"
+      ],
+      "definitionOfDone": [
+        {
+          "id": "criterion-1",
+          "description": "明示nullの処理予算を実行前に拒否する",
+          "required": true
+        }
+      ],
+      "baseRevision": "6b16c31212e8b54c28ef2ca1c81ad34b916fc40d",
+      "approvalScope": {
+        "taskScopeId": "issue:1946",
+        "maxRisk": "low",
+        "expiresAt": "2026-11-25T20:43:03.407Z"
+      },
+      "workItems": [
+        {
+          "id": "development-d4573ac266e5f6843e321e5e04b84ef82937e28634dfe65a40805e8c5e8a4197:test",
+          "objective": "Write a failing acceptance test for: Repair the actual CognitiveService budget bug: explicit maxCycles null is invalid, not the same as absent/undefined. Reject it through the existing integer check before any DB access; preserve the default for undefined. Change only the selected declaration.",
+          "dependsOn": [],
+          "requiredCapabilities": [
+            "code-builder",
+            "filesystem"
+          ]
+        },
+        {
+          "id": "development-d4573ac266e5f6843e321e5e04b84ef82937e28634dfe65a40805e8c5e8a4197:implement",
+          "objective": "Implement the smallest change that passes the new test: Repair the actual CognitiveService budget bug: explicit maxCycles null is invalid, not the same as absent/undefined. Reject it through the existing integer check before any DB access; preserve the default for undefined. Change only the selected declaration.",
+          "dependsOn": [
+            "development-d4573ac266e5f6843e321e5e04b84ef82937e28634dfe65a40805e8c5e8a4197:test"
+          ],
+          "requiredCapabilities": [
+            "code-builder",
+            "filesystem"
+          ]
+        },
+        {
+          "id": "development-d4573ac266e5f6843e321e5e04b84ef82937e28634dfe65a40805e8c5e8a4197:verify",
+          "objective": "Independently verify the implementation and affected regressions: Repair the actual CognitiveService budget bug: explicit maxCycles null is invalid, not the same as absent/undefined. Reject it through the existing integer check before any DB access; preserve the default for undefined. Change only the selected declaration.",
+          "dependsOn": [
+            "development-d4573ac266e5f6843e321e5e04b84ef82937e28634dfe65a40805e8c5e8a4197:implement"
+          ],
+          "requiredCapabilities": [
+            "filesystem"
+          ]
+        }
+      ],
+      "phase": "IMPLEMENTING",
+      "evidence": [
+        {
+          "id": "development-d4573ac266e5f6843e321e5e04b84ef82937e28634dfe65a40805e8c5e8a4197:sequence",
+          "criterionId": "repository-plan",
+          "kind": "resident-development-sequence:v1",
+          "issuer": "resident-development-host",
+          "verified": false,
+          "artifactDigest": "6a7b22f072e58ef5d1f405d516dc9b5527b22b458ea69f37549743afe8e7fa37",
+          "sourceRevision": "e46c608452f76fe9de68e95c46159d765e592ce061a5be16b54806ef1aa7307c",
+          "environment": "self-repair-0",
+          "recordedAt": "2026-11-25T19:13:11.425Z"
+        },
+        {
+          "id": "development-d4573ac266e5f6843e321e5e04b84ef82937e28634dfe65a40805e8c5e8a4197:tdd-red",
+          "criterionId": "repository-tdd",
+          "kind": "development-tdd-red",
+          "issuer": "trusted-baseline-probe",
+          "verified": true,
+          "sourceRevision": "3ecd5e7a8df34caee350dec54cf2a346d89c7cb47b272e9969685bdf96f9f94e",
+          "artifactDigest": "f63a57b9b2bf4e2f8b80b3021753fcdae199b06f9cf75b69a43089dc39f1973e",
+          "recordedAt": "2026-11-25T19:13:15.725Z"
+        },
+        {
+          "id": "development-d4573ac266e5f6843e321e5e04b84ef82937e28634dfe65a40805e8c5e8a4197:failed-check:development-d4573ac266e5f6843e321e5e04b84ef82937e28634dfe65a40805e8c5e8a4197:tracked-candidate:lint:3f84c95b867122d2da4dfa4b24689927073047d49039ad0c4155df895f74c447",
+          "criterionId": "repository-verification",
+          "kind": "development-check:lint",
+          "issuer": "isolated-real-checks-fixture-signer",
+          "verified": false,
+          "sourceRevision": "dc28dbc2f3797f456e114aa905239c127e0207e26be3eeb21852c4d162920da4",
+          "artifactDigest": "51c5f49980c2b161173d04ceac6b7c053a5c9044668ec82fb8d991ff8d418913",
+          "recordedAt": "2026-11-25T19:14:05.781Z"
+        },
+        {
+          "id": "development-d4573ac266e5f6843e321e5e04b84ef82937e28634dfe65a40805e8c5e8a4197:failed-check:development-d4573ac266e5f6843e321e5e04b84ef82937e28634dfe65a40805e8c5e8a4197:tracked-candidate:typecheck:3f84c95b867122d2da4dfa4b24689927073047d49039ad0c4155df895f74c447",
+          "criterionId": "repository-verification",
+          "kind": "development-check:typecheck",
+          "issuer": "isolated-real-checks-fixture-signer",
+          "verified": false,
+          "sourceRevision": "dc28dbc2f3797f456e114aa905239c127e0207e26be3eeb21852c4d162920da4",
+          "artifactDigest": "51c5f49980c2b161173d04ceac6b7c053a5c9044668ec82fb8d991ff8d418913",
+          "recordedAt": "2026-11-25T19:14:07.516Z"
+        },
+        {
+          "id": "development-d4573ac266e5f6843e321e5e04b84ef82937e28634dfe65a40805e8c5e8a4197:failed-check:development-d4573ac266e5f6843e321e5e04b84ef82937e28634dfe65a40805e8c5e8a4197:tracked-candidate:unit:3f84c95b867122d2da4dfa4b24689927073047d49039ad0c4155df895f74c447",
+          "criterionId": "repository-verification",
+          "kind": "development-check:unit",
+          "issuer": "isolated-real-checks-fixture-signer",
+          "verified": false,
+          "sourceRevision": "dc28dbc2f3797f456e114aa905239c127e0207e26be3eeb21852c4d162920da4",
+          "artifactDigest": "51c5f49980c2b161173d04ceac6b7c053a5c9044668ec82fb8d991ff8d418913",
+          "recordedAt": "2026-11-25T19:14:09.416Z"
+        },
+        {
+          "id": "development-d4573ac266e5f6843e321e5e04b84ef82937e28634dfe65a40805e8c5e8a4197:failed-check:development-d4573ac266e5f6843e321e5e04b84ef82937e28634dfe65a40805e8c5e8a4197:tracked-candidate:integration:3f84c95b867122d2da4dfa4b24689927073047d49039ad0c4155df895f74c447",
+          "criterionId": "repository-verification",
+          "kind": "development-check:integration",
+          "issuer": "isolated-real-checks-fixture-signer",
+          "verified": false,
+          "sourceRevision": "dc28dbc2f3797f456e114aa905239c127e0207e26be3eeb21852c4d162920da4",
+          "artifactDigest": "51c5f49980c2b161173d04ceac6b7c053a5c9044668ec82fb8d991ff8d418913",
+          "recordedAt": "2026-11-25T19:14:11.767Z"
+        },
+        {
+          "id": "development-d4573ac266e5f6843e321e5e04b84ef82937e28634dfe65a40805e8c5e8a4197:failed-check:development-d4573ac266e5f6843e321e5e04b84ef82937e28634dfe65a40805e8c5e8a4197:tracked-candidate:security:3f84c95b867122d2da4dfa4b24689927073047d49039ad0c4155df895f74c447",
+          "criterionId": "repository-verification",
+          "kind": "development-check:security",
+          "issuer": "isolated-real-checks-fixture-signer",
+          "verified": false,
+          "sourceRevision": "dc28dbc2f3797f456e114aa905239c127e0207e26be3eeb21852c4d162920da4",
+          "artifactDigest": "51c5f49980c2b161173d04ceac6b7c053a5c9044668ec82fb8d991ff8d418913",
+          "recordedAt": "2026-11-25T19:14:12.473Z"
+        },
+        {
+          "id": "development-d4573ac266e5f6843e321e5e04b84ef82937e28634dfe65a40805e8c5e8a4197:failed-check:development-d4573ac266e5f6843e321e5e04b84ef82937e28634dfe65a40805e8c5e8a4197:tracked-candidate:build:3f84c95b867122d2da4dfa4b24689927073047d49039ad0c4155df895f74c447",
+          "criterionId": "repository-verification",
+          "kind": "development-check:build",
+          "issuer": "isolated-real-checks-fixture-signer",
+          "verified": false,
+          "sourceRevision": "dc28dbc2f3797f456e114aa905239c127e0207e26be3eeb21852c4d162920da4",
+          "artifactDigest": "51c5f49980c2b161173d04ceac6b7c053a5c9044668ec82fb8d991ff8d418913",
+          "recordedAt": "2026-11-25T19:14:27.924Z"
+        }
+      ],
+      "attempts": [
+        {
+          "signature": "3f84c95b867122d2da4dfa4b24689927073047d49039ad0c4155df895f74c447",
+          "strategyId": "verify-recovery-1",
+          "hypothesis": "check_not_passed:lint,check_not_passed:unit,check_not_passed:integration; Failure can be repaired within the current strategy (1/3)",
+          "recordedAt": "2026-11-25T19:14:32.390Z"
+        }
+      ],
+      "failureSignatures": [
+        "3f84c95b867122d2da4dfa4b24689927073047d49039ad0c4155df895f74c447"
+      ],
+      "rejectedStrategyIds": [
+        "verify-recovery-1"
+      ],
+      "blockers": [],
+      "createdAt": "2026-11-25T19:13:11.425Z",
+      "updatedAt": "2026-11-25T19:14:32.420Z",
+      "history": [
+        {
+          "transitionId": "create:development-d4573ac266e5f6843e321e5e04b84ef82937e28634dfe65a40805e8c5e8a4197",
+          "from": null,
+          "to": "QUEUED",
+          "actor": "state-controller",
+          "reason": "development job created",
+          "at": "2026-11-25T19:13:11.425Z",
+          "evidenceIds": []
+        },
+        {
+          "transitionId": "development-d4573ac266e5f6843e321e5e04b84ef82937e28634dfe65a40805e8c5e8a4197:sequence",
+          "from": "QUEUED",
+          "to": "PLANNING",
+          "actor": "state-controller",
+          "reason": "host-approved development sequence bound before execution",
+          "at": "2026-11-25T19:13:11.426Z",
+          "evidenceIds": [
+            "development-d4573ac266e5f6843e321e5e04b84ef82937e28634dfe65a40805e8c5e8a4197:sequence"
+          ]
+        },
+        {
+          "transitionId": "development-d4573ac266e5f6843e321e5e04b84ef82937e28634dfe65a40805e8c5e8a4197:implementing",
+          "from": "PLANNING",
+          "to": "IMPLEMENTING",
+          "actor": "state-controller",
+          "reason": "resident Builder selected",
+          "at": "2026-11-25T19:13:11.433Z",
+          "evidenceIds": []
+        },
+        {
+          "transitionId": "development-d4573ac266e5f6843e321e5e04b84ef82937e28634dfe65a40805e8c5e8a4197:tdd-red",
+          "from": "IMPLEMENTING",
+          "to": "IMPLEMENTING",
+          "actor": "state-controller",
+          "reason": "failing test Work Item persisted before implementation",
+          "at": "2026-11-25T19:13:15.728Z",
+          "evidenceIds": [
+            "development-d4573ac266e5f6843e321e5e04b84ef82937e28634dfe65a40805e8c5e8a4197:tdd-red"
+          ]
+        },
+        {
+          "transitionId": "development-d4573ac266e5f6843e321e5e04b84ef82937e28634dfe65a40805e8c5e8a4197:verify:development-d4573ac266e5f6843e321e5e04b84ef82937e28634dfe65a40805e8c5e8a4197:tracked-candidate",
+          "from": "IMPLEMENTING",
+          "to": "VERIFYING",
+          "actor": "state-controller",
+          "reason": "isolated Change Set persisted",
+          "at": "2026-11-25T19:14:04.576Z",
+          "evidenceIds": []
+        },
+        {
+          "transitionId": "development-d4573ac266e5f6843e321e5e04b84ef82937e28634dfe65a40805e8c5e8a4197:verification-failed:development-d4573ac266e5f6843e321e5e04b84ef82937e28634dfe65a40805e8c5e8a4197:tracked-candidate:3f84c95b867122d2da4dfa4b24689927073047d49039ad0c4155df895f74c447",
+          "from": "VERIFYING",
+          "to": "RECOVERING",
+          "actor": "state-controller",
+          "reason": "Failure can be repaired within the current strategy (1/3)",
+          "at": "2026-11-25T19:14:32.390Z",
+          "evidenceIds": [
+            "development-d4573ac266e5f6843e321e5e04b84ef82937e28634dfe65a40805e8c5e8a4197:failed-check:development-d4573ac266e5f6843e321e5e04b84ef82937e28634dfe65a40805e8c5e8a4197:tracked-candidate:lint:3f84c95b867122d2da4dfa4b24689927073047d49039ad0c4155df895f74c447",
+            "development-d4573ac266e5f6843e321e5e04b84ef82937e28634dfe65a40805e8c5e8a4197:failed-check:development-d4573ac266e5f6843e321e5e04b84ef82937e28634dfe65a40805e8c5e8a4197:tracked-candidate:typecheck:3f84c95b867122d2da4dfa4b24689927073047d49039ad0c4155df895f74c447",
+            "development-d4573ac266e5f6843e321e5e04b84ef82937e28634dfe65a40805e8c5e8a4197:failed-check:development-d4573ac266e5f6843e321e5e04b84ef82937e28634dfe65a40805e8c5e8a4197:tracked-candidate:unit:3f84c95b867122d2da4dfa4b24689927073047d49039ad0c4155df895f74c447",
+            "development-d4573ac266e5f6843e321e5e04b84ef82937e28634dfe65a40805e8c5e8a4197:failed-check:development-d4573ac266e5f6843e321e5e04b84ef82937e28634dfe65a40805e8c5e8a4197:tracked-candidate:integration:3f84c95b867122d2da4dfa4b24689927073047d49039ad0c4155df895f74c447",
+            "development-d4573ac266e5f6843e321e5e04b84ef82937e28634dfe65a40805e8c5e8a4197:failed-check:development-d4573ac266e5f6843e321e5e04b84ef82937e28634dfe65a40805e8c5e8a4197:tracked-candidate:security:3f84c95b867122d2da4dfa4b24689927073047d49039ad0c4155df895f74c447",
+            "development-d4573ac266e5f6843e321e5e04b84ef82937e28634dfe65a40805e8c5e8a4197:failed-check:development-d4573ac266e5f6843e321e5e04b84ef82937e28634dfe65a40805e8c5e8a4197:tracked-candidate:build:3f84c95b867122d2da4dfa4b24689927073047d49039ad0c4155df895f74c447"
+          ],
+          "failureSignature": "3f84c95b867122d2da4dfa4b24689927073047d49039ad0c4155df895f74c447",
+          "strategyId": "verify-recovery-1"
+        },
+        {
+          "transitionId": "development-d4573ac266e5f6843e321e5e04b84ef82937e28634dfe65a40805e8c5e8a4197:reimplementing:1",
+          "from": "RECOVERING",
+          "to": "IMPLEMENTING",
+          "actor": "state-controller",
+          "reason": "resume persisted diagnosis with a different candidate",
+          "at": "2026-11-25T19:14:32.420Z",
+          "evidenceIds": []
+        }
+      ]
+    }
+  ]
+}

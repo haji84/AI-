@@ -1,0 +1,39 @@
+{
+  "scope": "OPERATOR-ASSISTED ISOLATED FIXTURE ONLY; not autonomous terminal resume or production authority",
+  "before": {
+    "runId": "run-goal-25c92e500ce06c73",
+    "goalId": "goal-25c92e500ce06c73",
+    "phase": "BLOCKED",
+    "currentWork": null,
+    "completedJobs": 0,
+    "totalJobs": null,
+    "recoveryCount": 0,
+    "blockers": [
+      "TRACKED_REPAIR_PROMPT_TOO_LARGE"
+    ],
+    "nextAction": "TRACKED_REPAIR_PROMPT_TOO_LARGE",
+    "evidenceRefs": [],
+    "createdAt": "2026-11-26T10:17:50.479Z",
+    "updatedAt": "2026-11-26T10:19:26.805Z"
+  },
+  "after": {
+    "runId": "run-goal-25c92e500ce06c73",
+    "goalId": "goal-25c92e500ce06c73",
+    "phase": "RECOVERING",
+    "currentWork": null,
+    "completedJobs": 0,
+    "totalJobs": null,
+    "recoveryCount": 0,
+    "blockers": [],
+    "nextAction": "Operator-assisted isolated context repair; resume remaining pinned attempt without resetting Job history",
+    "evidenceRefs": [],
+    "createdAt": "2026-11-26T10:17:50.479Z",
+    "updatedAt": "2026-11-26T10:25:07.794Z"
+  },
+  "jobSha256": "01888e269dbe16a74b84377a96f0114e2841a3437b7d77d30a7eddf53b469377",
+  "manifestSha256": "304d3fb22bcfb7172c12cec3af9b28f0d94c895c82dd0fec827502ba40dedb78",
+  "responseJournals": 1,
+  "jobAttempts": 1,
+  "remainingModelCalls": 1,
+  "reason": "Corrected source context bounds after malformed first candidate; all immutable files and signed FAIL retained"
+}

@@ -1,0 +1,302 @@
+{
+  "goal": {
+    "id": 1,
+    "title": "GORIQ自身の修復処理で生成コードの文字列が壊れる不具合を修正して",
+    "description": "GORIQ自身の修復処理で生成コードの文字列が壊れる不具合を修正して",
+    "successCriteria": [
+      "生成されたソースのドル記号を含む文字列を正確に保存する"
+    ],
+    "constraints": [
+      "許可された隔離ソースのみ",
+      "本番反映や外部公開はしない"
+    ],
+    "createdAt": "2026-11-26T10:17:50.470Z",
+    "updatedAt": "2026-11-26T10:17:50.470Z"
+  },
+  "state": {
+    "projectId": "default",
+    "phase": null,
+    "status": "ISOLATED_OPERATOR_ASSISTED_RECOVERY",
+    "completed": [],
+    "active": [
+      {
+        "kind": "gai-goal-controller-decisions",
+        "version": 1,
+        "records": [
+          {
+            "keyDigest": "65ed27bc95c883390b77a230e984a80f45ef6efbd9d447e58a0d99e60d000319",
+            "decision": {
+              "resolution": {
+                "kind": "NEW_GOAL",
+                "intent": "GOAL",
+                "intake": {
+                  "id": "intake-65ed27bc95c883390b77",
+                  "source": "jarvis",
+                  "text": "GORIQ自身の修復処理で生成コードの文字列が壊れる不具合を修正して",
+                  "sourceContext": {},
+                  "idempotencyKey": "sha256:65ed27bc95c883390b77a230e984a80f45ef6efbd9d447e58a0d99e60d000319",
+                  "goalContract": {
+                    "successCriteria": [
+                      "生成されたソースのドル記号を含む文字列を正確に保存する"
+                    ],
+                    "constraints": [
+                      "許可された隔離ソースのみ",
+                      "本番反映や外部公開はしない"
+                    ]
+                  }
+                },
+                "reason": "new_goal_intent",
+                "goal": {
+                  "goal": {
+                    "title": "GORIQ自身の修復処理で生成コードの文字列が壊れる不具合を修正して",
+                    "description": "GORIQ自身の修復処理で生成コードの文字列が壊れる不具合を修正して",
+                    "successCriteria": [
+                      "生成されたソースのドル記号を含む文字列を正確に保存する"
+                    ],
+                    "constraints": [
+                      "許可された隔離ソースのみ",
+                      "本番反映や外部公開はしない"
+                    ]
+                  },
+                  "goalId": "goal-25c92e500ce06c73",
+                  "workState": null
+                }
+              },
+              "action": "CONTINUE_GOAL",
+              "goalId": "goal-25c92e500ce06c73",
+              "nextAction": null,
+              "remainingCriteria": [
+                "criterion-1"
+              ]
+            },
+            "updatedAt": "2026-11-26T10:17:50.472Z"
+          },
+          {
+            "keyDigest": "f2be5eff795b081db51a19383cccf0b9b8de1452955b92797eb5f8cf097a78bb",
+            "decision": {
+              "resolution": {
+                "kind": "EXISTING_GOAL",
+                "intent": "COMMAND",
+                "intake": {
+                  "id": "intake-f2be5eff795b081db51a",
+                  "source": "jarvis",
+                  "text": "続けて",
+                  "sourceContext": {},
+                  "idempotencyKey": "sha256:f2be5eff795b081db51a19383cccf0b9b8de1452955b92797eb5f8cf097a78bb",
+                  "goalHint": "goal-25c92e500ce06c73"
+                },
+                "goal": {
+                  "goal": {
+                    "title": "GORIQ自身の修復処理で生成コードの文字列が壊れる不具合を修正して",
+                    "description": "GORIQ自身の修復処理で生成コードの文字列が壊れる不具合を修正して",
+                    "successCriteria": [
+                      "生成されたソースのドル記号を含む文字列を正確に保存する"
+                    ],
+                    "constraints": [
+                      "許可された隔離ソースのみ",
+                      "本番反映や外部公開はしない"
+                    ]
+                  },
+                  "goalId": "goal-25c92e500ce06c73",
+                  "workState": {
+                    "goalId": "goal-25c92e500ce06c73",
+                    "objective": "GORIQ自身の修復処理で生成コードの文字列が壊れる不具合を修正して",
+                    "definitionOfDone": [
+                      {
+                        "id": "criterion-1",
+                        "description": "生成されたソースのドル記号を含む文字列を正確に保存する",
+                        "required": true
+                      }
+                    ],
+                    "riskClass": "R1",
+                    "constraints": [
+                      "許可された隔離ソースのみ",
+                      "本番反映や外部公開はしない"
+                    ],
+                    "decisions": [],
+                    "artifacts": [],
+                    "childWorkItems": [],
+                    "currentState": "Approved development Job progress persisted",
+                    "status": "VERIFYING",
+                    "verificationResults": [],
+                    "blockers": [],
+                    "nextAction": "verification_recovery:repair:b222b1488c2424a51bc7d3317a7162ffe60ee0d13b1fa6132b6655394d925461",
+                    "updatedAt": "2026-11-26T10:19:23.410Z"
+                  }
+                },
+                "reason": "explicit_goal_hint"
+              },
+              "action": "CONTINUE_GOAL",
+              "goalId": "goal-25c92e500ce06c73",
+              "nextAction": "verification_recovery:repair:b222b1488c2424a51bc7d3317a7162ffe60ee0d13b1fa6132b6655394d925461",
+              "remainingCriteria": [
+                "criterion-1"
+              ]
+            },
+            "updatedAt": "2026-11-26T10:22:53.958Z"
+          },
+          {
+            "keyDigest": "677108215b994ae9781118393804ce18e135f03e053fa4d4d8be14328fca16aa",
+            "decision": {
+              "resolution": {
+                "kind": "EXISTING_GOAL",
+                "intent": "COMMAND",
+                "intake": {
+                  "id": "intake-677108215b994ae97811",
+                  "source": "jarvis",
+                  "text": "続けて",
+                  "sourceContext": {},
+                  "idempotencyKey": "sha256:677108215b994ae9781118393804ce18e135f03e053fa4d4d8be14328fca16aa",
+                  "goalHint": "goal-25c92e500ce06c73"
+                },
+                "goal": {
+                  "goal": {
+                    "title": "GORIQ自身の修復処理で生成コードの文字列が壊れる不具合を修正して",
+                    "description": "GORIQ自身の修復処理で生成コードの文字列が壊れる不具合を修正して",
+                    "successCriteria": [
+                      "生成されたソースのドル記号を含む文字列を正確に保存する"
+                    ],
+                    "constraints": [
+                      "許可された隔離ソースのみ",
+                      "本番反映や外部公開はしない"
+                    ]
+                  },
+                  "goalId": "goal-25c92e500ce06c73",
+                  "workState": {
+                    "goalId": "goal-25c92e500ce06c73",
+                    "objective": "GORIQ自身の修復処理で生成コードの文字列が壊れる不具合を修正して",
+                    "definitionOfDone": [
+                      {
+                        "id": "criterion-1",
+                        "description": "生成されたソースのドル記号を含む文字列を正確に保存する",
+                        "required": true
+                      }
+                    ],
+                    "riskClass": "R1",
+                    "constraints": [
+                      "許可された隔離ソースのみ",
+                      "本番反映や外部公開はしない"
+                    ],
+                    "decisions": [],
+                    "artifacts": [],
+                    "childWorkItems": [],
+                    "currentState": "Approved development Job progress persisted",
+                    "status": "VERIFYING",
+                    "verificationResults": [],
+                    "blockers": [],
+                    "nextAction": "verification_recovery:repair:b222b1488c2424a51bc7d3317a7162ffe60ee0d13b1fa6132b6655394d925461",
+                    "updatedAt": "2026-11-26T10:19:23.410Z"
+                  }
+                },
+                "reason": "explicit_goal_hint"
+              },
+              "action": "CONTINUE_GOAL",
+              "goalId": "goal-25c92e500ce06c73",
+              "nextAction": "verification_recovery:repair:b222b1488c2424a51bc7d3317a7162ffe60ee0d13b1fa6132b6655394d925461",
+              "remainingCriteria": [
+                "criterion-1"
+              ]
+            },
+            "updatedAt": "2026-11-26T10:25:09.372Z"
+          }
+        ]
+      },
+      {
+        "kind": "goriq-goal-execution-context",
+        "version": 1,
+        "records": [
+          {
+            "goalId": "goal-25c92e500ce06c73",
+            "context": [
+              {
+                "source": "owner-work-intake",
+                "text": "続けて",
+                "intent": "COMMAND"
+              }
+            ],
+            "updatedAt": "2026-11-26T10:25:09.381Z"
+          }
+        ]
+      },
+      {
+        "kind": "jarvis-work-runs",
+        "version": 1,
+        "runs": [
+          {
+            "runId": "run-goal-25c92e500ce06c73",
+            "goalId": "goal-25c92e500ce06c73",
+            "phase": "RUNNING",
+            "currentWork": null,
+            "completedJobs": 0,
+            "totalJobs": null,
+            "recoveryCount": 0,
+            "blockers": [],
+            "nextAction": "Execute accepted Goal",
+            "evidenceRefs": [],
+            "createdAt": "2026-11-26T10:17:50.479Z",
+            "updatedAt": "2026-11-26T10:25:09.713Z"
+          }
+        ]
+      },
+      {
+        "kind": "goriq-goal-bridge-events",
+        "version": 1,
+        "events": [
+          {
+            "id": "gbe-52fe0e9fbfb2d07e7db13fa2",
+            "goalId": "goal-25c92e500ce06c73",
+            "type": "IMPORTANT_UPDATE",
+            "summary": "verification_wait",
+            "evidenceRefs": [],
+            "createdAt": "2026-11-26T10:19:04.920Z"
+          },
+          {
+            "id": "gbe-9b20f623154cb65f9abb9259",
+            "goalId": "goal-25c92e500ce06c73",
+            "type": "GOAL_BLOCKED",
+            "summary": "execution_failed",
+            "evidenceRefs": [],
+            "createdAt": "2026-11-26T10:19:26.811Z"
+          }
+        ]
+      },
+      {
+        "kind": "gai-work-state",
+        "version": 1,
+        "goalId": "goal-25c92e500ce06c73",
+        "state": {
+          "goalId": "goal-25c92e500ce06c73",
+          "objective": "GORIQ自身の修復処理で生成コードの文字列が壊れる不具合を修正して",
+          "definitionOfDone": [
+            {
+              "id": "criterion-1",
+              "description": "生成されたソースのドル記号を含む文字列を正確に保存する",
+              "required": true
+            }
+          ],
+          "riskClass": "R1",
+          "constraints": [
+            "許可された隔離ソースのみ",
+            "本番反映や外部公開はしない"
+          ],
+          "decisions": [],
+          "artifacts": [],
+          "childWorkItems": [],
+          "currentState": "Approved development Job progress persisted",
+          "status": "VERIFYING",
+          "verificationResults": [],
+          "blockers": [],
+          "nextAction": "verification_recovery:repair:b222b1488c2424a51bc7d3317a7162ffe60ee0d13b1fa6132b6655394d925461",
+          "updatedAt": "2026-11-26T10:19:23.410Z"
+        },
+        "events": []
+      }
+    ],
+    "blockers": [],
+    "decisions": [],
+    "deliverables": [],
+    "verificationSummary": null,
+    "nextAction": null,
+    "updatedAt": "2026-11-26T10:25:09.715Z"
+  }
+}

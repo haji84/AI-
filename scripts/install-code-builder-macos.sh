@@ -21,6 +21,22 @@ ERR_PATH="$ROOT/worker.stderr.log"
 mkdir -p "$ROOT" "$(dirname "$POLICY_PATH")" "$HOME/Library/LaunchAgents"
 cp "$SERVICE_SOURCE" "$SERVICE_PATH"
 cp "$POLICY_SOURCE" "$POLICY_PATH"
+RESOURCE_RUNTIME_FILES=(
+  'src/gai/development-resource-admission.ts'
+  'src/gai/worker-resource-probe.ts'
+  'src/gai/worker-runtime.ts'
+  'src/gai/cognitive-lease.ts'
+  'scripts/goriq-ollama-repair.mjs'
+)
+for runtime_file in "${RESOURCE_RUNTIME_FILES[@]}"; do
+  if [[ "$runtime_file" == scripts/* ]]; then
+    runtime_target="$ROOT/${runtime_file#scripts/}"
+  else
+    runtime_target="$GAI_ROOT/$runtime_file"
+  fi
+  mkdir -p "$(dirname "$runtime_target")"
+  cp "$SOURCE_REPO/$runtime_file" "$runtime_target"
+done
 
 if [[ ! -d "$WORKSPACE/.git" ]]; then
   origin="$(git -C "$SOURCE_REPO" remote get-url origin)"

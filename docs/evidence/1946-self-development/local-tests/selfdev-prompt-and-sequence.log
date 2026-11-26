@@ -1,0 +1,12 @@
+✔ tracked sequence reuses one Goal authority and starts a real source successor only after verified predecessor (24211.1136ms)
+✔ tracked sequence refuses changed pins, reused workspaces, receipts and mismatched criteria before inference (4013.0986ms)
+✔ tracked sequence rejects competing profiles instead of silently selecting another controller (762.7197ms)
+✔ real durable host performs trusted RED then one bounded edit and waits for a bound receipt (10154.56ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 39344.1042

@@ -193,3 +193,31 @@ test("owner-pinned Codex health has an abort deadline and no redirect", async ()
   assert.equal(healthCalls, 1);
   assert.equal(buildCalls, 0);
 });
+
+test("Codex workspace comparison normalizes trailing separators but preserves POSIX case",async()=>{
+  for(const [expected,actual,accepted] of [["C:\\Isolated\\goal-one\\","c:\\isolated\\goal-one",true],
+    ["/srv/Isolated/goal-one/","/srv/Isolated/goal-one",true],["/srv/Isolated/goal-one","/srv/isolated/goal-one",false]] as const){
+    let posts=0;
+    const fetchImpl:typeof fetch=async input=>{
+      if(String(input).endsWith("/health"))return Response.json({ok:true,service:"code-builder-worker",engine:"codex",capabilities:["code-builder"],workspace:actual});
+      posts++;return Response.json({ok:true,summary:"scoped fixture build",requestedAuthority:[]});
+    };
+    const router=createRuntimeBuilderRouter({CODE_BUILDER_PLAN_CODEX_APPROVED:"1",CODE_BUILDER_PLAN_CODEX_URL:"http://127.0.0.1:8797",
+      CODE_BUILDER_PLAN_CODEX_TOKEN:"fixture-token",CODE_BUILDER_PLAN_CODEX_WORKSPACE:expected},fetchImpl);
+    const result=await createCodeBuilderCapability(router).execute({id:"workspace",description:"fixture",capability:"code.builder",risk:"low",
+      input:{goalId:"fixture",attemptId:"attempt",strategyId:"strategy",objective:"fixture"}},[]);
+    assert.equal(result.ok,accepted,expected+" vs "+actual);assert.equal(posts,accepted?1:0);
+  }
+});
+
+test("Codex honors the trusted host stop after health and before dispatching a write",async()=>{
+  let posts=0,stops=0;const stop=Error("canonical owner stop");
+  const router=createRuntimeBuilderRouter({CODE_BUILDER_PLAN_CODEX_APPROVED:"1",CODE_BUILDER_PLAN_CODEX_URL:"http://127.0.0.1:8797",
+    CODE_BUILDER_PLAN_CODEX_TOKEN:"fixture-token",CODE_BUILDER_PLAN_CODEX_WORKSPACE:"/srv/isolated/goal"},async input=>{
+    if(String(input).endsWith("/health"))return Response.json({ok:true,service:"code-builder-worker",engine:"codex",capabilities:["code-builder"],workspace:"/srv/isolated/goal"});
+    posts++;return Response.json({ok:true,summary:"must not write"});
+  },{beforeWrite:async()=>{stops++;throw stop;}});
+  await assert.rejects(()=>createCodeBuilderCapability(router).execute({id:"stop",description:"fixture",capability:"code.builder",risk:"low",
+    input:{goalId:"fixture",attemptId:"attempt",strategyId:"strategy",objective:"fixture"}},[]),error=>error===stop);
+  assert.equal(stops,1);assert.equal(posts,0);
+});

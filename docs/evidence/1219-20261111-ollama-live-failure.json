@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "scope": "isolated-live-model-source-candidate-only",
+  "startedAt": "2026-11-11T13:13:32.184Z",
+  "finishedAt": "2026-11-11T13:14:21.850Z",
+  "runtimeBase": "374d65e7e2b1d2109ddf97f9cf5c3a1e9716fac1",
+  "runtimeSourceSha256": "ff5a720c15ce57b1b12c82a08d36655023b604e2dddaeaab8f4aafff7b06a3bd",
+  "originalOwnerGoalTouched": false,
+  "originalOwnerGoalAuthenticated": false,
+  "fixturePublicKeyOnly": true,
+  "independentProductionSigner": false,
+  "distributedOwnership": false,
+  "model": {
+    "name": "qwen2.5-coder:3b",
+    "digest": "f72c60cabf6237b07f6e632b2c48d533cef25eda2efbd34bed21c5e9c01e6225"
+  },
+  "goalId": "goal-256f4596b6ceb38e",
+  "jobStates": [
+    {
+      "jobId": "development-d4cc2351f818abcafecb65e8b4e1841a2c69435fe2c24de423024fec566057cd",
+      "phase": "VERIFYING"
+    }
+  ],
+  "changes": [
+    {
+      "changeSetId": "development-d4cc2351f818abcafecb65e8b4e1841a2c69435fe2c24de423024fec566057cd:tracked-red",
+      "status": "VERIFIED",
+      "sourceRevision": "688dd94b340fea03ecb05b085c2d57a3dbc50196449913e4f45404e555c60ef4",
+      "artifactDigest": "3e690c34fe927baade796635eaddec2d86e6b3581fbb28b9d5bf0193933d4c12"
+    },
+    {
+      "changeSetId": "development-d4cc2351f818abcafecb65e8b4e1841a2c69435fe2c24de423024fec566057cd:tracked-candidate",
+      "status": "LOCAL",
+      "sourceRevision": "3fa03b8698bc0d8ed5e7f34c5594190eed1ef88e5362b9b79e45bc569f852c48",
+      "artifactDigest": "b384930b324198476af0419e1923f005b6c09e0c061e774b644c2a65382f1157"
+    }
+  ],
+  "report": {
+    "cycles": [],
+    "stopReason": "cycle_budget_exhausted",
+    "goalEvaluation": {
+      "achieved": false,
+      "verifiedRequired": [],
+      "failedRequired": [],
+      "unverifiedRequired": [
+        "criterion-1"
+      ],
+      "blockers": [],
+      "remainingGaps": [
+        "independent_verifier_pending:missing_evidence:lint,missing_evidence:typecheck,missing_evidence:unit,missing_evidence:integration,missing_evidence:security,missing_evidence:build"
+      ]
+    }
+  },
+  "candidateProbe": {
+    "exit": 1,
+    "signal": null,
+    "sha256": "4fff13870c1044150f70a1b0d1b205eb72c36da34226e5c9d180597aae710af0"
+  },
+  "candidatePatchSha256": "d02675c70cd1366fc32e8310554b33512b0d7addf1b1fbbf490a235834d44cb2",
+  "candidateSourceSha256": "b384930b324198476af0419e1923f005b6c09e0c061e774b644c2a65382f1157",
+  "evidence": [
+    {
+      "name": "d556d76e73e5103836c78a0c0007e3d62059244d2f34c3ceca0a9071e1f7a9a2.prepared.json",
+      "sha256": "e477372af7a76767d3c099b4340030cddd72f971339af18a9d7609db74fffd59"
+    },
+    {
+      "name": "d556d76e73e5103836c78a0c0007e3d62059244d2f34c3ceca0a9071e1f7a9a2.prepared.json.intent.json",
+      "sha256": "b8a140aa93c6d204f446489fa7f8d5d18289cf2ccece742bd8aab54dccd88751"
+    },
+    {
+      "name": "d556d76e73e5103836c78a0c0007e3d62059244d2f34c3ceca0a9071e1f7a9a2.prepared.json.model-attestation.json",
+      "sha256": "5cf4b28b3a34feb88db5da476bab00379b2596ba9f41af0ed91d240eaefa7d15"
+    },
+    {
+      "name": "d556d76e73e5103836c78a0c0007e3d62059244d2f34c3ceca0a9071e1f7a9a2.prepared.json.response.json",
+      "sha256": "aa21ef23be7a5e9b62d62952109e2cec40b29b5385c7666690c804f5b430150b"
+    },
+    {
+      "name": "d556d76e73e5103836c78a0c0007e3d62059244d2f34c3ceca0a9071e1f7a9a2.red.json",
+      "sha256": "91239148843dce5d7a8410d378b37cada488bb7843b9056ece58f3c73e60d887"
+    },
+    {
+      "name": "d556d76e73e5103836c78a0c0007e3d62059244d2f34c3ceca0a9071e1f7a9a2.red.json.log",
+      "sha256": "d7a65a8629bd14dd7f89e8a923945c4401de8cc7bd70b2ba5937b3164b27813a"
+    }
+  ],
+  "replay": {
+    "report": {
+      "cycles": [],
+      "stopReason": "cycle_budget_exhausted",
+      "goalEvaluation": {
+        "achieved": false,
+        "verifiedRequired": [],
+        "failedRequired": [],
+        "unverifiedRequired": [
+          "criterion-1"
+        ],
+        "blockers": [],
+        "remainingGaps": [
+          "independent_verifier_pending:missing_evidence:lint,missing_evidence:typecheck,missing_evidence:unit,missing_evidence:integration,missing_evidence:security,missing_evidence:build"
+        ]
+      }
+    },
+    "noModelCalls": true
+  },
+  "failureClass": "SyntaxError: Missing catch or finally after try",
+  "observedProductionAcceptance": false,
+  "archive": {
+    "path": "docs/evidence/1219-20261111-ollama-live-failure.zip",
+    "sha256": "8079be9748b101114dbe3312a5c468966d6ec14bf05857170133f6addc8a5703",
+    "bytes": 35923
+  }
+}

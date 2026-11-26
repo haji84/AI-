@@ -1,0 +1,39 @@
+{
+  "recordedAt": "2026-11-15T22:01:17.815833+00:00",
+  "issue": 1219,
+  "goalId": "goal-fcc81c97e09153f7",
+  "jobId": "rotation-recovery-37",
+  "baseMain": "005d01fdd4dc0fe3aed14b8d859e86ac65bf0f23",
+  "actualAuthor": "Codex",
+  "localModelRun": false,
+  "productionOriginalRecovered": false,
+  "product": "NOT_ACHIEVED",
+  "G1": "HOLD",
+  "g1Record": "https://github.com/haji84/AI-/issues/1219#issuecomment-6902027999",
+  "bug": "Legacy tracked Actions checkpoint admitted missing model response or response bytes disagreeing with prepared.responseSha256 even when the transport entry digest was recomputed. Existing producer writes response first and pins its SHA in prepared.",
+  "change": "Require exact existing prepared.response.json entry and compare its bytes to the prepared digest in the shared validator. Preserve fixed format, every gate/cap and existing multiattempt/Ollama refusal.",
+  "redGreen": {
+    "originalBaseline": {
+      "pass": 14,
+      "fail": 0
+    },
+    "frozenNewRegressionsBeforeFix": {
+      "pass": 14,
+      "fail": 2,
+      "signature": "Missing expected exception"
+    },
+    "sameRegressionsAfterFix": {
+      "pass": 16,
+      "fail": 0
+    },
+    "codecBoundariesPrivateProbe": {
+      "pass": 2,
+      "fail": 0
+    },
+    "old14TestBodiesAssertionsPreserved": true
+  },
+  "canonicalMetadata": "Only exact source SHA reconciled; classifications/requirements/reason unchanged. Audit before: changed surface needs reconciliation.",
+  "integration": "Candidate authoring checkpoint; full local/exact PR CI/protected merge/exact main CI/posttest results must be read from linked Issue and PR, no PASS inferred here.",
+  "rollback": "Revert validator/test change and matching surface digest together through ordinary protected change; retain evidence/failed-history. No production data or environment state changed.",
+  "remaining": "G1 original state/Job/ChangeSet/all attempts/stops/approvals missing; G2–G13 original-Goal actual AI recovery/cross-Actions/nextJob/artifact behavior unproved."
+}

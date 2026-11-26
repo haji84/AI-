@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -72,4 +72,45 @@ test("runtime approval rejects enrollment authority, another host and expired or
     { ...approval, approvedAt: "2026-10-01T13:00:00Z" },
   ]) assert.throws(() => validatePcRuntimeRefreshApproval(invalid, now), /PC_RUNTIME_APPROVAL_REQUIRED/);
   assert.throws(() => validatePcRuntimeRefreshApproval(approval, new Date(approval.expiresAt)), /PC_RUNTIME_APPROVAL_REQUIRED/);
+});
+
+test("runtime approval honors only the exact renewed ZBook window beyond 24 hours", () => {
+  const renewed = {
+    ...approval,
+    approvedAt: "2026-11-23T12:15:59.000Z",
+    expiresAt: "2026-11-26T12:15:00.000Z",
+  };
+  const secondDay = new Date("2026-11-25T00:00:00Z");
+  for (const allowedAt of [renewed.approvedAt, secondDay, "2026-11-26T12:14:59.999Z"]) {
+    assert.deepEqual(validatePcRuntimeRefreshApproval(renewed, new Date(allowedAt)), renewed);
+  }
+  for (const refusedAt of ["2026-11-23T12:15:58.999Z", renewed.expiresAt, "2026-11-26T12:15:00.001Z"]) {
+    assert.throws(() => validatePcRuntimeRefreshApproval(renewed, new Date(refusedAt)), /PC_RUNTIME_APPROVAL_REQUIRED/);
+  }
+  for (const invalid of [
+    { ...renewed, approvedAt: "2026-11-23T12:15:58.999Z" },
+    { ...renewed, expiresAt: "2026-11-26T12:15:00.001Z" },
+    { ...renewed, expiresAt: "2026-11-26T12:15:00.0001Z" },
+    { ...renewed, operation: "pc-enrollment" },
+    { ...renewed, issue: 1787 },
+    { ...renewed, goalIssue: 1662 },
+    { ...renewed, targets: [{ nodeId: "zbook", platform: "macos" }] },
+    { ...renewed, targets: [...renewed.targets, ...renewed.targets] },
+    { ...renewed, roles: ["Executor"] },
+  ]) assert.throws(() => validatePcRuntimeRefreshApproval(invalid, secondDay), /PC_RUNTIME_APPROVAL_REQUIRED/);
+  assert.deepEqual(JSON.parse(readFileSync(new URL("../docs/authorizations/1662-zbook-runtime-refresh.json", import.meta.url), "utf8")), renewed);
+});
+
+test("PowerShell enforces the exact approval window and protects ADB during runtime stop", t => {
+  const shell = process.platform === "win32" ? "powershell.exe" : "pwsh";
+  const fixture = join(import.meta.dirname, "goriq-pc-runtime-approval.test.ps1");
+  const result = spawnSync(shell, ["-NoProfile", "-NonInteractive", "-File", fixture], { encoding: "utf8", timeout: 10_000 });
+  const error = result.error as NodeJS.ErrnoException | undefined;
+  if (process.platform !== "win32" && error?.code === "ENOENT") {
+    t.skip("PowerShell is unavailable");
+    return;
+  }
+  assert.ifError(result.error);
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /Runtime approval fixtures PASS/);
 });

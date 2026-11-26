@@ -1,0 +1,19 @@
+{
+  "status": "OWNER_APPROVED_TASK_SCOPE",
+  "source": "Authenticated owner user message in current task conversation",
+  "ownerMessage": "\u627f\u8a8d",
+  "receivedUTC": "2026-11-18T14:38:49.822892+00:00",
+  "issue": 1219,
+  "goal": "goal-fcc81c97e09153f7",
+  "job": "rotation-recovery-37",
+  "scopeManifestSha256": "477f156730cab88b3a27588ef4bee6af52dcb88a2594d7978c4b57aa935b5599",
+  "scopeFiles": {
+    "SOURCE_PRIVATE_BOUNDARY_REPAIR_PROPOSAL.json": "62b7f87b40f8425e73977849e6995e7451e8df2f3fd4f9c9cc0c704d9160181d",
+    "1219-repair-scope-ja.txt": "fc5eb7026d192b1a661c74429c4c70a880a5167b6c663965913768634561373a"
+  },
+  "expiresUTC": "2026-11-18T16:58:55.255367+00:00",
+  "scope": "ExactfrozenprivateSourceDACLboundary+permanentsourceancestorintegritypolicy, verifiedbackup/compareguardedrollbackincludingreadregrant. No wholeAppDataACL/owner/credential/servicechanges. ActualSID/rootIDs/implementationdigest locallyboundbeforefirstwrite.",
+  "maxApplyAttempts": 1,
+  "actualDeviceMutated": false,
+  "formalControllerWriteback": "Unavailable; no Controller state fabricated"
+}

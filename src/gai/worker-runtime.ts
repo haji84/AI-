@@ -38,6 +38,10 @@ export interface WorkerResourceSnapshot {
   gpuLoadPercent?: number;
   memoryAvailableMb?: number;
   diskAvailableMb?: number;
+  committedMemoryMb?: number;
+  commitLimitMb?: number;
+  diskLoadPercent?: number;
+  gpuMemoryAvailableMb?: number;
   batteryPercent?: number;
   onExternalPower?: boolean;
   thermalState?: WorkerThermalState;
@@ -50,6 +54,9 @@ export interface WorkerResourceRequirements {
   minDiskAvailableMb?: number;
   maxCpuLoadPercent?: number;
   maxGpuLoadPercent?: number;
+  maxCommitPercent?: number;
+  maxDiskLoadPercent?: number;
+  minGpuMemoryAvailableMb?: number;
   requiredDataLocalityKeys?: string[];
   preferredDataLocalityKeys?: string[];
   preferExternalPower?: boolean;
@@ -173,6 +180,7 @@ export function validateWorkerResourceRequirements(requirements: WorkerResourceR
   for (const [name, value] of [
     ["minMemoryAvailableMb", requirements.minMemoryAvailableMb],
     ["minDiskAvailableMb", requirements.minDiskAvailableMb],
+    ["minGpuMemoryAvailableMb", requirements.minGpuMemoryAvailableMb],
   ] as const) {
     if (value !== undefined && (!Number.isFinite(value) || value < 0)) {
       throw new Error(`${name} must be a non-negative finite number`);
@@ -181,6 +189,8 @@ export function validateWorkerResourceRequirements(requirements: WorkerResourceR
   for (const [name, value] of [
     ["maxCpuLoadPercent", requirements.maxCpuLoadPercent],
     ["maxGpuLoadPercent", requirements.maxGpuLoadPercent],
+    ["maxCommitPercent", requirements.maxCommitPercent],
+    ["maxDiskLoadPercent", requirements.maxDiskLoadPercent],
   ] as const) {
     if (value !== undefined && !validPercent(value)) throw new Error(`${name} must be between 0 and 100`);
   }
@@ -217,6 +227,32 @@ export function evaluateWorkerResourcePlacement(input: WorkerResourcePlacementIn
   const requirements = input.requirements;
   const reasons: string[] = [];
   let score = 0;
+
+  for (const [name, value] of [
+    ["memoryAvailableMb", resources.memoryAvailableMb],
+    ["diskAvailableMb", resources.diskAvailableMb],
+    ["gpuMemoryAvailableMb", resources.gpuMemoryAvailableMb],
+    ["committedMemoryMb", resources.committedMemoryMb],
+    ["commitLimitMb", resources.commitLimitMb],
+  ] as const) {
+    if (value !== undefined && (typeof value !== "number" || !Number.isFinite(value) || value < 0)) {
+      return { eligible: false, score: 0, reasons: [`invalid ${name} observation`] };
+    }
+  }
+  for (const [name, value] of [
+    ["cpuLoadPercent", resources.cpuLoadPercent],
+    ["gpuLoadPercent", resources.gpuLoadPercent],
+    ["diskLoadPercent", resources.diskLoadPercent],
+    ["batteryPercent", resources.batteryPercent],
+  ] as const) {
+    if (value !== undefined && !validPercent(value)) {
+      return { eligible: false, score: 0, reasons: [`invalid ${name} observation`] };
+    }
+  }
+  if (resources.commitLimitMb === 0 || (resources.commitLimitMb !== undefined
+      && resources.committedMemoryMb !== undefined && resources.committedMemoryMb > resources.commitLimitMb)) {
+    return { eligible: false, score: 0, reasons: ["contradictory commit observation"] };
+  }
 
   if (resources.cpuAvailable === false) return { eligible: false, score: 0, reasons: ["cpu unavailable"] };
   if (resources.thermalState === "critical") return { eligible: false, score: 0, reasons: ["thermal critical"] };
@@ -265,6 +301,22 @@ export function evaluateWorkerResourcePlacement(input: WorkerResourcePlacementIn
   if (requirements?.maxGpuLoadPercent !== undefined) {
     if (!validPercent(resources.gpuLoadPercent) || resources.gpuLoadPercent > requirements.maxGpuLoadPercent) {
       return { eligible: false, score: 0, reasons: ["gpu load requirement unavailable or exceeded"] };
+    }
+  }
+  if (requirements?.maxCommitPercent !== undefined) {
+    if (resources.committedMemoryMb === undefined || resources.commitLimitMb === undefined
+        || resources.committedMemoryMb / resources.commitLimitMb * 100 > requirements.maxCommitPercent) {
+      return { eligible: false, score: 0, reasons: ["commit requirement unavailable or exceeded"] };
+    }
+  }
+  if (requirements?.maxDiskLoadPercent !== undefined) {
+    if (!validPercent(resources.diskLoadPercent) || resources.diskLoadPercent > requirements.maxDiskLoadPercent) {
+      return { eligible: false, score: 0, reasons: ["disk load requirement unavailable or exceeded"] };
+    }
+  }
+  if (requirements?.minGpuMemoryAvailableMb !== undefined) {
+    if (resources.gpuMemoryAvailableMb === undefined || resources.gpuMemoryAvailableMb < requirements.minGpuMemoryAvailableMb) {
+      return { eligible: false, score: 0, reasons: ["required gpu memory unavailable or unknown"] };
     }
   }
 

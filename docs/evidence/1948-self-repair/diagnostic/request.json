@@ -1,0 +1,25 @@
+{
+  "scope": "READ-ONLY diagnostic, not a Goal completion or adopted source fix",
+  "baseline": "8ca36986e759f2fe8b3257f07d36bf30afa05fb6",
+  "issue": 1948,
+  "variable": "source context extent only",
+  "model": {
+    "provider": "ollama",
+    "endpoint": "http://127.0.0.1:11434/api/generate",
+    "id": "qwen3:4b",
+    "sha256": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
+    "nPredict": 768,
+    "timeoutMs": 120000
+  },
+  "originalIntentSha256": "cbe5efa9c7381f0bb3a361448e987074fd8519c9d210ba316e5ccaf3e44a12e7",
+  "originalPromptSha256": "3a64d0ec4891667b00105d96de8f21b240929bbdc3d328e2672bc6986362fc39",
+  "promptSha256": "57aa4cb09eee159ac1078990f2ad5a3b43ba95ef9444df295370a23c06212f2a",
+  "originalBytes": 19278,
+  "focusedBytes": 2625,
+  "sourceLines": [
+    72,
+    85
+  ],
+  "startedAt": "2026-11-26T10:04:00.470Z",
+  "prompt": "SOURCE src/gai/cognitive-service.ts\n        localActionsConfigured: localConfigured, research: await this.learning.researchStatus(this.options.partition!), metrics };\n    } finally { compass.close(); }\n  }\n  /** Local callers may allocate the existing bounded runner's budget; HTTP keeps the default. */\n  async continue(goalId: string, options: { maxCycles?: number } = {}) {\n    const maxCycles = options.maxCycles ?? 3;\n    if (!Number.isInteger(maxCycles) || maxCycles < 1 || maxCycles > 100) throw Error(\"maxCycles must be an integer from 1 to 100\");\n    await this.validateStateRoot();\n    if (this.busy) throw Error(\"Cognitive cycle already running\");\n    if (typeof goalId !== \"string\" || !/^goal-[a-f0-9]{16}$/.test(goalId)) throw Error(\"Invalid Goal ID\");\n    this.busy = true;\n    try {\n      const report = await new CompassGoalExecutionAdapter(this.dbPath, {}, { ...this.options, useCore: true, learning: this.learning }).run(goalId, { maxCycles });\n      return { stopReason: report.stopReason, cycles: report.cycles.length, goalEvaluation: report.goalEvaluation ?? null };\nSLOT 1 in src/gai/cognitive-service.ts; exact selected before text:\nconst maxCycles = options.maxCycles ?? 3;\nThe trusted frozen regression failed on the original baseline. Objective: Implement the smallest change that passes the new test: Repair the actual CognitiveService budget bug: explicit maxCycles null is invalid, not the same as absent/undefined. Reject it through the existing integer check before any DB access; preserve the default for undefined. Change only the selected declaration.\n\nFrozen regression (read-only):\nimport assert from 'node:assert/strict';\nimport {mkdtempSync,mkdirSync,readFileSync,writeFileSync,readdirSync,rmSync,existsSync} from 'node:fs';\nimport {tmpdir} from 'node:os';\nimport {join} from 'node:path';\nimport {pathToFileURL} from 'node:url';\nconst cwd=process.cwd();\nconst {CognitiveService}=await import(pathToFileURL(join(cwd,'src/gai/cognitive-service.ts')).href);\nconst root=mkdtempSync(join(tmpdir(),'goriq-owned-probe-'));\ntry {\nconst path=join(root,'missing.db');\nawait assert.rejects(new CognitiveService(path).continue('goal-0000000000000000',{maxCycles:null}),/maxCycles/);\nassert.equal(existsSync(path),false);\n}finally{rmSync(root,{recursive:true,force:true});}\n\nReturn ONLY JSON {\"edits\":[{\"slot\":1,\"after\":\"replacement text\"}]}. Slots identify exact before strings; use each selected slot once. Each after value must be the complete replacement of its selected before text, including declarations and syntax. No paths/commands/permissions/tests may be added. Preserve unselected source."
+}

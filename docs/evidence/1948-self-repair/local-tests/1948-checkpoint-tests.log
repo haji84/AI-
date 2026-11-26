@@ -1,0 +1,25 @@
+✔ checkpoint roundtrip preserves the exact accepted Job and candidate bytes (11.2338ms)
+✔ legacy checkpoint refuses recovery profiles whose rejected history it cannot transport (2.1328ms)
+✔ legacy checkpoint refuses focused profiles without a supported prompt-context transport (1.4872ms)
+✔ legacy checkpoint refuses Ollama profiles whose model observations it cannot preserve (1.6032ms)
+✔ checkpoint refuses path escape and secret or Git metadata files before restore (5.4727ms)
+✔ checkpoint rejects expired approval even when every file hash matches (1.1378ms)
+✔ checkpoint refuses source head changes and modified candidate bytes (1.3178ms)
+✔ checkpoint rejects a different durable Job or Change Set rather than importing parallel work (1.9483ms)
+✔ checkpoint phase B requires an actual phase A origin and refuses replay as a new bootstrap (1.3846ms)
+✔ checkpoint refuses private PEM material even inside an otherwise allowed source or journal (1.0777ms)
+✔ checkpoint refuses bound-request candidate identity drift and prepared source mismatch (1.5752ms)
+✔ checkpoint decoding rejects transport tampering and oversized data (44.6788ms)
+✔ checkpoint admits exact pinned traceability bookkeeping and refuses any other docs target (11.3014ms)
+✔ checkpoint uses bounded Brotli fallback for duplicate nonsecret payload bytes (87.4553ms)
+✔ fixed-map transport reconstructs exact realistic metadata from the pinned baseline and refuses a different baseline (166.7024ms)
+✔ checkpoint rejects a missing prepared model response journal (0.881ms)
+✔ checkpoint rejects model response bytes that disagree with the prepared digest (0.7316ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 795.5168

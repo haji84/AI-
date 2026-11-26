@@ -1,0 +1,2 @@
+# These allowlisted validation logs are deliberate handoff evidence.
+!*.log

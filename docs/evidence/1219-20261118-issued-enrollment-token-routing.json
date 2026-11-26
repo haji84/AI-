@@ -1,0 +1,32 @@
+{
+  "issue": 1219,
+  "goal": "goal-fcc81c97e09153f7",
+  "job": "rotation-recovery-37",
+  "baseMain": "f7b311e87dccf53d3c3f96db076f0fc93b1c6623",
+  "atUTC": "2026-11-18T17:29:16.218424+00:00",
+  "problem": "Legitimate32char192bit opaque enrollment token can randomly startji_. Prefix-only broker dispatch then treats it as a46char owner invitation and rejects403. Confirmed forcedcanonicalprefix/control on original unmodified100device test by root+independentreview. Exact originalCIentropy not retained so specificoldsampleidentity not claimed.",
+  "fix": "Read-only known-issued-token lookup before invitationprefix routing; ordinaryconsume remains sole lifetime/mode/usage/replay authority; unknown/malformedji_ and realinvitations keep existing403/rate/revocation/cap checks.",
+  "scope": "MEDIUM ordinarycode correction within ongoing exacttask completion authority, separately classified from expiredSourceOSscope477. No credential/issuer/role/scope/limit grants or actualenrollment/runtime activation.",
+  "tests": "RED5 new regressions meaningful; related7files19PASS0FAIL0SKIP; TSC--noEmitPASS; lint/diffPASS. Existinglaunch100filebyteexact and rerun underforced validprefix. Fullnewsource/main4+signed6 pending.",
+  "expectedCounts": {
+    "root": 4411,
+    "hosted": 4412,
+    "existingSkip": 26
+  },
+  "review": "0Critical0Important0Minor independent final; MEDIUM exact-known-token correction, independent7files19/19PASS0skip5408.560ms; diffPASS",
+  "sourceNativeAndWorkflowHashesUnchanged": {
+    "scripts/goriq-source-private-acl-repair.cs": "1ca44025cc06169656c054f6cdfced4b3527aa5bba49e3740aa1972f5d2ce85d",
+    "scripts/goriq-source-private-acl-repair.ps1": "50396f93268ab416b68ce08e5b86391f0a441580c28386a8f25779118f95ecdc",
+    "scripts/goriq-zbook-bridge-capture.cs": "c149d00466bd75d35282fb44a5940ff64ef926c17f624b4e5d84d2ac1751b68c",
+    ".github/workflows/goriq-source-private-acl-repair-1219.yml": "963256debf223d5242ffdd253ad216171aa06f0bdf39b3476677b1907c00720d"
+  },
+  "changedFileHashes": {
+    "scripts/jarvis-broker.ts": "e1604e78b47d533c01cfb67905980d45cd67da1cd3d2588fab7c865fb3bea000",
+    "src/jarvis/enrollment.ts": "f541793b3fa315c158078e305ec4ca96e2a9d6c59c3c9501205ddc9af8c0e146",
+    "tests/helpers/issued-enrollment-prefix.mjs": "afa8b005c3485c4001c1244db2533d62e960ac092ac91dd9c6589015055f1551",
+    "tests/jarvis-issued-enrollment-routing.test.ts": "3b8eee46eb14175160ca1932a68ccb366a0fdfc07b6fe85919235c6c6387436a"
+  },
+  "sourceOsAuthority": "Expired16:58:55UTC. Extensionproposal remains unapproved/private, no patchapplied. Sourceplan0/apply0.",
+  "goalStatus": "NOT_ACHIEVED",
+  "g1": "HOLD"
+}

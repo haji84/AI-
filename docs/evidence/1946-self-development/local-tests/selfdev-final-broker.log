@@ -1,0 +1,46 @@
+✔ a tracked source sequence remains bound to its current Goal across approved-next-work handoff (13.9009ms)
+✔ approved next work atomically archives verified predecessor without inheriting completion (23.9235ms)
+✖ authenticated Broker selects tracked profile and restarts the same waiting Job without another model call (16970.9164ms)
+✖ authenticated Broker selects tracked sequence and restarts the same waiting Job without another model call (17176.3776ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 2
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 34720.2067
+
+✖ failing tests:
+
+test at tests\autonomous-tracked-repair-runtime.test.ts:648:37
+✖ authenticated Broker selects tracked profile and restarts the same waiting Job without another model call (16970.9164ms)
+  AssertionError [ERR_ASSERTION]: tracked Job VERIFYING
+  {"calls":0,"jobs":[{"jobId":"development-93d5f252553adc1d55f92f59abeea923ad623becfd81ce9482a09c9cd156cc84","phase":"WAITING_FOR_RESOURCE","attempts":0,"lastTransition":{"transitionId":"development-93d5f252553adc1d55f92f59abeea923ad623becfd81ce9482a09c9cd156cc84:resource-wait:1","from":"IMPLEMENTING","to":"WAITING_FOR_RESOURCE","actor":"state-controller","reason":"resource_wait:heavy execution lane unavailable","at":"2026-11-25T19:23:02.412Z","evidenceIds":[]}}],"journals":["2a49218e4d172c562bfb596c0aa404306737b74e2113f0827bd032a3ce020fb8.red.json","2a49218e4d172c562bfb596c0aa404306737b74e2113f0827bd032a3ce020fb8.red.json.log"],"receiptRequested":false}
+      at wait (file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/tests/autonomous-tracked-repair-runtime.test.ts:681:77)
+      at async TestContext.<anonymous> (file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/tests/autonomous-tracked-repair-runtime.test.ts:689:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at tests\autonomous-tracked-repair-runtime.test.ts:648:37
+✖ authenticated Broker selects tracked sequence and restarts the same waiting Job without another model call (17176.3776ms)
+  AssertionError [ERR_ASSERTION]: tracked Job VERIFYING
+  {"calls":0,"jobs":[{"jobId":"development-1c66040c08045450c5f2b13284028c9a7a768d63d2ea04715b7524e44e9666b6","phase":"WAITING_FOR_RESOURCE","attempts":0,"lastTransition":{"transitionId":"development-1c66040c08045450c5f2b13284028c9a7a768d63d2ea04715b7524e44e9666b6:resource-wait:1","from":"IMPLEMENTING","to":"WAITING_FOR_RESOURCE","actor":"state-controller","reason":"resource_wait:heavy execution lane unavailable","at":"2026-11-25T19:23:19.311Z","evidenceIds":[]}}],"journals":["10cdf34376be9c18364f71b841e179260729d89947480ff541dcd2fefb59b74c.red.json","10cdf34376be9c18364f71b841e179260729d89947480ff541dcd2fefb59b74c.red.json.log"],"receiptRequested":false}
+      at wait (file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/tests/autonomous-tracked-repair-runtime.test.ts:681:77)
+      at async TestContext.<anonymous> (file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/tests/autonomous-tracked-repair-runtime.test.ts:689:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }

@@ -17,12 +17,16 @@ $releaseRoot=Join-Path $env:USERPROFILE ('JARVIS\releases\'+$revision)
 $backupRoot=Join-Path $production ('runtime-refresh\'+$revision)
 $node=(Get-Command node.exe -ErrorAction Stop).Source
 
-function Assert-Approval {
+function Assert-Approval([Nullable[datetimeoffset]]$now=$null) {
   $approval=Get-Content -LiteralPath (Join-Path $source 'docs\authorizations\1662-zbook-runtime-refresh.json') -Raw | ConvertFrom-Json
-  $now=[datetimeoffset]::UtcNow
-  if($approval.version -ne 1 -or $approval.operation -ne 'zbook-runtime-refresh' -or $approval.targets.Count -ne 1 -or $approval.issue -ne 1662 -or $approval.goalIssue -ne 1219 -or $now -lt [datetimeoffset]::Parse($approval.approvedAt) -or
-    $now -ge [datetimeoffset]::Parse($approval.expiresAt) -or
-    ([datetimeoffset]::Parse($approval.expiresAt)-[datetimeoffset]::Parse($approval.approvedAt)).TotalHours -gt 24 -or
+  $start=[datetimeoffset]$approval.approvedAt
+  $end=[datetimeoffset]$approval.expiresAt
+  # Match this renewal in the runtime state validator. Other grants keep the 24-hour limit.
+  $ownerRenewal=$start -eq [datetimeoffset]::Parse('2026-11-23T12:15:59.000Z') -and
+    $end -eq [datetimeoffset]::Parse('2026-11-26T12:15:00.000Z')
+  if($null -eq $now){$now=[datetimeoffset]::UtcNow}
+  if($approval.version -ne 1 -or $approval.operation -ne 'zbook-runtime-refresh' -or $approval.targets.Count -ne 1 -or $approval.issue -ne 1662 -or $approval.goalIssue -ne 1219 -or
+    $now -lt $start -or $now -ge $end -or (($end-$start).TotalHours -gt 24 -and -not $ownerRenewal) -or
     @($approval.targets | Where-Object {$_.nodeId -eq 'zbook' -and $_.platform -eq 'windows'}).Count -ne 1){throw 'approval'}
 }
 function Test-KnownReadOnlyRights([long]$rights) {
@@ -173,7 +177,43 @@ function Assert-StoppedRollback {
     -not (Same-Bytes $launcherBytes ([IO.File]::ReadAllBytes($launcherPath)))){throw 'baseline-changed'}
   Assert-State-Preserved $before (Inspect-State 'inspect')
 }
-function Get-OwnedTree([string]$root,[bool]$requireHealthy=$true,[int[]]$requiredPorts=$ports) {
+function Assert-AdbOutsideJobs($process) {
+  try {
+    if($null -eq $process -or [string]::IsNullOrWhiteSpace($process.Name) -or
+      [string]::IsNullOrWhiteSpace($process.CommandLine) -or $process.ProcessId -le 0 -or
+      $process.CreationDate -isnot [datetime]){throw 'adb-stop-scope'}
+    if(-not ('GoriqRuntimeAdbJobNative' -as [type])){
+      Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
+public static class GoriqRuntimeAdbJobNative {
+ [DllImport("kernel32.dll",SetLastError=true)] static extern SafeWaitHandle OpenProcess(uint access,bool inherit,uint pid);
+ [DllImport("kernel32.dll",SetLastError=true)] static extern bool GetProcessTimes(SafeWaitHandle handle,out long created,out long exited,out long kernel,out long user);
+ [DllImport("kernel32.dll",SetLastError=true)] static extern bool IsProcessInJob(SafeWaitHandle handle,IntPtr job,out int inJob);
+ [DllImport("kernel32.dll",SetLastError=true)] static extern bool GetExitCodeProcess(SafeWaitHandle handle,out uint code);
+ public static bool? Query(uint pid,long expectedUtcTicks) {
+  const uint ProcessQueryLimitedInformation=0x1000;
+  const uint StillActive=259;
+  using(var handle=OpenProcess(ProcessQueryLimitedInformation,false,pid)) {
+   long created,exited,kernel,user;
+   int inJob;
+   uint exitCode;
+   // CIM creation timestamps have microsecond precision.
+   if(handle==null || handle.IsInvalid || !GetProcessTimes(handle,out created,out exited,out kernel,out user) ||
+    DateTime.FromFileTimeUtc(created).Ticks/10!=expectedUtcTicks/10 ||
+    !IsProcessInJob(handle,IntPtr.Zero,out inJob) || !GetExitCodeProcess(handle,out exitCode) || exitCode!=StillActive) return null;
+   return inJob!=0;
+  }
+ }
+}
+'@
+    }
+    $inJob=[GoriqRuntimeAdbJobNative]::Query([uint32]$process.ProcessId,$process.CreationDate.ToUniversalTime().Ticks)
+    if($inJob -isnot [bool] -or $inJob){throw 'adb-stop-scope'}
+  }catch{throw 'adb-stop-scope'}
+}
+function Get-OwnedTree([string]$root,[bool]$requireHealthy=$true,[int[]]$requiredPorts=$ports,[bool]$preserveAdb=$false) {
   try{$all=@(Get-CimInstance Win32_Process -OperationTimeoutSec 15 -ErrorAction Stop)}catch{throw 'process-query'}
   $hosts=@($all | Where-Object {$_.Name -eq 'node.exe' -and $_.CommandLine -and
     $_.CommandLine.Contains($root) -and $_.CommandLine.Contains('jarvis-remote-host.mjs')})
@@ -199,6 +239,34 @@ function Get-OwnedTree([string]$root,[bool]$requireHealthy=$true,[int[]]$require
       $owner=Invoke-CimMethod -OperationTimeoutSec 15 -InputObject $ancestor -MethodName GetOwnerSid
       if($owner.ReturnValue -ne 0 -or $owner.Sid -ne $identity.User.Value){throw 'process-owner'}
       $launcherAncestors+=([int]$ancestor.ProcessId)
+    }
+  }
+  if($preserveAdb){
+    # Task Scheduler can stop launcher descendants outside the host's explicit termination list.
+    $stopIds=$ids+@($all | Where-Object {$_.Name -ieq 'powershell.exe' -and $_.CommandLine -and
+      ($_.CommandLine.IndexOf($launcherPath,[StringComparison]::OrdinalIgnoreCase) -ge 0 -or
+       $_.CommandLine.IndexOf($compat,[StringComparison]::OrdinalIgnoreCase) -ge 0)} | ForEach-Object {[int]$_.ProcessId})
+    $byId=@{}
+    foreach($p in $all){$byId[[int]$p.ProcessId]=$p}
+    $adbNames=@('adb.exe')
+    $environment=$current.PSObject.Properties['environment']
+    if($null -ne $environment -and $null -ne $environment.Value){
+      $adbPath=$environment.Value.PSObject.Properties['JARVIS_ADB_PATH']
+      if($null -ne $adbPath -and -not [string]::IsNullOrWhiteSpace([string]$adbPath.Value)){
+        $adbNames+=[IO.Path]::GetFileName(([string]$adbPath.Value).Trim())
+      }
+    }
+    foreach($adb in $all | Where-Object {$_.Name -in $adbNames}){
+      $p=$adb;$seen=@()
+      while($null -ne $p){
+        $id=[int]$p.ProcessId
+        if($stopIds -contains $id -or $seen -contains $id){throw 'adb-stop-scope'}
+        $seen+=$id
+        if([int]$p.ParentProcessId -le 0){break}
+        $p=$byId[[int]$p.ParentProcessId]
+      }
+      # A detached process can retain a Scheduler job after its parent exits.
+      Assert-AdbOutsideJobs $adb
     }
   }
   foreach($p in $all){
@@ -382,7 +450,7 @@ try {
   }
   $stage='existing-process-tree'; Write-Host ('REFRESH_STAGE='+$stage)
   $baselineStopped=($task.State -eq 'Ready')
-  if($baselineStopped){Assert-StoppedInstallation;$tree=@()}else{$tree=Get-OwnedTree $oldRoot}
+  if($baselineStopped){Assert-StoppedInstallation;$tree=@()}else{$tree=Get-OwnedTree $oldRoot -preserveAdb $true}
   if($Phase -eq 'apply'){$stage='readonly-state'; Write-Host ('REFRESH_STAGE='+$stage); $before=Inspect-State 'inspect'}
   $receipt=@{version=1;issue=1662;goalIssue=1219;nodeId='zbook';phase=$Phase;revision=$revision;
     previousRevision=$current.commit;schemaCompatible=$before.schemaCompatible;quiescent=$before.quiescent;
@@ -432,7 +500,8 @@ try {
   $encoded=$candidate | ConvertTo-SecureString -AsPlainText -Force | ConvertFrom-SecureString
   $stage='quiesce'; Write-Host ('REFRESH_STAGE='+$stage)
   if($baselineStopped){Assert-StoppedInstallation;$stopped=$true}else{
-    $tree=Get-OwnedTree $oldRoot
+    $tree=Get-OwnedTree $oldRoot -preserveAdb $true
+    Assert-Approval
     $stopped=$true
     Stop-OwnedTree $tree
   }
@@ -464,15 +533,15 @@ try {
     'host','process-owner','listeners','process-replaced','process-permission','ports-busy','source','main-ci','state',
     'immutable-release-exists','archive','archive-extract','toolchain','install','build','baseline-changed','candidate','state-changed',
     'health','verification','rollback-listeners','owner-admin-context','replacement-security','release-security',
-    'listener-query','process-query','stopped-installation','private-address-query')
+    'listener-query','process-query','stopped-installation','private-address-query','adb-stop-scope')
   $failureReason=if($safeReasons -contains $_.Exception.Message){$_.Exception.Message}else{'unexpected-prerequisite-error'}
   if($stopped){
     Write-Host 'REFRESH_STAGE=rollback'
     try {
       if($switched){
         try {
-          $rollbackTree=Get-OwnedTree $releaseRoot $false
-          Stop-OwnedTree $rollbackTree
+          $rollbackTree=@(Get-OwnedTree $releaseRoot $false -preserveAdb $true)
+          if($rollbackTree.Count){Stop-OwnedTree $rollbackTree}
         } finally {
           # Even an unidentifiable orphan may not strand the approved runtime pointers.
           # Do not kill unknown owners or start the old task while those listeners remain.

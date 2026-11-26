@@ -1,0 +1,37 @@
+✖ tracked sequence rejects Windows namespace aliases of another Job's workspace or receipt (935.1641ms)
+✖ tracked sequence shares default persistence through successive failures of its second Job (33618.3256ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 34774.423
+
+✖ failing tests:
+
+test at tests\autonomous-tracked-repair-runtime.test.ts:163:1
+✖ tracked sequence rejects Windows namespace aliases of another Job's workspace or receipt (935.1641ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/tests/autonomous-tracked-repair-runtime.test.ts:169:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /OVERLAP/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at tests\autonomous-tracked-repair-runtime.test.ts:173:1
+✖ tracked sequence shares default persistence through successive failures of its second Job (33618.3256ms)
+  Error: TRACKED_REPAIR_RECOVERY_HISTORY_INVALID
+      at recoveryContext (file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/src/orchestrator/tracked-repair-resident-runtime.ts:248:96)
+      at async Object.build (file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/src/orchestrator/tracked-repair-resident-runtime.ts:287:24)
+      at async ResidentDevelopmentGoalHost.runStage (file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/src/orchestrator/resident-development-goal-host.ts:390:19)
+      at async ResidentDevelopmentGoalHost.run (file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/src/orchestrator/resident-development-goal-host.ts:193:14)
+      at async TestContext.<anonymous> (file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/tests/autonomous-tracked-repair-runtime.test.ts:186:30)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)

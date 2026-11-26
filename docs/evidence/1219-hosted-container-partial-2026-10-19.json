@@ -1,0 +1,178 @@
+{
+  "schemaVersion": 1,
+  "evidenceClass": "HOSTED_CONTAINER_CI",
+  "sourceRevision": "3043b8f786192e4cd4bdaf7e221ededab8031a58",
+  "runUrl": "https://github.com/haji84/AI-/actions/runs/39244171115",
+  "artifactId": 12183045654,
+  "artifactZipSha256": "c116ca16c11d6088a45b6c7204abf8fb808c4c77a6311b3fb965b5532b1e7966",
+  "environment": {
+    "evidenceClass": "HOSTED_CONTAINER_CI",
+    "physicalAcceptanceVerified": false,
+    "baseRevision": "3043b8f786192e4cd4bdaf7e221ededab8031a58",
+    "githubRunId": "39244171115",
+    "node": "v24.19.0",
+    "registryImage": "registry:2.8.3@sha256:a3d8aaa63ed8681a604f1dea0aa03f100d5895b6a58ace528858a7b332415373",
+    "dockerClient": "28.0.4",
+    "dockerServer": "28.0.4",
+    "limits": {
+      "timeoutMs": 180000,
+      "memoryBytes": 2147483648,
+      "pids": 128,
+      "tmpfsMiB": 1536,
+      "network": "none",
+      "uid": 65534
+    }
+  },
+  "image": {
+    "image": "127.0.0.1:32768/verifier@sha256:f5d93abd06b1dd044f608438e1c8c2bae6be4791d626da34561e8e32593f8c07",
+    "buildContextHashes": {
+      "Dockerfile": "34a9b3af07d9411c8392654ac1629a43a5d3742a0566be4440f50d253e173d12",
+      "jarvis-verifier-offline-workspace.mjs": "a92a5c24ae9bad4b9db92eedbf6abb5d08e3835b79792c83c570d29229c711d3",
+      "package.json": "d92950d3516f24fd908d50348116150c197a3335e48590dcc1b0798e0aa59774",
+      "pnpm-lock.yaml": "2531ddfad5ef473ef7aa4b4c3cdbc77846db448129325fd2235f676b59dafd90"
+    }
+  },
+  "result": {
+    "status": "FAILED",
+    "physicalAcceptanceVerified": false,
+    "baseRevision": "3043b8f786192e4cd4bdaf7e221ededab8031a58",
+    "image": "127.0.0.1:32768/verifier@sha256:f5d93abd06b1dd044f608438e1c8c2bae6be4791d626da34561e8e32593f8c07",
+    "error": "LIVE_CHECK_SET_INVALID\n+ actual - expected\n\n  [\n    'lint',\n    'typecheck',\n    'unit',\n-   'integration',\n-   'security',\n-   'build'\n  ]\n",
+    "fixtureCleanupConfirmed": true
+  },
+  "receipt": {
+    "payload": {
+      "version": 1,
+      "verifierId": "ci-host-signer",
+      "goalId": "ci-goal-b904b190-ea4d-4667-9232-65e3b9a7893c",
+      "jobId": "ci-job-b904b190-ea4d-4667-9232-65e3b9a7893c",
+      "changeSetId": "ci-change-b904b190-ea4d-4667-9232-65e3b9a7893c",
+      "builderId": "ci-untrusted-container",
+      "baseRevision": "3043b8f786192e4cd4bdaf7e221ededab8031a58",
+      "sourceRevision": "4b591dd2a5383e48de4389acbab0eb6f9298ceb5da642407586eb5dd0b11972a",
+      "artifactDigest": "7d09c38a61111fe40aed15c84cfd7c43e821dfad32986b3d997f50776d220a43",
+      "issuedAt": "2026-10-19T11:23:58.446Z",
+      "expiresAt": "2026-10-19T11:46:16.743Z",
+      "checks": [
+        {
+          "check": "lint",
+          "status": "passed",
+          "outputDigest": "93bc708e69c2e2f9c2158f619a2bb15091f314e94628e319494d3032c9316c62",
+          "recordedAt": "2026-10-19T11:24:08.316Z"
+        },
+        {
+          "check": "typecheck",
+          "status": "passed",
+          "outputDigest": "a2ee6b30fb334150528b58e3b6a16b0eb3c834379aee311f0e83f3b26a9cd280",
+          "recordedAt": "2026-10-19T11:24:16.693Z"
+        },
+        {
+          "check": "unit",
+          "status": "failed",
+          "outputDigest": "6b68ed6fc1e7edee5149ad2bdcb23f0a47653f63afdbc61974a7d124310b742f",
+          "recordedAt": "2026-10-19T11:26:16.593Z"
+        }
+      ]
+    },
+    "signatureBase64": "tpM0cL7VJ0UW/HrpoV7qjq4wqGhh96AWj9pmyeUBqoghu19paqVKOvu88ub75NdOca88u7TLdM2LXSKA1ID2DQ=="
+  },
+  "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEALmT5j2WSlqTsO15yWfADmGzWQ+7XROnwEkmY/80sfF8=\n-----END PUBLIC KEY-----\n",
+  "checks": [
+    {
+      "check": "lint",
+      "status": "passed",
+      "outputDigest": "93bc708e69c2e2f9c2158f619a2bb15091f314e94628e319494d3032c9316c62",
+      "recordedAt": "2026-10-19T11:24:08.316Z",
+      "exit": 0,
+      "errorCode": null,
+      "closeObserved": true,
+      "cleanup": {
+        "attempted": true,
+        "containerName": "goriq-verifier-43f1f106-9476-41dc-8af0-29a3e6283b9c",
+        "confirmed": true,
+        "removal": {
+          "status": 0,
+          "signal": null,
+          "stdout": "",
+          "stderr": "Error response from daemon: No such container: goriq-verifier-43f1f106-9476-41dc-8af0-29a3e6283b9c\n",
+          "errorCode": null,
+          "closeObserved": true
+        },
+        "inspection": {
+          "status": 0,
+          "signal": null,
+          "stdout": "",
+          "stderr": "",
+          "errorCode": null,
+          "closeObserved": true
+        }
+      }
+    },
+    {
+      "check": "typecheck",
+      "status": "passed",
+      "outputDigest": "a2ee6b30fb334150528b58e3b6a16b0eb3c834379aee311f0e83f3b26a9cd280",
+      "recordedAt": "2026-10-19T11:24:16.693Z",
+      "exit": 0,
+      "errorCode": null,
+      "closeObserved": true,
+      "cleanup": {
+        "attempted": true,
+        "containerName": "goriq-verifier-999c2f80-4393-454a-b2bd-9a8b16d05beb",
+        "confirmed": true,
+        "removal": {
+          "status": 0,
+          "signal": null,
+          "stdout": "",
+          "stderr": "Error response from daemon: No such container: goriq-verifier-999c2f80-4393-454a-b2bd-9a8b16d05beb\n",
+          "errorCode": null,
+          "closeObserved": true
+        },
+        "inspection": {
+          "status": 0,
+          "signal": null,
+          "stdout": "",
+          "stderr": "",
+          "errorCode": null,
+          "closeObserved": true
+        }
+      }
+    },
+    {
+      "check": "unit",
+      "status": "failed",
+      "outputDigest": "6b68ed6fc1e7edee5149ad2bdcb23f0a47653f63afdbc61974a7d124310b742f",
+      "recordedAt": "2026-10-19T11:26:16.593Z",
+      "exit": 1,
+      "errorCode": null,
+      "closeObserved": true,
+      "cleanup": {
+        "attempted": true,
+        "containerName": "goriq-verifier-abad9e15-9782-46f5-a371-91cd2020e2f7",
+        "confirmed": true,
+        "removal": {
+          "status": 0,
+          "signal": null,
+          "stdout": "",
+          "stderr": "Error response from daemon: No such container: goriq-verifier-abad9e15-9782-46f5-a371-91cd2020e2f7\n",
+          "errorCode": null,
+          "closeObserved": true
+        },
+        "inspection": {
+          "status": 0,
+          "signal": null,
+          "stdout": "",
+          "stderr": "",
+          "errorCode": null,
+          "closeObserved": true
+        }
+      }
+    }
+  ],
+  "actualSixChecksComplete": false,
+  "physicalAcceptanceVerified": false,
+  "limitations": [
+    "Unit check failed8 cases; onlylint/typecheckpassed. Remainingintegration/security/buildnotrun.",
+    "Signature and3 retainedloghashesvalidatedbyroot; no actualphysicalAI09 orWindowsrebootacceptance."
+  ]
+}

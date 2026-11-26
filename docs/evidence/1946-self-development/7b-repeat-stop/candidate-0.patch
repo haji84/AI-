@@ -1,0 +1,26 @@
+diff --git a/docs/jarvis-reverse-traceability.json b/docs/jarvis-reverse-traceability.json
+index dc165b19..6a52e6a5 100644
+--- a/docs/jarvis-reverse-traceability.json
++++ b/docs/jarvis-reverse-traceability.json
+@@ -3129,7 +3129,7 @@
+     },
+     {
+       "path": "src/gai/cognitive-service.ts",
+-      "sha256": "a00885305a91729d5c0c4806852da9d2fd78a87e6002a38fea5c645e4b27a21f",
++      "sha256": "d1c6fcb025e1c4316d9f375a8619be71e80fb323276097e7a035c43b9991dadb",
+       "classification": "COVERED_BY_REQUIREMENT",
+       "requirement_ids": [
+         "OWN-001"
+diff --git a/src/gai/cognitive-service.ts b/src/gai/cognitive-service.ts
+index 5fda8e92..0f8b3621 100644
+--- a/src/gai/cognitive-service.ts
++++ b/src/gai/cognitive-service.ts
+@@ -74,7 +74,7 @@ export class CognitiveService {
+   }
+   /** Local callers may allocate the existing bounded runner's budget; HTTP keeps the default. */
+   async continue(goalId: string, options: { maxCycles?: number } = {}) {
+-    const maxCycles = options.maxCycles ?? 3;
++    const maxCycles = options.maxCycles == null ? 3 : options.maxCycles ?? 3;
+     if (!Number.isInteger(maxCycles) || maxCycles < 1 || maxCycles > 100) throw Error("maxCycles must be an integer from 1 to 100");
+     await this.validateStateRoot();
+     if (this.busy) throw Error("Cognitive cycle already running");

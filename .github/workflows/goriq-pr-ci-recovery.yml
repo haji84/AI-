@@ -28,38 +28,25 @@ jobs:
       number: ${{ steps.pr.outputs.number }}
       branch: ${{ steps.pr.outputs.branch }}
       head_sha: ${{ steps.pr.outputs.head_sha }}
+      reason: ${{ steps.pr.outputs.reason }}
     steps:
+      # workflow_run's github.sha is the protected default-branch snapshot, never PR code.
+      - name: Checkout trusted preflight control
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: control
+          persist-credentials: false
       - name: Resolve eligible same-repository pull request
         id: pr
         uses: actions/github-script@v7
+        env:
+          GORIQ_RECOVERY_CONTROL_WORKSPACE: ${{ github.workspace }}/control
         with:
           script: |
-            const number = context.payload.workflow_run.pull_requests?.[0]?.number;
-            if (!number) {
-              core.setOutput('eligible', 'false');
-              return;
-            }
-            const { data: pr } = await github.rest.pulls.get({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: number,
-            });
-            const expected = `${context.repo.owner}/${context.repo.repo}`;
-            const eligible =
-              pr.state === 'open' &&
-              pr.head.repo?.full_name === expected &&
-              pr.base.repo?.full_name === expected &&
-              pr.head.ref !== 'main' &&
-              pr.head.ref !== pr.base.ref &&
-              pr.head.sha === context.payload.workflow_run.head_sha;
-            core.setOutput('eligible', eligible ? 'true' : 'false');
-            if (!eligible) {
-              core.notice(`Skipping stale or ineligible PR #${number}; no ZBook runner will be allocated.`);
-              return;
-            }
-            core.setOutput('number', String(number));
-            core.setOutput('branch', pr.head.ref);
-            core.setOutput('head_sha', pr.head.sha);
+            const helper = require('node:path').join(process.env.GORIQ_RECOVERY_CONTROL_WORKSPACE, 'scripts/goriq-pr-ci-recovery-preflight.mjs');
+            const { runRecoveryPreflight } = await import(require('node:url').pathToFileURL(helper).href);
+            await runRecoveryPreflight({ github, context, core });
 
   recover:
     needs: [preflight]
@@ -71,33 +58,56 @@ jobs:
       - name: Checkout trusted recovery control
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ github.sha }}
           path: control
           persist-credentials: false
 
-      - name: Checkout target PR branch
+      - name: Recheck queued recovery before target setup
+        id: fresh
+        uses: actions/github-script@v7
+        env:
+          GORIQ_RECOVERY_CONTROL_WORKSPACE: ${{ github.workspace }}/control
+          GORIQ_RECOVERY_PR_NUMBER: ${{ needs.preflight.outputs.number }}
+          GORIQ_RECOVERY_HEAD_SHA: ${{ needs.preflight.outputs.head_sha }}
+          GORIQ_RECOVERY_BRANCH: ${{ needs.preflight.outputs.branch }}
+        with:
+          script: |
+            const helper = require('node:path').join(process.env.GORIQ_RECOVERY_CONTROL_WORKSPACE, 'scripts/goriq-pr-ci-recovery-preflight.mjs');
+            const { runRecoveryPreflight } = await import(require('node:url').pathToFileURL(helper).href);
+            await runRecoveryPreflight({ github, context, core, receipt: {
+              number: Number(process.env.GORIQ_RECOVERY_PR_NUMBER),
+              headSha: process.env.GORIQ_RECOVERY_HEAD_SHA,
+              branch: process.env.GORIQ_RECOVERY_BRANCH,
+            } });
+
+      - name: Checkout exact failed PR head
+        if: steps.fresh.outputs.eligible == 'true'
         uses: actions/checkout@v4
         with:
-          ref: ${{ needs.preflight.outputs.branch }}
+          ref: ${{ needs.preflight.outputs.head_sha }}
           path: target
           fetch-depth: 0
           persist-credentials: false
 
       - uses: pnpm/action-setup@v4
+        if: steps.fresh.outputs.eligible == 'true'
         with:
           version: 11.19.0
 
       - uses: actions/setup-node@v4
+        if: steps.fresh.outputs.eligible == 'true'
         with:
           node-version: 24.19.0
           cache: pnpm
           cache-dependency-path: target/pnpm-lock.yaml
 
       - name: Install target dependencies
+        if: steps.fresh.outputs.eligible == 'true'
         working-directory: target
         run: pnpm install --frozen-lockfile
 
       - name: Run bounded autonomous CI recovery
+        if: steps.fresh.outputs.eligible == 'true'
         shell: powershell
         env:
           GITHUB_TOKEN: ${{ github.token }}

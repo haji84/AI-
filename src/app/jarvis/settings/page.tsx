@@ -5,6 +5,7 @@ import JarvisScreenLayoutProfilesSettings from "./JarvisScreenLayoutProfiles";
 import TrustedDeviceSettings from "./TrustedDeviceSettings";
 import GoriqThemeSettings from "./GoriqThemeSettings";
 import GoriqVoiceSettings from "./GoriqVoiceSettings";
+import JarvisStateBackupSettings from "./JarvisStateBackupSettings";
 
 export default function JarvisSettingsPage() {
   return (
@@ -19,6 +20,7 @@ export default function JarvisSettingsPage() {
       <GoriqThemeSettings />
       <GoriqVoiceSettings />
       <JarvisOperatorGuide />
+      <JarvisStateBackupSettings />
       <TrustedDeviceSettings />
       <JarvisLocalSettings />
       <JarvisAccessibilityControls />

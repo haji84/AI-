@@ -51,19 +51,16 @@ abstract class BaseDevelopmentJobStore implements DevelopmentJobStore {
   }
 
   async get(jobId: string): Promise<DevelopmentJob | null> {
-    await this.initialize();
-    const job = this.jobs.get(jobId);
+    const job = (await this.loadSnapshot())?.jobs.find(candidate => candidate.jobId === jobId);
     return job ? clone(job) : null;
   }
 
   async getByGoal(goalId: string): Promise<DevelopmentJob[]> {
-    await this.initialize();
-    return [...this.jobs.values()].filter((job) => job.goalId === goalId).map(clone);
+    return ((await this.loadSnapshot())?.jobs ?? []).filter((job) => job.goalId === goalId).map(clone);
   }
 
   async list(): Promise<DevelopmentJob[]> {
-    await this.initialize();
-    return [...this.jobs.values()].map(clone);
+    return ((await this.loadSnapshot())?.jobs ?? []).map(clone);
   }
 
   async put(job: DevelopmentJob, now = new Date()): Promise<void> {
@@ -76,6 +73,9 @@ abstract class BaseDevelopmentJobStore implements DevelopmentJobStore {
       const existing = this.jobs.get(job.jobId);
       if (existing && existing.goalId !== job.goalId) throw new Error(`development job identity conflict: ${job.jobId}`);
       if (existing && existing.updatedAt > job.updatedAt) throw new Error(`stale development job write: ${job.jobId}`);
+      if (existing && (job.history.length < existing.history.length || existing.history.some((entry, index) => JSON.stringify(entry) !== JSON.stringify(job.history[index])))) {
+        throw new Error(`conflicting development job history: ${job.jobId}`);
+      }
       this.jobs.set(job.jobId, clone(job));
       await this.saveSnapshot({
         version: 1,

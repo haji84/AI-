@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {mkdtempSync,mkdirSync,readFileSync,writeFileSync,readdirSync,rmSync,existsSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {pathToFileURL} from 'node:url';
+const cwd=process.cwd();
+const {CognitiveService}=await import(pathToFileURL(join(cwd,'src/gai/cognitive-service.ts')).href);
+const root=mkdtempSync(join(tmpdir(),'goriq-owned-probe-'));
+try {
+const path=join(root,'missing.db');
+await assert.rejects(new CognitiveService(path).continue('goal-0000000000000000',{maxCycles:null}),/maxCycles/);
+assert.equal(existsSync(path),false);
+}finally{rmSync(root,{recursive:true,force:true});}

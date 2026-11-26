@@ -1,0 +1,78 @@
+{
+  "issue": 1219,
+  "goalId": "goal-fcc81c97e09153f7",
+  "jobId": "rotation-recovery-37",
+  "goalStatus": "NOT_ACHIEVED",
+  "G1": "HOLD",
+  "originalGoalRecovered": false,
+  "actualImplementer": "Codex",
+  "localModel": "NOT_RUN",
+  "base": "c1079e8b1ca6d347d6040f97ecc96f72c3e7e801",
+  "implementationCommit": "0e16491d0d832b9201befffa48475f3e6fa03eb6",
+  "priorActualNative": {
+    "run": 43831651878,
+    "job": 133178176161,
+    "runner": "ZBook21",
+    "markerAt": "2026-11-16T08:29:46.500969Z",
+    "jobCompletedAt": "2026-11-16T08:29:51Z",
+    "result": "INCOMPLETE/PRIVATE_STORAGE_UNAVAILABLE",
+    "AcquireReached": false,
+    "candidateContentsRead": false,
+    "preserved": false,
+    "queryVerified": false,
+    "cause": "UNKNOWN: Add-Type vsconstructorboundary",
+    "privatePartialArtifacts": "POSSIBLE/preserved",
+    "independentAuditChecks": 27
+  },
+  "change": "Closed fixed compiler/constructor/guard enums only; same25 public keys and alloriginal guard predicates/order. No speculative permission or compatibility fix. Type attribution uses actual CLR identity in source capture assembly.",
+  "closedDiagnostics": [
+    "Build",
+    "Identity/environment",
+    "Ancestry/parent/layout/context",
+    "Path/localstorage/nativeopen/metadata/finalpath/owner/DACL/create"
+  ],
+  "privacy": "No raw exception/HResult/path/SID/ACL/hash/privatebytes in public output; no original SQL/content acquisition in fixtures",
+  "sourceSha256": {
+    ".github/workflows/ci.yml": "d9c3d0c520abd8c1e17e9aeef31d340e3325897e7487204793f57270b2d18876",
+    ".github/workflows/goriq-pc-private-network-probe.yml": "d00d76ab680a91f96b0a1052a712dbfaedf30fe27f1cf6fd228279d898fcc144",
+    "scripts/goriq-zbook-bridge-capture.cs": "489f668760b3ae283525b3775bc98202c8a88e99f6248d8f11b284ae0ce8c1c2",
+    "scripts/goriq-zbook-bridge-original-read.ps1": "fb4b08d8eaac207b37ebacffc40002412c7a65a04efd10e3d5ed7c2dff3d4bee",
+    "tests/goriq-zbook-bridge-initialization.test.mjs": "587b19fa95792e1424700ce990a14a26cb82bd8bdb2d341a641c5e349e3902c9"
+  },
+  "affectedTests": {
+    "tests": 177,
+    "pass": 177,
+    "fail": 0,
+    "skip": 0
+  },
+  "independentAffected": {
+    "tests": 122,
+    "pass": 122,
+    "fail": 0,
+    "skip": 0
+  },
+  "CSharp5LanguageCompilation": "PASS onLinux/current.NET; notWindowsFramework proof",
+  "checks": {
+    "lint": "PASS",
+    "types": "PASS",
+    "requirements": "PASS341",
+    "audit": "PASS626surfaces341requirements"
+  },
+  "reviewFinding": "Real same-name/different-assembly exception initially misattributed; exact actualCLR assembly type fix RED-to-GREEN; PowerShell ETS GetType/PhaseCode/InnerException shadows closed using intrinsic runtime membership +actual CLR getters; corrected actual3RED then43GREEN",
+  "unchanged": "37 ordered guard-bearing lines identical after diagnostic args stripped; existing oldtests/query/locator/nativejob/permissions/timecaps unchanged",
+  "existingWindowsCICoverage": "Only43case-newinitializationtest appended toexisting5minjob; powershell.exeWin/pwshLinux, Framework/CoreReflection.Emit, sameassertions/noPInvoke/capture/skip",
+  "pendingAtAuthoredCheckpoint": [
+    "Root final focused checks",
+    "Final committedreviewbinding",
+    "NewexactPRfullCI and actualhostedPS5 compile fixture",
+    "Normalprotectedmerge and exactmainfullCI/freshsix",
+    "One changedobservable native diagnostic and independentphaseaudit",
+    "SpecificactualWindowsfailurecause/fix andoriginalGoalrecovery"
+  ],
+  "previousFullLocal": "4303total4277PASS26existingSKIP on96d checkpoint is historicalbaseline; newfullPR/mainCI required",
+  "rollback": "Scopedsource revert; preserve all originals and partialprivateartifacts; no existingACL/rights/service/runtimepolicy changes",
+  "issueWriteback": "https://github.com/haji84/AI-/issues/1219#issuecomment-6911509083",
+  "initialDiagnosticCommit": "7e58478dd501c18969f6036432b76b318259017b",
+  "ETSFixCommit": "0e16491d0d832b9201befffa48475f3e6fa03eb6",
+  "fixtureFailure": "Initial ETS fixture used case-insensitive $native vs[string]$Native parameter collision,42P1F preserved; renamednativeException beforevalid3RED/GREEN"
+}

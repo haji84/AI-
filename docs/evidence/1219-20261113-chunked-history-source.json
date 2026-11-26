@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "issue": 1219,
+  "pr": 1910,
+  "parentHead": "6f9a6797cfc771071f97e876381f0536d7233f27",
+  "recordedDateJst": "2026-11-13",
+  "evidenceClass": "LOCAL_SOURCE_AND_MOCK_HTTP_TESTS_ONLY",
+  "originalGoalProductionAcceptance": false,
+  "isolation": {
+    "node": "22.16.0",
+    "typescript": "5.8.3",
+    "environment": "partial isolated snapshot; no GitHub network access",
+    "localFixtureTypes": true
+  },
+  "tests": {
+    "command": "node --experimental-strip-types --test tests/github-coordinator-store.test.ts tests/github-goal-checkpoint.test.ts tests/github-goal-archive.test.ts",
+    "count": 66,
+    "passed": 66,
+    "failed": 0,
+    "skipped": 0,
+    "exitCode": 0,
+    "preImplementationRed": true
+  },
+  "typecheck": {
+    "command": "tsc --noEmit --strict --skipLibCheck --allowImportingTsExtensions --target es2022 --module nodenext --moduleResolution nodenext --types node --typeRoots <isolated-local-node-types> [three scripts and three test files]",
+    "exitCode": 0,
+    "usesLocalTypeStubs": true
+  },
+  "code": {
+    "scripts/goriq-github-checkpoint-archive.ts": "f372970cfb4c07183597e5e0bb4a9b2aaece5cee",
+    "scripts/goriq-github-coordinator-store.ts": "a32d760490644ddf03ca4732bd65a324d44a604c",
+    "scripts/goriq-github-checkpoint-stores.ts": "ab14fbbd1a033448b43af6f35901a37a4d605d7f",
+    "tests/github-goal-archive.test.ts": "a851f3fa40201be6776639ff14c99927e058c480"
+  },
+  "newCases": [
+    "checkpoint over 6500 bytes",
+    "failed chunk remains uncommitted",
+    "tamper/missing chunk reject",
+    "root CAS conflict",
+    "revision archive retained",
+    "same-head lease renewal",
+    "old-owner after takeover rejected",
+    ">65KB checkpoint fresh restore",
+    "WorkRun and DurableTask store adapters",
+    "blind save refused",
+    "CAS competing job updates",
+    "combined WorkRun Job transition",
+    "DevelopmentJob store authenticated read",
+    "DevelopmentJob transition append",
+    "missing Job snapshot reject",
+    "development attempt deletion reject"
+  ],
+  "notTested": [
+    "full pinned Node24 CI at new HEAD",
+    "actual GitHub HTTP and preprovisioned state branch/key",
+    "cross-Action-run secure owner state restore",
+    "Mac-independent live Goal intake/execution",
+    "real original Goal and Job authorized state",
+    "real model repairs/verified results/automatic next Job",
+    "artifact behavior acceptance"
+  ],
+  "riskNotes": [
+    "No real credentials/secrets or owner data in this artifact",
+    "No new identity or production setup",
+    "Historical source 6f9a679 CI success not proof of new HEAD",
+    "No mandatory independent code review/account"
+  ]
+}

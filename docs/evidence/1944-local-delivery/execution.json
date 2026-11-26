@@ -1,0 +1,261 @@
+{
+  "schema_version": 1,
+  "scope": "Supplied hypothetical business preparation material; faithful Office conversion, not autonomous market research or a financial recommendation.",
+  "execution_class": "ISOLATED_LOCAL_MATERIAL_CONVERSION",
+  "startedAt": "2026-11-25T18:06:57.015Z",
+  "finishedAt": "2026-11-25T18:06:58.339Z",
+  "node": "v24.19.0",
+  "platform": "win32",
+  "source_base": "717c268d95c3a65c778f870746f29c79e081066b",
+  "source_files": [
+    {
+      "path": "src/gai/cognitive-service.ts",
+      "sha256": "a00885305a91729d5c0c4806852da9d2fd78a87e6002a38fea5c645e4b27a21f"
+    },
+    {
+      "path": "scripts/goriq-cognitive-run.ts",
+      "sha256": "2429093c26fe3b24b4b8e2cd1dbcc2d5577a8828ffcf3eb1660b876d374e0f1e"
+    }
+  ],
+  "input_sha256": "13b9b900b7c61db99c9166941ddf4ef013d7bae86dd6461781be627d72262d4f",
+  "goalId": "goal-5e582a119c80c254",
+  "intake_action": "CONTINUE_GOAL",
+  "beforeRestart": {
+    "stopReason": "cycle_budget_exhausted",
+    "cycles": 1,
+    "goalEvaluation": {
+      "achieved": false,
+      "verifiedRequired": [],
+      "failedRequired": [],
+      "unverifiedRequired": [
+        "criterion-1",
+        "criterion-2"
+      ],
+      "blockers": [
+        "local_contract_outputs_incomplete"
+      ],
+      "remainingGaps": [
+        "unverified:criterion-1",
+        "unverified:criterion-2",
+        "local_contract_outputs_incomplete"
+      ]
+    }
+  },
+  "afterRestart": {
+    "stopReason": "goal_complete",
+    "cycles": 4,
+    "goalEvaluation": {
+      "achieved": true,
+      "verifiedRequired": [
+        "criterion-1",
+        "criterion-2"
+      ],
+      "failedRequired": [],
+      "unverifiedRequired": [],
+      "blockers": [],
+      "remainingGaps": []
+    }
+  },
+  "replay": {
+    "stopReason": "goal_complete",
+    "cycles": 1,
+    "goalEvaluation": {
+      "achieved": true,
+      "verifiedRequired": [
+        "criterion-1",
+        "criterion-2"
+      ],
+      "failedRequired": [],
+      "unverifiedRequired": [],
+      "blockers": [],
+      "remainingGaps": []
+    }
+  },
+  "status": {
+    "attempts": 4,
+    "goalComplete": true,
+    "metrics": {
+      "goals": 1,
+      "completedGoals": 1,
+      "externalAiFreeCompletionRate": 1,
+      "localOnlyCompletionRate": 1,
+      "unknownTaskLocalSuccessRate": null,
+      "externalExpertEscalationRate": 0,
+      "externalAiCallsPerGoal": 0,
+      "externalAiDependencyRate": 0,
+      "skillReuseRate": 0,
+      "memoryAssistedImprovement": null,
+      "secondAttemptImprovement": null,
+      "selfRecoveryRate": null,
+      "humanInterventionRate": 0,
+      "transferSuccessRate": null
+    }
+  },
+  "childWorkItems": [
+    {
+      "id": "action-outcome:e56928473bf4d03055522f83179d0046fa10483ceadb5df8aeeda79e76e4a5b7",
+      "objective": "Create goriq-materials/a4e0542f5b0fcd053a5668ec78b118dac40eba44d1dd628820471c2a3a1e6d60/output-1.xlsx from authorized material material-1",
+      "definitionOfDone": [
+        {
+          "id": "action-outcome:e56928473bf4d03055522f83179d0046fa10483ceadb5df8aeeda79e76e4a5b7-verified",
+          "description": "Goal Loop verifier accepts the action result"
+        }
+      ],
+      "affectedScope": [
+        "cognitive.outcome.spreadsheet"
+      ],
+      "executionApproach": "Execute through capability cognitive.outcome.spreadsheet",
+      "verificationMethod": "Goal Loop verifier evidence",
+      "status": "COMPLETED"
+    },
+    {
+      "id": "action-outcome:215535cc4cea7d717bde513911b50bb6ed88cb61fbe31534ba488941d98f79b2",
+      "objective": "Create goriq-materials/a4e0542f5b0fcd053a5668ec78b118dac40eba44d1dd628820471c2a3a1e6d60/output-2.docx from authorized material material-2",
+      "definitionOfDone": [
+        {
+          "id": "action-outcome:215535cc4cea7d717bde513911b50bb6ed88cb61fbe31534ba488941d98f79b2-verified",
+          "description": "Goal Loop verifier accepts the action result"
+        }
+      ],
+      "affectedScope": [
+        "cognitive.outcome.document"
+      ],
+      "executionApproach": "Execute through capability cognitive.outcome.document",
+      "verificationMethod": "Goal Loop verifier evidence",
+      "status": "COMPLETED"
+    }
+  ],
+  "verificationResults": [
+    {
+      "itemId": "criterion-1",
+      "passed": true,
+      "evidence": {
+        "refs": [
+          "local-outcome-verification:a8d6c86d2f809a40e9156ab1fceffead823c0f4057680630cff294bdab0b3afd"
+        ],
+        "lineage": {
+          "kind": "artifact.lineage",
+          "status": "PASS",
+          "digest": "ed8698ec69eeb1854ee9083717095034841fb936e505fa5d4c32d45ba93983be",
+          "nodes": [
+            {
+              "id": "d9ab53747ab3240456bae298eebc698cc66af68c67db1d63d46461c34aab1c39",
+              "domain": "file",
+              "path": "C:\\Users\\qq113\\AppData\\Local\\Temp\\goriq-delivery-kp46wc\\data\\goriq-materials\\a4e0542f5b0fcd053a5668ec78b118dac40eba44d1dd628820471c2a3a1e6d60\\source-1.txt",
+              "sha256": "ea734d6d9146b6e6cae88de27c2b77114cf274417f25d6f34548cc88de7334c4",
+              "parentIds": [],
+              "parentSha256s": []
+            },
+            {
+              "id": "7896bdd09255378a888b8a2286757e5a13052dde51b710e7d7f6f80696346559",
+              "domain": "spreadsheet",
+              "path": "C:\\Users\\qq113\\AppData\\Local\\Temp\\goriq-delivery-kp46wc\\data\\goriq-materials\\a4e0542f5b0fcd053a5668ec78b118dac40eba44d1dd628820471c2a3a1e6d60\\output-1.xlsx",
+              "sha256": "9febf6af49ab0cf2ebea98ea92cbe0041a1826cdb5a61b9a76efcbecc5693df1",
+              "parentIds": [
+                "d9ab53747ab3240456bae298eebc698cc66af68c67db1d63d46461c34aab1c39"
+              ],
+              "parentSha256s": [
+                "ea734d6d9146b6e6cae88de27c2b77114cf274417f25d6f34548cc88de7334c4"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "itemId": "criterion-2",
+      "passed": true,
+      "evidence": {
+        "refs": [
+          "local-outcome-verification:909c5beec339de0243781269abd52516af8e68af40decd1333d3ea10d6fe0d41"
+        ],
+        "lineage": {
+          "kind": "artifact.lineage",
+          "status": "PASS",
+          "digest": "652eaff9ea5a99c53e76ed41a96d7f89846edc12ee7c80db3b806704a8a49260",
+          "nodes": [
+            {
+              "id": "3b1f186cd84cf910d2784a577d1972682b8e4a545b5d38b756e3710d926cb6a1",
+              "domain": "file",
+              "path": "C:\\Users\\qq113\\AppData\\Local\\Temp\\goriq-delivery-kp46wc\\data\\goriq-materials\\a4e0542f5b0fcd053a5668ec78b118dac40eba44d1dd628820471c2a3a1e6d60\\source-2.txt",
+              "sha256": "b3a5f84ed3153178cf4a1c7c204e2fca9ae40db8632ec082d2c58ec7fede5bd6",
+              "parentIds": [],
+              "parentSha256s": []
+            },
+            {
+              "id": "5a11e7edbe24783918ab91e740203f907a235e747a326aee977bb705762c0d00",
+              "domain": "document",
+              "path": "C:\\Users\\qq113\\AppData\\Local\\Temp\\goriq-delivery-kp46wc\\data\\goriq-materials\\a4e0542f5b0fcd053a5668ec78b118dac40eba44d1dd628820471c2a3a1e6d60\\output-2.docx",
+              "sha256": "15b9f3beb5d962e17bb3b5831b88115e636d7b4052ba7e721ac7345986d26eb5",
+              "parentIds": [
+                "3b1f186cd84cf910d2784a577d1972682b8e4a545b5d38b756e3710d926cb6a1"
+              ],
+              "parentSha256s": [
+                "b3a5f84ed3153178cf4a1c7c204e2fca9ae40db8632ec082d2c58ec7fede5bd6"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "attempts": [
+    {
+      "id": "def2d594-8ebc-492a-9c29-2425b79cacaf",
+      "actionId": "material:bdd1468446bfb4e16c61e8da5236b216175f3ad4af207a736c183f1515a59bba",
+      "source": "local-experiment",
+      "success": true,
+      "verified": true,
+      "evidenceRefs": [
+        "local-outcome-verification:c3ac148aa0387ca16696b1cf0d50be42b09aa3358fab05ce778b4a07895d3692"
+      ]
+    },
+    {
+      "id": "6e8d7241-3c4c-4c34-8a8e-4e1a01a37fba",
+      "actionId": "material:acb467aed56bdca309a3b03cbba83ea5089bb01003d39ebd7fe089733e72b60f",
+      "source": "local-experiment",
+      "success": true,
+      "verified": true,
+      "evidenceRefs": [
+        "local-outcome-verification:f09b068fe8436d208550b666ba52a773c4f3e0131f9947fdc142f4ab05e61f40"
+      ]
+    },
+    {
+      "id": "e96512ce-b8b5-42d2-a448-320767785874",
+      "actionId": "outcome:e56928473bf4d03055522f83179d0046fa10483ceadb5df8aeeda79e76e4a5b7",
+      "source": "local-experiment",
+      "success": true,
+      "verified": true,
+      "evidenceRefs": [
+        "local-outcome-verification:a8d6c86d2f809a40e9156ab1fceffead823c0f4057680630cff294bdab0b3afd"
+      ]
+    },
+    {
+      "id": "bd81bfbd-6988-4e0f-b0bc-5571bc9e3172",
+      "actionId": "outcome:215535cc4cea7d717bde513911b50bb6ed88cb61fbe31534ba488941d98f79b2",
+      "source": "local-experiment",
+      "success": true,
+      "verified": true,
+      "evidenceRefs": [
+        "local-outcome-verification:909c5beec339de0243781269abd52516af8e68af40decd1333d3ea10d6fe0d41"
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/evidence/1944-local-delivery/business-preparation.xlsx",
+      "bytes": 5363,
+      "sha256": "9febf6af49ab0cf2ebea98ea92cbe0041a1826cdb5a61b9a76efcbecc5693df1"
+    },
+    {
+      "path": "docs/evidence/1944-local-delivery/business-preparation.docx",
+      "bytes": 5627,
+      "sha256": "15b9f3beb5d962e17bb3b5831b88115e636d7b4052ba7e721ac7345986d26eb5"
+    }
+  ],
+  "limitations": [
+    "Supplied cells and prose; no autonomous market research, fact checking or semantic planning proof.",
+    "Two fresh CLI processes were invoked by the acceptance harness; no unattended service/crash scheduler or cross-Actions recovery claim.",
+    "Original #1219 NOT_ACHIEVED/G1 HOLD unchanged; no production or physical acceptance."
+  ]
+}

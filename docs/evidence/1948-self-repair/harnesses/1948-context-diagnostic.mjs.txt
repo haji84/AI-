@@ -1,0 +1,31 @@
+import {readFile,writeFile,mkdir} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+import {resolve,join} from 'node:path';
+import {withDevelopmentResourceAdmission} from '../src/gai/development-resource-admission.ts';
+const root=resolve('.jarvis/1948-context-diagnostic');await mkdir(root,{recursive:true});
+const evidenceRoot=resolve('docs/evidence/1946-self-development/4b-frozen-first');
+const intentFile=join(evidenceRoot,'journals/3aee1d5c852bb4c2060a298c059ba6efa02ce81c1760285edaa9bbef9bc55e47.prepared.json.intent.json');
+const intent=JSON.parse(await readFile(intentFile,'utf8')),manifest=JSON.parse(await readFile(join(evidenceRoot,'manifest-0.json'),'utf8'));
+const original=intent.prompt,prefix='SOURCE src/gai/cognitive-service.ts\n',boundary=original.indexOf('\nSLOT 1 in ');
+if(!original.startsWith(prefix)||boundary<0)throw Error('Unexpected retained context');
+const full=original.slice(prefix.length,boundary),lines=full.split('\n'),slot=manifest.slots[0];
+const matches=full.split(slot.before);if(matches.length!==2)throw Error('Nonunique retained slot');
+const line=matches[0].split('\n').length-1,start=Math.max(0,line-5),end=Math.min(lines.length,line+9);
+const prompt=prefix+lines.slice(start,end).join('\n')+original.slice(boundary);
+const sha=b=>createHash('sha256').update(b).digest('hex');
+const result={scope:'READ-ONLY diagnostic, not a Goal completion or adopted source fix',baseline:'8ca36986e759f2fe8b3257f07d36bf30afa05fb6',issue:1948,variable:'source context extent only',model:manifest.model,originalIntentSha256:sha(await readFile(intentFile)),originalPromptSha256:sha(original),promptSha256:sha(prompt),originalBytes:Buffer.byteLength(original),focusedBytes:Buffer.byteLength(prompt),sourceLines:[start+1,end],startedAt:new Date().toISOString()};
+await writeFile(join(root,'request.json'),JSON.stringify({...result,prompt},null,2)+'\n',{flag:'wx'});
+const schema={type:'object',properties:{edits:{type:'array',minItems:1,maxItems:manifest.slots.length,items:{type:'object',properties:{slot:{type:'integer',enum:manifest.slots.map(s=>s.id)},after:{type:'string',minLength:1,maxLength:16000}},required:['slot','after'],additionalProperties:false}}},required:['edits'],additionalProperties:false};
+const body={model:manifest.model.id+':local',prompt,system:'You are a bounded source repair capability. Return only the requested JSON.',stream:false,think:false,truncate:false,shift:false,keep_alive:'1m',format:schema,options:{temperature:0,num_ctx:8192,num_predict:manifest.model.nPredict}};
+async function inventory(path){const r=await fetch('http://127.0.0.1:11434'+path,{redirect:'error',signal:AbortSignal.timeout(5000)});if(!r.ok)throw Error('Inventory HTTP '+r.status);const j=await r.json(),m=j.models?.filter(m=>m.name===manifest.model.id||m.model===manifest.model.id);if(m?.length!==1||m[0].digest!==manifest.model.sha256||m[0].remote_host||m[0].remote_model||m[0].size<=0)throw Error('Model pin mismatch');return {path,name:m[0].name,digest:m[0].digest,size:m[0].size};}
+try{
+ await withDevelopmentResourceAdmission(async()=>{
+  result.before=await inventory('/api/tags');
+  const r=await fetch(manifest.model.endpoint,{method:'POST',redirect:'error',signal:AbortSignal.timeout(manifest.model.timeoutMs),headers:{'content-type':'application/json'},body:JSON.stringify(body)});if(!r.ok)throw Error('Generation HTTP '+r.status);
+  const reader=r.body.getReader(),chunks=[];let length=0;try{for(;;){const {done,value}=await reader.read();if(done)break;length+=value.length;if(length>131072)throw Error('Response bound');chunks.push(Buffer.from(value));}}finally{await reader.cancel();}
+  const bytes=Buffer.concat(chunks);await writeFile(join(root,'response.json'),bytes,{flag:'wx'});const payload=JSON.parse(bytes.toString('utf8'));
+  if(payload.model!==body.model||payload.done!==true||payload.done_reason!=='stop'||typeof payload.response!=='string')throw Error('Incomplete generation');
+  result.loaded=await inventory('/api/ps');result.after=await inventory('/api/tags');result.responseSha256=sha(bytes);result.edits=JSON.parse(payload.response).edits;result.status='OBSERVED';
+ },{kind:'local-model',directory:resolve('.')});
+}catch(e){result.status='FAIL';result.error=String(e);process.exitCode=1;}
+result.finishedAt=new Date().toISOString();await writeFile(join(root,'result.json'),JSON.stringify(result,null,2)+'\n',{flag:'wx'});console.log(JSON.stringify(result));

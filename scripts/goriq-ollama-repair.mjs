@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { resolve, relative, isAbsolute } from "node:path";
+import { fileURLToPath } from "node:url";
+import { ResourceWaitError, withDevelopmentResourceAdmission } from "../src/gai/development-resource-admission.ts";
 
 function arg(name, fallback = "") {
   const i = process.argv.indexOf(name);
@@ -34,15 +36,17 @@ function stripFence(text) {
   return match ? match[1].trim() : trimmed;
 }
 
-const workspace = resolve(arg("--workspace", process.cwd()));
-const model = arg("--model", process.env.GORIQ_OLLAMA_MODEL || "qwen2.5-coder:1.5b");
-const endpoint = process.env.GORIQ_OLLAMA_URL || "http://127.0.0.1:11434";
-const prompt = await stdinText();
+/** The caller may supply trusted admission ownership when this is an in-process Builder job. */
+export async function runOllamaRepair(input, options = {}) {
+  const workspace = resolve(input.workspace ?? process.cwd());
+  return (options.admit ?? withDevelopmentResourceAdmission)(async () => {
+const model = input.model ?? process.env.GORIQ_OLLAMA_MODEL ?? "qwen2.5-coder:1.5b";
+const endpoint = input.endpoint ?? process.env.GORIQ_OLLAMA_URL ?? "http://127.0.0.1:11434";
+const prompt = input.prompt;
 const allowed = parseAllowed(prompt).filter((p) => safePath(workspace, p) && existsSync(resolve(workspace, p)));
 
 if (!allowed.length) {
-  console.error("GORIQ_OLLAMA_REPAIR_NO_ALLOWED_FILES");
-  process.exit(2);
+  throw Object.assign(new Error("GORIQ_OLLAMA_REPAIR_NO_ALLOWED_FILES"), { exitCode: 2 });
 }
 
 let budget = 22000;
@@ -72,8 +76,9 @@ const user = [
 
 let response;
 try {
-  response = await fetch(`${endpoint}/api/chat`, {
+  response = await (options.fetchImpl ?? fetch)(`${endpoint}/api/chat`, {
     method: "POST",
+    redirect: "error",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       model,
@@ -84,16 +89,15 @@ try {
       ],
       options: { temperature: 0.1, num_ctx: 16384 }
     }),
-    signal: AbortSignal.timeout(360000)
+    signal: AbortSignal.timeout(options.timeoutMs ?? 360000)
   });
 } catch (error) {
-  console.error(`GORIQ_OLLAMA_REPAIR_UNREACHABLE: ${error instanceof Error ? error.message : String(error)}`);
-  process.exit(3);
+  throw Object.assign(new Error("GORIQ_OLLAMA_REPAIR_UNREACHABLE", { cause: error }), { exitCode: 3 });
 }
 
 if (!response.ok) {
-  console.error(`GORIQ_OLLAMA_REPAIR_HTTP_${response.status}: ${(await response.text()).slice(-3000)}`);
-  process.exit(4);
+  await response.body?.cancel();
+  throw Object.assign(new Error(`GORIQ_OLLAMA_REPAIR_HTTP_${response.status}`), { exitCode: 4 });
 }
 
 const payload = await response.json();
@@ -102,8 +106,7 @@ let parsed;
 try {
   parsed = JSON.parse(raw);
 } catch {
-  console.error(`GORIQ_OLLAMA_REPAIR_INVALID_JSON: ${raw.slice(-3000)}`);
-  process.exit(5);
+  throw Object.assign(new Error("GORIQ_OLLAMA_REPAIR_INVALID_JSON"), { exitCode: 5 });
 }
 
 const edits = Array.isArray(parsed?.edits) ? parsed.edits : [];
@@ -123,7 +126,24 @@ for (const edit of edits) {
 }
 
 if (!changed) {
-  console.error("GORIQ_OLLAMA_REPAIR_NO_CHANGES");
-  process.exit(6);
+  throw Object.assign(new Error("GORIQ_OLLAMA_REPAIR_NO_CHANGES"), { exitCode: 6 });
 }
-console.log(JSON.stringify({ ok: true, model, changed }, null, 2));
+return { ok: true, model, changed };
+
+  }, { kind: "local-model", directory: workspace });
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  try {
+    const result = await runOllamaRepair({ workspace: arg("--workspace", process.cwd()), model: arg("--model", process.env.GORIQ_OLLAMA_MODEL || "qwen2.5-coder:1.5b"), prompt: await stdinText() });
+    console.log(JSON.stringify(result, null, 2));
+  } catch (error) {
+    if (error instanceof ResourceWaitError) {
+      console.error(JSON.stringify({ ok: false, blocker: "WAITING_FOR_RESOURCE", resourceWait: error.outcome, evidence: { resourceWait: error.outcome } }));
+      process.exitCode = 75;
+    } else {
+      console.error(error instanceof Error ? error.message : "GORIQ_OLLAMA_REPAIR_FAILED");
+      process.exitCode = error?.exitCode ?? 3;
+    }
+  }
+}

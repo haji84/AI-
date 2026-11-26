@@ -1,0 +1,12 @@
+✔ a tracked source sequence remains bound to its current Goal across approved-next-work handoff (6.5295ms)
+✔ approved next work atomically archives verified predecessor without inheriting completion (5.7396ms)
+✔ authenticated Broker selects tracked profile and restarts the same waiting Job without another model call (11759.8ms)
+✔ authenticated Broker selects tracked sequence and restarts the same waiting Job without another model call (26281.0317ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 38266.1224

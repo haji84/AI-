@@ -1,0 +1,34 @@
+✔ approved next work atomically archives verified predecessor without inheriting completion (13.2161ms)
+✔ tracked sequence reuses one Goal authority and starts a real source successor only after verified predecessor (23927.0957ms)
+✔ tracked sequence refuses changed pins, reused workspaces and mismatched criteria before inference (3191.7177ms)
+✔ tracked sequence rejects competing profiles instead of silently selecting another controller (772.0775ms)
+✖ authenticated Broker selects tracked sequence and restarts the same waiting Job without another model call (16291.3511ms)
+✔ an approved sequence creates its next Job after restart and reports only completed global criteria (100.384ms)
+✔ an approved successor waits on its own resources, rejects sequence drift and resumes after restart (109.5058ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 6
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 44414.4633
+
+✖ failing tests:
+
+test at tests\autonomous-tracked-repair-runtime.test.ts:599:37
+✖ authenticated Broker selects tracked sequence and restarts the same waiting Job without another model call (16291.3511ms)
+  AssertionError [ERR_ASSERTION]: tracked Job VERIFYING[goriq-goal] goal-29116090ec2b44fe executor_exit=1 signal=none [goriq-goal-executor] goal-29116090ec2b44fe EPERM: operation not permitted, rename 'C:\Users\qq113\AppData\Local\Temp\tracked-runtime-6X5ltP\state\self-development\jobs.json.tmp-98796-1795633526621' -> 'C:\Users\qq113\AppData\Local\Temp\tracked-runtime-6X5ltP\state\self-development\jobs.json'
+  
+  {"calls":0,"jobs":[{"jobId":"development-5eb1cf60132d2be9b294928a697f01a510447307c30c5d1db516da3a28e0dfab","phase":"PLANNING","attempts":0,"lastTransition":{"transitionId":"development-5eb1cf60132d2be9b294928a697f01a510447307c30c5d1db516da3a28e0dfab:sequence","from":"QUEUED","to":"PLANNING","actor":"state-controller","reason":"host-approved development sequence bound before execution","at":"2026-11-25T19:05:26.611Z","evidenceIds":["development-5eb1cf60132d2be9b294928a697f01a510447307c30c5d1db516da3a28e0dfab:sequence"]}}],"journals":[],"receiptRequested":false}
+      at wait (file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/tests/autonomous-tracked-repair-runtime.test.ts:632:77)
+      at async TestContext.<anonymous> (file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/tests/autonomous-tracked-repair-runtime.test.ts:640:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }

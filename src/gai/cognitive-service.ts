@@ -55,7 +55,16 @@ export class CognitiveService {
         }
       }
       if (goal && goalId && this.options.materialIntake) {
-        try { const saved = await this.materialStore().load(goalId, goal); if (saved) materials = this.materialStore().summary(saved.receipt); }
+        try {
+          const saved = await this.materialStore().load(goalId, goal);
+          if (saved) {
+            materials = this.materialStore().summary(saved.receipt);
+            if (compass.getState().status === "goal_complete") {
+              const verifiedIds = (state?.attempts ?? []).filter(a => a.verified).map(a => a.actionId);
+              for (const output of saved.receipt.manifest.outcomes) await this.materialStore().output(goalId, goal, output.id, verifiedIds);
+            }
+          }
+        }
         catch { configurationBlocker = "保存した材料のGoalまたは保存先を確認できません。再計画が必要です。"; }
       }
       return { goalId, goalDigest: goal ? cognitiveDigest(goal) : null,
@@ -72,13 +81,16 @@ export class CognitiveService {
         localActionsConfigured: localConfigured, research: await this.learning.researchStatus(this.options.partition!), metrics };
     } finally { compass.close(); }
   }
-  async continue(goalId: string) {
+  /** Local callers may allocate the existing bounded runner's budget; HTTP keeps the default. */
+  async continue(goalId: string, options: { maxCycles?: number } = {}) {
+    const maxCycles = options.maxCycles === undefined ? 3 : options.maxCycles;
+    if (!Number.isInteger(maxCycles) || maxCycles < 1 || maxCycles > 100) throw Error("maxCycles must be an integer from 1 to 100");
     await this.validateStateRoot();
     if (this.busy) throw Error("Cognitive cycle already running");
     if (typeof goalId !== "string" || !/^goal-[a-f0-9]{16}$/.test(goalId)) throw Error("Invalid Goal ID");
     this.busy = true;
     try {
-      const report = await new CompassGoalExecutionAdapter(this.dbPath, {}, { ...this.options, useCore: true, learning: this.learning }).run(goalId, { maxCycles: 3 });
+      const report = await new CompassGoalExecutionAdapter(this.dbPath, {}, { ...this.options, useCore: true, learning: this.learning }).run(goalId, { maxCycles });
       return { stopReason: report.stopReason, cycles: report.cycles.length, goalEvaluation: report.goalEvaluation ?? null };
     } finally { this.busy = false; }
   }

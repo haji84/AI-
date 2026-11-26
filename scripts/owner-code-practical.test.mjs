@@ -1,0 +1,24 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import {spawnSync} from 'node:child_process';
+import {resolve,join} from 'node:path';
+const shell=process.platform==='win32'?join(process.env.SystemRoot,'System32/WindowsPowerShell/v1.0/powershell.exe'):'pwsh';
+const script=process.env.GORIQ_PRACTICAL_TEST_SCRIPT??resolve('scripts/owner-code-practical-1218.ps1');
+function run(args,scope){return spawnSync(shell,['-NoProfile','-NonInteractive','-File',script,...args],{encoding:'utf8',timeout:15000,env:{...process.env,OS:'Windows_NT',GITHUB_ACTOR:'haji84',GITHUB_REPOSITORY:'haji84/AI-',GITHUB_REF:'refs/heads/main',GITHUB_SHA:'a'.repeat(40),GORIQ_OWNER_PRACTICAL_APPROVAL_BASE64:scope??''}});}
+test('Owner practical helper is inert unless Apply is explicitly selected',()=>{const r=run([]);assert.equal(r.error,undefined);assert.equal(r.status,0,r.stderr);assert.match(r.stdout,/^PLAN ONLY:/);assert.equal(r.stderr,'');});
+const now=Date.now(),iso=ms=>new Date(ms).toISOString();
+const base={scopeId:'issue:1218:owner-local-recovery-practical',launcherLocation:'owner-start-menu',explicitOwnerApproval:true,publicToolInstallApproval:true,existingCodeLocalReadCopyApproval:true,singleLoopbackSessionCookieApproval:true,credentialRotationApproval:false,issuedAt:iso(now-60000),expiresAt:iso(now+60000),sourceRevision:'a'.repeat(40),configSha256:'a'.repeat(64)};
+const encode=o=>Buffer.from(JSON.stringify(o)).toString('base64');
+const cases=[['missing',''],['malformed',Buffer.from('public-invalid-json-not-a-credential').toString('base64')],['wrong-scope',encode({...base,scopeId:'unrelated'})],['expired',encode({...base,issuedAt:iso(now-120000),expiresAt:iso(now-60000)})],['future',encode({...base,issuedAt:iso(now+60000)})],['overlong',encode({...base,expiresAt:iso(now+3*60*60*1000)})],['unapproved-copy',encode({...base,existingCodeLocalReadCopyApproval:false})],['rotation-request',encode({...base,credentialRotationApproval:true})]];
+for(const [name,scope] of cases)test('Owner practical helper rejects '+name+' at approval stage before credential or installation access',()=>{const r=run(['-Apply'],scope);assert.equal(r.error,undefined);assert.equal(r.status,1,r.stderr);assert.equal(r.stderr,'');const v=JSON.parse(r.stdout.trim());assert.equal(v.complete,false);assert.equal(v.failedStage,'approval');assert.equal(v.publicPackageVerified,false);assert.equal(v.explicitCopy,false);assert.equal(v.loopbackLogin,false);assert.equal(v.credentialRotation,false);assert.equal(v.databaseOpened,false);assert.equal(v.clipboardClearAttempted,false);assert.equal(v.failureCode,'OWNER_LOCAL_PRACTICAL_UNAVAILABLE');});
+
+
+for(const [name,launcherLocation] of [['missing',undefined],['old-desktop','owner-desktop'],['arbitrary-path','C:\\unapproved']])test('Start Menu practical requires a fresh exact launcher scope: '+name,()=>{
+ const r=run(['-Apply'],encode({...base,launcherLocation}));assert.equal(r.error,undefined);assert.equal(r.status,1,r.stderr);assert.equal(r.stderr,'');const v=JSON.parse(r.stdout.trim());assert.equal(v.failedStage,'approval');assert.equal(v.publicPackageVerified,false);assert.equal(v.explicitCopy,false);assert.equal(v.loopbackLogin,false);assert.equal(v.credentialRotation,false);
+});
+
+
+test('Start Menu valid scope advances past approval and stops at missing owner identity without production access',()=>{
+ const current=Date.now();const scope={...base,issuedAt:iso(current-60000),expiresAt:iso(current+60000)};assert.equal(Object.hasOwn(scope,'ownerSid'),false);
+ const r=run(['-Apply'],encode(scope));assert.equal(r.error,undefined);assert.equal(r.status,1,r.stderr);assert.equal(r.stderr,'');const v=JSON.parse(r.stdout.trim());assert.equal(v.failedStage,'identity');for(const key of ['publicPackageVerified','explicitReveal','explicitCopy','loopbackLogin','credentialRotation','databaseOpened'])assert.equal(v[key],false);
+});

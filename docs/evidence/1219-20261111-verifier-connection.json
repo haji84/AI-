@@ -1,0 +1,220 @@
+{
+  "version": 1,
+  "recordedAt": "2026-11-11T13:47:45.912132+00:00",
+  "scope": "source-and-isolated-actual-failed-candidate-transfer",
+  "baseCommit": "945bd23dbfcd0f338df56e3c380a7f1c5dcf717f",
+  "sourceSha256": {
+    "scripts/jarvis-independent-check-runner.mjs": "e4803a3d88fbde8c8757bb6d75dd6e86e1301a085a0c470348eb6188783f73bd",
+    "scripts/jarvis-verifier-request-transfer.mjs": "be06752e3ad3f84b8f4248e43f623def7066d9ca613de5c8ff9b6e2e1a986b69"
+  },
+  "regressions": {
+    "red": {
+      "tests": 32,
+      "passed": 19,
+      "failed": 13,
+      "skipped": 0
+    },
+    "focusedGreen": {
+      "tests": 32,
+      "passed": 32,
+      "failed": 0,
+      "skipped": 0,
+      "seconds": 5.865
+    },
+    "relatedGreen": {
+      "tests": 127,
+      "passed": 127,
+      "failed": 0,
+      "skipped": 0,
+      "seconds": 63.867
+    }
+  },
+  "independentSourceReview": {
+    "evidenceClass": "AI_ASSERTED",
+    "critical": 0,
+    "important": 0,
+    "minor": 0,
+    "productionSignerAcceptance": false
+  },
+  "actualTransfer": {
+    "version": 1,
+    "scope": "isolated-actual-failed-candidate-transfer-only",
+    "at": "2026-11-11T13:43:55.017Z",
+    "packetVersion": 2,
+    "goalId": "goal-256f4596b6ceb38e",
+    "jobId": "development-d4cc2351f818abcafecb65e8b4e1841a2c69435fe2c24de423024fec566057cd",
+    "requestSha256": "b7ab05c1086820c926e804c0ebd65d4603bac4efa58e9d6661af535e515c934d",
+    "sourceRevision": "3fa03b8698bc0d8ed5e7f34c5594190eed1ef88e5362b9b79e45bc569f852c48",
+    "artifactDigest": "b384930b324198476af0419e1923f005b6c09e0c061e774b644c2a65382f1157",
+    "transferSourceSha256": "be06752e3ad3f84b8f4248e43f623def7066d9ca613de5c8ff9b6e2e1a986b69",
+    "requiredChecks": [
+      "lint",
+      "typecheck",
+      "unit",
+      "integration",
+      "security",
+      "build"
+    ],
+    "replayPreserved": true,
+    "probe": {
+      "exit": 1,
+      "failureClass": "SyntaxError: Missing catch or finally after try",
+      "logSha256": "20d8fc8169d37a39d875f43cf5974af382992d2b8af879a791cbe5ee90f057eb"
+    },
+    "originalOwnerGoalTouched": false,
+    "productionDeliveryAuthenticated": false,
+    "independentProductionSigner": false,
+    "privateKeyCreated": false,
+    "receiptCreated": false
+  },
+  "localChecks": [
+    {
+      "check": "typecheck",
+      "exit": 0,
+      "elapsedSeconds": 3.4741807000000335
+    },
+    {
+      "check": "lint",
+      "exit": 0,
+      "elapsedSeconds": 11.483815639000568
+    },
+    {
+      "check": "security",
+      "exit": 0,
+      "elapsedSeconds": 5.09589394700015
+    },
+    {
+      "check": "build",
+      "exit": 1,
+      "elapsedSeconds": 0.9671078459996352
+    },
+    {
+      "check": "build-with-local-dependencies",
+      "exit": 0,
+      "elapsedSeconds": 17.612722234999637
+    },
+    {
+      "check": "built-health",
+      "exit": 0,
+      "elapsedSeconds": 1.1175817610001104
+    }
+  ],
+  "localWholeSuite": {
+    "startedAt": "2026-11-11T13:26:42.444494+00:00",
+    "elapsedSeconds": 300.004925704,
+    "exit": -9,
+    "timedOut": true,
+    "cpuUserSeconds": 384.391891,
+    "cpuSystemSeconds": 79.847327,
+    "affinity": [
+      0,
+      1
+    ],
+    "budgetSeconds": 300,
+    "telemetryOptOut": true,
+    "networkIsolation": false,
+    "nodeVersion": "v24.22.1"
+  },
+  "hostedFirstContinuation": {
+    "commit": "945bd23dbfcd0f338df56e3c380a7f1c5dcf717f",
+    "runId": 43031102373,
+    "status": "completed",
+    "conclusion": "failure",
+    "normalSuite": {
+      "passed": 3678,
+      "failed": 0,
+      "conditionalSkipped": 26
+    },
+    "security": {
+      "passed": 332,
+      "failed": 0
+    },
+    "independent": {
+      "lint": "passed",
+      "typecheck": "passed",
+      "unit": "inconclusive",
+      "unitElapsedMs": 300007.765066,
+      "unitFailure": "ETIMEDOUT/SIGKILL plus a diagnostic test requiring source-root .git",
+      "integration": "not_run",
+      "security": "not_run",
+      "build": "not_run",
+      "cleanupConfirmed": true,
+      "artifactId": 13861149647,
+      "artifactZipSha256": "96664faabc0d2261dfbc0b74bba8032d1bfbd80f04497bfec0ae3e9258134ec1"
+    },
+    "completionClaim": false
+  },
+  "productionGoalAchieved": false,
+  "productionSignerConnected": false,
+  "distributedOwnershipProved": false,
+  "originalGoalAuthenticated": false,
+  "archive": {
+    "path": "docs/evidence/1219-20261111-verifier-connection.zip",
+    "sha256": "d08dd23691af8dc344df84c2beec1fbff1848262c781c542d51a8c841d111cbc",
+    "bytes": 261932
+  },
+  "members": {
+    "verifier-boundary-red.log": "37361507712c46e074ce7765c0e48aca9e40d6f235811e7d8ea16034ca936c35",
+    "verifier-boundary-green.log": "0370eedd3fcee1c331885fa492980c88c0cff0ddc3daa487b8f9efa375126d69",
+    "verifier-boundary-regression.log": "0de6389629475c18db95ef9439a2f99586036270d6ec578403d91d38b934ad71",
+    "verifier-boundary-eslint.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "actual-transfer-result.json": "c015d9fcd821966be47a58eb5e75469df33a7182adf110ea613e4067bfcb5b02",
+    "actual-transfer-probe.log": "20d8fc8169d37a39d875f43cf5974af382992d2b8af879a791cbe5ee90f057eb",
+    "whole-suite-optout-result.json": "ebde44532d124e9653f2b28ba38609ae058d47d7bac2fda804a6a4338ac5bf1b",
+    "whole-suite-optout.log": "e8bca77ea8b61836900c4a97a4417fadb1d9a149a1805edcea6d7ae1e7e75456",
+    "local-checks.json": "b9b237510b38c12082f9f54ae08d51a8a72111b598f054480514ca1ecdcb2f14",
+    "local-typecheck.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "local-lint.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "local-security.log": "cb8a18bf06f0b89f13077f0aaa82e335a4082bedfae077c7a0e563045f8046e9",
+    "local-build-before-dependency-copy.log": "2eb149c722a7ce8b932147f647e849da1e4c5952e047f8bbef3a1a55118d9802",
+    "local-build-with-local-dependencies.log": "8e1653fa3190b37ce91e38eaed443c92300eda70ae614459001350146c979091",
+    "local-built-health.log": "bd163c9bd982ada0bac220cc90fd897e5a6ddc00b36f1585cdbdd3825311ad0d",
+    "local-selector-red.log": "fdd69b17156bc0e2a5b50caee6784b70e19b19c309a43e60b0b91a4ea48ceebd",
+    "local-selector-green.log": "30b61f582242797bce2063eb9526702b9a077f391eca984143202a9028cc5427",
+    "actual-inference-driver.mjs": "089e6402ae53d6d4e4ab62c0b1cff712efb8403674a3dc9eb532078b72cf684b",
+    "actual-inference-runtime-source.ts": "ff5a720c15ce57b1b12c82a08d36655023b604e2dddaeaab8f4aafff7b06a3bd",
+    "actual-installed-model-inventory.json": "4ac84aecd4904919ceb0f5c071edda3836673030932239f04c85574c1867381b",
+    "ai09-gitless-red.log": "60dc8659f6882c4751133a270d9ce5720add236870a262181b6d5b64e823b4aa",
+    "ai09-gitless-green.log": "2ff71f125452a8cfcf288a327a9df58a5fdccb22b8920245d158d3e9deeec73f",
+    "ai09-gitless-regression.log": "a36fae1a5ac9d3ec451a40986b0d1122855e486ddaada7f122bfbd69df59e197",
+    "first-hosted-result.json": "6d5ba2a28cc7e3adcfb5c7cb169af7e6ce1f03a2a8e444b8b75d8579a671b254",
+    "first-hosted-runner-result.json": "9655caaef0f96396d94163c27e3abfdf031370225477f35e5f64d975e7cf4f1b",
+    "first-hosted-unit.json": "00a1515aebb89fa58e3776de5513a2a70d0597dea458ca3a2a8b92eb888b5054"
+  },
+  "gitlessDiagnosticRegression": {
+    "testFileSha256": "b78767ccc9753d627bf9c2f2c4e2672f577de0629bdf6b1f5900ceaf9809a491",
+    "red": {
+      "tests": 20,
+      "failed": 1
+    },
+    "gitlessGreen": {
+      "tests": 22,
+      "passed": 22,
+      "failed": 0,
+      "skipped": 0
+    },
+    "relatedGreen": {
+      "tests": 38,
+      "passed": 38,
+      "failed": 0,
+      "skipped": 0
+    },
+    "productionScriptUnchanged": true,
+    "snapshotGitMetadataAdded": false
+  },
+  "inferenceSourceReconstruction": {
+    "sha256": "ff5a720c15ce57b1b12c82a08d36655023b604e2dddaeaab8f4aafff7b06a3bd",
+    "matchesHashRecordedAtInference": true,
+    "method": "reverse only the later local-selector correction and require exact original hash; original failure archive unchanged"
+  },
+  "inferenceAssets": {
+    "ollamaVersion": "0.34.0",
+    "archiveUrl": "https://github.com/ollama/ollama/releases/download/v0.34.0/ollama-linux-amd64.tar.zst",
+    "archiveSha256": "cf95886728959aa09910bb34de5cca1cc5a8f68003b5597197d3f2c2d57c0804",
+    "archiveBytes": 1433537033,
+    "modelId": "qwen2.5-coder:3b",
+    "modelDigest": "f72c60cabf6237b07f6e632b2c48d533cef25eda2efbd34bed21c5e9c01e6225",
+    "modelBytes": 1929912626,
+    "cloudDisabled": true
+  }
+}

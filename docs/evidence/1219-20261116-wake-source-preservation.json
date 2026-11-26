@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "goalId": "goal-fcc81c97e09153f7",
+  "jobId": "rotation-recovery-37",
+  "status": "NOT_ACHIEVED",
+  "G1": "HOLD",
+  "baselineMain": "460c73af41d8b9955a4dfa9ad3744f3fa412c6b5",
+  "author": "Codex",
+  "localModel": "NOT_RUN",
+  "scope": "Repair existing Mac-to-ZBook wake capability source checkout; not a newController or original state authority",
+  "blocker": "Read-only original-location run43790681954 remainsqueued/unassigned; oldWOLdefaultrootcheckoutunsafe forretainedMacdata; no safeexistingcheckoutfreeWOL selector found",
+  "changes": {
+    "allModes": "existingmanual/issue selectors plusowner/repo/main binding",
+    "source": "atomicunusedfixedperrunattemptdirectory; checkoutexactgithubsha withcleanfalse/persistfalse; nooriginalworkspacecleanup",
+    "verification": "existinggoriq-pc-approved-source exactcurrentmain/successpushCI before packets; Node24.19",
+    "protocol": "Existinghelperbytes/target/ARP/packet/statusalgorithm unchanged; runviaBashratherthanchmod",
+    "output": "Freshinvocationstdout artifact; precheck/checkout/sourceapproval/currentwakeattempt guards preventstaleglobalstatusupload",
+    "permissions": "contents:read unchanged; no newscope/token/key/credential",
+    "limits": "existing5minutejob, no networkscan/retry/daemon/service/install/enrollmentoperation"
+  },
+  "helperSha256": "c6fe0206d1fdf0bf6394831d3ec94b2bc0e2b8919857deba20c7693647cd73aa",
+  "sourceHashes": {
+    ".github/workflows/zbook-wake-via-macbook.yml": "123e6a29483f92b1d3920cf63dda28ec1df8818405226e5743fb4178ca459446",
+    "tests/zbook-wake-via-macbook-contract.test.ts": "727c5aef478d6b409115f7a0e1d710f917f3a6c129d804e358d4456ac753a33f"
+  },
+  "validation": {
+    "TDD": "old2PASS/new3RED; candidatefocused9PASS0FAIL0SKIP",
+    "actualBash": "tempfresh/existingfile/dir/dangling/alias/invalidcontext checks; original .jarvis/handoff canarybytes/mode/inode preserved",
+    "originalTestsAndHelper": "byteexact, independentreviewconfirmed",
+    "lint": "PASS",
+    "typecheck": "PASS",
+    "requirementsAudit": "626surfaces341requirementsPASS",
+    "syntax": "allinline/helper bash-n PASS; BASH_COMPAT3.2 Linux notnativeMac",
+    "independent": "focused9PASS/no unresolvedmaterialfindings; overlapnotsummed",
+    "full": {
+      "total": 4193,
+      "pass": 4167,
+      "fail": 0,
+      "skip": 26,
+      "durationMs": 245720.019466,
+      "processUmask": "022"
+    },
+    "CI": "newexactHEAD/mainCI stillrequired"
+  },
+  "limitations": [
+    "ActualnativeMac/ARP/WOL/hostreconnection notexecuted",
+    "Ordinarysameownerreplacementrace isnotclaimed prevented",
+    "Existinghelperwrites designatedHOMEstatus metadata; notwholefilesystemreadonly",
+    "Packetok:true provessubmission, notpower/runner/originalrecovery; post-sendfailure canbeuncertain",
+    "Runnerlabels trustedmacOS are notuniquesolephysicalMac identity; actualLAN/assignment mustbeobserved"
+  ],
+  "actualNetworkWake": false,
+  "newKeysPermissionsServices": 0,
+  "authorization": "Owner continuingtask completion approvals coverordinarynonbillablewake; no expiredscopeorHUMAN_VERIFIEDfabrication",
+  "rollback": "Normalprotectedsource revert ofdependentworkflow/test changes; no liveoperationyet to reverse",
+  "next": "FreshprotectedPR/sourceCI/merge/exactmainCI thenoneexistingwakeoperation ifreadonlyjobstillunassigned; queued460source becomesstaleifmainadvances, preserve/cancelobsolete/resubmitnewreadjob honestly",
+  "record": "https://github.com/haji84/AI-/issues/1219#issuecomment-6905456162",
+  "existingPrReuseCheck": {
+    "openCandidatePRs": [
+      1181,
+      1166,
+      1795
+    ],
+    "filesEach": 2,
+    "exactWakeWorkflowOrHelperTouched": false,
+    "newDedicatedSourceFixNeeded": "Existing safe route unavailable and no exact-purpose unmerged WOL source safety PR"
+  }
+}

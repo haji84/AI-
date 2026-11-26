@@ -339,9 +339,11 @@ function attachEvidence(
 export class PlannerEnhancementPlanner implements Planner {
   readonly supersedesPriorExecutionState?: boolean;
   private readonly delegate: Planner;
+  private readonly completion?: { propose(goal: Goal): Promise<ProposedAction | null> };
 
-  constructor(delegate: Planner) {
+  constructor(delegate: Planner, completion?: { propose(goal: Goal): Promise<ProposedAction | null> }) {
     this.delegate = delegate;
+    this.completion = completion;
     this.supersedesPriorExecutionState = delegate.supersedesPriorExecutionState;
   }
 
@@ -360,6 +362,7 @@ export class PlannerEnhancementPlanner implements Planner {
     intent: InferredIntent;
     previousResult?: ActionResult | null;
   }): Promise<ProposedAction | null> {
+    if (this.completion) return this.completion.propose(input.goal);
     const decision = buildPlannerEnhancementContext(input);
     const firstContext = [...input.context, decision.contextItem];
     const first = await this.delegate.proposeNextAction({ ...input, context: firstContext });

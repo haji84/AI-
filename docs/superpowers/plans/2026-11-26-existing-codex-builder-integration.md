@@ -1,0 +1,9 @@
+# Reuse #1819 for the current GORIQ Goal
+
+Current owner direction: #1944 comments7188751595/7170101968 -> full product#681/body#921. Always inspect latest GitHub instructions/main/PR/CI. Reuse existing PR1819/head a6327349; do not recreate its Builder or restore old#1219 Goal/service authority.
+
+Existing linked worktree reused on local integrate/1819-current-github-goal. Merge current main into the existing PR branch, preserving explicit Codex-free Ollama selection, trusted prepared-write/beforeWrite/resource-admission options and all default paths. Resolve the fingerprint map from current main and reconcile only the combined runtime Builder surface.
+
+Use inline execution/TDD. Confirm existing external Codex route/approval/config/authenticated health/workspace checks and old review fixes (POSIX case and bounded no-redirect health). Add a regression for trailing separators and POSIX case, plus a composition regression proving explicit Ollama-only never falls back to configured Codex. Do not change provider policy, activate a service, mint keys/tokens, purchase capacity, use old native authority or treat env approval as live quota proof. Read-only CLI account/rate-limit metadata was observed, but execution still needs fresh included capacity and the current isolated host scope.
+
+After #1951 protected merge, include its current main before final CI. Run relevant Builder/Ollama/prepared/recovery/risk tests, lint/types, selective fingerprints and preservation341/17/20/35. One fresh read-only review of the final current-main diff, evidence on GitHub, resolve old threads only where source/test evidence supports it, exact-head protected CI/merge and exact-main validation. Preserve prior evidence and all failed model attempts. Source routing is not real-model self-completion or production/physical acceptance.

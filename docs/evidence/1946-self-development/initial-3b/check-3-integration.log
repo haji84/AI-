@@ -1,0 +1,45 @@
+✖ owner material intake executes and downloads verified text without a step manifest or external AI (119.3202ms)
+✖ material intake rejects stale Goal, scope injection, missing acknowledgement and conflicting retries (161.7675ms)
+✔ tests\self-development-1946-0.test.mjs (274.7535ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 1
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 590.0856
+
+✖ failing tests:
+
+test at tests\goriq-material-intake.test.ts:10:1
+✖ owner material intake executes and downloads verified text without a step manifest or external AI (119.3202ms)
+  ReferenceError: maxCycles is not defined
+      at CognitiveService.continue (file:///C:/Users/qq113/AppData/Local/Temp/goriq-selfdev1946-DIiTqe/candidate-0/src/gai/cognitive-service.ts:77:15)
+      at TestContext.<anonymous> (file:///C:/Users/qq113/AppData/Local/Temp/goriq-selfdev1946-DIiTqe/candidate-0/tests/goriq-material-intake.test.ts:21:39)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+
+test at tests\goriq-material-intake.test.ts:31:1
+✖ material intake rejects stale Goal, scope injection, missing acknowledgement and conflicting retries (161.7675ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /Goal|goal/i. Input:
+  
+  'ReferenceError: maxCycles is not defined'
+  
+      at async TestContext.<anonymous> (file:///C:/Users/qq113/AppData/Local/Temp/goriq-selfdev1946-DIiTqe/candidate-0/tests/goriq-material-intake.test.ts:43:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: ReferenceError: maxCycles is not defined
+        at CognitiveService.continue (file:///C:/Users/qq113/AppData/Local/Temp/goriq-selfdev1946-DIiTqe/candidate-0/src/gai/cognitive-service.ts:77:15)
+        at file:///C:/Users/qq113/AppData/Local/Temp/goriq-selfdev1946-DIiTqe/candidate-0/tests/goriq-material-intake.test.ts:43:44
+        at waitForActual (node:assert:632:21)
+        at strict.rejects (node:assert:769:31)
+        at TestContext.<anonymous> (file:///C:/Users/qq113/AppData/Local/Temp/goriq-selfdev1946-DIiTqe/candidate-0/tests/goriq-material-intake.test.ts:43:16)
+        at async Test.run (node:internal/test_runner/test:1389:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:960:7),
+    expected: /Goal|goal/i,
+    operator: 'rejects',
+    diff: 'simple'
+  }

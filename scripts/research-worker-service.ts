@@ -1,16 +1,22 @@
 import { createServer } from "node:http";
 import { hostname } from "node:os";
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { ResourceWaitError, withDevelopmentResourceAdmission } from "../src/gai/development-resource-admission.ts";
 
-const host = process.env.RESEARCH_WORKER_HOST?.trim() || "127.0.0.1";
-const port = Number(process.env.RESEARCH_WORKER_PORT || 8795);
-const token = process.env.RESEARCH_WORKER_TOKEN?.trim() || "";
-const modelEndpoint = process.env.GAI_LOCAL_MODEL_ENDPOINT?.trim().replace(/\/$/, "") || "";
-const model = process.env.GAI_LOCAL_MODEL_NAME?.trim() || "local-model";
-const workerId = process.env.GAI_WORKER_ID?.trim() || hostname();
+export function createResearchWorkerServer(options: { env?: NodeJS.ProcessEnv; admit?: typeof withDevelopmentResourceAdmission; fetchImpl?: typeof fetch } = {}) {
+const env = options.env ?? process.env;
+const admit = options.admit ?? withDevelopmentResourceAdmission;
+const fetchImpl = options.fetchImpl ?? fetch;
+const host = env.RESEARCH_WORKER_HOST?.trim() || "127.0.0.1";
+const token = env.RESEARCH_WORKER_TOKEN?.trim() || "";
+const modelEndpoint = env.GAI_LOCAL_MODEL_ENDPOINT?.trim().replace(/\/$/, "") || "";
+const model = env.GAI_LOCAL_MODEL_NAME?.trim() || "local-model";
+const workerId = env.GAI_WORKER_ID?.trim() || hostname();
 
 if (!token) throw new Error("RESEARCH_WORKER_TOKEN is required");
 if (!modelEndpoint) throw new Error("GAI_LOCAL_MODEL_ENDPOINT is required");
-if (host !== "127.0.0.1" && host !== "::1" && process.env.RESEARCH_WORKER_ALLOW_NON_LOOPBACK !== "1") {
+if (host !== "127.0.0.1" && host !== "::1" && env.RESEARCH_WORKER_ALLOW_NON_LOOPBACK !== "1") {
   throw new Error("Refusing non-loopback bind unless RESEARCH_WORKER_ALLOW_NON_LOOPBACK=1");
 }
 
@@ -53,8 +59,10 @@ async function runResearch(body: Record<string, unknown>) {
     context.length ? `Context:\n${JSON.stringify(context).slice(0, 40_000)}` : "Context: none supplied",
   ].join("\n\n");
 
-  const response = await fetch(`${modelEndpoint}/v1/chat/completions`, {
+  const response = await fetchImpl(`${modelEndpoint}/v1/chat/completions`, {
     method: "POST",
+    signal: AbortSignal.timeout(120000),
+    redirect: "error",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       model,
@@ -87,7 +95,7 @@ async function runResearch(body: Record<string, unknown>) {
   };
 }
 
-createServer(async (request, response) => {
+return createServer(async (request, response) => {
   try {
     const url = new URL(request.url || "/", "http://localhost");
     if (request.method === "GET" && url.pathname === "/health") {
@@ -95,11 +103,20 @@ createServer(async (request, response) => {
     }
     if (request.method !== "POST" || url.pathname !== "/research") return json(response, 404, { message: "not found" });
     if (!authorized(request)) return json(response, 401, { message: "unauthorized" });
-    const result = await runResearch(await readJson(request));
+    const body = await readJson(request);
+    const result = await admit(() => runResearch(body), { kind: "local-model" });
     return json(response, result.status, result.body);
   } catch (error) {
+    if (error instanceof ResourceWaitError) return json(response, 503, { ok: false, summary: error.message, blocker: "WAITING_FOR_RESOURCE", resourceWait: error.outcome, evidence: { resourceWait: error.outcome } });
     return json(response, 500, { ok: false, summary: error instanceof Error ? error.message : String(error), blocker: "RESEARCH_WORKER_INTERNAL_ERROR" });
   }
-}).listen(port, host, () => {
-  console.log(`[research-worker] ${workerId} listening on http://${host}:${port}`);
 });
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const host = process.env.RESEARCH_WORKER_HOST?.trim() || "127.0.0.1";
+  const port = Number(process.env.RESEARCH_WORKER_PORT || 8795);
+  createResearchWorkerServer().listen(port, host, () => {
+    console.log(`[research-worker] ${process.env.GAI_WORKER_ID?.trim() || hostname()} listening on http://${host}:${port}`);
+  });
+}

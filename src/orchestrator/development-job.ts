@@ -1,3 +1,5 @@
+import { assertResourceWait, type DevelopmentResourceWait } from "./development-resource-wait.ts";
+
 export type DevelopmentRisk = "low" | "medium" | "high" | "critical";
 
 export type DevelopmentJobPhase =
@@ -90,6 +92,7 @@ export interface DevelopmentJob {
   createdAt: string;
   updatedAt: string;
   history: DevelopmentJobTransition[];
+  resourceWait?: DevelopmentResourceWait;
 }
 
 export interface DevelopmentJobCreateInput {
@@ -112,6 +115,7 @@ export interface DevelopmentTransitionRequest {
   evidence?: DevelopmentEvidence[];
   failure?: DevelopmentFailure;
   blockers?: string[];
+  resourceWait?: DevelopmentResourceWait;
 }
 
 const ALLOWED: Readonly<Record<DevelopmentJobPhase, ReadonlySet<DevelopmentJobPhase>>> = {
@@ -172,6 +176,7 @@ export function assertDevelopmentJob(job: DevelopmentJob): void {
     if (item.dependsOn.some((id) => !workIds.has(id) || id === item.id)) throw new Error(`invalid work dependency for ${item.id}`);
   }
   if (!ALLOWED[job.phase]) throw new Error("invalid development job phase");
+  if (job.resourceWait) assertResourceWait(job.resourceWait);
   if (!validIso(job.createdAt) || !validIso(job.updatedAt)) throw new Error("invalid development job timestamp");
 }
 
@@ -249,6 +254,11 @@ export class DevelopmentJobStateController {
     const at = request.at ?? new Date().toISOString();
     if (!validIso(at)) throw new Error("invalid transition timestamp");
     const next = clone(current);
+    if (request.resourceWait) {
+      if (request.to !== "WAITING_FOR_RESOURCE") throw Error("resource wait checkpoint requires waiting transition");
+      assertResourceWait(request.resourceWait);
+      next.resourceWait = clone(request.resourceWait);
+    }
     next.evidence = mergeEvidence(next.evidence, request.evidence ?? []);
     let target = request.to;
     let blockers: string[] = [];

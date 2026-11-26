@@ -1,8 +1,11 @@
-import { spawnSync } from "node:child_process";
+import { spawnSync, type SpawnSyncReturns } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { ResourceWaitError, type ResourceWaitOutcome } from "../src/gai/development-resource-admission.ts";
+import { allowedRepairPaths, isSameRepositoryOpenPullRequest, isTestPath } from "./goriq-pr-ci-recovery-preflight.mjs";
+export { allowedRepairPaths, isSameRepositoryOpenPullRequest } from "./goriq-pr-ci-recovery-preflight.mjs";
 import { autoReconcileTraceability } from "../src/orchestrator/safe-pr-capability.ts";
 import {
   REPAIR_ENGINE_ESCALATION_ORDER,
@@ -47,14 +50,6 @@ export interface PullRequestInfo {
   state: string;
   head: { ref: string; sha: string; repo?: { full_name?: string } | null };
   base: { ref: string; repo?: { full_name?: string } | null };
-}
-
-export function isSameRepositoryOpenPullRequest(pr: PullRequestInfo, repository: string): boolean {
-  return pr.state === "open"
-    && pr.head.repo?.full_name === repository
-    && pr.base.repo?.full_name === repository
-    && pr.head.ref !== "main"
-    && pr.head.ref !== pr.base.ref;
 }
 
 export function recoveryAttemptCount(subjects: string[]): number {
@@ -185,45 +180,6 @@ export function sanitizeFailureLog(value: string): string {
     .replace(/(token|secret|password)=([^\s&]+)/gi, "$1=[REDACTED]")
     .replace(/\r\n/g, "\n")
     .slice(-60_000);
-}
-
-const PROTECTED_PREFIXES = [
-  ".github/",
-  "src/app/api/owner-login/",
-  "src/app/api/owner-logout/",
-  "src/app/api/vercel-owner/",
-  "migrations/",
-];
-
-const PROTECTED_FILES = new Set([
-  "AGENTS.md",
-  "PROJECT_STATE.md",
-  "docs/JARVIS_PRODUCT_SPEC.md",
-  "docs/jarvis-requirements.json",
-  "docs/jarvis-owner-decisions.json",
-  "docs/jarvis-reverse-traceability.json",
-  "docs/jarvis-additional-requirements.json",
-  "package.json",
-  "pnpm-lock.yaml",
-]);
-
-function isTestPath(path: string): boolean {
-  return path.startsWith("tests/") || /\.(?:test|spec)\.[cm]?[jt]sx?$/.test(path);
-}
-
-const PROTECTED_PATH_PATTERN = /(?:^|[-_./])(?:auth|security|secret|credential|permission|billing|payment|enroll(?:ment)?|migration|token)(?:[-_./]|$)/i;
-
-function isProtectedRepairPath(path: string): boolean {
-  return PROTECTED_PATH_PATTERN.test(path);
-}
-
-export function allowedRepairPaths(prPaths: string[]): string[] {
-  return [...new Set(prPaths)]
-    .filter((path) => !PROTECTED_FILES.has(path))
-    .filter((path) => !PROTECTED_PREFIXES.some((prefix) => path.startsWith(prefix)))
-    .filter((path) => !isTestPath(path))
-    .filter((path) => !isProtectedRepairPath(path))
-    .sort();
 }
 
 export function commandInvocation(
@@ -474,7 +430,44 @@ function runNodeRepairAdapter(
     timeout: timeoutMs,
     env,
   });
+  assertRepairAdapterResult(scriptName, result);
+}
+
+export function assertRepairAdapterResult(
+  scriptName: string,
+  result: Pick<SpawnSyncReturns<string>, "error" | "status" | "stdout" | "stderr">,
+): void {
   if (result.error) throw result.error;
+  if (result.status === 75) {
+    let payload;
+    try { payload = JSON.parse(result.stderr.trim()); } catch { /* Invalid deferral stays a failure. */ }
+    const wait = payload?.resourceWait;
+    if (payload?.ok !== false || payload?.blocker !== "WAITING_FOR_RESOURCE"
+      || wait?.status !== "WAITING_FOR_RESOURCE" || typeof wait.reason !== "string"
+      || !wait.reason.trim() || wait.reason.length > 512 || /[\r\n]/.test(wait.reason)
+      || !Number.isSafeInteger(wait.retryAfterMs) || wait.retryAfterMs < 1 || wait.retryAfterMs > 300000
+      || typeof wait.observedAt !== "string" || !Number.isFinite(Date.parse(wait.observedAt))) {
+      throw new Error(`${scriptName} failed: REPAIR_RESOURCE_WAIT_INVALID`);
+    }
+    const outcome: ResourceWaitOutcome = {
+      status: "WAITING_FOR_RESOURCE",
+      reason: sanitizeFailureLog(wait.reason),
+      retryAfterMs: wait.retryAfterMs,
+      observedAt: new Date(wait.observedAt).toISOString(),
+    };
+    // Forward only the existing safe numeric telemetry, never arbitrary child output.
+    if (wait.resources && typeof wait.resources === "object" && !Array.isArray(wait.resources)) {
+      outcome.resources = {};
+      for (const key of ["cpuLoadPercent", "gpuLoadPercent", "memoryAvailableMb", "diskAvailableMb", "committedMemoryMb", "commitLimitMb", "diskLoadPercent", "gpuMemoryAvailableMb"] as const) {
+        const value = wait.resources[key];
+        if (typeof value === "number" && Number.isFinite(value) && value >= 0) outcome.resources[key] = value;
+      }
+      for (const key of ["cpuAvailable", "gpuAvailable"] as const) {
+        if (typeof wait.resources[key] === "boolean") outcome.resources[key] = wait.resources[key];
+      }
+    }
+    throw new ResourceWaitError(outcome);
+  }
   if (result.status !== 0) {
     throw new Error(`${scriptName} failed: ${commandFailureOutput(result.stdout, result.stderr)}`);
   }
@@ -730,7 +723,7 @@ type RepairEngineCandidateFailure = {
   reason: string;
 };
 
-function attemptRepairEngineCandidate(input: {
+export function attemptRepairEngineCandidate(input: {
   runner: RepairEngineRunner;
   workspace: string;
   initialPrompt: string;
@@ -844,6 +837,9 @@ function attemptRepairEngineCandidate(input: {
       discardedUntracked: [...new Set(discardedUntracked)].sort(),
     };
   } catch (error) {
+    // Resource pressure yields this run without consuming engine/retry failures
+    // or discarding an already prepared candidate. No fallback starts on the busy host.
+    if (error instanceof ResourceWaitError) throw error;
     return fail(error instanceof Error ? error.message : String(error));
   }
 }
@@ -1167,6 +1163,11 @@ async function main() {
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main().catch((error) => {
+    if (error instanceof ResourceWaitError) {
+      process.stderr.write(JSON.stringify({ ok: false, status: "WAITING_FOR_RESOURCE", blocker: "WAITING_FOR_RESOURCE", deferred: true, resourceWait: error.outcome }) + "\n");
+      process.exitCode = 75;
+      return;
+    }
     const message = error instanceof Error ? error.message : String(error);
     process.stderr.write(`GORIQ_CI_RECOVERY_FAILED: ${message}\n`);
     process.exitCode = 1;
