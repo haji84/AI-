@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "existingPr": 1819,
+  "originalHead": "a63273495091f4c4f57e1fb1ed3576dc6dee0c9d",
+  "currentBase": "0462861c921972af43b6d8305f8cf7de73ab10c8",
+  "actor": "Codex",
+  "scope": "Reuse existing explicit external Codex Builder source routing; no service/model/billing/production activation",
+  "sourceChecks": {
+    "combinedTests": 50,
+    "passed": 50,
+    "failed": 0,
+    "lint": "PASS",
+    "types": "PASS",
+    "requirements": 341,
+    "cognitive": 17,
+    "research": 20,
+    "roadmap": 35,
+    "surfaces": 629
+  },
+  "preserved": [
+    "Explicit Ollama-only selection, including when Codex configuration is present and approved local model unavailable",
+    "Trusted prepared-write, resource-admission and beforeWrite options",
+    "Existing local-only exclusion before external health/build",
+    "Explicit four-field owner scope plus exact loopback/authenticated engine/capability/workspace health",
+    "Windows case-insensitivity and POSIX case-sensitivity/root/UNC/traversal guards",
+    "Historical PR/model/Goal/consumed-attempt evidence"
+  ],
+  "newRegression": [
+    "Trailing Windows/POSIX workspace separator mismatch RED→GREEN",
+    "Trusted host stop after health before Codex dispatch RED→GREEN with POST0"
+  ],
+  "oldReview": {
+    "posixCase": "Source checked; negative case regression passes",
+    "healthTimeout": "Source checked;5000ms abort/no redirect regression passes"
+  },
+  "limits": [
+    "No real model request or normal Goal acceptance was executed by this source integration",
+    "Existing CLI account/rate-limit was read-only observed locally; no account identity/credit details are published, and no capacity or authorization inferred from flags alone",
+    "Old physical8797 evidence is history, not current scope or production/physical acceptance",
+    "Actual model self-repair#1948 remains failed/inconclusive; do not reset/retry exhausted conditions"
+  ],
+  "next": "Current-main review/exact-head CI/protected merge/exact-main; then one bounded actual existing Builder outcome through normal Goal/Job/verifier/restart after fresh capacity/scope preflight"
+}

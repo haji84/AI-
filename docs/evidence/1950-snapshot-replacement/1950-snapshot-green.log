@@ -1,0 +1,52 @@
+✔ memory store returns clones and deduplicates job identity (3.7483ms)
+✔ JSON store survives reconstruction and uses a versioned snapshot (13.4956ms)
+✔ JSON store rejects a corrupt or unsupported snapshot (3.4433ms)
+✔ concurrent stale history cannot overwrite a Human Gate even with a newer timestamp (15.3892ms)
+✖ Windows transient replacement sharing failure preserves the complete old Job and lease until commit (60.8848ms)
+✔ Windows persistent replacement denial fails within its bound and retains the previous complete snapshot (200.5042ms)
+✔ unrelated replacement failure is not retried: win32/EACCES (11.9202ms)
+✔ unrelated replacement failure is not retried: linux/EPERM (11.9664ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 7
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 475.1852
+
+✖ failing tests:
+
+test at tests\development-job-store.test.ts:90:1
+✖ Windows transient replacement sharing failure preserves the complete old Job and lease until commit (60.8848ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  ... Skipped lines
+  
+    {
+      acceptanceCriteria: [
+        'durable'
+      ],
+      approvalScope: {
+  ...
+          evidenceIds: [],
+  -       failureSignature: undefined,
+          from: 'QUEUED',
+          reason: 'plan',
+  -       strategyId: undefined,
+          to: 'PLANNING',
+          transitionId: 'plan'
+        }
+      ],
+      jobId: 'job-store-1',
+  
+      at TestContext.<anonymous> (file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/tests/development-job-store.test.ts:99:12)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { version: 1, jobId: 'job-store-1', goalId: 'goal-681', requirementIds: [ 'CORE-014' ], acceptanceCriteria: [ 'durable' ], definitionOfDone: [ [Object] ], baseRevision: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', approvalScope: { taskScopeId: 'issue-681', maxRisk: 'low' }, workItems: [ [Object] ], phase: 'PLANNING', evidence: [], attempts: [], failureSignatures: [], rejectedStrategyIds: [], blockers: [], createdAt: '2026-09-26T00:00:00.000Z', updatedAt: '2026-09-26T00:00:01.000Z', history: [ [Object], [Object] ] },
+    expected: { version: 1, jobId: 'job-store-1', goalId: 'goal-681', requirementIds: [ 'CORE-014' ], acceptanceCriteria: [ 'durable' ], definitionOfDone: [ [Object] ], baseRevision: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', approvalScope: { taskScopeId: 'issue-681', maxRisk: 'low' }, workItems: [ [Object] ], phase: 'PLANNING', evidence: [], attempts: [], failureSignatures: [], rejectedStrategyIds: [], blockers: [], createdAt: '2026-09-26T00:00:00.000Z', updatedAt: '2026-09-26T00:00:01.000Z', history: [ [Object], [Object] ] },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,118 @@
+✔ Goal is not achieved merely because work ran (2.4013ms)
+✔ Goal is achieved only when every required criterion is verified and blockers are clear (0.1938ms)
+✔ Builder router fails closed instead of faking coding success when no real Builder is available (0.6714ms)
+Preparing worktree (detached HEAD 0d68c1b)
+Preparing worktree (detached HEAD 0d68c1b)
+Preparing worktree (detached HEAD e32668e)
+Preparing worktree (detached HEAD b1ac443)
+Preparing worktree (detached HEAD b1ac443)
+Preparing worktree (detached HEAD 4010629)
+Preparing worktree (detached HEAD 4010629)
+✔ red does not bind a prepared intent to a different fallback model (770.3774ms)
+✔ red recovers before-file-write from a durable prepared intent without new inference (1735.367ms)
+✔ red recovers after-file-write from a durable prepared intent without new inference (1597.9174ms)
+✔ red refuses an identical pre-existing file without its own prepared intent (657.0677ms)
+✔ red refuses changed artifacts and extra changes rather than adopting or overwriting (1336.1767ms)
+✔ green does not bind a prepared intent to a different fallback model (675.4285ms)
+Preparing worktree (detached HEAD 187789a)
+✔ green recovers before-file-write from a durable prepared intent without new inference (6987.1718ms)
+Preparing worktree (detached HEAD eb843e6)
+Preparing worktree (detached HEAD eb843e6)
+✔ green recovers after-file-write from a durable prepared intent without new inference (4234.4339ms)
+✔ green refuses an identical pre-existing file without its own prepared intent (628.5809ms)
+Preparing worktree (detached HEAD 011de0b)
+Preparing worktree (detached HEAD eb81048)
+✔ green refuses changed artifacts and extra changes rather than adopting or overwriting (4019.0049ms)
+✔ prepared records reject changed binding/content and are never overwritten (1024.1807ms)
+Preparing worktree (detached HEAD 971b224)
+Preparing worktree (detached HEAD bb6d2e5)
+Preparing worktree (detached HEAD 21081bb)
+✔ a modified journal cannot authorize different Python bytes (3778.1968ms)
+✔ recovery refuses hardlinked candidate and journal files (1942.2368ms)
+✔ checkpoint refuses an aliased state root before creating any journal (541.5316ms)
+✔ runtime Builder accepts explicit loopback endpoint and executes through registry handler (18.2632ms)
+✔ runtime Builder rejects non-loopback local endpoint (0.3785ms)
+✔ runtime Builder fails closed when local configuration is incomplete (0.1147ms)
+✔ owner-approved plan Codex routes through exact isolated loopback workspace (1.7504ms)
+✔ plan Codex requires explicit complete opt-in, never auto-enables with available token (0.2111ms)
+✔ plan Codex rejects non-loopback or ambiguous control URLs (0.208ms)
+✔ plan Codex will not route when live engine, identity or workspace differs (0.9938ms)
+✔ owner-pinned Codex workspace refuses relative, root, UNC and traversal paths (0.351ms)
+✔ owner-pinned Codex health has an abort deadline and no redirect (0.2963ms)
+✔ Codex workspace comparison normalizes trailing separators but preserves POSIX case (1.4608ms)
+✔ Codex honors the trusted host stop after health and before dispatching a write (1.038ms)
+warning: in the working copy of 'tests/fixtures/.gitkeep', LF will be replaced by CRLF the next time Git touches it
+Preparing worktree (detached HEAD 0698532)
+warning: in the working copy of 'tests/fixtures/.gitkeep', LF will be replaced by CRLF the next time Git touches it
+Preparing worktree (detached HEAD 414c289)
+✔ scoped local Ollama Builder produces one file and no Codex/paid fallback (924.77ms)
+warning: in the working copy of 'tests/fixtures/.gitkeep', LF will be replaced by CRLF the next time Git touches it
+Preparing worktree (detached HEAD 414c289)
+✔ a canonical pause after model generation prevents the actual local candidate write (669.7213ms)
+warning: in the working copy of 'tests/fixtures/.gitkeep', LF will be replaced by CRLF the next time Git touches it
+Preparing worktree (detached HEAD 2da7529)
+warning: in the working copy of 'tests/fixtures/.gitkeep', LF will be replaced by CRLF the next time Git touches it
+Preparing worktree (detached HEAD 730734c)
+warning: in the working copy of 'tests/fixtures/.gitkeep', LF will be replaced by CRLF the next time Git touches it
+Preparing worktree (detached HEAD 730734c)
+warning: in the working copy of 'tests/fixtures/.gitkeep', LF will be replaced by CRLF the next time Git touches it
+Preparing worktree (detached HEAD b19ccd2)
+✔ local model pressure yields a typed wait through the router, writes nothing and retries after relief (929.0901ms)
+✔ builder refuses main checkout and missing allowlist (459.1065ms)
+✔ dirty worktree fails closed without invoking generation (600.7656ms)
+✔ unverified TDD red and nonlocal task never modify files (512.3728ms)
+warning: in the working copy of 'tests/fixtures/.gitkeep', LF will be replaced by CRLF the next time Git touches it
+Preparing worktree (detached HEAD d42c36f)
+warning: in the working copy of 'tests/fixtures/.gitkeep', LF will be replaced by CRLF the next time Git touches it
+Preparing worktree (detached HEAD d42c36f)
+warning: in the working copy of 'tests/fixtures/.gitkeep', LF will be replaced by CRLF the next time Git touches it
+Preparing worktree (detached HEAD 0a93849)
+✔ explicit installed fallback model works when preferred is absent, without Codex or remote API (839.1293ms)
+✔ no installed approved local model blocks without generating or contacting other builders (538.0979ms)
+✔ fallback names must be explicit, distinct, bounded and local-only (814.938ms)
+Preparing worktree (detached HEAD 0a93849)
+warning: in the working copy of 'tests/fixtures/.gitkeep', LF will be replaced by CRLF the next time Git touches it
+Preparing worktree (detached HEAD 2801dda)
+warning: in the working copy of 'tests/fixtures/.gitkeep', LF will be replaced by CRLF the next time Git touches it
+Preparing worktree (detached HEAD 00153f2)
+✔ previous failed strategy feedback is consumed on a new isolated attempt without overwriting earlier candidate (1367.4491ms)
+✔ malformed or excessive correction history fails closed before model generation (571.6714ms)
+warning: in the working copy of 'tests/fixtures/.gitkeep', LF will be replaced by CRLF the next time Git touches it
+Preparing worktree (detached HEAD 74522ac)
+warning: in the working copy of 'tests/fixtures/.gitkeep', LF will be replaced by CRLF the next time Git touches it
+Preparing worktree (detached HEAD 74522ac)
+warning: in the working copy of 'tests/fixtures/.gitkeep', LF will be replaced by CRLF the next time Git touches it
+Preparing worktree (detached HEAD 0fa3a27)
+warning: in the working copy of 'tests/fixtures/.gitkeep', LF will be replaced by CRLF the next time Git touches it
+Preparing worktree (detached HEAD 0fa3a27)
+warning: in the working copy of 'tests/fixtures/.gitkeep', LF will be replaced by CRLF the next time Git touches it
+Preparing worktree (detached HEAD 3d2407b)
+warning: in the working copy of 'tests/fixtures/.gitkeep', LF will be replaced by CRLF the next time Git touches it
+Preparing worktree (detached HEAD da21ac6)
+✔ an initial scoped strategy hypothesis does not require fabricated prior failures (766.4345ms)
+✔ local-only Builder rejects remote_host in preferred inventory before generation (549.2608ms)
+✔ local-only Builder rejects remote_model in preferred inventory before generation (553.2247ms)
+✔ local-only Builder rejects remote_host in fallback inventory before generation (540.7516ms)
+✔ local-only Builder rejects remote_model in fallback inventory before generation (550.6776ms)
+✔ ambiguous installed model names cannot establish local provenance (554.107ms)
+warning: in the working copy of 'tests/fixtures/.gitkeep', LF will be replaced by CRLF the next time Git touches it
+Preparing worktree (detached HEAD da21ac6)
+✔ generation remote_host cannot be accepted as a local candidate (674.5342ms)
+warning: in the working copy of 'tests/fixtures/.gitkeep', LF will be replaced by CRLF the next time Git touches it
+Preparing worktree (detached HEAD 8f393f5)
+✔ generation remote_model cannot be accepted as a local candidate (657.0196ms)
+warning: in the working copy of 'tests/fixtures/.gitkeep', LF will be replaced by CRLF the next time Git touches it
+Preparing worktree (detached HEAD 9d72959)
+✔ normalized local candidate enforces the byte limit: 8191 bytes without newline (811.3833ms)
+warning: in the working copy of 'tests/fixtures/.gitkeep', LF will be replaced by CRLF the next time Git touches it
+Preparing worktree (detached HEAD ccfdf62)
+✔ normalized local candidate enforces the byte limit: 8192 bytes including newline (830.2578ms)
+✔ normalized local candidate enforces the byte limit: 8192 bytes without newline (801.8837ms)
+ℹ tests 50
+ℹ suites 0
+ℹ pass 50
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 46019.0766

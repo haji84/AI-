@@ -1,0 +1,53 @@
+✔ memory store returns clones and deduplicates job identity (4.1027ms)
+✔ JSON store survives reconstruction and uses a versioned snapshot (13.696ms)
+✔ JSON store rejects a corrupt or unsupported snapshot (2.8978ms)
+✔ concurrent stale history cannot overwrite a Human Gate even with a newer timestamp (13.1005ms)
+✖ Windows transient replacement sharing failure preserves the complete old Job and lease until commit (9.6971ms)
+✖ Windows persistent replacement denial fails within its bound and retains the previous complete snapshot (12.8544ms)
+✔ unrelated replacement failure is not retried: win32/EACCES (8.2574ms)
+✔ unrelated replacement failure is not retried: linux/EPERM (7.3518ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 6
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 224.8769
+
+✖ failing tests:
+
+test at tests\development-job-store.test.ts:90:1
+✖ Windows transient replacement sharing failure preserves the complete old Job and lease until commit (9.6971ms)
+  Error: sharing violation
+      at file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/tests/development-job-store.test.ts:97:40
+      at async JsonFileDevelopmentJobStore.saveSnapshot (file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/src/orchestrator/development-job-store.ts:142:5)
+      at async file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/src/orchestrator/development-job-store.ts:80:7
+      at async JsonFileDevelopmentJobStore.withWriteLease (file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/src/orchestrator/development-job-store.ts:116:74)
+      at async JsonFileDevelopmentJobStore.put (file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/src/orchestrator/development-job-store.ts:69:5)
+      at async file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/tests/development-job-store.test.ts:98:21
+      at async withRenameFault (file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/tests/development-job-store.test.ts:86:14)
+      at async TestContext.<anonymous> (file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/tests/development-job-store.test.ts:95:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    code: 'EPERM'
+  }
+
+test at tests\development-job-store.test.ts:104:1
+✖ Windows persistent replacement denial fails within its bound and retains the previous complete snapshot (12.8544ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(calls()>1&&calls()<=5)
+  
+      at file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/tests/development-job-store.test.ts:111:14
+      at async withRenameFault (file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/tests/development-job-store.test.ts:86:14)
+      at async TestContext.<anonymous> (file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/tests/development-job-store.test.ts:109:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

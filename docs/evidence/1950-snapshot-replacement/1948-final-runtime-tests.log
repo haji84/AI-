@@ -1,0 +1,115 @@
+✔ tracked sequence reuses one Goal authority and starts a real source successor only after verified predecessor (26531.5968ms)
+✔ tracked sequence refuses changed pins, reused workspaces, receipts and mismatched criteria before inference (6059.4122ms)
+✔ tracked sequence rejects competing profiles instead of silently selecting another controller (1141.2027ms)
+✔ tracked sequence rejects Windows namespace aliases of another Job's workspace or receipt (2320.3155ms)
+✔ tracked sequence shares default persistence through successive failures of its second Job (56494.1497ms)
+✔ tracked recovery supplies rejected source once so a real-size source stays within the prompt bound (25913.7254ms)
+✔ host-pinned focused context repairs a large file and retains the rejected source across restart (25950.4458ms)
+✔ focused context rejects unsupported or unbounded host configuration before inference (550.635ms)
+✔ tracked repair recovery reads injected rejected history across reconstructed factories (26917.8449ms)
+✔ explicit pinned Ollama repairs through the resident factory and resumes prepared evidence without inference (13466.104ms)
+✔ Ollama local-only selection prevents remote dispatch when a tag changes after inventory (5096.7175ms)
+✔ Ollama provider and endpoint are explicit, loopback-only and never inferred from a URL (568.803ms)
+▶ Ollama rejects missing, ambiguous, remote or mismatched pinned inventories before inference
+  ✔ absent (4722.5146ms)
+  ✔ digest (4605.6347ms)
+  ✔ duplicate (4695.2478ms)
+  ✔ remote (4622.9185ms)
+  ✔ too-many (4862.8556ms)
+✔ Ollama rejects missing, ambiguous, remote or mismatched pinned inventories before inference (23510.3888ms)
+▶ Ollama rejects truncated, remote and changed model output without writing candidates or replaying inference
+  ✔ length (4775.278ms)
+  ✔ wrong-model (4819.2218ms)
+  ✔ remote (4939.7771ms)
+  ✔ loaded-digest (4891.8556ms)
+  ✔ changed-tags (4809.4069ms)
+  ✔ interrupted (4878.6544ms)
+  ✔ oversized (5096.1563ms)
+✔ Ollama rejects truncated, remote and changed model output without writing candidates or replaying inference (34211.7646ms)
+✔ Ollama signed FAIL recovery keeps both model observations and the original rejected source (25447.2428ms)
+✔ tracked recovery consumes a signed failure with optional evidence, creates a distinct candidate after restart and preserves rejected evidence (26650.1572ms)
+✔ tracked recovery watches each pinned receipt and refuses path aliases before inference (619.5382ms)
+✔ tracked recovery never grants a second inference without a host-pinned attempt (11652.0429ms)
+✔ tracked recovery refuses a previous candidate receipt at the new receipt path (22654.2503ms)
+✔ tracked recovery retains a consumed failure when its external receipt is replaced (19845.9196ms)
+✔ tracked recovery prepared output resumes partial materialization without another inference (26605.4023ms)
+✔ tracked recovery does not reissue interrupted second inference (14826.0072ms)
+✔ tracked recovery partial receipts stay pending without freezing incomplete evidence (12700.374ms)
+✔ hosted executor fences its authority file from every recovery workspace (1091.7561ms)
+✔ tracked recovery uses the recorded consumption time for expired historical evidence (19752.6075ms)
+✔ tracked recovery refuses altered archived signatures before another inference (13261.9223ms)
+✔ tracked recovery stops at its final pinned attempt and keeps both rejected candidates (22464.6357ms)
+✔ tracked recovery rejects equivalent model output even in a separate workspace (17447.303ms)
+✔ tracked recovery refuses dirty pre-provisioned workspaces before inference (13104.8241ms)
+✔ tracked repair profile is selected fail-closed before a Broker can ignore an incomplete host pin (0.5433ms)
+✔ real durable host performs trusted RED then one bounded edit and waits for a bound receipt (10844.2423ms)
+✔ the exact six-check receipt completes only the isolated criterion without rebuilding (12332.4512ms)
+✔ prepared candidate recovers when Change Set persistence fails after source materialization (12314.253ms)
+✔ receipt presence alone cannot pass the profile and changed candidate bytes cannot reuse it (12220.1037ms)
+✔ generated source is treated as bytes and is never executed by the Broker-side runtime (9402.9408ms)
+✔ probe and manifest pins fail before model execution (532.1894ms)
+✔ pinned verifier input admits only one public PEM and rejects an appended private PEM bundle (539.7846ms)
+✔ resource wait before network leaves inference retry available without duplicating a call (4722.7293ms)
+✔ standalone executor refuses a valid legacy handoff when tracked profile is selected (874.3334ms)
+✖ authenticated Broker selects tracked profile and restarts the same waiting Job without another model call (16081.0064ms)
+✔ authenticated Broker selects tracked sequence and restarts the same waiting Job without another model call (28380.5075ms)
+✔ host bookkeeping binds a large pinned map and preserves every field except changed source SHA (11886.3812ms)
+✔ bookkeeping prepared recovery rejects metadata tampering without invoking a model (10078.4599ms)
+✔ bookkeeping cannot be used as a model slot or select an arbitrary docs path (555.5848ms)
+✔ bookkeeping refuses missing source rows without materializing candidate (4722.9486ms)
+✔ bookkeeping refuses duplicate source rows without materializing candidate (4855.3997ms)
+✔ Compass authority commits observed progress without changing canonical controls (60.5823ms)
+✔ Compass runtime cannot delete canonical WorkRun blockers or evidence (37.2736ms)
+✔ receipt polling keeps the existing default and accepts only bounded host cadence (0.7005ms)
+✔ receipt polling rejects malformed or unbounded host cadence without granting a wake (0.9179ms)
+✔ receipt wakes preserve explicit opt-in and reject partial manifest configuration (0.1629ms)
+✔ checkpoint roundtrip preserves the exact accepted Job and candidate bytes (5.0517ms)
+✔ legacy checkpoint refuses recovery profiles whose rejected history it cannot transport (0.8254ms)
+✔ legacy checkpoint refuses focused profiles without a supported prompt-context transport (0.5191ms)
+✔ legacy checkpoint refuses Ollama profiles whose model observations it cannot preserve (0.5616ms)
+✔ checkpoint refuses path escape and secret or Git metadata files before restore (2.0464ms)
+✔ checkpoint rejects expired approval even when every file hash matches (0.3826ms)
+✔ checkpoint refuses source head changes and modified candidate bytes (0.5088ms)
+✔ checkpoint rejects a different durable Job or Change Set rather than importing parallel work (0.7211ms)
+✔ checkpoint phase B requires an actual phase A origin and refuses replay as a new bootstrap (0.4922ms)
+✔ checkpoint refuses private PEM material even inside an otherwise allowed source or journal (0.3866ms)
+✔ checkpoint refuses bound-request candidate identity drift and prepared source mismatch (0.5782ms)
+✔ checkpoint decoding rejects transport tampering and oversized data (17.3983ms)
+✔ checkpoint admits exact pinned traceability bookkeeping and refuses any other docs target (1.1906ms)
+✔ checkpoint uses bounded Brotli fallback for duplicate nonsecret payload bytes (43.7186ms)
+✔ fixed-map transport reconstructs exact realistic metadata from the pinned baseline and refuses a different baseline (71.9761ms)
+✔ checkpoint rejects a missing prepared model response journal (0.4229ms)
+✔ checkpoint rejects model response bytes that disagree with the prepared digest (0.3472ms)
+✔ tracked model source replacement preserves literal dollar sequences (9976.647ms)
+✔ focused excerpts retain multiline/CRLF bytes, merge neighboring windows and keep distant selections (0.8413ms)
+✔ focused recovery shows actual inserted/deleted lines rather than reusing baseline line numbers (0.3471ms)
+✔ focused source without slots remains complete and ambiguous slots fail closed (0.364ms)
+✔ omitted context retains the complete previous source prompt byte for byte (0.1101ms)
+✔ a malformed rejected candidate cannot force its entire expanded body into focused recovery (1.1474ms)
+ℹ tests 86
+ℹ suites 0
+ℹ pass 85
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 648425.9266
+
+✖ failing tests:
+
+test at tests\autonomous-tracked-repair-runtime.test.ts:690:37
+✖ authenticated Broker selects tracked profile and restarts the same waiting Job without another model call (16081.0064ms)
+  AssertionError [ERR_ASSERTION]: tracked Job VERIFYING[goriq-goal] goal-49c0e9b7fd993303 executor_exit=1 signal=none [goriq-goal-executor] goal-49c0e9b7fd993303 EPERM: operation not permitted, rename 'C:\Users\qq113\AppData\Local\Temp\tracked-runtime-TBbbjH\state\self-development\jobs.json.tmp-144200-1795689448150' -> 'C:\Users\qq113\AppData\Local\Temp\tracked-runtime-TBbbjH\state\self-development\jobs.json'
+  
+  {"calls":0,"jobs":[{"jobId":"development-953fd57b9c3aaf38c46fee6bf1c3cf83e2a68fd41a774d86c42b25b9552a599e","phase":"PLANNING","attempts":0,"lastTransition":{"transitionId":"development-953fd57b9c3aaf38c46fee6bf1c3cf83e2a68fd41a774d86c42b25b9552a599e:sequence","from":"QUEUED","to":"PLANNING","actor":"state-controller","reason":"host-approved development sequence bound before execution","at":"2026-11-26T10:37:28.142Z","evidenceIds":["development-953fd57b9c3aaf38c46fee6bf1c3cf83e2a68fd41a774d86c42b25b9552a599e:sequence"]}}],"journals":[],"receiptRequested":false}
+      at wait (file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/tests/autonomous-tracked-repair-runtime.test.ts:723:77)
+      at async TestContext.<anonymous> (file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/tests/autonomous-tracked-repair-runtime.test.ts:731:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }

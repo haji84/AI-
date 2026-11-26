@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "exactBytes": true,
+  "scope": "Reuse existing explicit external Codex Builder source routing; no service/model/billing/production activation",
+  "files": [
+    {
+      "path": ".gitattributes",
+      "bytes": 20,
+      "sha256": "e97602ab9cac70102245345c5ab0fc9830df8b17f1072b188265a662a3a547ae"
+    },
+    {
+      "path": ".gitignore",
+      "bytes": 7,
+      "sha256": "e027cf8ebf80d6dcdacced8a4dbd1c440e2436fb1868ec851db4061cb67bb787"
+    },
+    {
+      "path": "1819-combined-builder-green.log",
+      "bytes": 8923,
+      "sha256": "aa74f7a316e80cb76a4a8dbd6746f9fdcf05c7766db30e69c20928ef0b50e75b"
+    },
+    {
+      "path": "1819-final-builder-green.log",
+      "bytes": 9022,
+      "sha256": "4e32751b1683c2c05e481b954786ea4959a47cedba878bc30d357cd3d7b057af"
+    },
+    {
+      "path": "1819-final-inheritance.log",
+      "bytes": 116,
+      "sha256": "ab856f035d13c2ebfdb7fcb1c43bfc9f98ae97f770fbb62eef880400264e5a8d"
+    },
+    {
+      "path": "1819-final-traceability.log",
+      "bytes": 89,
+      "sha256": "cf8137923dfec47f2a20e693358d51d45bf8602e0e9b2cc5d6d8ca9f42a21bde"
+    },
+    {
+      "path": "1819-inheritance.log",
+      "bytes": 116,
+      "sha256": "ab856f035d13c2ebfdb7fcb1c43bfc9f98ae97f770fbb62eef880400264e5a8d"
+    },
+    {
+      "path": "1819-lint.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "1819-path-red.log",
+      "bytes": 1055,
+      "sha256": "94fbd469808aa1e040963d74a577c64e7446610ed1e4008aa5240a5efa840ba2"
+    },
+    {
+      "path": "1819-requirements.log",
+      "bytes": 144,
+      "sha256": "b6156703594fc1c3d09897a967d61351112c71d0f9c108da7cfc3b9ce6e8fa90"
+    },
+    {
+      "path": "1819-secret-audit.log",
+      "bytes": 120,
+      "sha256": "285edd6445394316f96de914ec588aadb4d2026b550054ddfe22cf488e986d5e"
+    },
+    {
+      "path": "1819-stop-red.log",
+      "bytes": 987,
+      "sha256": "7ff3cf67443535b41d721102c6cfb01233247713def4b78279d28423cacbedc6"
+    },
+    {
+      "path": "1819-traceability.log",
+      "bytes": 89,
+      "sha256": "b07ebed31f757beef7e999945df72b2f442f135dfac9ae37018df3d40b9a805f"
+    },
+    {
+      "path": "1819-types.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "summary.json",
+      "bytes": 2123,
+      "sha256": "158e616ede2965344a1d12d5978b1ea53c263d1029c0ef8f274bc48da6f20fe3"
+    }
+  ]
+}

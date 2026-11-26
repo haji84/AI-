@@ -1,0 +1,97 @@
+{
+  "version": 1,
+  "exactBytes": true,
+  "scope": "Atomic development Job/ChangeSet snapshots; not model self-repair, production or physical acceptance",
+  "files": [
+    {
+      "path": ".gitattributes",
+      "bytes": 20,
+      "sha256": "e97602ab9cac70102245345c5ab0fc9830df8b17f1072b188265a662a3a547ae"
+    },
+    {
+      "path": ".gitignore",
+      "bytes": 7,
+      "sha256": "e027cf8ebf80d6dcdacced8a4dbd1c440e2436fb1868ec851db4061cb67bb787"
+    },
+    {
+      "path": "1948-failed-broker-rerun.log",
+      "bytes": 248,
+      "sha256": "812b124d198d9957e4e1e4ef079bc65aa23c445ceb84beb792467fec546ded81"
+    },
+    {
+      "path": "1948-final-runtime-tests.log",
+      "bytes": 10418,
+      "sha256": "a92fcbd499d0019eac5e98d4ed78c590f1f12acb57551691cc7f8100d7b77f80"
+    },
+    {
+      "path": "1950-cache-red.log",
+      "bytes": 10346,
+      "sha256": "1591205fcb80eb08d5577bea998ad4e6710ca15549e5a47f43061026e07da5ce"
+    },
+    {
+      "path": "1950-inheritance.log",
+      "bytes": 116,
+      "sha256": "ab856f035d13c2ebfdb7fcb1c43bfc9f98ae97f770fbb62eef880400264e5a8d"
+    },
+    {
+      "path": "1950-lint.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "1950-native-broker.log",
+      "bytes": 376,
+      "sha256": "1e177d4704d377ea0d160680ccfb4308eafe1c1d0c01fde39dfed4ff527a82aa"
+    },
+    {
+      "path": "1950-requirements.log",
+      "bytes": 144,
+      "sha256": "b6156703594fc1c3d09897a967d61351112c71d0f9c108da7cfc3b9ce6e8fa90"
+    },
+    {
+      "path": "1950-review-mutation-green.log",
+      "bytes": 2649,
+      "sha256": "5cee25ed782873a4b6b3bffafaae50e40c2a528dc1cca9e0aeb39cf16c746a74"
+    },
+    {
+      "path": "1950-review-mutation-red.log",
+      "bytes": 2926,
+      "sha256": "b284ad28a7c7cb4401debf6b89c325096f8a8081c27b7ea7468d40a3ac36f315"
+    },
+    {
+      "path": "1950-secret-audit.log",
+      "bytes": 120,
+      "sha256": "285edd6445394316f96de914ec588aadb4d2026b550054ddfe22cf488e986d5e"
+    },
+    {
+      "path": "1950-snapshot-green.log",
+      "bytes": 3089,
+      "sha256": "f53827c37c6e57cdc0afa6b78ba6b1cf13fdad620734fba1558a6f9dc7d9dd9b"
+    },
+    {
+      "path": "1950-snapshot-red.log",
+      "bytes": 4401,
+      "sha256": "a65cc8a5ba5d10ee52a1ecab0a41eb3e2f512dde5e2b3dd5f1a5bca31676d7f0"
+    },
+    {
+      "path": "1950-store-and-authority-green.log",
+      "bytes": 2545,
+      "sha256": "ef30f4701d3f6dc770fe159b66d82916f7fdedb9ef10eb15fbe01a60010c957d"
+    },
+    {
+      "path": "1950-traceability.log",
+      "bytes": 89,
+      "sha256": "cf8137923dfec47f2a20e693358d51d45bf8602e0e9b2cc5d6d8ca9f42a21bde"
+    },
+    {
+      "path": "1950-types.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "summary.json",
+      "bytes": 2261,
+      "sha256": "0f4ae5cf711192d17a574250b2792bd517ad25d761202494500808da1a381edf"
+    }
+  ]
+}

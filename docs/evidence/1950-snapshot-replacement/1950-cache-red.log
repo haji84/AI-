@@ -1,0 +1,137 @@
+✔ memory store returns clones and deduplicates job identity (4.1355ms)
+✔ JSON store survives reconstruction and uses a versioned snapshot (11.0898ms)
+✔ JSON store rejects a corrupt or unsupported snapshot (4.6617ms)
+✔ concurrent stale history cannot overwrite a Human Gate even with a newer timestamp (10.6011ms)
+✔ Windows transient replacement sharing failure preserves the complete old Job and lease until commit (57.318ms)
+✔ Windows persistent replacement denial fails within its bound and retains the previous complete snapshot (199.9531ms)
+✔ unrelated replacement failure is not retried: win32/EACCES (9.1637ms)
+✔ unrelated replacement failure is not retried: linux/EPERM (7.4446ms)
+✖ ChangeSet replacement exposes only committed state during transient sharing failure (9.9087ms)
+✖ ChangeSet replacement exposes only committed state during persistent denial (9.1889ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 8
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 474.4893
+
+✖ failing tests:
+
+test at tests\development-job-store.test.ts:132:37
+✖ ChangeSet replacement exposes only committed state during transient sharing failure (9.9087ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  ... Skipped lines
+  
+    {
+      affectedSymbols: [],
+      artifactDigest: 'fe03f878790c8724a07f050dba0e0be0eba1ba15e47909dc7ba5174e4f2e6508',
+      artifactRef: 'sha256:fe03f878790c8724a07f050dba0e0be0eba1ba15e47909dc7ba5174e4f2e6508',
+      baseRevision: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+  ...
+      jobId: 'job-681',
+  +   patchDigest: 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
+  -   patchDigest: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+      rollback: {
+        kind: 'git-base',
+        reference: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+      },
+      status: 'LOCAL',
+  +   updatedAt: '2026-09-26T00:00:01.000Z',
+  -   updatedAt: '2026-09-26T00:00:00.000Z',
+      version: 1,
+      workItemId: 'job-681:implement'
+    }
+  
+      at file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/tests/development-job-store.test.ts:140:60
+      at async replaceDevelopmentSnapshot (file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/src/orchestrator/replace-development-snapshot.ts:10:9)
+      at async JsonFileDevelopmentChangeSetStore.put (file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/src/orchestrator/development-change-set-store.ts:81:11)
+      at async file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/tests/development-job-store.test.ts:145:12
+      at async withRenameFault (file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/tests/development-job-store.test.ts:88:14)
+      at async TestContext.<anonymous> (file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/tests/development-job-store.test.ts:139:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { version: 1, changeSetId: 'change-replace', jobId: 'job-681', workItemId: 'job-681:implement', deviceId: 'fixture', baseRevision: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', changedPaths: [ 'src/example.ts' ], affectedSymbols: [], patchDigest: 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd', evidenceDigest: 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc', rollback: { kind: 'git-base', reference: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' }, candidateRevision: '982447be13c9c33d3b29736df5eb806d82b2204c9e4c43ab08a5f7bc4d0025d3', artifactDigest: 'fe03f878790c8724a07f050dba0e0be0eba1ba15e47909dc7ba5174e4f2e6508', artifactRef: 'sha256:fe03f878790c8724a07f050dba0e0be0eba1ba15e47909dc7ba5174e4f2e6508', status: 'LOCAL', createdAt: '2026-09-26T00:00:00.000Z', updatedAt: '2026-09-26T00:00:01.000Z' },
+    expected: { version: 1, changeSetId: 'change-replace', jobId: 'job-681', workItemId: 'job-681:implement', deviceId: 'fixture', baseRevision: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', changedPaths: [ 'src/example.ts' ], affectedSymbols: [], patchDigest: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', evidenceDigest: 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc', rollback: { kind: 'git-base', reference: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' }, candidateRevision: '982447be13c9c33d3b29736df5eb806d82b2204c9e4c43ab08a5f7bc4d0025d3', artifactDigest: 'fe03f878790c8724a07f050dba0e0be0eba1ba15e47909dc7ba5174e4f2e6508', artifactRef: 'sha256:fe03f878790c8724a07f050dba0e0be0eba1ba15e47909dc7ba5174e4f2e6508', status: 'LOCAL', createdAt: '2026-09-26T00:00:00.000Z', updatedAt: '2026-09-26T00:00:00.000Z' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at tests\development-job-store.test.ts:132:37
+✖ ChangeSet replacement exposes only committed state during persistent denial (9.1889ms)
+  AssertionError [ERR_ASSERTION]: The validation function is expected to return "true". Received false
+  
+  Caught error:
+  
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  ... Skipped lines
+  
+    {
+      affectedSymbols: [],
+      artifactDigest: 'fe03f878790c8724a07f050dba0e0be0eba1ba15e47909dc7ba5174e4f2e6508',
+      artifactRef: 'sha256:fe03f878790c8724a07f050dba0e0be0eba1ba15e47909dc7ba5174e4f2e6508',
+      baseRevision: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+  ...
+      jobId: 'job-681',
+  +   patchDigest: 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
+  -   patchDigest: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+      rollback: {
+        kind: 'git-base',
+        reference: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+      },
+      status: 'LOCAL',
+  +   updatedAt: '2026-09-26T00:00:01.000Z',
+  -   updatedAt: '2026-09-26T00:00:00.000Z',
+      version: 1,
+      workItemId: 'job-681:implement'
+    }
+  
+      at async file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/tests/development-job-store.test.ts:144:21
+      at async withRenameFault (file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/tests/development-job-store.test.ts:88:14)
+      at async TestContext.<anonymous> (file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/tests/development-job-store.test.ts:139:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+    + actual - expected
+    ... Skipped lines
+    
+      {
+        affectedSymbols: [],
+        artifactDigest: 'fe03f878790c8724a07f050dba0e0be0eba1ba15e47909dc7ba5174e4f2e6508',
+        artifactRef: 'sha256:fe03f878790c8724a07f050dba0e0be0eba1ba15e47909dc7ba5174e4f2e6508',
+        baseRevision: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    ...
+        jobId: 'job-681',
+    +   patchDigest: 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
+    -   patchDigest: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+        rollback: {
+          kind: 'git-base',
+          reference: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+        },
+        status: 'LOCAL',
+    +   updatedAt: '2026-09-26T00:00:01.000Z',
+    -   updatedAt: '2026-09-26T00:00:00.000Z',
+        version: 1,
+        workItemId: 'job-681:implement'
+      }
+    
+        at file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/tests/development-job-store.test.ts:140:60
+        at async replaceDevelopmentSnapshot (file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/src/orchestrator/replace-development-snapshot.ts:10:9)
+        at async JsonFileDevelopmentChangeSetStore.put (file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/src/orchestrator/development-change-set-store.ts:81:11)
+        at async waitForActual (node:assert:646:5)
+        at async strict.rejects (node:assert:769:25)
+        at async file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/tests/development-job-store.test.ts:144:21
+        at async withRenameFault (file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/tests/development-job-store.test.ts:88:14)
+        at async TestContext.<anonymous> (file:///C:/Users/qq113/OneDrive/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88/ChatGPT/%E5%85%B1%E9%80%9A%E9%96%8B%E7%99%BA%202/AI-goriq-inheritance/tests/development-job-store.test.ts:139:5)
+        at async Test.run (node:internal/test_runner/test:1389:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:960:7),
+    operator: 'rejects',
+    diff: 'simple'
+  }
