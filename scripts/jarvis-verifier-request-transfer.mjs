@@ -19,7 +19,7 @@ const fileLimit = path => path === bookkeeping ? 1048576 : 131072;
 
 /** Accept only the packet emitted by the existing tracked-repair runtime.
  * The authenticated digest pin remains host-owned; packet data grants no authority. */
-function validateTrackedTransferPacket(packet) {
+export function validateTrackedTransferPacket(packet) {
   if (!exact(packet, "executionContractDigest,expiresAt,files,kind,request,version") || packet.version !== 2
     || packet.kind !== "tracked-repair-verifier-request" || !digest(packet.executionContractDigest)
     || typeof packet.expiresAt !== "string" || !Number.isFinite(Date.parse(packet.expiresAt))
