@@ -1,0 +1,39 @@
+{
+  "reviewer": "native agent /root/review_input_safety; independent of implementation",
+  "verdict": "No remaining material source blockers",
+  "catalogSha256Lf": "813913bc9fc1b2e8872cd499446f4e793d2a9aa15b91935bdaf5d2e053b7de59",
+  "customProbesPassed": 11,
+  "selectedExistingTestsPassed": 7,
+  "checks": [
+    "Artifact-only or old PASS without canonical provenance is refused",
+    "Unapproved source drift retains original bytes and separately records the fresh response hash",
+    "Conflicting valid-digest receipts and coherent historical timestamp forgery are refused",
+    "Invalidated first-outcome receipt cannot be carried into a later aggregate",
+    "Two invalid calendar cases refused and two valid cases retained",
+    "Returned evidence mutation cannot change the private receipt map",
+    "Truthy nonboolean passed cannot certify completion",
+    "Paused jobs perform no source/model activity",
+    "Shared-criterion partial resume and tampered first-output rejection"
+  ],
+  "actualEvidenceReview": {
+    "run": "13343c54-a388-4296-9e59-91f232253e38",
+    "method": "Read-only immutable canonical DB and actual artifact hash comparison",
+    "canonicalArtifactHashesMatch": true,
+    "artifactTaskCompleted": true,
+    "restartVerified": true,
+    "requestToVerifiedArtifactsMs": 1892,
+    "actualAiSelection": false,
+    "actualAiAcceptanceAchieved": false,
+    "modelRequests": 0,
+    "priorFailedRunRetained": true
+  },
+  "reviewerMutations": "None; no source, global state, services, provider network or model calls",
+  "notEstablished": ["Actual model selection", "Signed self-development Job", "Whole product completion", "Signer activation"],
+  "lintFollowup": {
+    "verdict": "PASS; no material findings",
+    "catalogSha256Lf": "04335e8bbbaa9f771957e826efe989c9d84867aa33d60ac6464d97e1b49f44ca",
+    "controlPredicateEquivalence": "Actual extracted function matched prior regex across all 65536 UTF-16 code units and 10 mixed strings; TAB/LF remain allowed, CR and prior control ranges rejected",
+    "candidateFilter": "Completed IDs removed; unverified pending action retained; unknown IDs cannot hide work; filtering cannot grant completion; evaluation descriptor retains all actions",
+    "checks": "Minimal independent probes and adapter/Core pending-guard inspection; no broad tests, provider/model calls or source edits"
+  }
+}

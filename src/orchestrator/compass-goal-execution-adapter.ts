@@ -5,6 +5,8 @@ import { PersistentWorldModel } from "../gai/world-model.ts";
 import { evaluationPlanDigest, type CognitiveEvaluationPlan } from "../gai/cognitive-evaluation.ts";
 import { loadCognitiveLocalOutcomes, CognitiveLocalOutcomeCatalog } from "../gai/cognitive-local-outcomes.ts";
 import { loadCognitiveLocalWork } from "../gai/cognitive-local-work.ts";
+import { loadCognitivePublicResearchOutcomes, CognitivePublicResearchOutcomeCatalog } from "../gai/cognitive-public-research-outcomes.ts";
+import type { ResearchTransportOptions } from "./research-transport.ts";
 import { resolve, dirname } from "node:path";
 import { CompassStore } from "../compass/store.ts";
 import { BaselinePlanner, createContextInspectCapability } from "./baseline-planner.ts";
@@ -44,6 +46,8 @@ export interface CognitiveRuntimeOptions {
   localWork?: { manifestPath: string; dataRoot: string };
   localOutcomes?: { manifestPath: string; dataRoot: string };
   materialIntake?: { dataRoot: string };
+  /** Trusted host scope only; model/HTTP data cannot grant sources, fields or output paths. */
+  publicResearch?: { manifestPath: string; dataRoot: string; sourcePolicyJson: string; transport?: ResearchTransportOptions };
   /** Direct host option; no HTTP/model/environment split control. */
   evaluation?: { id: string };
   historyImport?: { manifestPath: string; dataRoot: string };
@@ -67,7 +71,8 @@ export interface DevelopmentRuntimeOptions {
 
 /** Host-selected catalog shared by execution and read-only status validation. */
 export async function loadCognitiveRuntimeWork(options: CognitiveRuntimeOptions, goalId: string, goal: Goal) {
-  if ([options.localWork, options.localOutcomes, options.materialIntake].filter(Boolean).length > 1) throw Error("Choose one local work contract");
+  if ([options.localWork, options.localOutcomes, options.materialIntake, options.publicResearch].filter(Boolean).length > 1) throw Error("Choose one local work contract");
+  if (options.publicResearch) return loadCognitivePublicResearchOutcomes(options.publicResearch.manifestPath, options.publicResearch.dataRoot, goalId, goal, { sourcePolicyJson: options.publicResearch.sourcePolicyJson, transport: options.publicResearch.transport });
   if (options.materialIntake) {
     if (!options.stateRoot || !options.partition) throw Error("Material intake state scope required");
     return (await new CognitiveMaterialIntake(options.stateRoot, options.materialIntake.dataRoot, options.partition).load(goalId, goal))?.catalog;
@@ -235,7 +240,7 @@ export class CompassGoalExecutionAdapter implements GoalExecutionAdapter {
 
   async run(goalId: string, input: { maxCycles?: number; context?: unknown[] } = {}): Promise<BoundedRunReport> {
     if (this.developmentOptions?.authority) return this.runWithAuthority(goalId, input.context ?? []);
-    if (this.cognitiveOptions.localWork && this.cognitiveOptions.localOutcomes) throw Error("Choose one local work contract");
+    if ([this.cognitiveOptions.localWork, this.cognitiveOptions.localOutcomes, this.cognitiveOptions.materialIntake, this.cognitiveOptions.publicResearch].filter(Boolean).length > 1) throw Error("Choose one local work contract");
     const compass = new CompassStore(this.dbPath);
     let releaseLease: (() => Promise<void>) | undefined;
     const leasePath = `${this.dbPath}.cognitive-run.lock`;
@@ -258,6 +263,8 @@ export class CompassGoalExecutionAdapter implements GoalExecutionAdapter {
       if (goalId !== authoritativeGoalId) {
         throw new Error(`Goal Controller goal mismatch: requested=${goalId} authoritative=${authoritativeGoalId}`);
       }
+      // A stopped job never performs even read-only source revalidation.
+      if (this.cognitiveOptions.publicResearch && compass.getState().status === "PAUSED") return { cycles: [], stopReason: "paused" };
 
       const contextSource: ContextSource = {
         name: "compass-state",
@@ -365,6 +372,10 @@ export class CompassGoalExecutionAdapter implements GoalExecutionAdapter {
       const descriptor = localWork instanceof CognitiveLocalOutcomeCatalog ? localWork.evaluationDescriptor() : undefined;
       let evaluationPlan: CognitiveEvaluationPlan | undefined;
       const current = await state.get(authoritativeGoalId);
+      if (localWork instanceof CognitivePublicResearchOutcomeCatalog) {
+        const completed = current?.attempts.filter(a => a.verified).map(a => a.actionId) ?? [];
+        if (completed.length && !await localWork.revalidateCompleted(completed, (await workStateStore.get(authoritativeGoalId))?.verificationResults ?? [])) throw Error("Public research artifact revalidation failed; preserve outputs and review changed source or artifact");
+      }
       const reserved = learning instanceof CognitiveLearningEngine ? await learning.evaluationReservation(partition, authoritativeGoalId, this.cognitiveOptions.evaluation?.id) : null;
       if ((current?.evaluation_plan_digest || reserved) && !this.cognitiveOptions.evaluation) throw Error("Evaluation allocation changed; original host plan required");
       if (this.cognitiveOptions.evaluation) {
@@ -418,6 +429,7 @@ export class CompassGoalExecutionAdapter implements GoalExecutionAdapter {
         async completion(currentState, currentGoal) {
           if (localWork && !localWork.completionSatisfied(currentState.attempts.filter(a => a.verified).map(a => a.actionId))) return false;
           const work = await workStateStore.get(authoritativeGoalId);
+          if (localWork instanceof CognitivePublicResearchOutcomeCatalog && !await localWork.revalidateCompleted(currentState.attempts.filter(a => a.verified).map(a => a.actionId), work?.verificationResults ?? [])) return false;
           return currentGoal.successCriteria.length > 0 && Boolean(work && work.childWorkItems.every(item => item.status === "COMPLETED") && evaluateGoalFromWorkState(work).achieved);
         },
       });
@@ -456,6 +468,7 @@ export class CompassGoalExecutionAdapter implements GoalExecutionAdapter {
       const cognitive = await state.get(authoritativeGoalId);
       const completionGaps = await new CompassStateStoreAdapter(compass).completionBlockers(goal);
       if (localWork && !localWork.completionSatisfied(cognitive?.attempts.filter(a => a.verified).map(a => a.actionId) ?? [])) completionGaps.push("local_contract_outputs_incomplete");
+      if (localWork instanceof CognitivePublicResearchOutcomeCatalog && localWork.completionSatisfied(cognitive?.attempts.filter(a => a.verified).map(a => a.actionId) ?? []) && !await localWork.revalidateCompleted(cognitive?.attempts.filter(a => a.verified).map(a => a.actionId) ?? [], workState.verificationResults)) completionGaps.push("public_research_artifact_revalidation_failed");
       if (workState.childWorkItems.some(item => item.status !== "COMPLETED")) completionGaps.push("child_work_incomplete");
       if (!goal.successCriteria.length) completionGaps.push("definition_of_done_required");
       if (cognitive?.learning_outbox) completionGaps.push("learning_write_pending");

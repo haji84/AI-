@@ -1,0 +1,290 @@
+{
+  "version": 1,
+  "highestGoal": "#1944 -> #681/#921; all341 retained",
+  "scope": "bounded host-configured public research task; not signed development Job acceptance or universal natural-language automation",
+  "request": "Ollamaの公開最新版のバージョン、公開日時、公式ページを調べ、出典付きCSVと確認メモを保存してください。",
+  "hostConfiguredScope": true,
+  "normalEntry": "GoalControllerRuntime -> CognitiveService.continue -> CompassGoalExecutionAdapter -> CognitiveCore -> public research capability -> verifier -> Compass WorkState",
+  "startedAt": "2026-11-27T08:39:57.324Z",
+  "executionStartedAt": "2026-11-27T08:39:57.436Z",
+  "executionCompletedAt": "2026-11-27T08:39:58.143Z",
+  "finishedAt": "2026-11-27T08:39:59.216Z",
+  "executionElapsedMs": 707,
+  "requestToVerifiedArtifactsMs": 1892,
+  "artifactTaskCompleted": true,
+  "restartVerified": true,
+  "actualAiSelection": false,
+  "goriqModelRequests": 0,
+  "mode": "artifact-only-real-source",
+  "humanFollowupsDuringThisRun": 0,
+  "taskGoal": {
+    "resolution": "NEW_GOAL",
+    "goalId": "goal-8d724ddaf3146f45",
+    "goalDigest": "a1b10ecc30fed2390f9fa1a698ca9260c0a36be786ce671397e08d5573e0237e",
+    "criteriaSource": "same request retained verbatim as a single observable obligation; host derives bounded scope"
+  },
+  "hostManifest": {
+    "version": 1,
+    "goalId": "goal-8d724ddaf3146f45",
+    "goalDigest": "a1b10ecc30fed2390f9fa1a698ca9260c0a36be786ce671397e08d5573e0237e",
+    "sources": [
+      {
+        "id": "release",
+        "url": "https://api.github.com/repos/ollama/ollama/releases/latest"
+      }
+    ],
+    "outcomes": [
+      {
+        "id": "ollama-release",
+        "sourceId": "release",
+        "fields": [
+          {
+            "jsonField": "tag_name",
+            "label": "Version"
+          },
+          {
+            "jsonField": "published_at",
+            "label": "Published UTC"
+          },
+          {
+            "jsonField": "html_url",
+            "label": "Official release page"
+          }
+        ],
+        "csvPath": "ollama-release.csv",
+        "memoPath": "ollama-release.md",
+        "criteria": [
+          "criterion-1"
+        ],
+        "publishedAtField": "published_at"
+      }
+    ]
+  },
+  "sourcePolicy": {
+    "version": 1,
+    "sources": [
+      {
+        "url": "https://api.github.com/repos/ollama/ollama/releases/latest",
+        "sourceClass": "official",
+        "fields": [
+          "tag_name",
+          "published_at",
+          "html_url"
+        ]
+      }
+    ]
+  },
+  "result": {
+    "stopReason": "goal_complete",
+    "cycles": 2,
+    "goalEvaluation": {
+      "achieved": true,
+      "verifiedRequired": [
+        "criterion-1"
+      ],
+      "failedRequired": [],
+      "unverifiedRequired": [],
+      "blockers": [],
+      "remainingGaps": []
+    }
+  },
+  "canonicalVerification": [
+    {
+      "itemId": "criterion-1",
+      "passed": true,
+      "evidence": {
+        "ok": true,
+        "source": {
+          "url": "https://api.github.com/repos/ollama/ollama/releases/latest",
+          "sourceClass": "official",
+          "responseSha256": "2394763ae825c5bec97cc8728e3abeac8ca73145f9e89d3ed481ae4b114f7c06",
+          "retrievedAt": "2026-11-27T08:39:58.043Z",
+          "retrievalTimestampTrust": "observed",
+          "observedResponseSha256": "2394763ae825c5bec97cc8728e3abeac8ca73145f9e89d3ed481ae4b114f7c06",
+          "observedAt": "2026-11-27T08:39:58.043Z",
+          "revalidatedAt": "2026-11-27T08:39:58.055Z"
+        },
+        "checks": [
+          {
+            "path": "ollama-release.csv",
+            "expectedSha256": "2643d0b941e63c8153e7b7f89d22b24b2e6a98a9e69d75dd1f4e95dabe0c1410",
+            "actualSha256": "2643d0b941e63c8153e7b7f89d22b24b2e6a98a9e69d75dd1f4e95dabe0c1410",
+            "semantic": true
+          },
+          {
+            "path": "ollama-release.md",
+            "expectedSha256": "2925b6395d10539402e3bbaa7077b9af149ffc321ea1ecff224314f39f156688",
+            "actualSha256": "2925b6395d10539402e3bbaa7077b9af149ffc321ea1ecff224314f39f156688",
+            "semantic": true
+          }
+        ],
+        "kind": "public-research-artifact-verification-v1",
+        "goalDigest": "a1b10ecc30fed2390f9fa1a698ca9260c0a36be786ce671397e08d5573e0237e",
+        "contractDigest": "a9e7fe8b737e44b408bd2820049289eceed232d22bcad1cf4e76617b72a79491",
+        "receipts": [
+          {
+            "version": 1,
+            "outcomeId": "ollama-release",
+            "actionId": "public-research:e01caa9eb7a61cfda6cfc90a15292a75db5e5c33e3160286d7d945c601b2f44e",
+            "actionFingerprint": "bf3ab1632baab9adb0a9634ab433596e14bed650fbc98ff46100338b9400c892",
+            "goalDigest": "a1b10ecc30fed2390f9fa1a698ca9260c0a36be786ce671397e08d5573e0237e",
+            "contractDigest": "a9e7fe8b737e44b408bd2820049289eceed232d22bcad1cf4e76617b72a79491",
+            "source": {
+              "url": "https://api.github.com/repos/ollama/ollama/releases/latest",
+              "sourceClass": "official",
+              "responseSha256": "2394763ae825c5bec97cc8728e3abeac8ca73145f9e89d3ed481ae4b114f7c06",
+              "retrievedAt": "2026-11-27T08:39:58.043Z"
+            },
+            "artifacts": [
+              {
+                "path": "ollama-release.csv",
+                "sha256": "2643d0b941e63c8153e7b7f89d22b24b2e6a98a9e69d75dd1f4e95dabe0c1410"
+              },
+              {
+                "path": "ollama-release.md",
+                "sha256": "2925b6395d10539402e3bbaa7077b9af149ffc321ea1ecff224314f39f156688"
+              }
+            ]
+          }
+        ],
+        "refs": [
+          "public-research-verification:9774711b0f9689e87ca5165297360b154594b397427961d63929da2f85a5de43"
+        ]
+      }
+    }
+  ],
+  "independentReadback": {
+    "observedAt": "2026-11-27T08:39:59.215Z",
+    "url": "https://api.github.com/repos/ollama/ollama/releases/latest",
+    "bodySha256": "2394763ae825c5bec97cc8728e3abeac8ca73145f9e89d3ed481ae4b114f7c06",
+    "approvedFields": {
+      "tag_name": "v0.40.18",
+      "published_at": "2026-11-24T04:18:13Z",
+      "html_url": "https://github.com/ollama/ollama/releases/tag/v0.40.18"
+    }
+  },
+  "artifacts": [
+    {
+      "file": "ollama-release.csv",
+      "bytes": 970,
+      "sha256": "2643d0b941e63c8153e7b7f89d22b24b2e6a98a9e69d75dd1f4e95dabe0c1410",
+      "currentBodyDigestMatches": true
+    },
+    {
+      "file": "ollama-release.md",
+      "bytes": 626,
+      "sha256": "2925b6395d10539402e3bbaa7077b9af149ffc321ea1ecff224314f39f156688",
+      "currentBodyDigestMatches": true
+    }
+  ],
+  "latestSourceResume": {
+    "startedAt": "2026-11-27T08:42:00.794Z",
+    "completedAt": "2026-11-27T08:42:01.611Z",
+    "sourceHashes": {
+      "src/gai/cognitive-public-research-outcomes.ts": "813913bc9fc1b2e8872cd499446f4e793d2a9aa15b91935bdaf5d2e053b7de59",
+      "src/gai/cognitive-service.ts": "a2af58b7f30913a43505c404b5b782dccbd2e2e56373bfe07f1dfb6b1b781a8f",
+      "src/orchestrator/compass-goal-execution-adapter.ts": "6515214c43e6fe652790feb218d068ee116d017ee83784e455ffbce9107fc4a8",
+      "src/orchestrator/research-delegation.ts": "8762ca6b5f082be9bfb5a05fbc14b9db7c389c1d00cc593e13c2729acdee136e",
+      "src/orchestrator/research-transport.ts": "7caa1bdb85c998fc87cb35048b9a0f8d9976580f2b03e937089119e957df3b8a"
+    },
+    "statusGoalComplete": true,
+    "attempts": 1,
+    "resumeResult": {
+      "stopReason": "goal_complete",
+      "cycles": 1,
+      "goalEvaluation": {
+        "achieved": true,
+        "verifiedRequired": [
+          "criterion-1"
+        ],
+        "failedRequired": [],
+        "unverifiedRequired": [],
+        "blockers": [],
+        "remainingGaps": []
+      }
+    },
+    "unchangedArtifactHashes": [
+      {
+        "file": "ollama-release.csv",
+        "sha256": "2643d0b941e63c8153e7b7f89d22b24b2e6a98a9e69d75dd1f4e95dabe0c1410"
+      },
+      {
+        "file": "ollama-release.md",
+        "sha256": "2925b6395d10539402e3bbaa7077b9af149ffc321ea1ecff224314f39f156688"
+      }
+    ],
+    "noModelInvoked": true
+  },
+  "originalExecutionSourceHashes": null,
+  "originalExecutionSourceHashReason": "Not captured before execution; latest-source same-task revalidation hashes are recorded separately.",
+  "priorAttempt": {
+    "run": "919a8def-8b13-4713-895c-865add17072b",
+    "startedAt": "2026-11-27T08:28:09.810Z",
+    "elapsedMs": 3323,
+    "actualAiSelection": false,
+    "goriqModelRequests": 0,
+    "sourceResult": "goal_complete via local-experiment",
+    "acceptance": "NOT_ACTUAL_AI_SUCCESS; original evidence/artifacts retained"
+  },
+  "modelResourceHold": {
+    "status": "WAITING_FOR_RESOURCE",
+    "limitCommitPercent": 85,
+    "observations": [
+      {
+        "observedAt": "2026-11-27T08:28:30.749Z",
+        "committedMemoryMb": 34626.31640625,
+        "commitLimitMb": 39599.625
+      },
+      {
+        "observedAt": "2026-11-27T08:39:21.810Z",
+        "committedMemoryMb": 35349.3203125,
+        "commitLimitMb": 39599.625
+      }
+    ],
+    "override": false
+  },
+  "productCompletion": false,
+  "requirementsStatusPromotions": 0,
+  "limitations": [
+    "Host prepared source/field/output contract; open-ended natural-language source discovery is not proven",
+    "No actual model selection or signed self-development/nextJob acceptance",
+    "Canonical local WorkState is the trusted historical record; hash references are not signatures",
+    "Current selected-value/source-policy changes fail closed and preserve original files",
+    "No whole-product, human-time-saved or broad job-success-rate measurement"
+  ],
+  "metricsUnavailable": {
+    "fullProductCompletionMs": null,
+    "nativeCodexBillableTokens": null,
+    "userTimeSavedMs": null,
+    "broadAutonomousSuccessRate": null
+  },
+  "lintFollowupRevalidation": {
+    "startedAt": "2026-11-27T08:48:47.320Z",
+    "completedAt": "2026-11-27T08:48:48.128Z",
+    "sourceHashes": {
+      "src/gai/cognitive-public-research-outcomes.ts": "04335e8bbbaa9f771957e826efe989c9d84867aa33d60ac6464d97e1b49f44ca",
+      "src/gai/cognitive-service.ts": "a2af58b7f30913a43505c404b5b782dccbd2e2e56373bfe07f1dfb6b1b781a8f",
+      "src/orchestrator/compass-goal-execution-adapter.ts": "6515214c43e6fe652790feb218d068ee116d017ee83784e455ffbce9107fc4a8",
+      "src/orchestrator/research-delegation.ts": "8762ca6b5f082be9bfb5a05fbc14b9db7c389c1d00cc593e13c2729acdee136e",
+      "src/orchestrator/research-transport.ts": "7caa1bdb85c998fc87cb35048b9a0f8d9976580f2b03e937089119e957df3b8a"
+    },
+    "statusGoalComplete": true,
+    "attempts": 1,
+    "resumeResult": {
+      "stopReason": "goal_complete",
+      "cycles": 1,
+      "goalEvaluation": {
+        "achieved": true,
+        "verifiedRequired": [
+          "criterion-1"
+        ],
+        "failedRequired": [],
+        "unverifiedRequired": [],
+        "blockers": [],
+        "remainingGaps": []
+      }
+    },
+    "unchangedArtifacts": true,
+    "noModelInvoked": true
+  }
+}

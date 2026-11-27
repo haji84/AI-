@@ -4,6 +4,8 @@ import { BlockList, isIP } from "node:net";
 import type { LookupFunction } from "node:net";
 import { Readable } from "node:stream";
 
+const publicResearchUserAgent = "GORIQ-Public-Research/1.0";
+
 export interface ResolvedAddress { address: string; family: number }
 export interface ResearchTransportOptions {
   /** Trusted per-job configuration, never populated from a retrieved document. Empty means deny. */
@@ -73,7 +75,7 @@ function pinnedFetch(url: URL, address: ResolvedAddress, signal: AbortSignal, ac
     const req = request(url, {
       method: "GET", agent: false, lookup: pinnedResearchLookup(address),
       family: address.family, signal, maxHeaderSize: 16_384,
-      headers: { Accept: accept, "Accept-Encoding": "identity" },
+      headers: { Accept: accept, "Accept-Encoding": "identity", "User-Agent": publicResearchUserAgent },
     }, response => {
       try {
       if (!response.statusCode || response.statusCode < 200 || response.statusCode >= 300) throw new Error('research HTTP status rejected');
@@ -114,7 +116,7 @@ export async function readResearchSource(raw: string, options: ResearchTransport
     signal.throwIfAborted();
     const accept = options.accept === "application/json" ? "application/json" : "text/html,text/plain,application/json";
     const response = await abortable(options.fetchImpl
-      ? options.fetchImpl(url, { redirect: "error", signal, credentials: "omit", headers: { Accept: accept, "Accept-Encoding": "identity" } })
+      ? options.fetchImpl(url, { redirect: "error", signal, credentials: "omit", headers: { Accept: accept, "Accept-Encoding": "identity", "User-Agent": publicResearchUserAgent } })
       : pinnedFetch(url, addresses[0], signal, accept), signal);
     reader = response.body?.getReader();
     if (!response.ok || response.redirected || response.url && response.url !== url.href) throw new Error("research HTTP status or redirect rejected");
