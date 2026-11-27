@@ -43,8 +43,15 @@ const sha = (bytes: string | Buffer) => createHash("sha256").update(bytes).diges
 function shape(value: unknown, fields: string[]): asserts value is Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value) || Object.getPrototypeOf(value) !== Object.prototype || Object.keys(value).some(key => !fields.includes(key))) throw Error("Invalid public research schema");
 }
+function unsafeControl(value: string): boolean {
+  for (let index = 0; index < value.length; index++) {
+    const code = value.charCodeAt(index);
+    if (code <= 8 || code >= 11 && code <= 31 || code === 127) return true;
+  }
+  return false;
+}
 function text(value: unknown, maximum: number): asserts value is string {
-  if (typeof value !== "string" || !value.trim() || value.length > maximum || !value.isWellFormed() || /[\u0000-\u0008\u000b-\u001f\u007f]/.test(value)) throw Error("Invalid research text");
+  if (typeof value !== "string" || !value.trim() || value.length > maximum || !value.isWellFormed() || unsafeControl(value)) throw Error("Invalid research text");
 }
 function id(value: unknown): asserts value is string { if (typeof value !== "string" || !/^[A-Za-z0-9:_-]{1,80}$/.test(value)) throw Error("Invalid research ID"); }
 function path(value: unknown): string {
@@ -144,7 +151,7 @@ export class CognitivePublicResearchOutcomeCatalog {
     return { id: actionId, kind: "research", action, expectedOutcome: "Acquired public fields saved with source provenance and independently verified",
       evidenceRequired: ["independent-public-research-artifact-verifier"] };
   }
-  async candidates(_completedIds: string[] = []): Promise<CognitiveCandidate[]> { return this.#manifest.outcomes.map(outcome => this.#candidate(outcome)); }
+  async candidates(completedIds: string[] = []): Promise<CognitiveCandidate[]> { return this.#manifest.outcomes.map(outcome => this.#candidate(outcome)).filter(candidate => !completedIds.includes(candidate.id)); }
   completionSatisfied(completedIds: string[]): boolean { return this.#manifest.outcomes.every(outcome => completedIds.includes(this.#candidate(outcome).id) && this.#verified.has(outcome.id)); }
   evaluationDescriptor() { return { materialSha256: [] as string[], candidates: this.#manifest.outcomes.map(outcome => this.#candidate(outcome)) }; }
   skillEvaluationDescriptor(): never { throw Error("Public research benchmark evaluation is unsupported"); }
@@ -218,7 +225,7 @@ export class CognitivePublicResearchOutcomeCatalog {
     const values = outcome.fields.map(field => {
       if (!Object.hasOwn(body, field.jsonField)) throw Error("Research field missing");
       const value = (body as Record<string, unknown>)[field.jsonField];
-      if (typeof value === "string") { if (value.length > 4096 || Buffer.byteLength(value) > 8192 || !value.isWellFormed() || /[\u0000-\u0008\u000b-\u001f\u007f]/.test(value)) throw Error("Research string bound"); }
+      if (typeof value === "string") { if (value.length > 4096 || Buffer.byteLength(value) > 8192 || !value.isWellFormed() || unsafeControl(value)) throw Error("Research string bound"); }
       else if (value !== null && typeof value !== "boolean" && (typeof value !== "number" || !Number.isFinite(value))) throw Error("Research requires scalar fields");
       return { ...field, value: value as Scalar };
     });

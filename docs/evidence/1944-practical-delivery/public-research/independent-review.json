@@ -28,5 +28,12 @@
     "priorFailedRunRetained": true
   },
   "reviewerMutations": "None; no source, global state, services, provider network or model calls",
-  "notEstablished": ["Actual model selection", "Signed self-development Job", "Whole product completion", "Signer activation"]
+  "notEstablished": ["Actual model selection", "Signed self-development Job", "Whole product completion", "Signer activation"],
+  "lintFollowup": {
+    "verdict": "PASS; no material findings",
+    "catalogSha256Lf": "04335e8bbbaa9f771957e826efe989c9d84867aa33d60ac6464d97e1b49f44ca",
+    "controlPredicateEquivalence": "Actual extracted function matched prior regex across all 65536 UTF-16 code units and 10 mixed strings; TAB/LF remain allowed, CR and prior control ranges rejected",
+    "candidateFilter": "Completed IDs removed; unverified pending action retained; unknown IDs cannot hide work; filtering cannot grant completion; evaluation descriptor retains all actions",
+    "checks": "Minimal independent probes and adapter/Core pending-guard inspection; no broad tests, provider/model calls or source edits"
+  }
 }

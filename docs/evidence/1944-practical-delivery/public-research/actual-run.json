@@ -257,5 +257,34 @@
     "nativeCodexBillableTokens": null,
     "userTimeSavedMs": null,
     "broadAutonomousSuccessRate": null
+  },
+  "lintFollowupRevalidation": {
+    "startedAt": "2026-11-27T08:48:47.320Z",
+    "completedAt": "2026-11-27T08:48:48.128Z",
+    "sourceHashes": {
+      "src/gai/cognitive-public-research-outcomes.ts": "04335e8bbbaa9f771957e826efe989c9d84867aa33d60ac6464d97e1b49f44ca",
+      "src/gai/cognitive-service.ts": "a2af58b7f30913a43505c404b5b782dccbd2e2e56373bfe07f1dfb6b1b781a8f",
+      "src/orchestrator/compass-goal-execution-adapter.ts": "6515214c43e6fe652790feb218d068ee116d017ee83784e455ffbce9107fc4a8",
+      "src/orchestrator/research-delegation.ts": "8762ca6b5f082be9bfb5a05fbc14b9db7c389c1d00cc593e13c2729acdee136e",
+      "src/orchestrator/research-transport.ts": "7caa1bdb85c998fc87cb35048b9a0f8d9976580f2b03e937089119e957df3b8a"
+    },
+    "statusGoalComplete": true,
+    "attempts": 1,
+    "resumeResult": {
+      "stopReason": "goal_complete",
+      "cycles": 1,
+      "goalEvaluation": {
+        "achieved": true,
+        "verifiedRequired": [
+          "criterion-1"
+        ],
+        "failedRequired": [],
+        "unverifiedRequired": [],
+        "blockers": [],
+        "remainingGaps": []
+      }
+    },
+    "unchangedArtifacts": true,
+    "noModelInvoked": true
   }
 }

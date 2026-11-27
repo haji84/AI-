@@ -6,7 +6,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { CapabilityRegistry } from "../src/orchestrator/capabilities.ts";
 import { cognitiveDigest } from "../src/gai/cognitive-state.ts";
-import type { Goal, ProposedAction } from "../src/orchestrator/goal-loop.ts";
+import type { Goal } from "../src/orchestrator/goal-loop.ts";
 import type { CognitivePublicResearchManifest } from "../src/gai/cognitive-public-research-outcomes.ts";
 
 const url = "https://example.com/api/release", hash = (bytes: string | Buffer) => createHash("sha256").update(bytes).digest("hex");

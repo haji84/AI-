@@ -5,7 +5,8 @@
   "passed": 53,
   "failed": 0,
   "skipped": 0,
-  "durationMs": 3830.7219,
+  "durationMs": 3829.248,
+  "priorValidatedDurationMs": 3830.7219,
   "redBeforeCorrections": {
     "missingNativeAndInjectedUserAgent": 2,
     "missingRuntimeIntegration": 3,
@@ -16,7 +17,14 @@
   "requirementAudit": { "status": "PASS", "surfaces": 631, "requirements": 341, "functional_completion_claim": false },
   "inheritance": { "status": "PASS", "requirements": 341, "cognitive": 17, "research": 20, "roadmap": 35, "functional_completion_claim": false },
   "gitDiffCheck": "PASS; existing Windows line-ending conversion notices only",
-  "fullCi": "Pending exact published revision; local dependency restores were previously bounded and not repeated",
+  "initialCiFailure": {
+    "runId": 45968140886,
+    "headSha": "1d2ff19e6710e059212fa38962a73e66fb88cd9a",
+    "stage": "Lint",
+    "errors": ["Intentional control-character regex rejected by no-control-regex in two locations", "Unused candidates argument", "Unused test type import"],
+    "repair": "Equivalent explicit ASCII control checks, filter already completed candidate IDs, remove unused type; no lint rules disabled"
+  },
+  "fullCi": "Pending revised exact published revision; local dependency restores were previously bounded and not repeated",
   "actualDataEvidence": "actual-run.json",
   "requirementsStatusPromotions": 0
 }
