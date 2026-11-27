@@ -153,13 +153,19 @@ export function hasAddedCredentialLogging(patch) {
 
 export function consolidateChunkReviews(reports, scope, chunks) {
   if (!Array.isArray(reports) || !Array.isArray(chunks) ||
-    !chunks.length || chunks.length > MAX_CHUNKS || reports.length !== chunks.length) {
+    !chunks.length || chunks.length > MAX_CHUNKS || reports.length > chunks.length) {
     return makeBlockedReview(scope, "incomplete_model_review");
   }
   let sawInconclusive = false;
   let sawChanges = false;
   const findings = [];
-  for (let i = 0; i < chunks.length; i++) {
+  // Preserve bounded already-reviewed evidence even when later coverage fails.
+  // Missing, invalid or over-budget coverage always remains BLOCKED.
+  const blocked = reason => ({
+    ...makeBlockedReview(scope, reports.length !== chunks.length ? "incomplete_model_review" : reason),
+    findings: findings.slice(0, 20),
+  });
+  for (let i = 0; i < reports.length; i++) {
     const report = reports[i];
     const chunk = chunks[i];
     if (!report || report.reviewer !== "AI-09" || report.evidenceClass !== "AI_ASSERTED" ||
@@ -171,13 +177,15 @@ export function consolidateChunkReviews(reports, scope, chunks) {
       JSON.stringify(report.scope.paths) !== JSON.stringify(chunk.paths) ||
       !Array.isArray(report.findings) ||
       report.findings.some(finding => !chunk.paths.includes(finding.path))) {
-      return makeBlockedReview(scope, "review_chunk_invalid_or_blocked");
+      return blocked("review_chunk_invalid_or_blocked");
     }
     if (report.status === "INCONCLUSIVE") sawInconclusive = true;
     if (report.status === "CHANGES_REQUESTED") sawChanges = true;
-    findings.push(...report.findings);
-    if (findings.length > 20) return makeBlockedReview(scope, "too_many_review_findings");
+    const capacity = 20 - findings.length;
+    findings.push(...report.findings.slice(0, capacity));
+    if (report.findings.length > capacity) return blocked("too_many_review_findings");
   }
+  if (reports.length !== chunks.length) return blocked("incomplete_model_review");
   const status = sawInconclusive ? "INCONCLUSIVE" :
     sawChanges ? "CHANGES_REQUESTED" : "NO_ACTIONABLE_FINDINGS";
   // The backstop does not invent AI findings or authorize a fix.
