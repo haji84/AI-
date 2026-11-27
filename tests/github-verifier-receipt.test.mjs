@@ -121,7 +121,7 @@ function githubFixture() {
     files: [["src/value.ts", changed], ["tests/frozen-probe.test.mjs", probe]].map(([path, bytes]) => ({ path, sha256: hash(bytes), contentBase64: bytes.toString("base64") })) };
   const requestBytes = Buffer.from(JSON.stringify(packet) + "\n"), key = generateKeyPairSync("ed25519");
   const pins = { version: 1, repository: "haji84/AI-", requestSha256: hash(requestBytes), executionContractDigest: packet.executionContractDigest,
-    request: structuredClone(packet.request), notBefore: iso(-120000), expiresAt: iso(3600000), candidateCommit: published,
+    request: globalThis.structuredClone(packet.request), notBefore: iso(-120000), expiresAt: iso(3600000), candidateCommit: published,
     verifierId: "mac-actual-verifier", publicKeyPem: key.publicKey.export({ type: "spki", format: "pem" }).toString(),
     workflowId: 100, runId: 200, runAttempt: 1, jobId: 300, artifactId: 400 };
   const raw = rawFixture(), ci = raw.input().request, id = "00000000-0000-4000-8000-000000000001";
