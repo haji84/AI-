@@ -2,6 +2,58 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createRuntimeDevelopmentVerifier } from "../src/orchestrator/runtime-development-verifier.ts";
 
+async function verifyFailedCandidate(options: { wrongDigest?: boolean; missingCheck?: boolean; invalidStatus?: boolean; noFailedCheck?: boolean; unboundFailure?: boolean; duplicateCheck?: boolean } = {}) {
+  const checks = ["lint", "typecheck"];
+  const evidence = {
+    verifierId: "verifier:independent",
+    sourceRevision: "a".repeat(64),
+    artifactDigest: options.wrongDigest ? "c".repeat(64) : "b".repeat(64),
+    verificationEvidence: checks.filter((_, index) => !options.missingCheck || index === 0).map((check, index) => ({
+      check, verifierId: "verifier:independent", sourceRevision: "a".repeat(64), artifactDigest: "b".repeat(64),
+      status: options.invalidStatus ? "skipped" : index === 0 && !options.noFailedCheck ? "failed" : "passed",
+      recordedAt: new Date().toISOString(),
+    })),
+  };
+  if (options.unboundFailure) evidence.verificationEvidence.push({ ...evidence.verificationEvidence[0], artifactDigest: "c".repeat(64), status: "failed" });
+  if (options.duplicateCheck) evidence.verificationEvidence.push({ ...evidence.verificationEvidence[0] });
+  const fetchImpl: typeof fetch = async () => new Response(JSON.stringify({ ok: false, summary: "candidate failed deterministic verification", evidence }), { status: 200 });
+  const verifier = createRuntimeDevelopmentVerifier({ CODE_BUILDER_LOCAL_URL: "http://127.0.0.1:8796", CODE_BUILDER_LOCAL_TOKEN: "fixture-only" }, fetchImpl);
+  return verifier.verify({
+    goal: { title: "g", successCriteria: [], constraints: [] },
+    action: { id: "failed-candidate", description: "verify candidate", capability: "code.builder", risk: "low", input: {
+      verificationContract: { kind: "repository_checks", profile: "standard", requiredChecks: checks },
+      candidate: { artifactRef: "sha256:" + "b".repeat(64), changedPaths: ["src/repair.ts"] },
+      releaseBinding: { builderId: "builder:separate", sourceRevision: "a".repeat(64), artifactDigest: "b".repeat(64) },
+    } },
+    result: { actionId: "failed-candidate", ok: true, summary: "built" }, context: [],
+  });
+}
+
+test("complete independent candidate-bound FAIL evidence remains available to recovery", async () => {
+  const result = await verifyFailedCandidate();
+  assert.equal(result.ok, false);
+  const evidence = result.evidence as { verificationEvidence: Array<{ status: string }>; blocker?: string };
+  assert.equal(evidence.blocker, undefined);
+  assert.deepEqual(evidence.verificationEvidence.map(item => item.status), ["failed", "passed"]);
+});
+
+for (const [name, options] of [
+  ["wrong candidate digest", { wrongDigest: true }],
+  ["incomplete check set", { missingCheck: true }],
+  ["unexecuted check status", { invalidStatus: true }],
+  ["no failed check in a claimed failure", { noFailedCheck: true }],
+  ["an extra unbound failed row beside passing checks", { noFailedCheck: true, unboundFailure: true }],
+  ["duplicate check rows", { duplicateCheck: true }],
+] as const) {
+  test(`failed candidate verification rejects ${name} before exposing recovery evidence`, async () => {
+    const result = await verifyFailedCandidate(options);
+    assert.equal(result.ok, false);
+    const evidence = result.evidence as { blocker?: string; verificationEvidence?: unknown };
+    assert.equal(evidence.blocker, "development_verification_evidence_invalid");
+    assert.equal(evidence.verificationEvidence, undefined);
+  });
+}
+
 test("development verifier fails closed without a verification contract", async () => {
   const verifier = createRuntimeDevelopmentVerifier({});
   const result = await verifier.verify({

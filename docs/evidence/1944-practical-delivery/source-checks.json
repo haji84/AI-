@@ -1,0 +1,150 @@
+{
+  "at": "2026-11-27T06:19:21+00:00",
+  "baseline_main": "1fa2d36db1119fa265a16e342ec58d019d2cd0cb",
+  "owner_instruction": "https://github.com/haji84/AI-/issues/1944#issuecomment-7210866259",
+  "author": "Codex source implementation; not GORIQ autonomous execution",
+  "scope": [
+    "explicitGoalHint and durable-replay target refusal",
+    "bounded real recovery feedback and complete candidate-bound check outcomes",
+    "validated FAIL retained by generic executor; incomplete/duplicate/unbound checks rejected",
+    "status-only chat cannot clear pending; correlated owner/conversation and navigation/poll races"
+  ],
+  "checks": {
+    "combined_focused": {
+      "command": "node --test --test-concurrency=1 (18 affected test files; full command in PR)",
+      "tests": 178,
+      "passed": 178,
+      "failed": 0,
+      "skipped": 0,
+      "duration_ms": 13625.0432
+    },
+    "canonical_requirements": {
+      "requirements": 341,
+      "statuses": {
+        "PARTIAL": 256,
+        "VERIFIED": 3,
+        "IMPLEMENTED_UNVERIFIED": 18,
+        "MISSING": 64
+      },
+      "product_complete": false
+    },
+    "reverse_trace": {
+      "surfaces": 629,
+      "status": "PASS"
+    },
+    "inheritance": {
+      "requirements": 341,
+      "cognitive": 17,
+      "research": 20,
+      "roadmap": 35,
+      "status": "PASS"
+    }
+  },
+  "independent_review": {
+    "core": "Reviewed by separate read-only agent; launcher126/127/Windows9009 finding repaired and rechecked closed.",
+    "bridge": "Separate reviewer found failednavigation wrongtarget regression; repaired; independent6caseUI harness passed755.7081ms. Actualtransportnotclaimed."
+  },
+  "local_tooling": {
+    "reused_declared_dependency_versions_only": true,
+    "package_and_lockfile_unchanged": true,
+    "old_sibling_dependency_tree_preserved": true,
+    "offline_restore_attempts": [
+      {
+        "limit_seconds": 120,
+        "result": "SIGTERM at own bound",
+        "downloaded": 0,
+        "import_progress": 166,
+        "total": 167
+      },
+      {
+        "limit_seconds": 240,
+        "result": "SIGTERM at own bound",
+        "downloaded": 0,
+        "import_progress": 166,
+        "total": 167
+      }
+    ],
+    "blocking_package_observed": "next package unavailable; exact importer cause unproved",
+    "full_lint_typecheck_build": "PENDING exact-head CI; no local PASS claimed"
+  },
+  "runtime_acceptance": {
+    "real_model_calls": 0,
+    "new_credentials_or_permissions": false,
+    "old_1219_HOLD_preserved": true,
+    "unrelated_1845_STOPPED_preserved": true,
+    "phase1_real_GORIQ_autonomous_development": "NOT_PROVEN",
+    "phase2_one_request_real_deliverable": "NOT_PROVEN",
+    "phase6_actual_correlated_transport": "NOT_PROVEN",
+    "source_checks_are_not_runtime_acceptance": true
+  },
+  "metrics": {
+    "first_working_core_time": null,
+    "all_requirements_completion_time": null,
+    "token_usage": null,
+    "human_additional_instruction_count_since_this_goal": 0,
+    "notes": "Unavailable actual runtime/usage values are null, not inferred. Initial instruction alone is not an additional intervention."
+  },
+  "logs": {
+    "goal-hint-red.log": {
+      "path": "docs/evidence/1944-practical-delivery/source-logs.zip",
+      "sha256": "5430e25ac70af29675cdca990f50b5d9370bf0a6cb393be43da1ca902001ab04",
+      "bytes": 2215,
+      "member": "goal-hint-red.log"
+    },
+    "goal-replay-red.log": {
+      "path": "docs/evidence/1944-practical-delivery/source-logs.zip",
+      "sha256": "f100307c3b4eaea9dcbd1c5328b3398e1c6209a50cd30e43812259f69435c154",
+      "bytes": 1624,
+      "member": "goal-replay-red.log"
+    },
+    "goal-hint-green.log": {
+      "path": "docs/evidence/1944-practical-delivery/source-logs.zip",
+      "sha256": "6c353dcbdd1015b05e05fae7f594047cd5e152d99b16fdce277413a4e08d563b",
+      "bytes": 3328,
+      "member": "goal-hint-green.log"
+    },
+    "verifier-fail-red.log": {
+      "path": "docs/evidence/1944-practical-delivery/source-logs.zip",
+      "sha256": "7ee3196df4b55cd9b5f48813b50371ff83c39312ebc1ef8c62eee93b9ef37f7a",
+      "bytes": 4589,
+      "member": "verifier-fail-red.log"
+    },
+    "verifier-duplicate-red.log": {
+      "path": "docs/evidence/1944-practical-delivery/source-logs.zip",
+      "sha256": "823591e86ed53eb40429af1cbd11b3536793e464d81bf3451fbf9c3d17c3faa7",
+      "bytes": 3137,
+      "member": "verifier-duplicate-red.log"
+    },
+    "verifier-fail-green.log": {
+      "path": "docs/evidence/1944-practical-delivery/source-logs.zip",
+      "sha256": "80f01c4881a82abce866dce089afe54c9488e4426699593970684a38b2bbf795",
+      "bytes": 2271,
+      "member": "verifier-fail-green.log"
+    },
+    "combined-focused.log": {
+      "path": "docs/evidence/1944-practical-delivery/source-logs.zip",
+      "sha256": "5009287f45008290b0485961713a23f59ad2d3a47fe75b1e307b72f59976dcba",
+      "bytes": 16672,
+      "member": "combined-focused.log"
+    },
+    "dependencies-offline.log": {
+      "path": "docs/evidence/1944-practical-delivery/source-logs.zip",
+      "sha256": "d45b8894c25d831942d80795a2d7261b0acac5a72da82940eec06c2f11bcccae",
+      "bytes": 1603,
+      "member": "dependencies-offline.log"
+    },
+    "dependencies-offline-resume.log": {
+      "path": "docs/evidence/1944-practical-delivery/source-logs.zip",
+      "sha256": "e4959260066d1b624783f86f2b23e39fc1be73323a2952f3a222d2d82dde4c9c",
+      "bytes": 2320,
+      "member": "dependencies-offline-resume.log"
+    }
+  },
+  "next_action": "Publish and validate exact source candidate in existing protected CI; establish genuine existing Builder/independentVerifier execution scope without inventing keys or changing authorization. Then run actual bounded normalJob; do not repeat oldliteral/null experiments.",
+  "log_archive": {
+    "path": "docs/evidence/1944-practical-delivery/source-logs.zip",
+    "sha256": "2d195636fbfce953420af18e65054f6d711d4d81d7d23015530b51ce784e2d61",
+    "members": 9,
+    "format": "ZIP_STORED; original native log bytes preserved and readback verified"
+  }
+}

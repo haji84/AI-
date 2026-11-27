@@ -1075,7 +1075,7 @@
     },
     {
       "path": "scripts/jarvis-goal-executor.ts",
-      "sha256": "92cc50c67498e1f8446c78f61f8c0645d0436333df3a604f1762f25bded0ee13",
+      "sha256": "be209a50b941f184f06b2ad3f68a7b6cc188fb15c86796c807b83fa8c962c24c",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "AUTO-001",
@@ -1083,7 +1083,7 @@
         "GOV-025",
         "OWN-001"
       ],
-      "reason": "Issues #1219/#1284 Direct Goal Bridge executor auto-routes accepted development intent from Daily Driver into the bounded Builder runtime when explicit self-development environment configuration is absent; existing capability, verifier, risk, Human Gate, and release controls remain authoritative. Physical iPhone E2E remains required before completion. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim. #1858 bounded host-pinned resident handoff and negative evidence recovery; no production or physical acceptance inference. #1219 scope pinning follows resident Ollama opt-in; no complete runtime E2E claim. Issues #1219/#1284 Direct Goal Bridge executor auto-routes accepted development intent from Daily Driver into the bounded Builder runtime when explicit self-development environment configuration is absent; existing capability, verifier, risk, Human Gate, and release controls remain authoritative. Physical iPhone E2E remains required before completion. #1219 scope pinning follows resident Ollama opt-in; no complete runtime E2E claim. #1219 bounded Codex-free TDD RED and local separate-process GREEN proof work; complete independent release verification and physical Goal E2E are not claimed. #1219 independently readback artifact bytes and hold unavailable evidence without discarding Change Set. #1219 independently signed local verifier receipts bound to exact Goal and Change Set before required checks may be accepted. Issue #1219: transient local writer contention returns an explicit non-owner process status, with bounded Broker rechecks of the same accepted Goal; no cross-host authority or live acceptance claim."
+      "reason": "Issues #1219/#1284 Direct Goal Bridge executor auto-routes accepted development intent from Daily Driver into the bounded Builder runtime when explicit self-development environment configuration is absent; existing capability, verifier, risk, Human Gate, and release controls remain authoritative. Physical iPhone E2E remains required before completion. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim. #1858 bounded host-pinned resident handoff and negative evidence recovery; no production or physical acceptance inference. #1219 scope pinning follows resident Ollama opt-in; no complete runtime E2E claim. Issues #1219/#1284 Direct Goal Bridge executor auto-routes accepted development intent from Daily Driver into the bounded Builder runtime when explicit self-development environment configuration is absent; existing capability, verifier, risk, Human Gate, and release controls remain authoritative. Physical iPhone E2E remains required before completion. #1219 scope pinning follows resident Ollama opt-in; no complete runtime E2E claim. #1219 bounded Codex-free TDD RED and local separate-process GREEN proof work; complete independent release verification and physical Goal E2E are not claimed. #1219 independently readback artifact bytes and hold unavailable evidence without discarding Change Set. #1219 independently signed local verifier receipts bound to exact Goal and Change Set before required checks may be accepted. Issue #1219: transient local writer contention returns an explicit non-owner process status, with bounded Broker rechecks of the same accepted Goal; no cross-host authority or live acceptance claim. #1944/#921 bounded explicit-target and candidate-bound failure/recovery repair; source verification only, real model/physical completion remains unproved."
     },
     {
       "path": "scripts/jarvis-mac-broker-service.sh",
@@ -5401,7 +5401,7 @@
     },
     {
       "path": "src/orchestrator/goal-controller-runtime.ts",
-      "sha256": "1c8268707638c78863fcb0a0d3268a339882b84222cb22562b61e0ed4e251ba6",
+      "sha256": "079d12e77cb604d8c92e6bcceab2bdbe4e7892b6dad3b20cc97c5c45e660b4d7",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-002",
@@ -5409,7 +5409,7 @@
         "AUTO-004",
         "OWN-001"
       ],
-      "reason": "Declared goal-controller-runtime.ts responsibility implements/supports Goal Completion Engine. Parent ownership is not functional or physical acceptance evidence. #1219 binds bounded owner-supplied Goal success criteria through Unified Intake; parent requirements remain PARTIAL pending real E2E. #1858 adds explicit read-only completion advice or its durable journal; existing execution and approval authority is unchanged. This is not production or physical acceptance evidence."
+      "reason": "Declared goal-controller-runtime.ts responsibility implements/supports Goal Completion Engine. Parent ownership is not functional or physical acceptance evidence. #1219 binds bounded owner-supplied Goal success criteria through Unified Intake; parent requirements remain PARTIAL pending real E2E. #1858 adds explicit read-only completion advice or its durable journal; existing execution and approval authority is unchanged. This is not production or physical acceptance evidence. #1944/#921 bounded explicit-target and candidate-bound failure/recovery repair; source verification only, real model/physical completion remains unproved."
     },
     {
       "path": "src/orchestrator/goal-decision-store.ts",
@@ -5994,7 +5994,7 @@
     },
     {
       "path": "src/orchestrator/runtime-development-verifier.ts",
-      "sha256": "4baba6cca13c7314cb1b647b2e9ca73259e59da23db9501b4395554212fb98eb",
+      "sha256": "f67fb43f5c30204f135db8b1f499340879861c696724960680fa435c48b92ce3",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-010",
@@ -6004,7 +6004,7 @@
         "AUTO-004",
         "OWN-001"
       ],
-      "reason": "Declared runtime-development-verifier.ts responsibility implements/supports 独立Verification; World-state Verification. Parent ownership is not functional or physical acceptance evidence. #1219 supports independent verification against the protected loopback Mac Builder token. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim. #1219 Codex-free local Ollama opt-in rejects the legacy 8796 Builder verifier until independently rooted evidence exists."
+      "reason": "Declared runtime-development-verifier.ts responsibility implements/supports 独立Verification; World-state Verification. Parent ownership is not functional or physical acceptance evidence. #1219 supports independent verification against the protected loopback Mac Builder token. #1845 fresh resource admission/bounded durable wait integration; preserves existing ownership and gates, no functional or physical acceptance claim. #1219 Codex-free local Ollama opt-in rejects the legacy 8796 Builder verifier until independently rooted evidence exists. #1944/#921 bounded explicit-target and candidate-bound failure/recovery repair; source verification only, real model/physical completion remains unproved."
     },
     {
       "path": "src/orchestrator/runtime-local-ollama-builder.ts",

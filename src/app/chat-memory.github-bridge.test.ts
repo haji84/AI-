@@ -60,3 +60,26 @@ test("issue-body fallback preserves owner message and is deduplicated against co
   assert.equal(synced.githubBridge!.pendingOwnerPayload, null);
   assert.equal(synced.githubBridge!.pendingOwnerMessageId, null);
 });
+
+test("command status remains in history without acknowledging the pending owner", () => {
+  const owner = message("owner", "owner-status", "調査を完成させて", "2026-11-27T01:00:00.000Z");
+  const pending = withPendingOwnerFallback(defaultConversationMeta(), owner);
+  for (const role of ["system", "ai"] as const) {
+    const status = { ...message(role, `status-${role}`, "次に実行結果を確認します", "2026-11-27T01:01:00.000Z"), meta: "状態: RUNNING / リスク: LOW / Human Gate: なし" };
+    const next = evolveMemory(pending, status);
+    assert.deepEqual(next.githubBridge, pending.githubBridge);
+    assert.match(encodeConversationBody(next), /CHATGPT-GITHUB-BRIDGE: pending/);
+    assert.equal(next.memory.unfinished[0], status.text);
+  }
+});
+
+test("an old or differently correlated answer cannot acknowledge a newer owner request", () => {
+  const owner = message("owner", "owner-new", "次の依頼", "2026-11-27T01:02:00.000Z");
+  const pending = withPendingOwnerFallback(defaultConversationMeta(), owner);
+  const old = message("ai", "old-answer", "先の依頼への回答", "2026-11-27T01:01:00.000Z");
+  const unrelated = { ...message("ai", "other-answer", "別の依頼への回答", "2026-11-27T01:03:00.000Z"), meta: "pending-owner-message-id:owner-other" };
+  for (const reply of [old, unrelated]) assert.deepEqual(evolveMemory(pending, reply).githubBridge, pending.githubBridge);
+
+  const answer = { ...message("ai", "actual-answer", "依頼への回答", "2026-11-27T01:03:00.000Z"), meta: "pending-owner-message-id:owner-new" };
+  assert.equal(evolveMemory(pending, answer).githubBridge!.pendingOwnerMessageId, null);
+});

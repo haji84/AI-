@@ -84,6 +84,20 @@ function bounded(values, value, limit = 16) {
   return [clean, ...values.filter((item) => item !== clean)].slice(0, limit);
 }
 
+function isAiReplyForPending(message, pendingOwnerMessageId, pendingAt) {
+  if (message.role !== "ai" || !message.id || !String(message.text ?? "").trim()) return false;
+  // Older clients persisted global command snapshots as AI messages with this metadata.
+  if (/^状態:[\s\S]*\/\s*リスク:[\s\S]*\/\s*Human Gate:/.test(message.meta ?? "")) return false;
+  const correlation = String(message.meta ?? "").match(/(?:^|\s)pending-owner-message-id:([^\s]+)/)?.[1];
+  if (correlation && correlation !== pendingOwnerMessageId) return false;
+  if (pendingAt) {
+    const requestedAt = Date.parse(pendingAt);
+    const repliedAt = Date.parse(message.createdAt);
+    if (!Number.isFinite(requestedAt) || !Number.isFinite(repliedAt) || repliedAt < requestedAt) return false;
+  }
+  return true;
+}
+
 export function evolveMemoryForAi(meta, message) {
   const memory = {
     decisions: [...(meta.memory?.decisions ?? [])],
@@ -97,18 +111,20 @@ export function evolveMemoryForAi(meta, message) {
   if (/(未完了|次に|次は|残り|待ち|進める|todo|next|pending)/i.test(text)) memory.unfinished = bounded(memory.unfinished, text);
   const refs = text.match(/(?:Issue|PR)\s*#\d+|https?:\/\/[^\s)]+/gi) ?? [];
   for (const ref of refs) memory.references = bounded(memory.references, ref, 24);
+  const githubBridge = { ...defaultBridgeState(), ...(meta.githubBridge ?? {}) };
+  const isReply = isAiReplyForPending(message, githubBridge.pendingOwnerMessageId, githubBridge.pendingAt ?? githubBridge.lastSyncedAt)
+    && (!githubBridge.pendingOwnerMessageId || message.id !== githubBridge.lastAiMessageId);
   return {
     ...meta,
     memory,
-    githubBridge: {
-      ...defaultBridgeState(),
-      ...(meta.githubBridge ?? {}),
+    githubBridge: isReply ? {
+      ...githubBridge,
       pendingOwnerMessageId: null,
       pendingAt: null,
       lastAiMessageId: message.id,
       lastSyncedAt: message.createdAt,
       pendingOwnerPayload: null,
-    },
+    } : githubBridge,
   };
 }
 
@@ -130,9 +146,13 @@ export function findExistingAiReplyAfterPending(meta, messages) {
   const merged = mergePendingOwnerFallback(meta, messages);
   const pending = selectPendingOwnerMessage(meta, merged);
   if (!pending) return null;
-  const pendingIndex = merged.findIndex((message) => message.id === pending.id);
+  const pendingIndex = merged.findIndex((message) => message.role === "owner" && message.id === pending.id);
   if (pendingIndex < 0) return null;
-  return merged.slice(pendingIndex + 1).find((message) => message.role === "ai") ?? null;
+  for (const message of merged.slice(pendingIndex + 1)) {
+    if (message.role === "owner") break;
+    if (message.id !== meta.githubBridge.lastAiMessageId && isAiReplyForPending(message, pending.id, pending.createdAt)) return message;
+  }
+  return null;
 }
 
 export function extractGoalId(meta, pending) {

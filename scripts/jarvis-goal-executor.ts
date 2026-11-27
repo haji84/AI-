@@ -309,8 +309,9 @@ function configuredDevelopmentRuntime(compassPath: string, context: unknown[], p
         if (!result.ok) {
           const wait = resourceWaitFromEvidence(result.evidence);
           if (wait) throw wait;
-          return [];
         }
+        // The verifier validates complete candidate-bound FAIL sets too. Keep
+        // those checks so the existing host can diagnose and plan recovery.
         const evidence = result.evidence as { verificationEvidence?: unknown } | undefined;
         return Array.isArray(evidence?.verificationEvidence) ? evidence.verificationEvidence as never : [];
       },

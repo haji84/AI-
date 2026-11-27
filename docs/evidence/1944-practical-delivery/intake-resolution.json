@@ -1,0 +1,20 @@
+{
+  "at": "2026-11-27T05:55:36.094Z",
+  "source": "https://github.com/haji84/AI-/issues/1944#issuecomment-7210866259",
+  "intakeId": "intake-85ffef4a881d4bcd5e97",
+  "idempotencyKey": "github:haji84/AI-:1944:7210866259",
+  "intent": "GOAL",
+  "kind": "GOAL_CHANGE_REQUEST",
+  "goalId": "goal-12a4b6561adc308b",
+  "requestedGoalId": "goal-12a4b6561adc308b",
+  "reason": "explicit_goal_hint",
+  "read_only_resolution_not_runtime_authority": true,
+  "live_broker_not_invoked": true,
+  "compass_goal_state_not_mutated": true,
+  "preserved_stop": {
+    "projectId": "default",
+    "phase": "ZBOOK_1845_PROTECTED_HISTORY_ACCESS",
+    "status": "STOPPED_NEW_WARNING",
+    "nextAction": "Await owner's explicit resumption after new warnings. If resumed, finish static review of exact limited collector, seek version-bound one-time admin read/UAC approval, then inspect existing protected inventory before proposing any separately authorized future per-PID commit/pool-tag telemetry. No settings/restarts/load tests."
+  }
+}

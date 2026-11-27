@@ -115,7 +115,8 @@ export function normalizeIntake(input: UnifiedIntakeRequest): NormalizedIntake {
 /** Entry-point changes may replay a request; changed work must use a new key. */
 export function assertIntakeReplayMatches(decision: GoalControllerDecision, intake: NormalizedIntake): void {
   const accepted = decision.resolution.intake;
-  const sameTarget = !intake.goalHint || intake.goalHint === accepted.goalHint
+  const sameTarget = !intake.goalHint
+    || (decision.resolution.kind === "NO_GOAL" && intake.goalHint === accepted.goalHint)
     || intake.goalHint === decision.goalId || intake.goalHint === decision.resolution.goal?.goal.title;
   if (intake.text !== accepted.text || !sameTarget
     || JSON.stringify(intake.goalContract ?? null) !== JSON.stringify(accepted.goalContract ?? null)) {
@@ -176,6 +177,9 @@ export class GoalResolver {
     const hinted = intake.goalHint
       ? active.find((entry) => entry.goalId === intake.goalHint || entry.goal.title === intake.goalHint)
       : undefined;
+    if (intake.goalHint && !hinted) {
+      throw new Error("GOAL_HINT_NOT_FOUND");
+    }
     const ranked = active
       .map((entry) => ({ entry, score: similarity(intake.text, goalText(entry)) }))
       .sort((a, b) => b.score - a.score);

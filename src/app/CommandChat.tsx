@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { findAiReplyAfterPending } from "./chat-memory";
 import { playGoriqLocalVoice } from "./jarvis/voice-output";
 
 const suggestions = ["進めて", "状態確認", "問題だけ確認", "今日のまとめ"];
@@ -103,6 +104,8 @@ export default function CommandChat({ enabled, contextPath, compact = false }: {
   const lastAcceptedAt = useRef<string | null>(null);
   const pollTimer = useRef<number | null>(null);
   const conversationPollTimer = useRef<number | null>(null);
+  const activeConversationId = useRef<number | null>(null);
+  const conversationLoadSequence = useRef(0);
   const fileInput = useRef<HTMLInputElement | null>(null);
   const recognitionRef = useRef<RecognitionLike | null>(null);
   const lastSeenAiId = useRef<string | null>(null);
@@ -122,12 +125,16 @@ export default function CommandChat({ enabled, contextPath, compact = false }: {
   }
 
   async function openConversation(id: number) {
+    const loadSequence = ++conversationLoadSequence.current;
+    stopPolling();
     setBusy(true);
     setMessage(null);
     try {
       const response = await fetch(`/api/conversations?id=${id}`, { cache: "no-store" });
       const body = await response.json().catch(() => ({})) as Partial<ConversationDetail> & { message?: string };
-      if (!response.ok || !body.id) throw new Error(body.message || "会話の取得に失敗しました");
+      if (conversationLoadSequence.current !== loadSequence) return;
+      if (!response.ok || body.id !== id) throw new Error(body.message || "会話の取得に失敗しました");
+      activeConversationId.current = id;
       setConversationId(body.id);
       const messages = body.messages ?? [];
       setHistory(messages);
@@ -135,9 +142,9 @@ export default function CommandChat({ enabled, contextPath, compact = false }: {
       lastSeenAiId.current = [...messages].reverse().find((entry) => entry.role === "ai")?.id ?? null;
       lastFingerprint.current = null;
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "会話の取得に失敗しました");
+      if (conversationLoadSequence.current === loadSequence) setMessage(error instanceof Error ? error.message : "会話の取得に失敗しました");
     } finally {
-      setBusy(false);
+      if (conversationLoadSequence.current === loadSequence) setBusy(false);
     }
   }
 
@@ -171,6 +178,8 @@ export default function CommandChat({ enabled, contextPath, compact = false }: {
     });
     const body = await response.json().catch(() => ({})) as { id?: number; message?: string };
     if (!response.ok || !body.id) throw new Error(body.message || "会話の作成に失敗しました");
+    conversationLoadSequence.current += 1;
+    activeConversationId.current = body.id;
     setConversationId(body.id);
     setHistory([]);
     setMemoryContext("");
@@ -191,21 +200,23 @@ export default function CommandChat({ enabled, contextPath, compact = false }: {
         attachments: uploaded?.map((item) => ({ name: item.name, type: item.type, size: item.size, pathname: item.pathname })) ?? entry.attachments,
       }),
     });
-    const body = await response.json().catch(() => ({})) as { memoryContext?: string; message?: string };
-    if (!response.ok) throw new Error(body.message || "会話の保存に失敗しました");
-    if (body.memoryContext) setMemoryContext(body.memoryContext);
+    const body = await response.json().catch(() => ({})) as { memoryContext?: string; message?: ChatEntry | string; conversationId?: number };
+    if (!response.ok) throw new Error(typeof body.message === "string" ? body.message : "会話の保存に失敗しました");
+    if (body.memoryContext && activeConversationId.current === id) setMemoryContext(body.memoryContext);
+    return body;
   }
 
   function append(entry: ChatEntry) {
     setHistory((current) => [...current.slice(-199), entry]);
   }
 
-  async function fetchStatus(force = false) {
+  async function fetchStatus(force = false, id = activeConversationId.current) {
     if (!enabled || checking) return;
     setChecking(true);
     try {
       const response = await fetch("/api/command", { method: "GET", cache: "no-store" });
       const body = await response.json().catch(() => ({})) as Partial<CommandStatus> & { message?: string };
+      if (activeConversationId.current !== id) return;
       if (!response.ok) throw new Error(body.message || "最新結果の取得に失敗しました");
       const status = body as CommandStatus;
       const fingerprint = JSON.stringify([status.generatedAt, status.status, status.riskLevel, status.nextAction, status.verificationSummary, status.humanGateRequired]);
@@ -214,9 +225,9 @@ export default function CommandChat({ enabled, contextPath, compact = false }: {
       const isFreshForCommand = !acceptedAt || !generatedAt || generatedAt >= acceptedAt - 1500;
       if ((force || isFreshForCommand) && (force || lastFingerprint.current !== fingerprint)) {
         const meta = [`状態: ${status.status}`, `リスク: ${status.riskLevel ?? "未判定"}`, status.humanGateRequired ? `Human Gate: ${status.decisionCount}件` : "Human Gate: なし"].join(" / ");
-        const entry = makeEntry("ai", status.reply, meta);
+        const entry = makeEntry("system", status.reply, meta);
         append(entry);
-        if (conversationId) await persistEntry(conversationId, entry);
+        if (id) await persistEntry(id, entry);
         lastFingerprint.current = fingerprint;
         void refreshConversations();
       }
@@ -227,12 +238,19 @@ export default function CommandChat({ enabled, contextPath, compact = false }: {
     }
   }
 
-  function startPolling() {
+  function stopPolling() {
+    if (pollTimer.current !== null) window.clearInterval(pollTimer.current);
+    if (conversationPollTimer.current !== null) window.clearInterval(conversationPollTimer.current);
+    pollTimer.current = null;
+    conversationPollTimer.current = null;
+  }
+
+  function startPolling(id: number) {
     if (pollTimer.current !== null) window.clearInterval(pollTimer.current);
     let count = 0;
     pollTimer.current = window.setInterval(() => {
       count += 1;
-      void fetchStatus(false);
+      void fetchStatus(false, id);
       if (count >= 9 && pollTimer.current !== null) {
         window.clearInterval(pollTimer.current);
         pollTimer.current = null;
@@ -240,29 +258,30 @@ export default function CommandChat({ enabled, contextPath, compact = false }: {
     }, 5000);
   }
 
-  function startConversationPolling(id: number) {
+  function startConversationPolling(id: number, pending: ChatEntry) {
     if (conversationPollTimer.current !== null) window.clearInterval(conversationPollTimer.current);
     let count = 0;
-    conversationPollTimer.current = window.setInterval(() => {
+    const timer = window.setInterval(() => {
       count += 1;
       void (async () => {
         try {
           const response = await fetch(`/api/conversations?id=${id}`, { cache: "no-store" });
           const body = await response.json().catch(() => ({})) as Partial<ConversationDetail> & { message?: string };
-          if (!response.ok || !body.id) return;
+          if (!response.ok || body.id !== id || activeConversationId.current !== id || conversationPollTimer.current !== timer) return;
           const messages = body.messages ?? [];
-          const latestAi = [...messages].reverse().find((entry) => entry.role === "ai") ?? null;
+          const latestAi = findAiReplyAfterPending(pending, messages);
           setHistory(messages);
           setMemoryContext(body.memoryContext ?? "");
           if (latestAi && latestAi.id !== lastSeenAiId.current) {
             lastSeenAiId.current = latestAi.id;
             if (lastVoiceInput.current) {
               const spoken = await playGoriqLocalVoice(latestAi.text);
+              if (activeConversationId.current !== id || conversationPollTimer.current !== timer) return;
               setVoiceMessage(spoken.ok ? `${spoken.engine}で音声回答を再生しました` : `音声回答は再生できません: ${spoken.reason}`);
               lastVoiceInput.current = false;
             }
-            if (conversationPollTimer.current !== null) {
-              window.clearInterval(conversationPollTimer.current);
+            if (conversationPollTimer.current === timer) {
+              window.clearInterval(timer);
               conversationPollTimer.current = null;
             }
           }
@@ -270,11 +289,12 @@ export default function CommandChat({ enabled, contextPath, compact = false }: {
           // Conversation polling is best-effort. Durable GitHub conversation history remains authoritative.
         }
       })();
-      if (count >= 30 && conversationPollTimer.current !== null) {
-        window.clearInterval(conversationPollTimer.current);
+      if (count >= 30 && conversationPollTimer.current === timer) {
+        window.clearInterval(timer);
         conversationPollTimer.current = null;
       }
     }, 4000);
+    conversationPollTimer.current = timer;
   }
 
   function stopVoiceInput() {
@@ -346,7 +366,7 @@ export default function CommandChat({ enabled, contextPath, compact = false }: {
     setBusy(true);
     setMessage(null);
     try {
-      const id = conversationId ?? await createConversation(text);
+      let id = activeConversationId.current ?? await createConversation(text);
       const attachments = files.length ? await uploadAttachments() : [];
       const ownerMeta = [
         source === "voice" ? "入力: 音声" : "入力: 文字",
@@ -356,7 +376,16 @@ export default function CommandChat({ enabled, contextPath, compact = false }: {
       const ownerEntry = makeEntry("owner", text, ownerMeta || undefined, attachments.map((item) => ({ name: item.name, type: item.type, size: item.size, pathname: item.pathname })));
       lastVoiceInput.current = source === "voice";
       append(ownerEntry);
-      await persistEntry(id, ownerEntry, attachments);
+      const saved = await persistEntry(id, ownerEntry, attachments);
+      if (!saved.message || typeof saved.message === "string" || saved.message.role !== "owner") throw new Error("保存した指示の確認に失敗しました");
+      const pending = saved.message;
+      const savedId = saved.conversationId ?? id;
+      if (activeConversationId.current === id) {
+        activeConversationId.current = savedId;
+        setConversationId(savedId);
+        setHistory((current) => current.map((entry) => entry.id === ownerEntry.id ? pending : entry));
+      }
+      id = savedId;
 
       const response = await fetch("/api/command", {
         method: "POST",
@@ -375,15 +404,17 @@ export default function CommandChat({ enabled, contextPath, compact = false }: {
       lastAcceptedAt.current = body.acceptedAt ?? new Date().toISOString();
       lastFingerprint.current = null;
       const systemEntry = makeEntry("system", body.message || "指示を受け付けました", attachments.length ? `${attachments.length}件の添付を安全な一時URLで引き渡しました` : "処理中。最新状態を自動確認します");
-      append(systemEntry);
+      if (activeConversationId.current === id) append(systemEntry);
       await persistEntry(id, systemEntry);
       setCommand("");
       setFiles([]);
       if (fileInput.current) fileInput.current.value = "";
       await refreshConversations();
-      window.setTimeout(() => void fetchStatus(false), 1800);
-      startPolling();
-      startConversationPolling(id);
+      if (activeConversationId.current === id) {
+        window.setTimeout(() => void fetchStatus(false, id), 1800);
+        startPolling(id);
+        startConversationPolling(id, pending);
+      }
     } catch (error) {
       const textError = error instanceof Error ? error.message : "指示の送信に失敗しました";
       const systemEntry = makeEntry("system", textError, "送信失敗");
@@ -426,7 +457,7 @@ export default function CommandChat({ enabled, contextPath, compact = false }: {
       <aside className={`chat-history-sidebar ${sidebarOpen ? "open" : "closed"}`}>
         <div className="chat-history-header">
           <strong>会話</strong>
-          <button className="button secondary" onClick={() => { setConversationId(null); setHistory([]); setMemoryContext(""); }} type="button">＋ 新規</button>
+          <button className="button secondary" disabled={busy} onClick={() => { conversationLoadSequence.current += 1; activeConversationId.current = null; stopPolling(); setConversationId(null); setHistory([]); setMemoryContext(""); }} type="button">＋ 新規</button>
         </div>
         <input aria-label="会話検索" className="chat-search" onChange={(event) => setSearch(event.target.value)} placeholder="会話・プロジェクトを検索" value={search} />
         <div className="chat-conversation-list">

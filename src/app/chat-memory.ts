@@ -59,6 +59,30 @@ function bounded(values: string[], value: string, limit = 16): string[] {
   return [clean, ...values.filter((item) => item !== clean)].slice(0, limit);
 }
 
+export function isAiReplyForPending(message: PersistedChatMessage, pendingOwnerMessageId: string | null, pendingAt: string | null): boolean {
+  if (message.role !== "ai" || !message.id || !message.text.trim()) return false;
+  // Older clients persisted global command snapshots as AI messages with this metadata.
+  if (/^状態:[\s\S]*\/\s*リスク:[\s\S]*\/\s*Human Gate:/.test(message.meta ?? "")) return false;
+  const correlation = message.meta?.match(/(?:^|\s)pending-owner-message-id:([^\s]+)/)?.[1];
+  if (correlation && correlation !== pendingOwnerMessageId) return false;
+  if (pendingAt) {
+    const requestedAt = Date.parse(pendingAt);
+    const repliedAt = Date.parse(message.createdAt);
+    if (!Number.isFinite(requestedAt) || !Number.isFinite(repliedAt) || repliedAt < requestedAt) return false;
+  }
+  return true;
+}
+
+export function findAiReplyAfterPending(pending: PersistedChatMessage, messages: PersistedChatMessage[]): PersistedChatMessage | null {
+  const index = messages.findIndex((message) => message.role === "owner" && message.id === pending.id);
+  if (index < 0) return null;
+  for (const message of messages.slice(index + 1)) {
+    if (message.role === "owner") break;
+    if (isAiReplyForPending(message, pending.id, pending.createdAt)) return message;
+  }
+  return null;
+}
+
 export function evolveMemory(meta: ConversationMeta, message: PersistedChatMessage): ConversationMeta {
   const memory = { ...meta.memory };
   const text = message.text.replace(/\s+/g, " ").trim();
@@ -72,7 +96,8 @@ export function evolveMemory(meta: ConversationMeta, message: PersistedChatMessa
   let githubBridge = { ...normalizedGithubBridge(meta) };
   if (message.role === "owner") {
     githubBridge = { ...githubBridge, pendingOwnerMessageId: message.id, pendingAt: message.createdAt };
-  } else if (message.role === "ai") {
+  } else if (isAiReplyForPending(message, githubBridge.pendingOwnerMessageId, githubBridge.pendingAt ?? githubBridge.lastSyncedAt)
+    && (!githubBridge.pendingOwnerMessageId || message.id !== githubBridge.lastAiMessageId)) {
     githubBridge = {
       pendingOwnerMessageId: null,
       pendingAt: null,
