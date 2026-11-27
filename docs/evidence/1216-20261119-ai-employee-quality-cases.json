@@ -1,0 +1,143 @@
+{
+  "schemaVersion": 1,
+  "measurement": "historical_code_checkpoints_not_model_ab",
+  "asOfJST": "2026-11-19",
+  "repository": "haji84/AI-",
+  "issue": 1216,
+  "parentIssue": 1219,
+  "originalGoal": "goal-fcc81c97e09153f7",
+  "originalJob": "rotation-recovery-37",
+  "scope": "Past engineering-work evidence checkpoints only. No new Goal, model inference, native recovery or owner permission.",
+  "cases": [
+    {
+      "id": "enrollment-token-prefix-1934",
+      "issue": 1219,
+      "task": "Fix canonical 32-character issued enrollment token erroneously routed as invitation",
+      "sources": [
+        "https://github.com/haji84/AI-/pull/1934",
+        "https://github.com/haji84/AI-/blob/main/docs/evidence/1219-20261118-issued-enrollment-token-routing.json"
+      ],
+      "context": "Five regressions RED against old code, GREEN with changed lookup; exact protected-main 4-job CI PASS reported. Retrospective code comparison, not AI-agent trial.",
+      "before": {
+        "goalStatus": "NOT_ACHIEVED",
+        "manualCorrections": null,
+        "checks": {
+          "failure_reproduced": {
+            "status": "PASS",
+            "evidence": "https://github.com/haji84/AI-/pull/1934"
+          },
+          "cause_supported": {
+            "status": "PASS",
+            "evidence": "https://github.com/haji84/AI-/pull/1934"
+          },
+          "regression_passed": {
+            "status": "FAIL",
+            "evidence": "https://github.com/haji84/AI-/pull/1934"
+          },
+          "exact_revision_ci": {
+            "status": "FAIL",
+            "evidence": "https://github.com/haji84/AI-/pull/1934"
+          },
+          "live_goal_verified": {
+            "status": "UNVERIFIED",
+            "evidence": null
+          }
+        }
+      },
+      "after": {
+        "goalStatus": "NOT_ACHIEVED",
+        "manualCorrections": null,
+        "checks": {
+          "failure_reproduced": {
+            "status": "PASS",
+            "evidence": "https://github.com/haji84/AI-/pull/1934"
+          },
+          "cause_supported": {
+            "status": "PASS",
+            "evidence": "https://github.com/haji84/AI-/pull/1934"
+          },
+          "regression_passed": {
+            "status": "PASS",
+            "evidence": "https://github.com/haji84/AI-/pull/1934"
+          },
+          "exact_revision_ci": {
+            "status": "PASS",
+            "evidence": "https://github.com/haji84/AI-/actions/runs/44363846185"
+          },
+          "live_goal_verified": {
+            "status": "UNVERIFIED",
+            "evidence": null
+          }
+        }
+      }
+    },
+    {
+      "id": "windows-fixture-timeout-1933",
+      "issue": 1219,
+      "task": "Complete unchanged test bodies within existing fixed Windows/CI limits",
+      "sources": [
+        "https://github.com/haji84/AI-/pull/1933",
+        "https://github.com/haji84/AI-/blob/main/docs/evidence/1219-20261118-ci-fixture-admission.json"
+      ],
+      "context": "Pre-change Windows 5-minute cancellation and 7-case 10-second timeout; after-change PR source/main CI PASS reported. Underlying CI variance cause not proven.",
+      "before": {
+        "goalStatus": "NOT_ACHIEVED",
+        "manualCorrections": null,
+        "checks": {
+          "failure_reproduced": {
+            "status": "PASS",
+            "evidence": "https://github.com/haji84/AI-/pull/1933"
+          },
+          "cause_supported": {
+            "status": "UNVERIFIED",
+            "evidence": null
+          },
+          "regression_passed": {
+            "status": "FAIL",
+            "evidence": "https://github.com/haji84/AI-/pull/1933"
+          },
+          "exact_revision_ci": {
+            "status": "FAIL",
+            "evidence": "https://github.com/haji84/AI-/pull/1933"
+          },
+          "live_goal_verified": {
+            "status": "UNVERIFIED",
+            "evidence": null
+          }
+        }
+      },
+      "after": {
+        "goalStatus": "NOT_ACHIEVED",
+        "manualCorrections": null,
+        "checks": {
+          "failure_reproduced": {
+            "status": "PASS",
+            "evidence": "https://github.com/haji84/AI-/pull/1933"
+          },
+          "cause_supported": {
+            "status": "UNVERIFIED",
+            "evidence": null
+          },
+          "regression_passed": {
+            "status": "PASS",
+            "evidence": "https://github.com/haji84/AI-/pull/1933"
+          },
+          "exact_revision_ci": {
+            "status": "PASS",
+            "evidence": "https://github.com/haji84/AI-/actions/runs/44363846185"
+          },
+          "live_goal_verified": {
+            "status": "UNVERIFIED",
+            "evidence": null
+          }
+        }
+      }
+    }
+  ],
+  "notMeasured": [
+    "Re-running real AI employee on same work before/after revised instructions",
+    "Human corrections and minutes spent repairing outputs",
+    "Production original Goal G1 authenticated readback and live completion",
+    "Untouched heldout candidate performance"
+  ]
+}
