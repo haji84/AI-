@@ -1,0 +1,36 @@
+{
+  "source_url": "https://github.com/haji84/AI-/issues/1944#issuecomment-7210866259",
+  "owner": "haji84",
+  "parent_issues": [
+    681,
+    921
+  ],
+  "issue": 1944,
+  "comment_id": 7210866259,
+  "text": "## 所有者の追加要求（2026-11-27 JST）: GORIQを実用的な汎用自律AIとして稼働させる\n\n本会話の所有者要求は、AGIそのものの研究完了ではなく、現存AI・既存資産を利用し、GORIQに目的を一度伝えれば調査・計画・実行・検証・修正・成果物の納品まで行える実用的な汎用エージェントを実現すること。現行の #1944 → #681/#921 の継続要求として既存Unified Intake/Goal Resolverに渡す。別Goal/Controller/Builder/管理基盤、既存機能削除、旧#1219再開は不要。正式341要件と既存の認知・研究・制作・遠隔操作・学習の要件/履歴は保全する。\n\n最新確認済み引継ぎ: #1944 comment7190822985（main 1fa2d36db1119fa265a16e342ec58d019d2cd0cb、既存PR1819統合済み、exact-main CI45810934105全4SUCCESSとの記録）。これは接続コードの検証であり、実モデル完遂や実機稼働ではない。着手時は最新main/PR/CIと既存owner指示を再確認する。先行作業者の変更を上書きせず、現在進行中のJobを再利用する。\n\n**最優先の実動受入**: 既存の認可済み実行環境（MacBook/ZBookまたは既存サービス）で、利用可能なBuilderと独立Verifierのfreshなcapacity/費用/scope/認証済み接続を確認し、#921の未完了の実作業を1件、通常Goal→Job→実AI成果物→独立検証→失敗時の異なる戦略での修正→criterion評価→中断再開/次Jobまで通す。既に解決済みのliteral修正や消費済み実験を繰り返さない。既存のCodex外部経路は明示opt-inの範囲だけ、localOnly/Ollama-onlyの排他・既存安全境界を維持。接続不可の場合は、既存の許可済み代替能力を調べ、唯一残った具体的な障害と必要な最小操作のみを報告する。新規キー、課金、権限、サービス/本番有効化の許可はこの要求から推定しない。\n\n**利用者価値の受入**: 上記の実動経路を再利用し、通常の一文の依頼から実務の調査/資料作成等、実入力に基づく少なくとも1件の完成成果物を自ら生成・検証・納品する。依頼者が数値/本文/答えを作って渡す変換試験、模擬実行、CI成功、進捗報告のみはこの受入に数えない。成功後は既存要件に従い開発以外の実務、遠隔操作、継続的な経験の再利用へ対象を拡げる。未知の能力や学習効果は実証できた範囲のみ報告。\n\n**連携と評価**: ChatGPT/Codexの連絡係を利用者に要求しない。既存GitHub正本・Goal/Job状態・証拠・成果物リンクへ書き戻し、別入口から読戻せることを確認する。最新結果を自動取得できない現状を完了とせず、既存の入口/bridgeを再利用して実送受信を検証する。手動介入回数、依頼から実納品までの実測時間、成果物と独立検証結果、未達/具体的阻害要因を記録する。合格は実動とユーザーが利用可能な成果物で判定。共通開発設定の再構築や追加管理文書を先に作るのではなく、既存の本体作業を完遂する。重大変更の承認・安全・失敗記録・旧Goal HOLDは維持する。\n\n本コメントは既存製品Goalの実用上の優先順位/受入条件の明確化であり、実行開始・成功・本番稼働を証明するものではない。",
+  "canonical_goal": {
+    "id": 1,
+    "title": "haji84/AI- #681 JARVIS Product Completion",
+    "description": "Owner-directed P0–P10 program. Requirement Ledger is product requirement authority; PROJECT_STATE.md remains repository governance authority. Replaces stale Compass smoke-test goal; historical records retained.",
+    "successCriteria": [
+      "Every specified requirement occurs exactly once in docs/JARVIS_PRODUCT_SPEC.md and docs/jarvis-requirements.json",
+      "All requirements VERIFIED with required evidence or proven PLATFORM_LIMITED with implemented safe fallback and UI capability",
+      "Physical cellular, reboot, recovery, takeover, offline and multi-device acceptance observed; terminal-free routine operation"
+    ],
+    "constraints": [
+      "No paid model API, public ingress/Funnel, secret disclosure, Human Gate weakening or fake physical PASS",
+      "Issue #321 R1–R20 stays separate; no AGI claim",
+      "Maximum 3 automatic fix attempts per issue"
+    ],
+    "createdAt": "2026-09-01T13:13:04.678Z",
+    "updatedAt": "2026-09-15T21:38:39.879Z"
+  },
+  "canonical_goal_source": "existing Compass get_goal (read-only)",
+  "preserved_state": {
+    "projectId": "default",
+    "phase": "ZBOOK_1845_PROTECTED_HISTORY_ACCESS",
+    "status": "STOPPED_NEW_WARNING",
+    "nextAction": "Await owner's explicit resumption after new warnings. If resumed, finish static review of exact limited collector, seek version-bound one-time admin read/UAC approval, then inspect existing protected inventory before proposing any separately authorized future per-PID commit/pool-tag telemetry. No settings/restarts/load tests."
+  },
+  "scope": "read-only source resolution snapshot; not a new editable Goal or execution authorization"
+}

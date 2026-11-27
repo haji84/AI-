@@ -75,7 +75,7 @@ export function createRuntimeDevelopmentVerifier(
         if (response.status === 503 && payload?.blocker === "WAITING_FOR_RESOURCE") {
           return { ok: false, summary: "Development verification is waiting for resources", evidence: { resourceWait: payload.resourceWait } };
         }
-        let ok = response.ok && payload?.ok === true;
+        const ok = response.ok && payload?.ok === true;
         const evidence = payload?.evidence as {
           expected?: unknown;
           actual?: unknown;
@@ -84,26 +84,36 @@ export function createRuntimeDevelopmentVerifier(
           artifactDigest?: unknown;
           verificationEvidence?: Array<{ check?: unknown; verifierId?: unknown; sourceRevision?: unknown; artifactDigest?: unknown; status?: unknown; recordedAt?: unknown }>;
         } | undefined;
-        if (ok && input.releaseBinding) {
+        if (input.releaseBinding) {
           const binding = input.releaseBinding;
-          ok = typeof evidence?.verifierId === "string"
+          let bound = (ok || (response.ok && payload?.ok === false))
+            && typeof evidence?.verifierId === "string"
             && evidence.verifierId !== binding.builderId
             && evidence.sourceRevision === binding.sourceRevision
             && evidence.artifactDigest === binding.artifactDigest;
           const requiredChecks = (input.verificationContract as { requiredChecks?: unknown }).requiredChecks;
-          if (ok && Array.isArray(requiredChecks)) {
-            ok = requiredChecks.every((check) => evidence?.verificationEvidence?.some((item) =>
+          if (bound && Array.isArray(requiredChecks)) {
+            bound = Array.isArray(evidence?.verificationEvidence)
+              && evidence.verificationEvidence.length === requiredChecks.length
+              && new Set(requiredChecks).size === requiredChecks.length
+              && requiredChecks.every((check) => evidence.verificationEvidence!.filter(item => item.check === check).length === 1
+              && evidence.verificationEvidence!.some((item) =>
               item.check === check
               && item.verifierId === evidence.verifierId
               && item.verifierId !== binding.builderId
               && item.sourceRevision === binding.sourceRevision
               && item.artifactDigest === binding.artifactDigest
-              && item.status === "passed"
+              && (ok ? item.status === "passed" : item.status === "passed" || item.status === "failed")
               && typeof item.recordedAt === "string"
               && Number.isFinite(Date.parse(item.recordedAt)),
             ));
+            if (!ok) {
+              bound = bound && evidence?.verificationEvidence?.some((item) =>
+                requiredChecks.includes(item.check) && item.status === "failed",
+              ) === true;
+            }
           }
-          if (!ok) {
+          if (!bound) {
             return {
               ok: false,
               summary: "Development verification evidence is not independently bound to the requested release artifact",
