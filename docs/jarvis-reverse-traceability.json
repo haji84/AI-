@@ -5994,7 +5994,7 @@
     },
     {
       "path": "src/orchestrator/runtime-development-verifier.ts",
-      "sha256": "f67fb43f5c30204f135db8b1f499340879861c696724960680fa435c48b92ce3",
+      "sha256": "a3d3d109c2d5ef0ec95e2beb986b5a93a7870ea44ff42c1a0c4bcdfeda56f680",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-010",

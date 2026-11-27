@@ -75,7 +75,7 @@ export function createRuntimeDevelopmentVerifier(
         if (response.status === 503 && payload?.blocker === "WAITING_FOR_RESOURCE") {
           return { ok: false, summary: "Development verification is waiting for resources", evidence: { resourceWait: payload.resourceWait } };
         }
-        let ok = response.ok && payload?.ok === true;
+        const ok = response.ok && payload?.ok === true;
         const evidence = payload?.evidence as {
           expected?: unknown;
           actual?: unknown;
