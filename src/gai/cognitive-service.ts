@@ -13,6 +13,7 @@ import { goalWorkStateId } from "../orchestrator/work-state-integration.ts";
 import { CompassGoalExecutionAdapter, loadCognitiveRuntimeWork, type CognitiveRuntimeOptions } from "../orchestrator/compass-goal-execution-adapter.ts";
 import { cognitiveDigest, CognitiveStateStore } from "./cognitive-state.ts";
 import { CognitiveLearningEngine } from "./cognitive-learning.ts";
+import { CognitivePublicResearchOutcomeCatalog } from "./cognitive-public-research-outcomes.ts";
 
 
 /** Auth is enforced by Broker before this owner-local service. No tenant supplied by HTTP. */
@@ -42,7 +43,7 @@ export class CognitiveService {
       const goalId = goal ? goalWorkStateId(goal) : null;
       const state = goalId ? await new CognitiveStateStore(this.options.stateRoot!, this.options.partition!).get(goalId) : null;
       const metrics = await this.learning.metrics(this.options.partition!);
-      const localConfigured = Boolean(this.options.localWork || this.options.localOutcomes || this.options.materialIntake);
+      const localConfigured = Boolean(this.options.localWork || this.options.localOutcomes || this.options.materialIntake || this.options.publicResearch);
       let materials: ReturnType<CognitiveMaterialIntake["summary"]> | null = null;
       let configurationBlocker: string | null = null;
       if (state && goal && goalId) {
@@ -51,6 +52,7 @@ export class CognitiveService {
           try {
             const current = await loadCognitiveRuntimeWork(this.options, goalId, goal);
             if (current?.contractDigest !== state.execution_contract_digest) configurationBlocker = "作業の対象または成果物が変更されています。再計画が必要です。";
+            else if (current instanceof CognitivePublicResearchOutcomeCatalog && compass.getState().status === "goal_complete" && !await current.revalidateCompleted(state.attempts.filter(a => a.verified).map(a => a.actionId), (await new CompassWorkStateStoreAdapter(compass).get(goalId))?.verificationResults ?? [])) configurationBlocker = "公開情報または成果物の再検証に失敗しました。保存済みの成果物を保持して確認してください。";
           } catch { configurationBlocker = "保存した作業条件を確認できません。ホストの作業設定を確認してください。"; }
         }
       }
@@ -167,7 +169,7 @@ export class CognitiveService {
     } finally { compass.close(); if (release) await release(); this.busy = false; }
   }
   private materialStore() {
-    if (!this.options.materialIntake || this.options.localWork || this.options.localOutcomes) throw Error("Local material intake is not configured");
+    if (!this.options.materialIntake || this.options.localWork || this.options.localOutcomes || this.options.publicResearch) throw Error("Local material intake is not configured");
     return new CognitiveMaterialIntake(this.options.stateRoot!, this.options.materialIntake.dataRoot, this.options.partition!);
   }
   async prepareMaterials(input: unknown) {

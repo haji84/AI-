@@ -3140,7 +3140,7 @@
     },
     {
       "path": "src/gai/cognitive-service.ts",
-      "sha256": "d84d84df52d578db5dbf765652ddfb2991e50def14d31c8469ab131b70040b2b",
+      "sha256": "a2af58b7f30913a43505c404b5b782dccbd2e2e56373bfe07f1dfb6b1b781a8f",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "OWN-001"
@@ -5001,7 +5001,7 @@
     },
     {
       "path": "src/orchestrator/compass-goal-execution-adapter.ts",
-      "sha256": "2212dc02e2c09f3c04fd41fdc0f040048b429b907d4120c1ae01508576457ce9",
+      "sha256": "6515214c43e6fe652790feb218d068ee116d017ee83784e455ffbce9107fc4a8",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "AUTO-002",
@@ -5900,7 +5900,7 @@
     },
     {
       "path": "src/orchestrator/research-delegation.ts",
-      "sha256": "b87650b7817be871eee28408b098a6a62f76c09fda4cd795a3a0767684fba461",
+      "sha256": "8762ca6b5f082be9bfb5a05fbc14b9db7c389c1d00cc593e13c2729acdee136e",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-012",
@@ -5920,7 +5920,7 @@
     },
     {
       "path": "src/orchestrator/research-transport.ts",
-      "sha256": "f1e77af9d6e8c986b2f1bfdf27f2efe1d340c34404cc1e7bd27fb2f6d5223c04",
+      "sha256": "7caa1bdb85c998fc87cb35048b9a0f8d9976580f2b03e937089119e957df3b8a",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-012",
@@ -6848,6 +6848,13 @@
       ],
       "reason": "Bounded Windows EPERM retry of the existing atomic Job/ChangeSet snapshot replacement while its existing write lease remains held; no schema, authority or completion claim",
       "sha256": "1b602a00895e3ed3f20fb413e62091676f2532a90aefc4740102233957c2ad4a"
+    },
+    {
+      "path": "src/gai/cognitive-public-research-outcomes.ts",
+      "sha256": "813913bc9fc1b2e8872cd499446f4e793d2a9aa15b91935bdaf5d2e053b7de59",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": ["OWN-001", "CORE-012", "GOV-008"],
+      "reason": "#1944 bounded host-admitted public JSON acquisition produces source-derived CSV and memo through the existing Cognitive Core, with private operation receipts and independent artifact/readback verification. Source mapping and finite data evidence do not establish actual model selection, signed self-development, general natural-language automation or whole-product completion."
     }
   ],
   "hash_policy": "utf8-crlf-to-lf-v1;binary-raw"

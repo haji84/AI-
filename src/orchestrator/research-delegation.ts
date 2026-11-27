@@ -5,7 +5,7 @@ import { runProductionResearch, type ProductionResearchClaim } from './productio
 import { researchUrl, type ResearchTransportOptions } from './research-transport.ts';
 import { verifyFacts, type FactClaim, type SourceClass } from './fact-verifier.ts';
 
-interface SourcePolicy { url: string; sourceClass: SourceClass; fields: string[]; }
+export interface SourcePolicy { url: string; sourceClass: SourceClass; fields: string[]; }
 interface Receipt { binding: string | null; digest: string; claims: FactClaim[]; evidence: unknown; ok: boolean; }
 const classes = new Set<SourceClass>(['primary_original','official','reliable_secondary','other']);
 function digest(value: unknown) { return createHash('sha256').update(JSON.stringify(value)).digest('hex'); }
@@ -26,7 +26,7 @@ function publicUrl(value: unknown): string {
  if (url.search || url.hash) throw new Error('source query/fragment forbidden');
  return researchUrl(value,[url.origin]).href;
 }
-function sourcePolicy(raw: string | undefined): SourcePolicy[] {
+export function sourcePolicy(raw: string | undefined): SourcePolicy[] {
  if (!raw || Buffer.byteLength(raw,'utf8')>32_768) throw new Error('source policy unavailable');
  const parsed=object(JSON.parse(raw));
  if (parsed.version!==1 || !Array.isArray(parsed.sources) || !parsed.sources.length || parsed.sources.length>40) throw new Error('invalid source policy');

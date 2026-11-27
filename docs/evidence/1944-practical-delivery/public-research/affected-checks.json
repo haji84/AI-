@@ -1,0 +1,22 @@
+{
+  "scope": "Codex-authored public research artifact source increment; not GORIQ model success",
+  "nodeTestCommand": "node --test tests/goriq-cognitive-public-research-outcomes.test.ts tests/goriq-cognitive-public-research-runtime.test.ts tests/research-native-transport.test.ts tests/production-research-security.test.ts tests/research-delegation-integration.test.ts tests/goriq-cognitive-outcome-runtime.test.ts tests/goriq-cognitive-goal-service.test.ts",
+  "tests": 53,
+  "passed": 53,
+  "failed": 0,
+  "skipped": 0,
+  "durationMs": 3830.7219,
+  "redBeforeCorrections": {
+    "missingNativeAndInjectedUserAgent": 2,
+    "missingRuntimeIntegration": 3,
+    "partialResumeAndSymlinkRoot": 2,
+    "canonicalProvenanceAndUnselectedSourceDrift": 3,
+    "impossiblePublicationDate": 1
+  },
+  "requirementAudit": { "status": "PASS", "surfaces": 631, "requirements": 341, "functional_completion_claim": false },
+  "inheritance": { "status": "PASS", "requirements": 341, "cognitive": 17, "research": 20, "roadmap": 35, "functional_completion_claim": false },
+  "gitDiffCheck": "PASS; existing Windows line-ending conversion notices only",
+  "fullCi": "Pending exact published revision; local dependency restores were previously bounded and not repeated",
+  "actualDataEvidence": "actual-run.json",
+  "requirementsStatusPromotions": 0
+}
