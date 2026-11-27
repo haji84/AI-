@@ -1,0 +1,61 @@
+{
+  "at": "2026-11-27T07:29:00.469Z",
+  "baselineMain": "a34795c120d68e8331a9ae6b962982fe2eeb788d",
+  "ownerInstruction": "https://github.com/haji84/AI-/issues/1944#issuecomment-7210866259",
+  "scope": "Source implementation for existing CI -> independently held actual-Goal receipt; no genuine signer or model execution",
+  "checks": {
+    "affected": {
+      "command": "node --test --test-concurrency=1 tests/github-verifier-receipt.test.mjs tests/verifier-live-ci.test.mjs",
+      "tests": 26,
+      "passed": 26,
+      "failed": 0,
+      "skipped": 0,
+      "durationMs": 1113.6031
+    },
+    "independentReview": {
+      "initial30PassIncludingTransfer": true,
+      "finalAffected26Pass": true,
+      "runnerGroupFinding": "nonzero/missing group ID reached signer; RED two failures then strict numeric0 and both refusals verified",
+      "deltas": "PR immutable merge mapping and original evidence retention independently reviewed; no further material source findings",
+      "activationCaveat": "Canonical caller must check live stop/approval/budget before invoking signer and before publishing/consuming receipt"
+    },
+    "preservation": {
+      "requirements": 341,
+      "reverseSurfaces": 630,
+      "cognitive": 17,
+      "research": 20,
+      "roadmap": 35,
+      "productComplete": false
+    }
+  },
+  "nativeGoalTelemetry": {
+    "source": "native get_goal tool; aggregate accounting exactly as reported, no cache/billing breakdown",
+    "createdAtUnix": 1795758347,
+    "reportedAtUnix": 1795764464,
+    "tokensUsed": 1600668,
+    "timeUsedSeconds": 6117,
+    "status": "active",
+    "notGoriqRuntimeTokenUsage": true
+  },
+  "runtimeAcceptance": {
+    "genuineSignerProvisioned": false,
+    "signerHumanApprovalReceived": false,
+    "actualGoriqModelCalls": 0,
+    "actualNormalJobCompleted": false,
+    "canonicalLiveGuardIntegrationProven": false,
+    "unattendedProductPeerTransportProven": false,
+    "oneNativeChatGPTExchangeProven": true,
+    "peerEvidence": "native-chatgpt-handoff.json"
+  },
+  "rollback": "Revert complete source increment and its three traceability mappings, retain failed attempts/raw evidence. No service/auth/account/permission/schema change.",
+  "exactHeadCI": "PENDING before publication; no full local lint/build claim",
+  "logArchive": {
+    "path": "github-verifier-source-logs.zip",
+    "sha256": "3eeee4d1f966e27c3965c0304386cf873637be6fdff3473d86303079379936c2",
+    "members": {
+      "github-verifier-final.log": "0050ec6f6f0aec8387cc571300a252817990eb859e817957959170c8082ce97d",
+      "runner-group-id-red.log": "0754f3ebad4993acc9364d9bd12f6fea0bbc530c4f9fb0b3fd22ef3eec5ce6df",
+      "runner-group-id-green.log": "cf370baa2f0a12850d982a586e930f2605adf0a01b17d3e14a9e052560f945f1"
+    }
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "at": "2026-11-27T06:58:15.801Z",
+  "scope": "Codex-authored source increment; NOT GORIQ model self-development or physical product acceptance",
+  "parentIssues": [
+    1944,
+    921,
+    681
+  ],
+  "pr": 1954,
+  "prHead": "6f95000a42f2000ba02013c848d9a2ff38b26021",
+  "mergedMain": "a34795c120d68e8331a9ae6b962982fe2eeb788d",
+  "prCi": {
+    "runId": 45952441382,
+    "allFourJobs": "SUCCESS",
+    "tests": 4626,
+    "passed": 4598,
+    "failed": 0,
+    "existingSkipped": 28,
+    "securityPassed": 332,
+    "artifactId": 15177063605,
+    "archive": "pr-1954-ci.zip",
+    "archiveSha256": "8d53ff39fa4cf4a84fa5c43329a5e0bb3eef1b2a809764e9a621dcd49299a373",
+    "receiptSha256": "f5b5f174b92db088121358e86ac585342d7f3ff3697a0184defef1dbecabcb62"
+  },
+  "mainCi": {
+    "runId": 45953795912,
+    "allFourJobs": "SUCCESS",
+    "tests": 4626,
+    "passed": 4598,
+    "failed": 0,
+    "existingSkipped": 28,
+    "securityPassed": 332,
+    "artifactId": 15178113783,
+    "archive": "main-a34795c-ci.zip",
+    "archiveSha256": "8d0433672b0a4ee4f97cf43f1a558741779ffbd6567a82be874320d72ed9bff5",
+    "receiptSha256": "a35cde8e8566fd32ad847d52d034a76437be8c58c6771aa2f8865fb43b16fc94"
+  },
+  "audit": [
+    "Authenticated GitHub run/artifact metadata and exact downloaded ZIP digest matched",
+    "Ed25519 CI fixture signature/public-key digest checked; fixture authority not promoted to owner Goal",
+    "All six fixed command/check raw hashes, source/image/file bindings, real normal completion and boundary probes checked",
+    "Distinct container cleanup confirmed; physicalAcceptanceVerified=false"
+  ],
+  "ruleset": {
+    "id": 21173944,
+    "strictCurrentBase": true,
+    "requiredChecks": [
+      "project-checks",
+      "repository-guard"
+    ],
+    "bypassActors": [],
+    "reviewThreadsUnresolved": 0,
+    "baseBeforeMerge": "1fa2d36db1119fa265a16e342ec58d019d2cd0cb"
+  },
+  "failuresRetained": {
+    "runId": 45951640513,
+    "reason": "prefer-const in runtime verifier; complete failed check receipt had lint FAIL and five PASS",
+    "fix": "let -> const; affected21PASS and fresh exact-head CI; no unchanged rerun"
+  },
+  "unmet": [
+    "Actual GORIQ normal model Job -> independently trusted verification -> actual criterion acceptance -> resume/next Job",
+    "Natural-language real nondevelopment research/work -> usable verified artifact",
+    "Unattended GORIQ runtime peer transport and remaining341 product requirements; one actual native ChatGPT exchange is separately proven"
+  ],
+  "metrics": {
+    "firstGoriqWorkingCoreAt": null,
+    "allRequiredFeaturesCompleteAt": null,
+    "productTokenUsage": null,
+    "qualityOrTimeSavingsEstimate": null
+  },
+  "credentialTrustActivation": false,
+  "productComplete": false,
+  "nativePeerExchange": {
+    "path": "native-chatgpt-handoff.json",
+    "oneRealExchangeVerified": true,
+    "unattendedGoriqRuntimeVerified": false,
+    "ownerManualRelayCount": 0
+  }
+}

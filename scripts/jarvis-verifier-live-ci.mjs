@@ -23,30 +23,54 @@ export function assertHostedVerifierCI({ env = process.env, platform = process.p
     || env.DOCKER_HOST || env.DOCKER_CONTEXT) throw Error("LIVE_HOSTED_RUNNER_REQUIRED");
 }
 
-export function auditLiveVerifierReceipt({ request, publicKeyPem, expectedImage, expectedFileHashes, boundaryMarker }) {
+export function auditLiveVerifierReceipt(input) {
+  const { request } = input;
   const bytes = readFileSync(request.receiptFile);
+  const logs = new Map(CHECKS.map(check => {
+    const file = join(request.receiptFile + ".logs", check + ".json");
+    assert.ok(statSync(file).size <= 16 * 1024 * 1024, "LIVE_LOG_SIZE_INVALID");
+    return [check, readFileSync(file)];
+  }));
+  const result = auditVerifierEvidence({ ...input, receiptBytes: bytes, logs }, true);
+  return { containerExecutionVerified: result.containerExecutionVerified, physicalAcceptanceVerified: result.physicalAcceptanceVerified,
+    receiptSha256: result.receiptSha256, checks: result.checks.map(({ check, outputDigest, containerName }) => ({ check, outputDigest, containerName })) };
+}
+
+/** Complete, normally exited FAIL is evidence of a failed check, never PASS.
+ * Raw bytes still need authenticated provenance; a fixture key is not an actual
+ * Goal's verifier principal. The original hosted entry remains PASS-only. */
+export function auditCompleteLiveVerifierEvidence(input) {
+  return auditVerifierEvidence(input, false);
+}
+
+function auditVerifierEvidence({ request, publicKeyPem, expectedImage, expectedFileHashes, boundaryMarker, receiptBytes: bytes, logs: rawLogs, now }, requirePass) {
+  assert.ok(Buffer.isBuffer(bytes), "LIVE_RECEIPT_SIZE_INVALID");
   assert.ok(bytes.length > 0 && bytes.length <= 24_576, "LIVE_RECEIPT_SIZE_INVALID");
   const receipt = JSON.parse(bytes);
   const plan = createDevelopmentVerificationPlan({ builderId: request.builderId,
     sourceRevision: request.sourceRevision, artifactDigest: request.artifactDigest, changedPaths: request.allowedUntracked });
   const evidence = validateSignedLocalVerifierReceipt({ receipt, publicKeyPem, plan, goalId: request.goalId,
     changeSet: { jobId: request.jobId, changeSetId: request.changeSetId,
-      baseRevision: request.baseRevision, artifactDigest: request.artifactDigest } });
+      baseRevision: request.baseRevision, artifactDigest: request.artifactDigest }, ...(now ? { now } : {}) });
   assert.deepEqual(receipt.payload.checks.map(c => c.check), CHECKS, "LIVE_CHECK_SET_INVALID");
   assert.equal(receipt.payload.verifierId, request.verifierId, "LIVE_VERIFIER_ID_INVALID");
-  assert.ok(evaluateDevelopmentVerification(plan, evidence).passed, "LIVE_CHECK_NOT_PASSED");
+  const passed = evaluateDevelopmentVerification(plan, evidence).passed;
+  if (requirePass) assert.ok(passed, "LIVE_CHECK_NOT_PASSED");
+  else assert.ok(receipt.payload.checks.every(check => ["passed", "failed"].includes(check.status)), "LIVE_CHECK_INCOMPLETE");
   const containers = new Set(), logs = [];
   for (const check of receipt.payload.checks) {
-    const file = join(request.receiptFile + ".logs", check.check + ".json");
-    assert.ok(statSync(file).size <= 16 * 1024 * 1024, "LIVE_LOG_SIZE_INVALID");
-    const logBytes = readFileSync(file);
+    const logBytes = rawLogs?.get(check.check);
+    assert.ok(Buffer.isBuffer(logBytes) && logBytes.length > 0 && logBytes.length <= 16 * 1024 * 1024, "LIVE_LOG_SIZE_INVALID");
     assert.equal(hash(logBytes), check.outputDigest, "LIVE_LOG_DIGEST_MISMATCH");
     const log = JSON.parse(logBytes), [command, args] = verifierCommand(check.check);
     assert.ok(log.sourceRevision === request.sourceRevision && log.containerImage === expectedImage
       && log.command === command && JSON.stringify(log.args) === JSON.stringify(args)
       && (check.check !== "build" || log.executionProfile === "next-webpack-v1")
       && JSON.stringify(sortedHashes(log.fileHashes)) === JSON.stringify(sortedHashes(expectedFileHashes)), "LIVE_LOG_BINDING_INVALID");
-    assert.ok(log.exit === 0 && log.signal === null && log.closeObserved === true
+    const normalExit = Number.isInteger(log.exit) && log.exit >= 0 && log.exit < 125;
+    assert.ok((requirePass ? log.exit === 0 : normalExit && check.status === (log.exit === 0 ? "passed" : "failed")
+      && log.timeoutMs === verifierCheckTimeoutMs(check.check) && typeof log.stdout === "string" && typeof log.stderr === "string")
+      && log.signal === null && log.closeObserved === true
       && log.errorCode === null && log.runErrorCode === null && log.cleanup?.attempted === true
       && log.cleanup.confirmed === true && /^goriq-verifier-[0-9a-f-]{36}$/.test(log.cleanup.containerName)
       && !containers.has(log.cleanup.containerName) && log.cleanup.removal?.closeObserved === true
@@ -58,13 +82,13 @@ export function auditLiveVerifierReceipt({ request, publicKeyPem, expectedImage,
         && log.stdout.includes(boundaryMarker), "LIVE_BOUNDARY_PROBE_MISSING");
     }
     containers.add(log.cleanup.containerName);
-    logs.push({ check: check.check, outputDigest: check.outputDigest, containerName: log.cleanup.containerName });
+    logs.push({ check: check.check, status: check.status, recordedAt: check.recordedAt, outputDigest: check.outputDigest, containerName: log.cleanup.containerName });
   }
-  return { containerExecutionVerified: true, physicalAcceptanceVerified: false,
+  return { passed, containerExecutionVerified: true, physicalAcceptanceVerified: false,
     receiptSha256: hash(bytes), checks: logs };
 }
 
-function boundaryProbe(privateKeyFile, marker) {
+export function boundaryProbe(privateKeyFile, marker) {
   return `import assert from "node:assert/strict";
 import test from "node:test";
 import process from "node:process";

@@ -1074,6 +1074,17 @@
       "reason": "Fixed enrollment portal"
     },
     {
+      "path": "scripts/jarvis-github-verifier-receipt.mjs",
+      "sha256": "f217cc171d0399ba977d918979a3e809228134457ba6500eabc8624ae25cd3ab",
+      "classification": "COVERED_BY_REQUIREMENT",
+      "requirement_ids": [
+        "CORE-014",
+        "AUTO-004",
+        "GOV-025"
+      ],
+      "reason": "#1944 reuses authenticated existing GitHub restricted six-check execution with exact tracked candidate/CI instrumentation mapping, independently held owner signer, complete PASS/FAIL evidence, immutable provenance/raw archive retention and bounded replay. It is evidence only; canonical stop/approval/budget authority stays with the existing lead. Source tests and native peer handoff do not establish genuine signer custody or GORIQ autonomous product completion."
+    },
+    {
       "path": "scripts/jarvis-goal-executor.ts",
       "sha256": "be209a50b941f184f06b2ad3f68a7b6cc188fb15c86796c807b83fa8c962c24c",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
@@ -6476,14 +6487,14 @@
     },
     {
       "path": "scripts/jarvis-verifier-live-ci.mjs",
-      "sha256": "162a524acd473db6b26d4197183093a1d550e652eb5946f46b25267a2ab4cb14",
+      "sha256": "15af87348b15caa2c832095dee59dc17316ff1d1695668e43caceaadee98259e",
       "classification": "INTERNAL_IMPLEMENTATION_DETAIL",
       "requirement_ids": [
         "CORE-010",
         "AUTO-016",
         "GOV-004"
       ],
-      "reason": "#1219 explicit disposable hosted-container CI assembles exact offline dependencies, executes all six production checks, audits signed log/image/source/cleanup bindings and retains public evidence only. This is CI infrastructure, not AI09 physical principal, native Ollama or Windows reboot acceptance."
+      "reason": "#1219 explicit disposable hosted-container CI assembles exact offline dependencies, executes all six production checks, audits signed log/image/source/cleanup bindings and retains public evidence only. This is CI infrastructure, not AI09 physical principal, native Ollama or Windows reboot acceptance. #1944 exposes a strict complete-FAIL raw-evidence audit while preserving the existing PASS-only hosted API/output contract; no owner signer activation."
     },
     {
       "path": "scripts/jarvis-verifier-resource-observer.mjs",
@@ -6661,14 +6672,14 @@
     },
     {
       "path": "scripts/jarvis-verifier-request-transfer.mjs",
-      "sha256": "be06752e3ad3f84b8f4248e43f623def7066d9ca613de5c8ff9b6e2e1a986b69",
+      "sha256": "894ae4c24958728495a427184ad1a4161acd5e90160a3783fde39fc05ce544cf",
       "classification": "COVERED_BY_REQUIREMENT",
       "requirement_ids": [
         "CORE-014",
         "AUTO-004",
         "GOV-025"
       ],
-      "reason": "#1219 bounded verifier request transfer and offline preparation; implementation mapping only, no physical completion claim. #1219 preserves version-1 transfer and adds exact host-pinned tracked version-2 candidate transfer with Git baseline blob validation before writes, immutable candidate binding and bounded replay. Transport authentication and production key custody remain external prerequisites."
+      "reason": "#1219 bounded verifier request transfer and offline preparation; implementation mapping only, no physical completion claim. #1219 preserves version-1 transfer and adds exact host-pinned tracked version-2 candidate transfer with Git baseline blob validation before writes, immutable candidate binding and bounded replay. Transport authentication and production key custody remain external prerequisites. #1944 exposes the existing tracked packet validator for reuse by the authenticated CI-evidence adapter; no transfer authority or execution change."
     },
     {
       "path": "src/orchestrator/resident-verifier-request.ts",
